@@ -109,7 +109,7 @@ enum ffs_setup_state {
 	 * setup.  If this state is set read/write on ep0 return
 	 * -EIDRM.  This state is only set when adding event.
 	 */
-	FFS_SETUP_CANCELED
+	FFS_SETUP_CANCELLED
 };
 
 
@@ -156,18 +156,18 @@ struct ffs_data {
 
 	/*
 	 * Possible transitions:
-	 * + FFS_NO_SETUP       -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
+	 * + FFS_NO_SETUP        -> FFS_SETUP_PENDING   -- P: ev.waitq.lock
 	 *               happens only in ep0 read which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_NO_SETUP       -- P: ev.waitq.lock
+	 * + FFS_SETUP_PENDING   -> FFS_NO_SETUP        -- P: ev.waitq.lock
 	 *               happens only in ep0 i/o  which is P: mutex
-	 * + FFS_SETUP_PENDING  -> FFS_SETUP_CANCELED -- P: ev.waitq.lock
-	 * + FFS_SETUP_CANCELED -> FFS_NO_SETUP       -- cmpxchg
+	 * + FFS_SETUP_PENDING   -> FFS_SETUP_CANCELLED -- P: ev.waitq.lock
+	 * + FFS_SETUP_CANCELLED -> FFS_NO_SETUP        -- cmpxchg
 	 */
 	enum ffs_setup_state		setup_state;
 
 #define FFS_SETUP_STATE(ffs)					\
 	((enum ffs_setup_state)cmpxchg(&(ffs)->setup_state,	\
-				       FFS_SETUP_CANCELED, FFS_NO_SETUP))
+				       FFS_SETUP_CANCELLED, FFS_NO_SETUP))
 
 	/* Events & such. */
 	struct {
@@ -444,7 +444,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 	ENTER();
 
 	/* Fast check if setup was canceled */
-	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELED)
+	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED)
 		return -EIDRM;
 
 	/* Acquire mutex */
@@ -504,7 +504,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 */
 		spin_lock_irq(&ffs->ev.waitq.lock);
 		switch (FFS_SETUP_STATE(ffs)) {
-		case FFS_SETUP_CANCELED:
+		case FFS_SETUP_CANCELLED:
 			ret = -EIDRM;
 			goto done_spin;
 
@@ -539,7 +539,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		/*
 		 * We are guaranteed to be still in FFS_ACTIVE state
 		 * but the state of setup could have changed from
-		 * FFS_SETUP_PENDING to FFS_SETUP_CANCELED so we need
+		 * FFS_SETUP_PENDING to FFS_SETUP_CANCELLED so we need
 		 * to check for that.  If that happened we copied data
 		 * from user space in vain but it's unlikely.
 		 *
@@ -548,7 +548,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 * transition can be performed and it's protected by
 		 * mutex.
 		 */
-		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELED) {
+		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED) {
 			ret = -EIDRM;
 done_spin:
 			spin_unlock_irq(&ffs->ev.waitq.lock);
@@ -614,7 +614,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 	ENTER();
 
 	/* Fast check if setup was canceled */
-	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELED)
+	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED)
 		return -EIDRM;
 
 	/* Acquire mutex */
@@ -635,7 +635,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 	spin_lock_irq(&ffs->ev.waitq.lock);
 
 	switch (FFS_SETUP_STATE(ffs)) {
-	case FFS_SETUP_CANCELED:
+	case FFS_SETUP_CANCELLED:
 		ret = -EIDRM;
 		break;
 
@@ -682,7 +682,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		spin_lock_irq(&ffs->ev.waitq.lock);
 
 		/* See ffs_ep0_write() */
-		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELED) {
+		if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELLED) {
 			ret = -EIDRM;
 			break;
 		}
@@ -2368,7 +2368,7 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	 * the source does nothing.
 	 */
 	if (ffs->setup_state == FFS_SETUP_PENDING)
-		ffs->setup_state = FFS_SETUP_CANCELED;
+		ffs->setup_state = FFS_SETUP_CANCELLED;
 
 	switch (type) {
 	case FUNCTIONFS_RESUME:
