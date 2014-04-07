@@ -1354,7 +1354,7 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reserve(skb, self->max_header_size + 16);
 	skb_reset_transport_header(skb);
 	skb_put(skb, len);
-	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_transport_header(skb), msg, len);
 	if (err) {
 		kfree_skb(skb);
 		goto out_err;
@@ -1609,7 +1609,7 @@ static int irda_sendmsg_dgram(struct kiocb *iocb, struct socket *sock,
 
 	IRDA_DEBUG(4, "%s(), appending user data\n", __func__);
 	skb_put(skb, len);
-	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_transport_header(skb), msg, len);
 	if (err) {
 		kfree_skb(skb);
 		goto out;
@@ -1718,7 +1718,7 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 
 	IRDA_DEBUG(4, "%s(), appending user data\n", __func__);
 	skb_put(skb, len);
-	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_transport_header(skb), msg, len);
 	if (err) {
 		kfree_skb(skb);
 		goto out;
