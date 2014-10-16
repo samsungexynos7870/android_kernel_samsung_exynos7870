@@ -43,7 +43,6 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/err.h>
-#include <linux/freezer.h>
 #include <asm/uaccess.h>
 
 
@@ -362,7 +361,6 @@ static ssize_t hwrng_attr_available_show(struct device *dev,
 					 char *buf)
 {
 	int err;
-	ssize_t ret = 0;
 	struct hwrng *rng;
 
 	err = mutex_lock_interruptible(&rng_mutex);
@@ -370,16 +368,13 @@ static ssize_t hwrng_attr_available_show(struct device *dev,
 		return -ERESTARTSYS;
 	buf[0] = '\0';
 	list_for_each_entry(rng, &rng_list, list) {
-		strncat(buf, rng->name, PAGE_SIZE - ret - 1);
-		ret += strlen(rng->name);
-		strncat(buf, " ", PAGE_SIZE - ret - 1);
-		ret++;
+		strlcat(buf, rng->name, PAGE_SIZE);
+		strlcat(buf, " ", PAGE_SIZE);
 	}
-	strncat(buf, "\n", PAGE_SIZE - ret - 1);
-	ret++;
+	strlcat(buf, "\n", PAGE_SIZE);
 	mutex_unlock(&rng_mutex);
 
-	return ret;
+	return strlen(buf);
 }
 
 static DEVICE_ATTR(rng_current, S_IRUGO | S_IWUSR,
@@ -410,8 +405,6 @@ static int __init register_miscdev(void)
 static int hwrng_fillfn(void *unused)
 {
 	long rc;
-
-	set_freezable();
 
 	while (!kthread_should_stop()) {
 		struct hwrng *rng;
