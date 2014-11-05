@@ -793,3 +793,5 @@ __SYSCALL(__NR_seccomp, sys_seccomp)
 __SYSCALL(__NR_getrandom, sys_getrandom)
 #define __NR_memfd_create 385
 __SYSCALL(__NR_memfd_create, sys_memfd_create)
+#define __NR_bpf 386
+__SYSCALL(__NR_bpf, sys_bpf)
