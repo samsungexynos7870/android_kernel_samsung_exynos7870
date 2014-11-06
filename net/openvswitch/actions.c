@@ -628,7 +628,6 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	int rem;
 
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.key = key;
 	upcall.userdata = NULL;
 	upcall.portid = 0;
 	upcall.egress_tun_info = NULL;
@@ -663,7 +662,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 		} /* End of switch. */
 	}
 
-	return ovs_dp_upcall(dp, skb, &upcall);
+	return ovs_dp_upcall(dp, skb, key, &upcall);
 }
 
 static int sample(struct datapath *dp, struct sk_buff *skb,
