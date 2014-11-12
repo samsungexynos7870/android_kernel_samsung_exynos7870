@@ -150,7 +150,7 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct hlist_nulls_node *node;
 	kuid_t uid = sock_i_uid(sk);
 
-	sk_nulls_for_each(sk2, node, &hslot->head)
+	sk_nulls_for_each(sk2, node, &hslot->head) {
 		if (net_eq(sock_net(sk2), net) &&
 		    sk2 != sk &&
 		    (bitmap || udp_sk(sk2)->udp_port_hash == num) &&
@@ -158,14 +158,13 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if ||
 		     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    (!sk2->sk_reuseport || !sk->sk_reuseport ||
-		      !uid_eq(uid, sock_i_uid(sk2))) &&
-		    (*saddr_comp)(sk, sk2)) {
-			if (bitmap)
-				__set_bit(udp_sk(sk2)->udp_port_hash >> log,
-					  bitmap);
-			else
+		     !uid_eq(uid, sock_i_uid(sk2))) &&
+		    saddr_comp(sk, sk2)) {
+			if (!bitmap)
 				return 1;
+			__set_bit(udp_sk(sk2)->udp_port_hash >> log, bitmap);
 		}
+	}
 	return 0;
 }
 
@@ -174,10 +173,10 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
  * can insert/delete a socket with local_port == num
  */
 static int udp_lib_lport_inuse2(struct net *net, __u16 num,
-			       struct udp_hslot *hslot2,
-			       struct sock *sk,
-			       int (*saddr_comp)(const struct sock *sk1,
-						 const struct sock *sk2))
+				struct udp_hslot *hslot2,
+				struct sock *sk,
+				int (*saddr_comp)(const struct sock *sk1,
+						  const struct sock *sk2))
 {
 	struct sock *sk2;
 	struct hlist_nulls_node *node;
@@ -185,7 +184,7 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 	int res = 0;
 
 	spin_lock(&hslot2->lock);
-	udp_portaddr_for_each_entry(sk2, node, &hslot2->head)
+	udp_portaddr_for_each_entry(sk2, node, &hslot2->head) {
 		if (net_eq(sock_net(sk2), net) &&
 		    sk2 != sk &&
 		    (udp_sk(sk2)->udp_port_hash == num) &&
@@ -193,11 +192,12 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if ||
 		     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    (!sk2->sk_reuseport || !sk->sk_reuseport ||
-		      !uid_eq(uid, sock_i_uid(sk2))) &&
-		    (*saddr_comp)(sk, sk2)) {
+		     !uid_eq(uid, sock_i_uid(sk2))) &&
+		    saddr_comp(sk, sk2)) {
 			res = 1;
 			break;
 		}
+	}
 	spin_unlock(&hslot2->lock);
 	return res;
 }
@@ -212,8 +212,8 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
  *                   with NULL address
  */
 int udp_lib_get_port(struct sock *sk, unsigned short snum,
-		       int (*saddr_comp)(const struct sock *sk1,
-					 const struct sock *sk2),
+		     int (*saddr_comp)(const struct sock *sk1,
+				       const struct sock *sk2),
 		     unsigned int hash2_nulladdr)
 {
 	struct udp_hslot *hslot, *hslot2;
@@ -2191,7 +2191,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		} else {
 			up->corkflag = 0;
 			lock_sock(sk);
-			(*push_pending_frames)(sk);
+			push_pending_frames(sk);
 			release_sock(sk);
 		}
 		break;
