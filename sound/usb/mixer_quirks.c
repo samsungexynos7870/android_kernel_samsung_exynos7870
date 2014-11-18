@@ -75,7 +75,6 @@ static int snd_create_std_mono_ctl_offset(struct usb_mixer_interface *mixer,
 				const char *name,
 				snd_kcontrol_tlv_rw_t *tlv_callback)
 {
-	int err;
 	struct usb_mixer_elem_info *cval;
 	struct snd_kcontrol *kctl;
 
@@ -83,8 +82,7 @@ static int snd_create_std_mono_ctl_offset(struct usb_mixer_interface *mixer,
 	if (!cval)
 		return -ENOMEM;
 
-	cval->id = unitid;
-	cval->mixer = mixer;
+	snd_usb_mixer_elem_init_std(&cval->head, mixer, unitid);
 	cval->val_type = val_type;
 	cval->channels = 1;
 	cval->control = control;
@@ -118,11 +116,7 @@ static int snd_create_std_mono_ctl_offset(struct usb_mixer_interface *mixer,
 			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 	}
 	/* Add control to mixer */
-	err = snd_usb_mixer_add_control(mixer, kctl);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return snd_usb_mixer_add_control(&cval->head, kctl);
 }
 
 static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
@@ -1111,7 +1105,7 @@ void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 	int unitid = 12; /* SamleRate ExtensionUnit ID */
 
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
-		cval = mixer->id_elems[unitid];
+		cval = (struct usb_mixer_elem_info *)mixer->id_elems[unitid];
 		if (cval) {
 			snd_usb_mixer_set_ctl_value(cval, UAC_SET_CUR,
 						    cval->control << 8,
