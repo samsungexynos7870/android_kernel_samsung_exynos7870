@@ -414,8 +414,6 @@ struct quotactl_ops {
 			     struct qc_dqblk *);
 	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*get_state)(struct super_block *, struct qc_state *);
-	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
-	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
 	int (*rm_xquota)(struct super_block *, unsigned int);
 };
 
