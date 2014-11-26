@@ -448,5 +448,4 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode,
 	}
 
 	return inode;
-
 }
