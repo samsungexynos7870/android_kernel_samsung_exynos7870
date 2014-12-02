@@ -891,6 +891,12 @@ retry_journal:
 			goto out_journal;
 	}
 
+	/*
+	 * We cannot recurse into the filesystem as the transaction
+	 * is already started.
+	 */
+	flags |= AOP_FLAG_NOFS;
+
 	if (ret == -ENOSPC) {
 		ext4_journal_stop(handle);
 		ret = ext4_da_convert_inline_data_to_extent(mapping,
@@ -903,11 +909,6 @@ retry_journal:
 		goto out;
 	}
 
-	/*
-	 * We cannot recurse into the filesystem as the transaction
-	 * is already started.
-	 */
-	flags |= AOP_FLAG_NOFS;
 
 	page = grab_cache_page_write_begin(mapping, 0, flags);
 	if (!page) {
