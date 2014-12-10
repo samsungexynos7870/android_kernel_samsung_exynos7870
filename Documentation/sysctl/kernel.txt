@@ -56,6 +56,7 @@ show up in /proc/sys/kernel:
 - panic_on_oops
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
+- panic_on_warn
 - perf_cpu_time_max_percent
 - perf_event_paranoid
 - pid_max
@@ -562,6 +563,17 @@ dealt with than an uncorrected parity/ECC error get propagated.
 A small number of systems do generate NMI's for bizarre random reasons
 such as power management so the default is off. That sysctl works like
 the existing panic controls already in that directory.
+
+==============================================================
+
+panic_on_warn:
+
+Calls panic() in the WARN() path when set to 1.  This is useful to avoid
+a kernel rebuild when attempting to kdump at the location of a WARN().
+
+0: only WARN(), default behaviour.
+
+1: call panic() after printing out WARN() location.
 
 ==============================================================
 
