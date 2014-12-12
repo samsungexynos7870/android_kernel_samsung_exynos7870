@@ -145,22 +145,22 @@ static void fuse_invalidate_entry(struct dentry *entry)
 	fuse_invalidate_entry_cache(entry);
 }
 
-static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_req *req,
+static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
 			     u64 nodeid, struct qstr *name,
 			     struct fuse_entry_out *outarg)
 {
 	memset(outarg, 0, sizeof(struct fuse_entry_out));
-	req->in.h.opcode = FUSE_LOOKUP;
-	req->in.h.nodeid = nodeid;
-	req->in.numargs = 1;
-	req->in.args[0].size = name->len + 1;
-	req->in.args[0].value = name->name;
-	req->out.numargs = 1;
+	args->in.h.opcode = FUSE_LOOKUP;
+	args->in.h.nodeid = nodeid;
+	args->in.numargs = 1;
+	args->in.args[0].size = name->len + 1;
+	args->in.args[0].value = name->name;
+	args->out.numargs = 1;
 	if (fc->minor < 9)
-		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+		args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
 	else
-		req->out.args[0].size = sizeof(struct fuse_entry_out);
-	req->out.args[0].value = outarg;
+		args->out.args[0].size = sizeof(struct fuse_entry_out);
+	args->out.args[0].value = outarg;
 }
 
 u64 fuse_get_attr_version(struct fuse_conn *fc)
@@ -200,9 +200,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 		goto invalid;
 	else if (time_before64(fuse_dentry_time(entry), get_jiffies_64()) ||
 		 (flags & LOOKUP_REVAL)) {
-		int err;
 		struct fuse_entry_out outarg;
-		struct fuse_req *req;
+		FUSE_ARGS(args);
 		struct fuse_forget_link *forget;
 		u64 attr_version;
 
@@ -215,31 +214,23 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			goto out;
 
 		fc = get_fuse_conn(inode);
-		req = fuse_get_req_nopages(fc);
-		ret = PTR_ERR(req);
-		if (IS_ERR(req))
-			goto out;
 
 		forget = fuse_alloc_forget();
-		if (!forget) {
-			fuse_put_request(fc, req);
-			ret = -ENOMEM;
+		ret = -ENOMEM;
+		if (!forget)
 			goto out;
-		}
 
 		attr_version = fuse_get_attr_version(fc);
 
 		parent = dget_parent(entry);
-		fuse_lookup_init(fc, req, get_node_id(parent->d_inode),
+		fuse_lookup_init(fc, &args, get_node_id(parent->d_inode),
 				 &entry->d_name, &outarg);
-		fuse_request_send(fc, req);
+		ret = fuse_simple_request(fc, &args);
 		dput(parent);
-		err = req->out.h.error;
-		fuse_put_request(fc, req);
 		/* Zero nodeid is same as -ENOENT */
-		if (!err && !outarg.nodeid)
-			err = -ENOENT;
-		if (!err) {
+		if (!ret && !outarg.nodeid)
+			ret = -ENOENT;
+		if (!ret) {
 			fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
 				fuse_queue_forget(fc, forget, outarg.nodeid, 1);
@@ -250,6 +241,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			spin_unlock(&fc->lock);
 		}
 		kfree(forget);
+		if (ret == -ENOMEM)
+			goto out;
 		if (ret || fuse_invalid_attr(&outarg.attr) ||
 		    (outarg.attr.mode ^ inode->i_mode) & S_IFMT)
 			goto invalid;
@@ -348,7 +341,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 		     struct fuse_entry_out *outarg, struct inode **inode)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_forget_link *forget;
 	u64 attr_version;
 	int err;
@@ -358,24 +351,16 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 	if (name->len > FUSE_NAME_MAX)
 		goto out;
 
-	req = fuse_get_req_nopages(fc);
-	err = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto out;
 
 	forget = fuse_alloc_forget();
 	err = -ENOMEM;
-	if (!forget) {
-		fuse_put_request(fc, req);
+	if (!forget)
 		goto out;
-	}
 
 	attr_version = fuse_get_attr_version(fc);
 
-	fuse_lookup_init(fc, req, nodeid, name, outarg);
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	fuse_lookup_init(fc, &args, nodeid, name, outarg);
+	err = fuse_simple_request(fc, &args);
 	/* Zero nodeid is same as -ENOENT, but with valid timeout */
 	if (err || !outarg->nodeid)
 		goto out_put_forget;
@@ -457,7 +442,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	int err;
 	struct inode *inode;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_forget_link *forget;
 	struct fuse_create_in inarg;
 	struct fuse_open_out outopen;
@@ -472,15 +457,10 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	if (!forget)
 		goto out_err;
 
-	req = fuse_get_req_nopages(fc);
-	err = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto out_put_forget_req;
-
 	err = -ENOMEM;
 	ff = fuse_file_alloc(fc);
 	if (!ff)
-		goto out_put_request;
+		goto out_put_forget_req;
 
 	if (!fc->dont_mask)
 		mode &= ~current_umask();
@@ -491,24 +471,23 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	inarg.flags = flags;
 	inarg.mode = mode;
 	inarg.umask = current_umask();
-	req->in.h.opcode = FUSE_CREATE;
-	req->in.h.nodeid = get_node_id(dir);
-	req->in.numargs = 2;
-	req->in.args[0].size = fc->minor < 12 ? sizeof(struct fuse_open_in) :
+	args.in.h.opcode = FUSE_CREATE;
+	args.in.h.nodeid = get_node_id(dir);
+	args.in.numargs = 2;
+	args.in.args[0].size = fc->minor < 12 ? sizeof(struct fuse_open_in) :
 						sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = entry->d_name.len + 1;
-	req->in.args[1].value = entry->d_name.name;
-	req->out.numargs = 2;
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = entry->d_name.len + 1;
+	args.in.args[1].value = entry->d_name.name;
+	args.out.numargs = 2;
 	if (fc->minor < 9)
-		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+		args.out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
 	else
-		req->out.args[0].size = sizeof(outentry);
-	req->out.args[0].value = &outentry;
-	req->out.args[1].size = sizeof(outopen);
-	req->out.args[1].value = &outopen;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
+		args.out.args[0].size = sizeof(outentry);
+	args.out.args[0].value = &outentry;
+	args.out.args[1].size = sizeof(outopen);
+	args.out.args[1].value = &outopen;
+	err = fuse_simple_request(fc, &args);
 	if (err)
 		goto out_free_ff;
 
@@ -517,7 +496,6 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	    fuse_invalid_attr(&outentry.attr))
 		goto out_free_ff;
 
-	fuse_put_request(fc, req);
 	ff->fh = outopen.fh;
 	ff->nodeid = outentry.nodeid;
 	ff->open_flags = outopen.open_flags;
@@ -545,8 +523,6 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 
 out_free_ff:
 	fuse_file_free(ff);
-out_put_request:
-	fuse_put_request(fc, req);
 out_put_forget_req:
 	kfree(forget);
 out_err:
@@ -600,7 +576,7 @@ no_open:
 /*
  * Code shared between mknod, mkdir, symlink and link
  */
-static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
+static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 			    struct inode *dir, struct dentry *entry,
 			    umode_t mode)
 {
@@ -610,22 +586,18 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	struct fuse_forget_link *forget;
 
 	forget = fuse_alloc_forget();
-	if (!forget) {
-		fuse_put_request(fc, req);
+	if (!forget)
 		return -ENOMEM;
-	}
 
 	memset(&outarg, 0, sizeof(outarg));
-	req->in.h.nodeid = get_node_id(dir);
-	req->out.numargs = 1;
+	args->in.h.nodeid = get_node_id(dir);
+	args->out.numargs = 1;
 	if (fc->minor < 9)
-		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+		args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
 	else
-		req->out.args[0].size = sizeof(outarg);
-	req->out.args[0].value = &outarg;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+		args->out.args[0].size = sizeof(outarg);
+	args->out.args[0].value = &outarg;
+	err = fuse_simple_request(fc, args);
 	if (err)
 		goto out_put_forget_req;
 
@@ -662,9 +634,7 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 {
 	struct fuse_mknod_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
 	if (!fc->dont_mask)
 		mode &= ~current_umask();
@@ -673,14 +643,14 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 	inarg.mode = mode;
 	inarg.rdev = new_encode_dev(rdev);
 	inarg.umask = current_umask();
-	req->in.h.opcode = FUSE_MKNOD;
-	req->in.numargs = 2;
-	req->in.args[0].size = fc->minor < 12 ? FUSE_COMPAT_MKNOD_IN_SIZE :
+	args.in.h.opcode = FUSE_MKNOD;
+	args.in.numargs = 2;
+	args.in.args[0].size = fc->minor < 12 ? FUSE_COMPAT_MKNOD_IN_SIZE :
 						sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = entry->d_name.len + 1;
-	req->in.args[1].value = entry->d_name.name;
-	return create_new_entry(fc, req, dir, entry, mode);
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = entry->d_name.len + 1;
+	args.in.args[1].value = entry->d_name.name;
+	return create_new_entry(fc, &args, dir, entry, mode);
 }
 
 static int fuse_create(struct inode *dir, struct dentry *entry, umode_t mode,
@@ -693,9 +663,7 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 {
 	struct fuse_mkdir_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
 	if (!fc->dont_mask)
 		mode &= ~current_umask();
@@ -703,13 +671,13 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
 	inarg.umask = current_umask();
-	req->in.h.opcode = FUSE_MKDIR;
-	req->in.numargs = 2;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = entry->d_name.len + 1;
-	req->in.args[1].value = entry->d_name.name;
-	return create_new_entry(fc, req, dir, entry, S_IFDIR);
+	args.in.h.opcode = FUSE_MKDIR;
+	args.in.numargs = 2;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = entry->d_name.len + 1;
+	args.in.args[1].value = entry->d_name.name;
+	return create_new_entry(fc, &args, dir, entry, S_IFDIR);
 }
 
 static int fuse_symlink(struct inode *dir, struct dentry *entry,
@@ -717,17 +685,15 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	unsigned len = strlen(link) + 1;
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
-	req->in.h.opcode = FUSE_SYMLINK;
-	req->in.numargs = 2;
-	req->in.args[0].size = entry->d_name.len + 1;
-	req->in.args[0].value = entry->d_name.name;
-	req->in.args[1].size = len;
-	req->in.args[1].value = link;
-	return create_new_entry(fc, req, dir, entry, S_IFLNK);
+	args.in.h.opcode = FUSE_SYMLINK;
+	args.in.numargs = 2;
+	args.in.args[0].size = entry->d_name.len + 1;
+	args.in.args[0].value = entry->d_name.name;
+	args.in.args[1].size = len;
+	args.in.args[1].value = link;
+	return create_new_entry(fc, &args, dir, entry, S_IFLNK);
 }
 
 static inline void fuse_update_ctime(struct inode *inode)
@@ -742,18 +708,14 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
-	req->in.h.opcode = FUSE_UNLINK;
-	req->in.h.nodeid = get_node_id(dir);
-	req->in.numargs = 1;
-	req->in.args[0].size = entry->d_name.len + 1;
-	req->in.args[0].value = entry->d_name.name;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = FUSE_UNLINK;
+	args.in.h.nodeid = get_node_id(dir);
+	args.in.numargs = 1;
+	args.in.args[0].size = entry->d_name.len + 1;
+	args.in.args[0].value = entry->d_name.name;
+	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		struct inode *inode = entry->d_inode;
 		struct fuse_inode *fi = get_fuse_inode(inode);
@@ -782,18 +744,14 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
-	req->in.h.opcode = FUSE_RMDIR;
-	req->in.h.nodeid = get_node_id(dir);
-	req->in.numargs = 1;
-	req->in.args[0].size = entry->d_name.len + 1;
-	req->in.args[0].value = entry->d_name.name;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = FUSE_RMDIR;
+	args.in.h.nodeid = get_node_id(dir);
+	args.in.numargs = 1;
+	args.in.args[0].size = entry->d_name.len + 1;
+	args.in.args[0].value = entry->d_name.name;
+	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		clear_nlink(entry->d_inode);
 		fuse_invalidate_attr(dir);
@@ -810,27 +768,21 @@ static int fuse_rename_common(struct inode *olddir, struct dentry *oldent,
 	int err;
 	struct fuse_rename2_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(olddir);
-	struct fuse_req *req;
-
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
 	memset(&inarg, 0, argsize);
 	inarg.newdir = get_node_id(newdir);
 	inarg.flags = flags;
-	req->in.h.opcode = opcode;
-	req->in.h.nodeid = get_node_id(olddir);
-	req->in.numargs = 3;
-	req->in.args[0].size = argsize;
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = oldent->d_name.len + 1;
-	req->in.args[1].value = oldent->d_name.name;
-	req->in.args[2].size = newent->d_name.len + 1;
-	req->in.args[2].value = newent->d_name.name;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = opcode;
+	args.in.h.nodeid = get_node_id(olddir);
+	args.in.numargs = 3;
+	args.in.args[0].size = argsize;
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = oldent->d_name.len + 1;
+	args.in.args[1].value = oldent->d_name.name;
+	args.in.args[2].size = newent->d_name.len + 1;
+	args.in.args[2].value = newent->d_name.name;
+	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		/* ctime changes */
 		fuse_invalidate_attr(oldent->d_inode);
@@ -902,19 +854,17 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 	struct fuse_link_in inarg;
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	FUSE_ARGS(args);
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.oldnodeid = get_node_id(inode);
-	req->in.h.opcode = FUSE_LINK;
-	req->in.numargs = 2;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = newent->d_name.len + 1;
-	req->in.args[1].value = newent->d_name.name;
-	err = create_new_entry(fc, req, newdir, newent, inode->i_mode);
+	args.in.h.opcode = FUSE_LINK;
+	args.in.numargs = 2;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = newent->d_name.len + 1;
+	args.in.args[1].value = newent->d_name.name;
+	err = create_new_entry(fc, &args, newdir, newent, inode->i_mode);
 	/* Contrary to "normal" filesystems it can happen that link
 	   makes two "logical" inodes point to the same "physical"
 	   inode.  We invalidate the attributes of the old one, so it
@@ -983,12 +933,8 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	struct fuse_getattr_in inarg;
 	struct fuse_attr_out outarg;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	u64 attr_version;
-
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
 
 	attr_version = fuse_get_attr_version(fc);
 
@@ -1001,20 +947,18 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 		inarg.getattr_flags |= FUSE_GETATTR_FH;
 		inarg.fh = ff->fh;
 	}
-	req->in.h.opcode = FUSE_GETATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->out.numargs = 1;
+	args.in.h.opcode = FUSE_GETATTR;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.out.numargs = 1;
 	if (fc->minor < 9)
-		req->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+		args.out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
 	else
-		req->out.args[0].size = sizeof(outarg);
-	req->out.args[0].value = &outarg;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+		args.out.args[0].size = sizeof(outarg);
+	args.out.args[0].value = &outarg;
+	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		if (fuse_invalid_attr(&outarg.attr) ||
 		    (inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
@@ -1157,7 +1101,7 @@ int fuse_allow_current_process(struct fuse_conn *fc)
 static int fuse_access(struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_access_in inarg;
 	int err;
 
@@ -1166,20 +1110,14 @@ static int fuse_access(struct inode *inode, int mask)
 	if (fc->no_access)
 		return 0;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mask = mask & (MAY_READ | MAY_WRITE | MAY_EXEC);
-	req->in.h.opcode = FUSE_ACCESS;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = FUSE_ACCESS;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_access = 1;
 		err = 0;
@@ -1501,31 +1439,27 @@ static char *read_link(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_req_nopages(fc);
+	FUSE_ARGS(args);
 	char *link;
-
-	if (IS_ERR(req))
-		return ERR_CAST(req);
+	ssize_t ret;
 
 	link = (char *) __get_free_page(GFP_KERNEL);
-	if (!link) {
-		link = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-	req->in.h.opcode = FUSE_READLINK;
-	req->in.h.nodeid = get_node_id(inode);
-	req->out.argvar = 1;
-	req->out.numargs = 1;
-	req->out.args[0].size = PAGE_SIZE - 1;
-	req->out.args[0].value = link;
-	fuse_request_send(fc, req);
-	if (req->out.h.error) {
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+
+	args.in.h.opcode = FUSE_READLINK;
+	args.in.h.nodeid = get_node_id(inode);
+	args.out.argvar = 1;
+	args.out.numargs = 1;
+	args.out.args[0].size = PAGE_SIZE - 1;
+	args.out.args[0].value = link;
+	ret = fuse_simple_request(fc, &args);
+	if (ret < 0) {
 		free_page((unsigned long) link);
-		link = ERR_PTR(req->out.h.error);
-	} else
-		link[req->out.args[0].size] = '\0';
- out:
-	fuse_put_request(fc, req);
+		link = ERR_PTR(ret);
+	} else {
+		link[ret] = '\0';
+	}
 	fuse_invalidate_atime(inode);
 	return link;
 }
@@ -1685,22 +1619,22 @@ void fuse_release_nowrite(struct inode *inode)
 	spin_unlock(&fc->lock);
 }
 
-static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_req *req,
+static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_args *args,
 			      struct inode *inode,
 			      struct fuse_setattr_in *inarg_p,
 			      struct fuse_attr_out *outarg_p)
 {
-	req->in.h.opcode = FUSE_SETATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(*inarg_p);
-	req->in.args[0].value = inarg_p;
-	req->out.numargs = 1;
+	args->in.h.opcode = FUSE_SETATTR;
+	args->in.h.nodeid = get_node_id(inode);
+	args->in.numargs = 1;
+	args->in.args[0].size = sizeof(*inarg_p);
+	args->in.args[0].value = inarg_p;
+	args->out.numargs = 1;
 	if (fc->minor < 9)
-		req->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+		args->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
 	else
-		req->out.args[0].size = sizeof(*outarg_p);
-	req->out.args[0].value = outarg_p;
+		args->out.args[0].size = sizeof(*outarg_p);
+	args->out.args[0].value = outarg_p;
 }
 
 /*
@@ -1709,14 +1643,9 @@ static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_req *req,
 int fuse_flush_times(struct inode *inode, struct fuse_file *ff)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
-	int err;
-
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
@@ -1733,12 +1662,9 @@ int fuse_flush_times(struct inode *inode, struct fuse_file *ff)
 		inarg.valid |= FATTR_FH;
 		inarg.fh = ff->fh;
 	}
-	fuse_setattr_fill(fc, req, inode, &inarg, &outarg);
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	fuse_setattr_fill(fc, &args, inode, &inarg, &outarg);
 
-	return err;
+	return fuse_simple_request(fc, &args);
 }
 
 /*
@@ -1755,7 +1681,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	struct inode *inode = d_inode(dentry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
 	bool is_truncate = false;
@@ -1791,10 +1717,6 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	/* Flush dirty data/metadata before non-truncate SETATTR */
 	if (is_wb && S_ISREG(inode->i_mode) &&
 	    attr->ia_valid &
@@ -1828,10 +1750,8 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		inarg.valid |= FATTR_LOCKOWNER;
 		inarg.lock_owner = fuse_lock_owner_id(fc, current->files);
 	}
-	fuse_setattr_fill(fc, req, inode, &inarg, &outarg);
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	fuse_setattr_fill(fc, &args, inode, &inarg, &outarg);
+	err = fuse_simple_request(fc, &args);
 	if (err) {
 		if (err == -EINTR)
 			fuse_invalidate_attr(inode);
@@ -1951,32 +1871,26 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 {
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_setxattr_in inarg;
 	int err;
 
 	if (fc->no_setxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
 	inarg.flags = flags;
-	req->in.h.opcode = FUSE_SETXATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 3;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = strlen(name) + 1;
-	req->in.args[1].value = name;
-	req->in.args[2].size = size;
-	req->in.args[2].value = value;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = FUSE_SETXATTR;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 3;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = strlen(name) + 1;
+	args.in.args[1].value = name;
+	args.in.args[2].size = size;
+	args.in.args[2].value = value;
+	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_setxattr = 1;
 		err = -EOPNOTSUPP;
@@ -1993,7 +1907,7 @@ static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
 {
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_getxattr_in inarg;
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
@@ -2001,40 +1915,32 @@ static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
 	if (fc->no_getxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
-	req->in.h.opcode = FUSE_GETXATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 2;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->in.args[1].size = strlen(name) + 1;
-	req->in.args[1].value = name;
+	args.in.h.opcode = FUSE_GETXATTR;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 2;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	args.in.args[1].size = strlen(name) + 1;
+	args.in.args[1].value = name;
 	/* This is really two different operations rolled into one */
-	req->out.numargs = 1;
+	args.out.numargs = 1;
 	if (size) {
-		req->out.argvar = 1;
-		req->out.args[0].size = size;
-		req->out.args[0].value = value;
+		args.out.argvar = 1;
+		args.out.args[0].size = size;
+		args.out.args[0].value = value;
 	} else {
-		req->out.args[0].size = sizeof(outarg);
-		req->out.args[0].value = &outarg;
+		args.out.args[0].size = sizeof(outarg);
+		args.out.args[0].value = &outarg;
 	}
-	fuse_request_send(fc, req);
-	ret = req->out.h.error;
-	if (!ret)
-		ret = size ? req->out.args[0].size : outarg.size;
-	else {
-		if (ret == -ENOSYS) {
-			fc->no_getxattr = 1;
-			ret = -EOPNOTSUPP;
-		}
+	ret = fuse_simple_request(fc, &args);
+	if (!ret && !size)
+		ret = outarg.size;
+	if (ret == -ENOSYS) {
+		fc->no_getxattr = 1;
+		ret = -EOPNOTSUPP;
 	}
-	fuse_put_request(fc, req);
 	return ret;
 }
 
@@ -2042,7 +1948,7 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 {
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_getxattr_in inarg;
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
@@ -2053,38 +1959,30 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	if (fc->no_listxattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
-	req->in.h.opcode = FUSE_LISTXATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
+	args.in.h.opcode = FUSE_LISTXATTR;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
 	/* This is really two different operations rolled into one */
-	req->out.numargs = 1;
+	args.out.numargs = 1;
 	if (size) {
-		req->out.argvar = 1;
-		req->out.args[0].size = size;
-		req->out.args[0].value = list;
+		args.out.argvar = 1;
+		args.out.args[0].size = size;
+		args.out.args[0].value = list;
 	} else {
-		req->out.args[0].size = sizeof(outarg);
-		req->out.args[0].value = &outarg;
+		args.out.args[0].size = sizeof(outarg);
+		args.out.args[0].value = &outarg;
 	}
-	fuse_request_send(fc, req);
-	ret = req->out.h.error;
-	if (!ret)
-		ret = size ? req->out.args[0].size : outarg.size;
-	else {
-		if (ret == -ENOSYS) {
-			fc->no_listxattr = 1;
-			ret = -EOPNOTSUPP;
-		}
+	ret = fuse_simple_request(fc, &args);
+	if (!ret && !size)
+		ret = outarg.size;
+	if (ret == -ENOSYS) {
+		fc->no_listxattr = 1;
+		ret = -EOPNOTSUPP;
 	}
-	fuse_put_request(fc, req);
 	return ret;
 }
 
@@ -2092,24 +1990,18 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 {
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	int err;
 
 	if (fc->no_removexattr)
 		return -EOPNOTSUPP;
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
-	req->in.h.opcode = FUSE_REMOVEXATTR;
-	req->in.h.nodeid = get_node_id(inode);
-	req->in.numargs = 1;
-	req->in.args[0].size = strlen(name) + 1;
-	req->in.args[0].value = name;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-	fuse_put_request(fc, req);
+	args.in.h.opcode = FUSE_REMOVEXATTR;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = strlen(name) + 1;
+	args.in.args[0].value = name;
+	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_removexattr = 1;
 		err = -EOPNOTSUPP;
