@@ -422,20 +422,12 @@ xfs_qm_scall_getqstat(
 	memset(out, 0, sizeof(fs_quota_stat_t));
 
 	out->qs_version = FS_QSTAT_VERSION;
-	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
-		out->qs_uquota.qfs_ino = NULLFSINO;
-		out->qs_gquota.qfs_ino = NULLFSINO;
-		return 0;
-	}
-
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
 							(XFS_ALL_QUOTA_ACCT|
 							 XFS_ALL_QUOTA_ENFD));
-	if (q) {
-		uip = q->qi_uquotaip;
-		gip = q->qi_gquotaip;
-		pip = q->qi_pquotaip;
-	}
+	uip = q->qi_uquotaip;
+	gip = q->qi_gquotaip;
+	pip = q->qi_pquotaip;
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					0, 0, &uip) == 0)
@@ -481,14 +473,13 @@ xfs_qm_scall_getqstat(
 		if (temppqip)
 			IRELE(pip);
 	}
-	if (q) {
-		out->qs_incoredqs = q->qi_dquots;
-		out->qs_btimelimit = q->qi_btimelimit;
-		out->qs_itimelimit = q->qi_itimelimit;
-		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-		out->qs_bwarnlimit = q->qi_bwarnlimit;
-		out->qs_iwarnlimit = q->qi_iwarnlimit;
-	}
+	out->qs_incoredqs = q->qi_dquots;
+	out->qs_btimelimit = q->qi_btimelimit;
+	out->qs_itimelimit = q->qi_itimelimit;
+	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+	out->qs_bwarnlimit = q->qi_bwarnlimit;
+	out->qs_iwarnlimit = q->qi_iwarnlimit;
+
 	return 0;
 }
 
@@ -509,13 +500,6 @@ xfs_qm_scall_getqstatv(
 	bool                    tempgqip = false;
 	bool                    temppqip = false;
 
-	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
-		out->qs_uquota.qfs_ino = NULLFSINO;
-		out->qs_gquota.qfs_ino = NULLFSINO;
-		out->qs_pquota.qfs_ino = NULLFSINO;
-		return 0;
-	}
-
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
 							(XFS_ALL_QUOTA_ACCT|
 							 XFS_ALL_QUOTA_ENFD));
@@ -523,11 +507,9 @@ xfs_qm_scall_getqstatv(
 	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
 	out->qs_pquota.qfs_ino = mp->m_sb.sb_pquotino;
 
-	if (q) {
-		uip = q->qi_uquotaip;
-		gip = q->qi_gquotaip;
-		pip = q->qi_pquotaip;
-	}
+	uip = q->qi_uquotaip;
+	gip = q->qi_gquotaip;
+	pip = q->qi_pquotaip;
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					0, 0, &uip) == 0)
@@ -562,14 +544,13 @@ xfs_qm_scall_getqstatv(
 		if (temppqip)
 			IRELE(pip);
 	}
-	if (q) {
-		out->qs_incoredqs = q->qi_dquots;
-		out->qs_btimelimit = q->qi_btimelimit;
-		out->qs_itimelimit = q->qi_itimelimit;
-		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-		out->qs_bwarnlimit = q->qi_bwarnlimit;
-		out->qs_iwarnlimit = q->qi_iwarnlimit;
-	}
+	out->qs_incoredqs = q->qi_dquots;
+	out->qs_btimelimit = q->qi_btimelimit;
+	out->qs_itimelimit = q->qi_itimelimit;
+	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+	out->qs_bwarnlimit = q->qi_bwarnlimit;
+	out->qs_iwarnlimit = q->qi_iwarnlimit;
+
 	return 0;
 }
 
