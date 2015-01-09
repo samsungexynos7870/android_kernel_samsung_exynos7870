@@ -832,9 +832,8 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
-	init_timer(&ep->stop_cmd_timer);
-	ep->stop_cmd_timer.data = (unsigned long) ep;
-	ep->stop_cmd_timer.function = xhci_stop_endpoint_command_watchdog;
+	setup_timer(&ep->stop_cmd_timer, xhci_stop_endpoint_command_watchdog,
+		    (unsigned long)ep);
 	ep->xhci = xhci;
 }
 
