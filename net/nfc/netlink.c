@@ -103,7 +103,8 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 			goto nla_put_failure;
 	}
 
-	return genlmsg_end(msg, hdr);
+	genlmsg_end(msg, hdr);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
@@ -519,7 +520,8 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 	    nla_put_u8(msg, NFC_ATTR_RF_MODE, dev->rf_mode))
 		goto nla_put_failure;
 
-	return genlmsg_end(msg, hdr);
+	genlmsg_end(msg, hdr);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
@@ -884,7 +886,8 @@ static int nfc_genl_send_params(struct sk_buff *msg,
 	    nla_put_u16(msg, NFC_ATTR_LLC_PARAM_MIUX, be16_to_cpu(local->miux)))
 		goto nla_put_failure;
 
-	return genlmsg_end(msg, hdr);
+	genlmsg_end(msg, hdr);
+	return 0;
 
 nla_put_failure:
 
@@ -1225,8 +1228,7 @@ static int nfc_genl_send_se(struct sk_buff *msg, struct nfc_dev *dev,
 		    nla_put_u8(msg, NFC_ATTR_SE_TYPE, se->type))
 			goto nla_put_failure;
 
-		if (genlmsg_end(msg, hdr) < 0)
-			goto nla_put_failure;
+		genlmsg_end(msg, hdr);
 	}
 
 	return 0;

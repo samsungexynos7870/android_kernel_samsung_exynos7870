@@ -427,7 +427,8 @@ static int nf_tables_fill_table_info(struct sk_buff *skb, struct net *net,
 	    nla_put_be32(skb, NFTA_TABLE_USE, htonl(table->use)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -971,7 +972,8 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 	if (nla_put_be32(skb, NFTA_CHAIN_USE, htonl(chain->use)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -1710,7 +1712,8 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 	    nla_put(skb, NFTA_RULE_USERDATA, rule->ulen, nft_userdata(rule)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -2364,7 +2367,8 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		goto nla_put_failure;
 	nla_nest_end(skb, desc);
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -3040,7 +3044,8 @@ static int nf_tables_fill_setelem_info(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest);
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -3329,7 +3334,8 @@ static int nf_tables_fill_gen_info(struct sk_buff *skb, struct net *net,
 	if (nla_put_be32(skb, NFTA_GEN_ID, htonl(net->nft.base_seq)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);

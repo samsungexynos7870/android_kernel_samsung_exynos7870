@@ -2920,7 +2920,8 @@ static int ip_vs_genl_dump_service(struct sk_buff *skb,
 	if (ip_vs_genl_fill_service(skb, svc) < 0)
 		goto nla_put_failure;
 
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(skb, hdr);
@@ -3112,7 +3113,8 @@ static int ip_vs_genl_dump_dest(struct sk_buff *skb, struct ip_vs_dest *dest,
 	if (ip_vs_genl_fill_dest(skb, dest) < 0)
 		goto nla_put_failure;
 
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(skb, hdr);
@@ -3248,7 +3250,8 @@ static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __u32 state,
 	if (ip_vs_genl_fill_daemon(skb, state, mcast_ifn, syncid))
 		goto nla_put_failure;
 
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(skb, hdr);
