@@ -1050,7 +1050,7 @@ static struct bio_map_data *bio_alloc_map_data(unsigned int iov_count,
 }
 
 static int __bio_copy_iov(struct bio *bio, const struct sg_iovec *iov, int iov_count,
-			  int to_user, int from_user, int do_free_page)
+                          int to_user, int from_user)
 {
 	int ret = 0, i;
 	struct bio_vec *bvec;
@@ -1092,12 +1092,18 @@ static int __bio_copy_iov(struct bio *bio, const struct sg_iovec *iov, int iov_c
 				iov_off = 0;
 			}
 		}
-
-		if (do_free_page)
-			__free_page(bvec->bv_page);
 	}
 
 	return ret;
+}
+
+static void bio_free_pages(struct bio *bio)
+{
+	struct bio_vec *bvec;
+	int i;
+
+	bio_for_each_segment_all(bvec, bio, i)
+		__free_page(bvec->bv_page);
 }
 
 /**
@@ -1110,8 +1116,7 @@ static int __bio_copy_iov(struct bio *bio, const struct sg_iovec *iov, int iov_c
 int bio_uncopy_user(struct bio *bio)
 {
 	struct bio_map_data *bmd = bio->bi_private;
-	struct bio_vec *bvec;
-	int ret = 0, i;
+	int ret = 0;
 
 	if (!bio_flagged(bio, BIO_NULL_MAPPED)) {
 		/*
@@ -1120,11 +1125,9 @@ int bio_uncopy_user(struct bio *bio)
 		 */
 		if (current->mm)
 			ret = __bio_copy_iov(bio, bmd->sgvecs, bmd->nr_sgvecs,
-					     bio_data_dir(bio) == READ,
-					     0, bmd->is_our_pages);
-		else if (bmd->is_our_pages)
-			bio_for_each_segment_all(bvec, bio, i)
-				__free_page(bvec->bv_page);
+					     bio_data_dir(bio) == READ, 0);
+		if (bmd->is_our_pages)
+			bio_free_pages(bio);
 	}
 	kfree(bmd);
 	bio_put(bio);
@@ -1151,7 +1154,6 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 			      int write_to_vm, gfp_t gfp_mask)
 {
 	struct bio_map_data *bmd;
-	struct bio_vec *bvec;
 	struct page *page;
 	struct bio *bio;
 	int i, ret;
@@ -1243,7 +1245,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	 */
 	if ((!write_to_vm && (!map_data || !map_data->null_mapped)) ||
 	    (map_data && map_data->from_user)) {
-		ret = __bio_copy_iov(bio, iov, iov_count, 0, 1, 0);
+		ret = __bio_copy_iov(bio, iov, iov_count, 0, 1);
 		if (ret)
 			goto cleanup;
 	}
@@ -1252,9 +1254,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	return bio;
 cleanup:
 	if (!map_data)
-		bio_for_each_segment_all(bvec, bio, i)
-			__free_page(bvec->bv_page);
-
+		bio_free_pages(bio);
 	bio_put(bio);
 out_bmd:
 	kfree(bmd);
@@ -1507,22 +1507,22 @@ EXPORT_SYMBOL(bio_map_kern);
 
 static void bio_copy_kern_endio(struct bio *bio, int err)
 {
-	struct bio_vec *bvec;
-	const int read = bio_data_dir(bio) == READ;
+	bio_free_pages(bio);
+	bio_put(bio);
+}
+
+static void bio_copy_kern_endio_read(struct bio *bio, int err)
+{
 	char *p = bio->bi_private;
+	struct bio_vec *bvec;
 	int i;
 
 	bio_for_each_segment_all(bvec, bio, i) {
-		char *addr = page_address(bvec->bv_page);
-
-		if (read)
-			memcpy(p, addr, bvec->bv_len);
-
-		__free_page(bvec->bv_page);
+		memcpy(p, page_address(bvec->bv_page), bvec->bv_len);
 		p += bvec->bv_len;
 	}
 
-	bio_put(bio);
+	bio_copy_kern_endio(bio, err);
 }
 
 /**
@@ -1542,10 +1542,9 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long start = kaddr >> PAGE_SHIFT;
-	struct bio_vec *bvec;
 	struct bio *bio;
 	void *p = data;
-	int nr_pages = 0, i;
+	int nr_pages = 0;
 
 	/*
 	 * Overflow, abort
@@ -1579,16 +1578,18 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 		p += bytes;
 	}
 
-	if (!reading)
+	if (reading) {
+		bio->bi_end_io = bio_copy_kern_endio_read;
+		bio->bi_private = data;
+	} else {
+		bio->bi_end_io = bio_copy_kern_endio;
 		bio->bi_rw |= REQ_WRITE;
+	}
 
-	bio->bi_private = data;
-	bio->bi_end_io = bio_copy_kern_endio;
 	return bio;
 
 cleanup:
-	bio_for_each_segment_all(bvec, bio, i)
-		__free_page(bvec->bv_page);
+	bio_free_pages(bio);
 	bio_put(bio);
 	return ERR_PTR(-ENOMEM);
 }
