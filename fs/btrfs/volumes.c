@@ -1339,6 +1339,8 @@ again:
 	if (ret) {
 		btrfs_error(root->fs_info, ret,
 			    "Failed to remove dev extent item");
+	} else {
+		trans->transaction->have_free_bgs = 1;
 	}
 out:
 	btrfs_free_path(path);
