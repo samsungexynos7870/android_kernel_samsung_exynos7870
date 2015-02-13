@@ -937,7 +937,6 @@ const struct file_operations kernfs_file_fops = {
  * @ops: kernfs operations for the file
  * @priv: private data for the file
  * @ns: optional namespace tag of the file
- * @name_is_static: don't copy file name
  * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
  * Returns the created node on success, ERR_PTR() value on error.
@@ -947,7 +946,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 umode_t mode, loff_t size,
 					 const struct kernfs_ops *ops,
 					 void *priv, const void *ns,
-					 bool name_is_static,
 					 struct lock_class_key *key)
 {
 	struct kernfs_node *kn;
@@ -955,8 +953,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	int rc;
 
 	flags = KERNFS_FILE;
-	if (name_is_static)
-		flags |= KERNFS_STATIC_NAME;
 
 	kn = kernfs_new_node(parent, name, (mode & S_IALLUGO) | S_IFREG, flags);
 	if (!kn)
