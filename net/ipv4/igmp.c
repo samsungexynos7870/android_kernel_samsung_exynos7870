@@ -1884,30 +1884,25 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 	}
 }
 
-
-/*
- * Join a multicast group
- */
-int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
+int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 {
-	int err;
 	__be32 addr = imr->imr_multiaddr.s_addr;
-	struct ip_mc_socklist *iml = NULL, *i;
+	struct ip_mc_socklist *iml, *i;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
 	int ifindex;
 	int count = 0;
+	int err;
+
+	ASSERT_RTNL();
 
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	rtnl_lock();
-
 	in_dev = ip_mc_find_dev(net, imr);
 
 	if (!in_dev) {
-		iml = NULL;
 		err = -ENODEV;
 		goto done;
 	}
@@ -1935,8 +1930,21 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	ip_mc_inc_group(in_dev, addr);
 	err = 0;
 done:
-	rtnl_unlock();
 	return err;
+}
+EXPORT_SYMBOL(__ip_mc_join_group);
+
+/* Join a multicast group
+ */
+int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
+{
+	int ret;
+
+	rtnl_lock();
+	ret = __ip_mc_join_group(sk, imr);
+	rtnl_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL(ip_mc_join_group);
 
@@ -1960,11 +1968,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	return err;
 }
 
-/*
- *	Ask a socket to leave a group.
- */
-
-int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
+int __ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_mc_socklist *iml;
@@ -1975,7 +1979,8 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
-	rtnl_lock();
+	ASSERT_RTNL();
+
 	in_dev = ip_mc_find_dev(net, imr);
 	if (!in_dev) {
 		ret = -ENODEV;
@@ -1999,14 +2004,25 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 		*imlp = iml->next_rcu;
 
 		ip_mc_dec_group(in_dev, group);
-		rtnl_unlock();
+
 		/* decrease mem now to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
 		kfree_rcu(iml, rcu);
 		return 0;
 	}
 out:
+	return ret;
+}
+EXPORT_SYMBOL(__ip_mc_leave_group);
+
+int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
+{
+	int ret;
+
+	rtnl_lock();
+	ret = __ip_mc_leave_group(sk, imr);
 	rtnl_unlock();
+
 	return ret;
 }
 EXPORT_SYMBOL(ip_mc_leave_group);
