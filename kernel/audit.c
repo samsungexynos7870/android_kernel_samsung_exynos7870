@@ -681,7 +681,7 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_MAKE_EQUIV:
 		/* Only support auditd and auditctl in initial pid namespace
 		 * for now. */
-		if ((task_active_pid_ns(current) != &init_pid_ns))
+		if (task_active_pid_ns(current) != &init_pid_ns)
 			return -EPERM;
 
 		if (!netlink_capable(skb, CAP_AUDIT_CONTROL))
@@ -1787,7 +1787,7 @@ void audit_log_name(struct audit_context *context, struct audit_names *n,
 	} else
 		audit_log_format(ab, " name=(null)");
 
-	if (n->ino != AUDIT_INO_UNSET) {
+	if (n->ino != AUDIT_INO_UNSET)
 		audit_log_format(ab, " inode=%lu"
 				 " dev=%02x:%02x mode=%#ho"
 				 " ouid=%u ogid=%u rdev=%02x:%02x",
@@ -1799,7 +1799,6 @@ void audit_log_name(struct audit_context *context, struct audit_names *n,
 				 from_kgid(&init_user_ns, n->gid),
 				 MAJOR(n->rdev),
 				 MINOR(n->rdev));
-	}
 	if (n->osid != 0) {
 		char *ctx = NULL;
 		u32 len;
