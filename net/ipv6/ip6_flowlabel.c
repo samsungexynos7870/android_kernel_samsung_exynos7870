@@ -100,7 +100,6 @@ static void fl_free_rcu(struct rcu_head *head)
 
 	if (fl->share == IPV6_FL_S_PROCESS)
 		put_pid(fl->owner.pid);
-	release_net(fl->fl_net);
 	kfree(fl->opt);
 	kfree(fl);
 }
@@ -409,7 +408,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		}
 	}
 
-	fl->fl_net = hold_net(net);
+	fl->fl_net = net;
 	fl->expires = jiffies;
 	err = fl6_renew(fl, freq->flr_linger, freq->flr_expires);
 	if (err)
