@@ -476,9 +476,18 @@ static bool setsockopt_needs_rtnl(int optname)
 	switch (optname) {
 	case IP_ADD_MEMBERSHIP:
 	case IP_ADD_SOURCE_MEMBERSHIP:
+	case IP_BLOCK_SOURCE:
 	case IP_DROP_MEMBERSHIP:
+	case IP_DROP_SOURCE_MEMBERSHIP:
+	case IP_MSFILTER:
+	case IP_UNBLOCK_SOURCE:
+	case MCAST_BLOCK_SOURCE:
+	case MCAST_MSFILTER:
 	case MCAST_JOIN_GROUP:
+	case MCAST_JOIN_SOURCE_GROUP:
 	case MCAST_LEAVE_GROUP:
+	case MCAST_LEAVE_SOURCE_GROUP:
+	case MCAST_UNBLOCK_SOURCE:
 		return true;
 	}
 	return false;
@@ -782,9 +791,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 
 		if (optname == IP_ADD_MEMBERSHIP)
-			err = __ip_mc_join_group(sk, &mreq);
+			err = ip_mc_join_group(sk, &mreq);
 		else
-			err = __ip_mc_leave_group(sk, &mreq);
+			err = ip_mc_leave_group(sk, &mreq);
 		break;
 	}
 	case IP_MSFILTER:
@@ -849,7 +858,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			mreq.imr_multiaddr.s_addr = mreqs.imr_multiaddr;
 			mreq.imr_address.s_addr = mreqs.imr_interface;
 			mreq.imr_ifindex = 0;
-			err = __ip_mc_join_group(sk, &mreq);
+			err = ip_mc_join_group(sk, &mreq);
 			if (err && err != -EADDRINUSE)
 				break;
 			omode = MCAST_INCLUDE;
@@ -881,9 +890,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		mreq.imr_ifindex = greq.gr_interface;
 
 		if (optname == MCAST_JOIN_GROUP)
-			err = __ip_mc_join_group(sk, &mreq);
+			err = ip_mc_join_group(sk, &mreq);
 		else
-			err = __ip_mc_leave_group(sk, &mreq);
+			err = ip_mc_leave_group(sk, &mreq);
 		break;
 	}
 	case MCAST_JOIN_SOURCE_GROUP:
@@ -926,7 +935,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			mreq.imr_multiaddr = psin->sin_addr;
 			mreq.imr_address.s_addr = 0;
 			mreq.imr_ifindex = greqs.gsr_interface;
-			err = __ip_mc_join_group(sk, &mreq);
+			err = ip_mc_join_group(sk, &mreq);
 			if (err && err != -EADDRINUSE)
 				break;
 			greqs.gsr_interface = mreq.imr_ifindex;

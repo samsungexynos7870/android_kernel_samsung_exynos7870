@@ -1071,7 +1071,6 @@ EXPORT_SYMBOL_GPL(vxlan_sock_release);
 
 /* Callback to update multicast group membership when first VNI on
  * multicast asddress is brought up
- * Done as workqueue because ip_mc_join_group acquires RTNL.
  */
 static void vxlan_igmp_join(struct work_struct *work)
 {
@@ -1081,6 +1080,7 @@ static void vxlan_igmp_join(struct work_struct *work)
 	union vxlan_addr *ip = &vxlan->default_dst.remote_ip;
 	int ifindex = vxlan->default_dst.remote_ifindex;
 
+	rtnl_lock();
 	lock_sock(sk);
 	if (ip->sa.sa_family == AF_INET) {
 		struct ip_mreqn mreq = {
@@ -1096,6 +1096,7 @@ static void vxlan_igmp_join(struct work_struct *work)
 #endif
 	}
 	release_sock(sk);
+	rtnl_unlock();
 
 	vxlan_sock_release(vs);
 	dev_put(vxlan->dev);
@@ -1110,6 +1111,7 @@ static void vxlan_igmp_leave(struct work_struct *work)
 	union vxlan_addr *ip = &vxlan->default_dst.remote_ip;
 	int ifindex = vxlan->default_dst.remote_ifindex;
 
+	rtnl_lock();
 	lock_sock(sk);
 	if (ip->sa.sa_family == AF_INET) {
 		struct ip_mreqn mreq = {
@@ -1126,6 +1128,7 @@ static void vxlan_igmp_leave(struct work_struct *work)
 	}
 
 	release_sock(sk);
+	rtnl_unlock();
 
 	vxlan_sock_release(vs);
 	dev_put(vxlan->dev);

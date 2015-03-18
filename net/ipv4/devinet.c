@@ -567,9 +567,9 @@ static int ip_mc_autojoin_config(struct net *net, bool join,
 
 	lock_sock(sk);
 	if (join)
-		ret = __ip_mc_join_group(sk, &mreq);
+		ret = ip_mc_join_group(sk, &mreq);
 	else
-		ret = __ip_mc_leave_group(sk, &mreq);
+		ret = ip_mc_leave_group(sk, &mreq);
 	release_sock(sk);
 
 	return ret;

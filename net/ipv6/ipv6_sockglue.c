@@ -130,6 +130,11 @@ static bool setsockopt_needs_rtnl(int optname)
 	case IPV6_DROP_MEMBERSHIP:
 	case MCAST_JOIN_GROUP:
 	case MCAST_LEAVE_GROUP:
+	case MCAST_JOIN_SOURCE_GROUP:
+	case MCAST_LEAVE_SOURCE_GROUP:
+	case MCAST_BLOCK_SOURCE:
+	case MCAST_UNBLOCK_SOURCE:
+	case MCAST_MSFILTER:
 		return true;
 	}
 	return false;
@@ -618,9 +623,9 @@ done:
 			break;
 
 		if (optname == IPV6_ADD_MEMBERSHIP)
-			retv = __ipv6_sock_mc_join(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_multiaddr);
+			retv = ipv6_sock_mc_join(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_multiaddr);
 		else
-			retv = __ipv6_sock_mc_drop(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_multiaddr);
+			retv = ipv6_sock_mc_drop(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_multiaddr);
 		break;
 	}
 	case IPV6_JOIN_ANYCAST:
@@ -659,11 +664,11 @@ done:
 		}
 		psin6 = (struct sockaddr_in6 *)&greq.gr_group;
 		if (optname == MCAST_JOIN_GROUP)
-			retv = __ipv6_sock_mc_join(sk, greq.gr_interface,
-						   &psin6->sin6_addr);
+			retv = ipv6_sock_mc_join(sk, greq.gr_interface,
+						 &psin6->sin6_addr);
 		else
-			retv = __ipv6_sock_mc_drop(sk, greq.gr_interface,
-						   &psin6->sin6_addr);
+			retv = ipv6_sock_mc_drop(sk, greq.gr_interface,
+						 &psin6->sin6_addr);
 		break;
 	}
 	case MCAST_JOIN_SOURCE_GROUP:
@@ -695,8 +700,8 @@ done:
 			struct sockaddr_in6 *psin6;
 
 			psin6 = (struct sockaddr_in6 *)&greqs.gsr_group;
-			retv = __ipv6_sock_mc_join(sk, greqs.gsr_interface,
-						   &psin6->sin6_addr);
+			retv = ipv6_sock_mc_join(sk, greqs.gsr_interface,
+						 &psin6->sin6_addr);
 			/* prior join w/ different source is ok */
 			if (retv && retv != -EADDRINUSE)
 				break;
