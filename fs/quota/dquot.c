@@ -1167,8 +1167,8 @@ static int need_print_warning(struct dquot_warn *warn)
 			return uid_eq(current_fsuid(), warn->w_dq_id.uid);
 		case GRPQUOTA:
 			return in_group_p(warn->w_dq_id.gid);
-		case PRJQUOTA:	/* Never taken... Just make gcc happy */
-			return 0;
+		case PRJQUOTA:
+			return 1;
 	}
 	return 0;
 }
@@ -1407,6 +1407,9 @@ static void __dquot_initialize(struct inode *inode, int type)
 	/* First get references to structures we might need. */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		struct kqid qid;
+		kprojid_t projid;
+		int rc;
+
 		if (type != -1 && cnt != type)
 			continue;
 		/*
@@ -1416,6 +1419,10 @@ static void __dquot_initialize(struct inode *inode, int type)
 		 */
 		if (inode->i_dquot[cnt])
 			continue;
+
+		if (!sb_has_quota_active(sb, cnt))
+			continue;
+
 		init_needed = 1;
 
 		switch (cnt) {
@@ -1424,6 +1431,12 @@ static void __dquot_initialize(struct inode *inode, int type)
 			break;
 		case GRPQUOTA:
 			qid = make_kqid_gid(inode->i_gid);
+			break;
+		case PRJQUOTA:
+			rc = inode->i_sb->dq_op->get_projid(inode, &projid);
+			if (rc)
+				continue;
+			qid = make_kqid_projid(projid);
 			break;
 		}
 		got[cnt] = dqget(sb, qid);
@@ -2193,7 +2206,8 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		error = -EROFS;
 		goto out_fmt;
 	}
-	if (!sb->s_op->quota_write || !sb->s_op->quota_read) {
+	if (!sb->s_op->quota_write || !sb->s_op->quota_read ||
+	    (type == PRJQUOTA && sb->dq_op->get_projid == NULL)) {
 		error = -EINVAL;
 		goto out_fmt;
 	}
