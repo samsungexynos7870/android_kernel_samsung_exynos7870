@@ -471,12 +471,25 @@ out:
  *	Socket option code for IP. This is the end of the line after any
  *	TCP,UDP etc options on an IP socket.
  */
+static bool setsockopt_needs_rtnl(int optname)
+{
+	switch (optname) {
+	case IP_ADD_MEMBERSHIP:
+	case IP_ADD_SOURCE_MEMBERSHIP:
+	case IP_DROP_MEMBERSHIP:
+	case MCAST_JOIN_GROUP:
+	case MCAST_LEAVE_GROUP:
+		return true;
+	}
+	return false;
+}
 
 static int do_ip_setsockopt(struct sock *sk, int level,
 			    int optname, char __user *optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val = 0, err;
+	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
 	switch (optname) {
 	case IP_PKTINFO:
@@ -518,6 +531,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
 	err = 0;
+	if (needs_rtnl)
+		rtnl_lock();
 	lock_sock(sk);
 
 	switch (optname) {
@@ -767,9 +782,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 
 		if (optname == IP_ADD_MEMBERSHIP)
-			err = ip_mc_join_group(sk, &mreq);
+			err = __ip_mc_join_group(sk, &mreq);
 		else
-			err = ip_mc_leave_group(sk, &mreq);
+			err = __ip_mc_leave_group(sk, &mreq);
 		break;
 	}
 	case IP_MSFILTER:
@@ -834,7 +849,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			mreq.imr_multiaddr.s_addr = mreqs.imr_multiaddr;
 			mreq.imr_address.s_addr = mreqs.imr_interface;
 			mreq.imr_ifindex = 0;
-			err = ip_mc_join_group(sk, &mreq);
+			err = __ip_mc_join_group(sk, &mreq);
 			if (err && err != -EADDRINUSE)
 				break;
 			omode = MCAST_INCLUDE;
@@ -866,9 +881,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		mreq.imr_ifindex = greq.gr_interface;
 
 		if (optname == MCAST_JOIN_GROUP)
-			err = ip_mc_join_group(sk, &mreq);
+			err = __ip_mc_join_group(sk, &mreq);
 		else
-			err = ip_mc_leave_group(sk, &mreq);
+			err = __ip_mc_leave_group(sk, &mreq);
 		break;
 	}
 	case MCAST_JOIN_SOURCE_GROUP:
@@ -911,7 +926,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			mreq.imr_multiaddr = psin->sin_addr;
 			mreq.imr_address.s_addr = 0;
 			mreq.imr_ifindex = greqs.gsr_interface;
-			err = ip_mc_join_group(sk, &mreq);
+			err = __ip_mc_join_group(sk, &mreq);
 			if (err && err != -EADDRINUSE)
 				break;
 			greqs.gsr_interface = mreq.imr_ifindex;
@@ -1039,10 +1054,14 @@ mc_msf_out:
 		break;
 	}
 	release_sock(sk);
+	if (needs_rtnl)
+		rtnl_unlock();
 	return err;
 
 e_inval:
 	release_sock(sk);
+	if (needs_rtnl)
+		rtnl_unlock();
 	return -EINVAL;
 }
 
