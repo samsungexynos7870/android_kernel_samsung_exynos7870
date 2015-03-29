@@ -1464,7 +1464,7 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 	int remaining;
 	u32 *mp;
 
-	if (cfg->fc_mx == NULL)
+	if (!cfg->fc_mx)
 		return 0;
 
 	mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
