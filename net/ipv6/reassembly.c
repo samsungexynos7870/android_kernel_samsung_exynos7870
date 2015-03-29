@@ -556,7 +556,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 
 	fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 		     skb->dev ? skb->dev->ifindex : 0, ip6_frag_ecn(hdr));
-	if (fq != NULL) {
+	if (fq) {
 		int ret;
 
 		spin_lock(&fq->q.lock);

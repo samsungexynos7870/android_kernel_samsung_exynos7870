@@ -806,7 +806,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 	rcu_read_lock();
 	t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr, &ipv6h->daddr);
-	if (t != NULL) {
+	if (t) {
 		struct pcpu_sw_netstats *tstats;
 
 		if (t->parms.proto != ipproto && t->parms.proto != 0) {
@@ -1773,7 +1773,7 @@ static void __net_exit ip6_tnl_destroy_tunnels(struct net *net)
 
 	for (h = 0; h < HASH_SIZE; h++) {
 		t = rtnl_dereference(ip6n->tnls_r_l[h]);
-		while (t != NULL) {
+		while (t) {
 			/* If dev is in the same netns, it has already
 			 * been added to the list by the previous loop.
 			 */

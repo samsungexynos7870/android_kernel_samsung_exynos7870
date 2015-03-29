@@ -128,7 +128,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 			}
 			fptr = (struct frag_hdr *)((u8 *)ipv6h + err);
 			fptr->frag_off = htons(offset);
-			if (skb->next != NULL)
+			if (skb->next)
 				fptr->frag_off |= htons(IP6_MF);
 			offset += (ntohs(ipv6h->payload_len) -
 				   sizeof(struct frag_hdr));
