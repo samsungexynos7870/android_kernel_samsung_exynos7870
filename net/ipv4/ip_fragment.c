@@ -537,7 +537,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		qp->q.fragments = head;
 	}
 
-	WARN_ON(head == NULL);
+	WARN_ON(!head);
 	WARN_ON(FRAG_CB(head)->offset != 0);
 
 	/* Allocate a new buffer for the datagram. */
@@ -559,7 +559,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		struct sk_buff *clone;
 		int i, plen = 0;
 
-		if ((clone = alloc_skb(0, GFP_ATOMIC)) == NULL)
+		clone = alloc_skb(0, GFP_ATOMIC);
+		if (!clone)
 			goto out_nomem;
 		clone->next = head->next;
 		head->next = clone;
@@ -762,7 +763,7 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 	table = ip4_frags_ns_ctl_table;
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(table, sizeof(ip4_frags_ns_ctl_table), GFP_KERNEL);
-		if (table == NULL)
+		if (!table)
 			goto err_alloc;
 
 		table[0].data = &net->ipv4.frags.high_thresh;
@@ -778,7 +779,7 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
-	if (hdr == NULL)
+	if (!hdr)
 		goto err_reg;
 
 	net->ipv4.frags_hdr = hdr;

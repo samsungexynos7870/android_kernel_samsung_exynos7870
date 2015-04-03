@@ -499,9 +499,9 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct rt_trie_node *
 	BUG_ON(i >= 1<<tn->bits);
 
 	/* update emptyChildren */
-	if (n == NULL && chi != NULL)
+	if (!n && chi != NULL)
 		tn->empty_children++;
-	else if (n != NULL && chi == NULL)
+	else if (n != NULL && !chi)
 		tn->empty_children--;
 
 	/* update fullChildren */
@@ -755,7 +755,7 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 		int size, j;
 
 		/* An empty child */
-		if (node == NULL)
+		if (!node)
 			continue;
 
 		/* A leaf or an internal node with skipped bits */
@@ -1252,7 +1252,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			}
 			err = -ENOBUFS;
 			new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
-			if (new_fa == NULL)
+			if (!new_fa)
 				goto out;
 
 			fi_drop = fa->fa_info;
@@ -1289,7 +1289,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	err = -ENOBUFS;
 	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
-	if (new_fa == NULL)
+	if (!new_fa)
 		goto out;
 
 	new_fa->fa_info = fi;
@@ -1964,7 +1964,7 @@ struct fib_table *fib_trie_table(u32 id)
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct trie),
 		     GFP_KERNEL);
-	if (tb == NULL)
+	if (!tb)
 		return NULL;
 
 	tb->tb_id = id;

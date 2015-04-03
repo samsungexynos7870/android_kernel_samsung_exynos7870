@@ -303,7 +303,7 @@ static void __net_exit xfrm4_net_sysctl_exit(struct net *net)
 {
 	struct ctl_table *table;
 
-	if (net->ipv4.xfrm4_hdr == NULL)
+	if (!net->ipv4.xfrm4_hdr)
 		return;
 
 	table = net->ipv4.xfrm4_hdr->ctl_table_arg;

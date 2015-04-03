@@ -1073,7 +1073,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
 
 	rt = (struct rtable *)odst;
-	if (odst->obsolete && odst->ops->check(odst, 0) == NULL) {
+	if (odst->obsolete && !odst->ops->check(odst, 0)) {
 		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 		if (IS_ERR(rt))
 			goto out;
@@ -1483,7 +1483,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	/* Primary sanity checks. */
 
-	if (in_dev == NULL)
+	if (!in_dev)
 		return -EINVAL;
 
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
@@ -1586,7 +1586,7 @@ static int __mkroute_input(struct sk_buff *skb,
 
 	/* get a working reference to the output device */
 	out_dev = __in_dev_get_rcu(FIB_RES_DEV(*res));
-	if (out_dev == NULL) {
+	if (!out_dev) {
 		net_crit_ratelimited("Bug in ip_route_input_slow(). Please report.\n");
 		return -EINVAL;
 	}
@@ -2100,7 +2100,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 		     ipv4_is_lbcast(fl4->daddr))) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 			dev_out = __ip_dev_find(net, fl4->saddr, false);
-			if (dev_out == NULL)
+			if (!dev_out)
 				goto out;
 
 			/* Special hack: user can direct multicasts
@@ -2133,7 +2133,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	if (fl4->flowi4_oif) {
 		dev_out = dev_get_by_index_rcu(net, fl4->flowi4_oif);
 		rth = ERR_PTR(-ENODEV);
-		if (dev_out == NULL)
+		if (!dev_out)
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
@@ -2346,7 +2346,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 	u32 metrics[RTAX_MAX];
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*r), flags);
-	if (nlh == NULL)
+	if (!nlh)
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
@@ -2474,7 +2474,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 	rtm = nlmsg_data(nlh);
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (skb == NULL) {
+	if (!skb) {
 		err = -ENOBUFS;
 		goto errout;
 	}
@@ -2510,7 +2510,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		struct net_device *dev;
 
 		dev = __dev_get_by_index(net, iif);
-		if (dev == NULL) {
+		if (!dev) {
 			err = -ENODEV;
 			goto errout_free;
 		}
@@ -2710,7 +2710,7 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	tbl = ipv4_route_flush_table;
 	if (!net_eq(net, &init_net)) {
 		tbl = kmemdup(tbl, sizeof(ipv4_route_flush_table), GFP_KERNEL);
-		if (tbl == NULL)
+		if (!tbl)
 			goto err_dup;
 
 		/* Don't export sysctls to unprivileged users */
@@ -2720,7 +2720,7 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	tbl[0].extra1 = net;
 
 	net->ipv4.route_hdr = register_net_sysctl(net, "net/ipv4/route", tbl);
-	if (net->ipv4.route_hdr == NULL)
+	if (!net->ipv4.route_hdr)
 		goto err_reg;
 	return 0;
 

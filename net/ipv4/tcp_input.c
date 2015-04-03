@@ -1213,7 +1213,7 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 /* This must be called before lost_out is incremented */
 static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 {
-	if ((tp->retransmit_skb_hint == NULL) ||
+	if (!tp->retransmit_skb_hint ||
 	    before(TCP_SKB_CB(skb)->seq,
 		   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
 		tp->retransmit_skb_hint = skb;
@@ -1979,7 +1979,7 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 						struct tcp_sacktag_state *state,
 						u32 skip_to_seq)
 {
-	if (next_dup == NULL)
+	if (!next_dup)
 		return skb;
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
@@ -2151,7 +2151,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 			if (tcp_highest_sack_seq(tp) == cache->end_seq) {
 				/* ...but better entrypoint exists! */
 				skb = tcp_highest_sack(sk);
-				if (skb == NULL)
+				if (!skb)
 					break;
 				state.fack_count = tp->fackets_out;
 				cache++;
@@ -2166,7 +2166,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 
 		if (!before(start_seq, tcp_highest_sack_seq(tp))) {
 			skb = tcp_highest_sack(sk);
-			if (skb == NULL)
+			if (!skb)
 				break;
 			state.fack_count = tp->fackets_out;
 		}
@@ -4043,7 +4043,7 @@ void tcp_parse_options(const struct sk_buff *skb,
 				 */
 				if (opsize < TCPOLEN_EXP_FASTOPEN_BASE ||
 				    get_unaligned_be16(ptr) != TCPOPT_FASTOPEN_MAGIC ||
-				    foc == NULL || !th->syn || (opsize & 1))
+				    !foc || !th->syn || (opsize & 1))
 					break;
 				foc->len = opsize - TCPOLEN_EXP_FASTOPEN_BASE;
 				if (foc->len >= TCP_FASTOPEN_COOKIE_MIN &&
@@ -5026,7 +5026,7 @@ static void tcp_collapse_ofo_queue(struct sock *sk)
 	struct sk_buff *head;
 	u32 start, end;
 
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	start = TCP_SKB_CB(skb)->seq;
@@ -5491,7 +5491,7 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (unlikely(sk->sk_rx_dst == NULL))
+	if (unlikely(!sk->sk_rx_dst))
 		inet_csk(sk)->icsk_af_ops->sk_rx_dst_set(sk, skb);
 	/*
 	 *	Header prediction.
@@ -6064,7 +6064,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (tcp_check_req(sk, skb, req, NULL, true) == NULL)
+		if (!tcp_check_req(sk, skb, req, NULL, true))
 			goto discard;
 	}
 

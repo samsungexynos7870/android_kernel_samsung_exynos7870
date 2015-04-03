@@ -380,7 +380,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 	struct inet_frag_queue *q;
 
 	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
-	if (q == NULL)
+	if (!q)
 		return NULL;
 
 	q->net = nf;
@@ -401,7 +401,7 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 	struct inet_frag_queue *q;
 
 	q = inet_frag_alloc(nf, f, arg);
-	if (q == NULL)
+	if (!q)
 		return NULL;
 
 	return inet_frag_intern(nf, q, f, arg);

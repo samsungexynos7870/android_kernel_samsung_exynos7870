@@ -667,7 +667,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	if (dst == 0) {
 		/* NBMA tunnel */
 
-		if (skb_dst(skb) == NULL) {
+		if (!skb_dst(skb)) {
 			dev->stats.tx_fifo_errors++;
 			goto tx_error;
 		}
@@ -685,7 +685,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 			neigh = dst_neigh_lookup(skb_dst(skb),
 						 &ipv6_hdr(skb)->daddr);
-			if (neigh == NULL)
+			if (!neigh)
 				goto tx_error;
 
 			addr6 = (const struct in6_addr *)&neigh->primary_key;
@@ -856,7 +856,7 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 	case SIOCGETTUNNEL:
 		if (dev == itn->fb_tunnel_dev) {
 			t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
-			if (t == NULL)
+			if (!t)
 				t = netdev_priv(dev);
 		}
 		memcpy(p, &t->parms, sizeof(*p));
@@ -927,7 +927,7 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 		if (dev == itn->fb_tunnel_dev) {
 			err = -ENOENT;
 			t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
-			if (t == NULL)
+			if (!t)
 				goto done;
 			err = -EPERM;
 			if (t == netdev_priv(itn->fb_tunnel_dev))
