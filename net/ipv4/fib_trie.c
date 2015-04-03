@@ -499,9 +499,9 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct rt_trie_node *
 	BUG_ON(i >= 1<<tn->bits);
 
 	/* update emptyChildren */
-	if (!n && chi != NULL)
+	if (!n && chi)
 		tn->empty_children++;
-	else if (n != NULL && !chi)
+	else if (n && !chi)
 		tn->empty_children--;
 
 	/* update fullChildren */

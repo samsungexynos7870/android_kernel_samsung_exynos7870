@@ -668,7 +668,7 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 {
 	struct sock *newsk = sk_clone_lock(sk, priority);
 
-	if (newsk != NULL) {
+	if (newsk) {
 		struct inet_connection_sock *newicsk = inet_csk(newsk);
 
 		newsk->sk_state = TCP_SYN_RECV;
@@ -842,7 +842,7 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk_acceptq_removed(sk);
 		__reqsk_free(req);
 	}
-	if (queue->fastopenq != NULL) {
+	if (queue->fastopenq) {
 		/* Free all the reqs queued in rskq_rst_head. */
 		spin_lock_bh(&queue->fastopenq->lock);
 		acc_req = queue->fastopenq->rskq_rst_head;
@@ -874,7 +874,7 @@ int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (icsk->icsk_af_ops->compat_getsockopt != NULL)
+	if (icsk->icsk_af_ops->compat_getsockopt)
 		return icsk->icsk_af_ops->compat_getsockopt(sk, level, optname,
 							    optval, optlen);
 	return icsk->icsk_af_ops->getsockopt(sk, level, optname,
@@ -887,7 +887,7 @@ int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (icsk->icsk_af_ops->compat_setsockopt != NULL)
+	if (icsk->icsk_af_ops->compat_setsockopt)
 		return icsk->icsk_af_ops->compat_setsockopt(sk, level, optname,
 							    optval, optlen);
 	return icsk->icsk_af_ops->setsockopt(sk, level, optname,
