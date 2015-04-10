@@ -2450,7 +2450,7 @@ static int usbdev_notify(struct notifier_block *self,
 }
 
 static struct notifier_block usbdev_nb = {
-	.notifier_call = 	usbdev_notify,
+	.notifier_call =	usbdev_notify,
 };
 
 static struct cdev usb_device_cdev;
