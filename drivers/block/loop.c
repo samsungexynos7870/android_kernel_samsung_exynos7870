@@ -1705,8 +1705,8 @@ out:
 
 static void loop_remove(struct loop_device *lo)
 {
-	del_gendisk(lo->lo_disk);
 	blk_cleanup_queue(lo->lo_queue);
+	del_gendisk(lo->lo_disk);
 	put_disk(lo->lo_disk);
 	kfree(lo);
 }
