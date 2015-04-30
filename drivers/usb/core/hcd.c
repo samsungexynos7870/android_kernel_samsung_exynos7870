@@ -2768,7 +2768,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (retval < 0)
 		goto err_register_bus;
 
-	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
+	rhdev = usb_alloc_dev(NULL, &hcd->self, 0);
+	if (rhdev == NULL) {
 		dev_err(hcd->self.controller, "unable to allocate root hub\n");
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;
