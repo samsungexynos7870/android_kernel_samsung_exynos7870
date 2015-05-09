@@ -74,7 +74,7 @@ s64 vsock_stream_has_space(struct vsock_sock *vsk);
 struct sock *__vsock_create(struct net *net,
 			    struct socket *sock,
 			    struct sock *parent,
-			    gfp_t priority, unsigned short type);
+			    gfp_t priority, unsigned short type, int kern);
 
 /**** TRANSPORT ****/
 
