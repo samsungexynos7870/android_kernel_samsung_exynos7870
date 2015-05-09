@@ -43,7 +43,7 @@ int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
 static inline void inet_ctl_sock_destroy(struct sock *sk)
 {
 	if (sk)
-		sk_release_kernel(sk);
+		sock_release(sk->sk_socket);
 }
 
 #endif
