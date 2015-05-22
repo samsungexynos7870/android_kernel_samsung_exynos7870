@@ -27,6 +27,7 @@
 #include <linux/log2.h>
 #include <linux/hash.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <asm/unaligned.h>
 #include "fat.h"
 

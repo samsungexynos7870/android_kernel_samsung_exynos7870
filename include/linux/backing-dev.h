@@ -8,108 +8,11 @@
 #ifndef _LINUX_BACKING_DEV_H
 #define _LINUX_BACKING_DEV_H
 
-#include <linux/percpu_counter.h>
-#include <linux/log2.h>
-#include <linux/flex_proportions.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/timer.h>
 #include <linux/writeback.h>
-#include <linux/atomic.h>
-#include <linux/sysctl.h>
-#include <linux/workqueue.h>
-
-struct page;
-struct device;
-struct dentry;
-
-/*
- * Bits in bdi_writeback.state
- */
-enum wb_state {
-	WB_async_congested,	/* The async (write) queue is getting full */
-	WB_sync_congested,	/* The sync queue is getting full */
-	WB_registered,		/* bdi_register() was done */
-	WB_writeback_running,	/* Writeback is in progress */
-};
-
-typedef int (congested_fn)(void *, int);
-
-enum bdi_stat_item {
-	BDI_RECLAIMABLE,
-	BDI_WRITEBACK,
-	BDI_DIRTIED,
-	BDI_WRITTEN,
-	NR_BDI_STAT_ITEMS
-};
-
-#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
-
-struct bdi_writeback {
-	struct backing_dev_info *bdi;	/* our parent bdi */
-
-	unsigned long state;		/* Always use atomic bitops on this */
-	unsigned long last_old_flush;	/* last old data flush */
-
-	struct delayed_work dwork;	/* work item used for writeback */
-	struct list_head b_dirty;	/* dirty inodes */
-	struct list_head b_io;		/* parked for writeback */
-	struct list_head b_more_io;	/* parked for more writeback */
-	struct list_head b_dirty_time;	/* time stamps are dirty */
-	spinlock_t list_lock;		/* protects the b_* lists */
-};
-
-struct backing_dev_info {
-	struct list_head bdi_list;
-	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
-	unsigned int capabilities; /* Device capabilities */
-	congested_fn *congested_fn; /* Function pointer if device is md/dm */
-	void *congested_data;	/* Pointer to aux data for congested func */
-
-	char *name;
-
-	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
-
-	unsigned long bw_time_stamp;	/* last time write bw is updated */
-	unsigned long dirtied_stamp;
-	unsigned long written_stamp;	/* pages written at bw_time_stamp */
-	unsigned long write_bandwidth;	/* the estimated write bandwidth */
-	unsigned long avg_write_bandwidth; /* further smoothed write bw */
-
-	/*
-	 * The base dirty throttle rate, re-calculated on every 200ms.
-	 * All the bdi tasks' dirty rate will be curbed under it.
-	 * @dirty_ratelimit tracks the estimated @balanced_dirty_ratelimit
-	 * in small steps and is much more smooth/stable than the latter.
-	 */
-	unsigned long dirty_ratelimit;
-	unsigned long balanced_dirty_ratelimit;
-
-	struct fprop_local_percpu completions;
-	int dirty_exceeded;
-	/* approximate write throttle statistics - updated at each throttling */
-	unsigned long last_thresh;  /* global/bdi thresh at the last throttle */
-	unsigned long last_nr_dirty; /* global/bdi dirty at the last throttle */
-	unsigned long paused_total; /* approximated sum of pauses. in jiffies */
-
-	unsigned int min_ratio;
-	unsigned int max_ratio, max_prop_frac;
-
-	struct bdi_writeback wb;  /* default writeback info for this bdi */
-	spinlock_t wb_lock;	  /* protects work_list & wb.dwork scheduling */
-
-	struct list_head work_list;
-
-	struct device *dev;
-
-	struct timer_list laptop_mode_wb_timer;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debug_dir;
-	struct dentry *debug_stats;
-#endif
-};
+#include <linux/backing-dev-defs.h>
 
 int __must_check bdi_init(struct backing_dev_info *bdi);
 void bdi_destroy(struct backing_dev_info *bdi);
@@ -272,13 +175,6 @@ static inline int bdi_rw_congested(struct backing_dev_info *bdi)
 				  (1 << WB_async_congested));
 }
 
-enum {
-	BLK_RW_ASYNC	= 0,
-	BLK_RW_SYNC	= 1,
-};
-
-void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
-void set_bdi_congested(struct backing_dev_info *bdi, int sync);
 long congestion_wait(int sync, long timeout);
 long wait_iff_congested(struct zone *zone, int sync, long timeout);
 int pdflush_proc_obsolete(struct ctl_table *table, int write,

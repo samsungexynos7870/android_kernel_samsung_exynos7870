@@ -15,6 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include "fat.h"
