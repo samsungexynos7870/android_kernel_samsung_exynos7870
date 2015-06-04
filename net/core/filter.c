@@ -1237,21 +1237,6 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 	return 0;
 }
 
-/**
- *	bpf_skb_clone_not_writable - is the header of a clone not writable
- *	@skb: buffer to check
- *	@len: length up to which to write, can be negative
- *
- *	Returns true if modifying the header part of the cloned buffer
- *	does require the data to be copied. I.e. this version works with
- *	negative lengths needed for eBPF case!
- */
-static bool bpf_skb_clone_unwritable(const struct sk_buff *skb, int len)
-{
-	return skb_header_cloned(skb) ||
-	       (int) skb_headroom(skb) + len > skb->hdr_len;
-}
-
 #define BPF_RECOMPUTE_CSUM(flags)	((flags) & 1)
 
 static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
@@ -1274,9 +1259,8 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 	if (unlikely((u32) offset > 0xffff || len > sizeof(buf)))
 		return -EFAULT;
 
-	offset -= skb->data - skb_mac_header(skb);
 	if (unlikely(skb_cloned(skb) &&
-		     bpf_skb_clone_unwritable(skb, offset + len)))
+		     !skb_clone_writable(skb, offset + len)))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, len, buf);
@@ -1320,9 +1304,8 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	if (unlikely((u32) offset > 0xffff))
 		return -EFAULT;
 
-	offset -= skb->data - skb_mac_header(skb);
 	if (unlikely(skb_cloned(skb) &&
-		     bpf_skb_clone_unwritable(skb, offset + sizeof(sum))))
+		     !skb_clone_writable(skb, offset + sizeof(sum))))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
@@ -1368,9 +1351,8 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	if (unlikely((u32) offset > 0xffff))
 		return -EFAULT;
 
-	offset -= skb->data - skb_mac_header(skb);
 	if (unlikely(skb_cloned(skb) &&
-		     bpf_skb_clone_unwritable(skb, offset + sizeof(sum))))
+		     !skb_clone_writable(skb, offset + sizeof(sum))))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
@@ -1423,8 +1405,6 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (unlikely(!skb2))
 		return -ENOMEM;
-
-	skb_push(skb2, skb2->data - skb_mac_header(skb2));
 
 	if (BPF_IS_REDIRECT_INGRESS(flags))
 		return dev_forward_skb(dev, skb2);
