@@ -130,7 +130,7 @@ struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev)
 	return usb_get_intfdata(hdev->actconfig->interface[0]);
 }
 
-static int usb_device_supports_lpm(struct usb_device *udev)
+int usb_device_supports_lpm(struct usb_device *udev)
 {
 	/* Some devices have trouble with LPM */
 	if (udev->quirks & USB_QUIRK_NO_LPM)
