@@ -127,7 +127,6 @@ struct bio {
 #define BIO_EOPNOTSUPP	7	/* not supported */
 #define BIO_NULL_MAPPED 8	/* contains invalid user pages */
 #define BIO_QUIET	9	/* Make BIO Quiet */
-#define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
