@@ -578,7 +578,10 @@ got:
 		goto fail;
 	}
 
-	dquot_initialize(inode);
+	err = dquot_initialize(inode);
+	if (err)
+		goto fail_drop;
+
 	err = dquot_alloc_inode(inode);
 	if (err)
 		goto fail_drop;
