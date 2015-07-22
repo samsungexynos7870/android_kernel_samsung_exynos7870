@@ -4266,6 +4266,19 @@ static int rt5659_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
 	return 0;
 }
 
+struct pll_calc_map {
+	unsigned int pll_in;
+	unsigned int pll_out;
+	int k;
+	int n;
+	int m;
+	bool m_bp;
+};
+
+static const struct pll_calc_map pll_preset_table[] = {
+	{19200000,  24576000,  3, 30, 3, false},
+};
+
 /**
  * rt5659_pll_calc - Calculate PLL M/N/K code.
  * @freq_in: external clock provided to the codec.
@@ -4281,12 +4294,24 @@ static int rt5659_pll_calc(const unsigned int freq_in,
 	const unsigned int freq_out, struct rt5659_pll_code *pll_code)
 {
 	int max_n = RT5659_PLL_N_MAX, max_m = RT5659_PLL_M_MAX;
-	int k, n = 0, m = 0, red, n_t, m_t, pll_out, in_t;
+	int i, k, n = 0, m = 0, red, n_t, m_t, pll_out, in_t;
 	int out_t, red_t = abs(freq_out - freq_in);
 	bool m_bypass = false, k_bypass = false;
 
 	if (RT5659_PLL_INP_MAX < freq_in || RT5659_PLL_INP_MIN > freq_in)
 		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(pll_preset_table); i++) {
+		if (freq_in == pll_preset_table[i].pll_in &&
+			freq_out == pll_preset_table[i].pll_out) {
+			k = pll_preset_table[i].k;
+			m = pll_preset_table[i].m;
+			n = pll_preset_table[i].n;
+			bypass = pll_preset_table[i].m_bp;
+			pr_debug("Use preset PLL parameter table\n");
+			goto code_find;
+		}
+	}
 
 	k = 100000000 / freq_out - 2;
 	if (k > RT5659_PLL_K_MAX)
