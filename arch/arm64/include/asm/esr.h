@@ -138,6 +138,13 @@
 #define ESR_ELx_SYS64_ISS_SYS_CNTFRQ	(ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 0, 14, 0) | \
 					 ESR_ELx_SYS64_ISS_DIR_READ)
 
+/* ESR value templates for specific events */
+
+/* BRK instruction trap from AArch64 state */
+#define ESR_ELx_VAL_BRK64(imm)					\
+	((ESR_ELx_EC_BRK64 << ESR_ELx_EC_SHIFT) | ESR_ELx_IL |	\
+	 ((imm) & 0xffff))
+
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 
