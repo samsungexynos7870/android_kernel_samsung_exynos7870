@@ -84,7 +84,7 @@ early_param("nodebugmon", early_debug_disable);
 static DEFINE_PER_CPU(int, mde_ref_count);
 static DEFINE_PER_CPU(int, kde_ref_count);
 
-void enable_debug_monitors(enum debug_el el)
+void enable_debug_monitors(enum dbg_active_el el)
 {
 	u32 mdscr, enable = 0;
 
@@ -104,7 +104,7 @@ void enable_debug_monitors(enum debug_el el)
 	}
 }
 
-void disable_debug_monitors(enum debug_el el)
+void disable_debug_monitors(enum dbg_active_el el)
 {
 	u32 mdscr, disable = 0;
 
