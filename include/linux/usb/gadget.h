@@ -606,6 +606,7 @@ struct usb_gadget {
 	unsigned			a_hnp_support:1;
 	unsigned			a_alt_hnp_support:1;
 	unsigned			quirk_ep_out_aligned_size:1;
+	unsigned			quirk_altset_not_supp:1;
 	unsigned			is_selfpowered:1;
 	unsigned			deactivated:1;
 	unsigned			connected:1;
@@ -654,6 +655,16 @@ static inline size_t
 usb_ep_align_maybe(struct usb_gadget *g, struct usb_ep *ep, size_t len)
 {
 	return g->quirk_ep_out_aligned_size ? usb_ep_align(ep, len) : len;
+}
+
+/**
+ * gadget_is_altset_supported - return true iff the hardware supports
+ *	altsettings
+ * @g: controller to check for quirk
+ */
+static inline int gadget_is_altset_supported(struct usb_gadget *g)
+{
+	return !g->quirk_altset_not_supp;
 }
 
 /**
