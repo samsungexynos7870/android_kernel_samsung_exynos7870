@@ -11,6 +11,7 @@
 | CVE-2015-1350    | not affected                             |
 | CVE-2015-2877    | no patch available                       |
 | CVE-2015-8767    | 635682a14427d241bab7bbdeebb48a7d7b91638e |
+| CVE-2016-2053    | 0d62e9dd6da45bbf0f33a8617afc5fe774c8f45f |
 | CVE-2016-2059    | not affected                             |
 | CVE-2016-2061    | not affected                             |
 | CVE-2016-2062    | not affected                             |
@@ -48,6 +49,7 @@
 | CVE-2017-18079   | 340d394a789518018f834ff70f7534fc463d3226 |
 | CVE-2017-18174   | not affected                             |
 | CVE-2017-18193   | not affected                             |
+| CVE-2017-18202   | not affected                             |
 | CVE-2017-18203   | b9a41d21dceadf8104812626ef85dc56ee8a60ed |
 | CVE-2017-18204   | 28f5a8a7c033cbf3e32277f4cc9c6afd74f05300 |
 | CVE-2017-18208   | 6ea8d958a2c95a1d514015d4e29ba21a8c0a1a91 |
