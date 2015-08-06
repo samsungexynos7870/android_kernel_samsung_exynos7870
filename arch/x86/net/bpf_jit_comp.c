@@ -246,7 +246,7 @@ static void emit_prologue(u8 **pprog)
  *     goto out;
  *   if (++tail_call_cnt > MAX_TAIL_CALL_CNT)
  *     goto out;
- *   prog = array->prog[index];
+ *   prog = array->ptrs[index];
  *   if (prog == NULL)
  *     goto out;
  *   goto *(prog->bpf_func + prologue_size);
@@ -269,7 +269,7 @@ static void emit_bpf_tail_call(u8 **pprog)
 	EMIT4(0x48, 0x8B, 0x46,                   /* mov rax, qword ptr [rsi + 16] */
 	      offsetof(struct bpf_array, map.max_entries));
 	EMIT3(0x48, 0x39, 0xD0);                  /* cmp rax, rdx */
-#define OFFSET1 44 /* number of bytes to jump */
+#define OFFSET1 47 /* number of bytes to jump */
 	EMIT2(X86_JBE, OFFSET1);                  /* jbe out */
 	label1 = cnt;
 
@@ -278,15 +278,15 @@ static void emit_bpf_tail_call(u8 **pprog)
 	 */
 	EMIT2_off32(0x8B, 0x85, -STACKSIZE + 36); /* mov eax, dword ptr [rbp - 516] */
 	EMIT3(0x83, 0xF8, MAX_TAIL_CALL_CNT);     /* cmp eax, MAX_TAIL_CALL_CNT */
-#define OFFSET2 33
+#define OFFSET2 36
 	EMIT2(X86_JA, OFFSET2);                   /* ja out */
 	label2 = cnt;
 	EMIT3(0x83, 0xC0, 0x01);                  /* add eax, 1 */
 	EMIT2_off32(0x89, 0x85, -STACKSIZE + 36); /* mov dword ptr [rbp - 516], eax */
 
-	/* prog = array->prog[index]; */
-	EMIT4(0x48, 0x8D, 0x44, 0xD6);            /* lea rax, [rsi + rdx * 8 + 0x50] */
-	EMIT1(offsetof(struct bpf_array, prog));
+	/* prog = array->ptrs[index]; */
+	EMIT4_off32(0x48, 0x8D, 0x84, 0xD6,       /* lea rax, [rsi + rdx * 8 + offsetof(...)] */
+		    offsetof(struct bpf_array, ptrs));
 	EMIT3(0x48, 0x8B, 0x00);                  /* mov rax, qword ptr [rax] */
 
 	/* if (prog == NULL)
@@ -1103,7 +1103,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	if (bpf_jit_enable > 1)
-		bpf_jit_dump(prog->len, proglen, 0, image);
+		bpf_jit_dump(prog->len, proglen, pass + 1, image);
 
 	if (image) {
 		bpf_flush_icache(header, image + proglen);
