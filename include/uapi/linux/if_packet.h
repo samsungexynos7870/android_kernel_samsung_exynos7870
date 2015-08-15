@@ -54,6 +54,7 @@ struct sockaddr_ll {
 #define PACKET_FANOUT			18
 #define PACKET_TX_HAS_OFF		19
 #define PACKET_QDISC_BYPASS		20
+#define PACKET_FANOUT_DATA		22
 
 #define PACKET_FANOUT_HASH		0
 #define PACKET_FANOUT_LB		1
@@ -61,6 +62,7 @@ struct sockaddr_ll {
 #define PACKET_FANOUT_ROLLOVER		3
 #define PACKET_FANOUT_RND		4
 #define PACKET_FANOUT_QM		5
+#define PACKET_FANOUT_CBPF		6
 #define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
 #define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
