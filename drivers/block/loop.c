@@ -1643,6 +1643,12 @@ static int loop_add(struct loop_device **l, int i)
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
 
+	/*
+	 * It doesn't make sense to enable merge because the I/O
+	 * submitted to backing file is handled page by page.
+	 */
+	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);
 	if (!disk)
 		goto out_free_queue;
