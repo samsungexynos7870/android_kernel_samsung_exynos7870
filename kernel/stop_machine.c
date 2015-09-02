@@ -205,6 +205,15 @@ static int multi_cpu_stop(void *data)
 			}
 			ack_state(msdata);
 		}
+
+#ifdef CONFIG_ARM64
+		if (msdata->state == curstate)
+			wfe();
+		else {
+			dsb(sy);
+			sev();
+		}
+#endif
 	} while (curstate != MULTI_STOP_EXIT);
 
 	local_irq_restore(flags);
