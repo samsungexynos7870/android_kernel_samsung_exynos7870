@@ -223,9 +223,6 @@ static int call_usermodehelper_exec_async(void *data)
 	flush_signal_handlers(current, 1);
 	spin_unlock_irq(&current->sighand->siglock);
 
-	/* We can run anywhere, unlike our parent keventd(). */
-	set_cpus_allowed_ptr(current, cpu_all_mask);
-
 	/*
 	 * Initial kernel threads share ther FS with init, in order to
 	 * get the init root directory. But we've now created a new
