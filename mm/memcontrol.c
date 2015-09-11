@@ -5979,10 +5979,24 @@ static void mem_cgroup_clear_mc(void)
 static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 				 struct cgroup_taskset *tset)
 {
-	struct task_struct *p = cgroup_taskset_first(tset);
+	struct task_struct *leader, *p;
 	int ret = 0;
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	unsigned long move_charge_at_immigrate;
+
+	/*
+	 * Multi-process migrations only happen on the default hierarchy
+	 * where charge immigration is not used.  Perform charge
+	 * immigration if @tset contains a leader and whine if there are
+	 * multiple.
+	 */
+	p = NULL;
+	cgroup_taskset_for_each_leader(leader, tset) {
+		WARN_ON_ONCE(p);
+		p = leader;
+	}
+	if (!p)
+		return 0;
 
 	/*
 	 * We are now commited to this value whatever it is. Changes in this
