@@ -1048,14 +1048,12 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
-	agdev->out_ep->driver_data = agdev;
 
 	agdev->in_ep = usb_ep_autoconfig(gadget, &fs_epin_desc);
 	if (!agdev->in_ep) {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		goto err;
 	}
-	agdev->in_ep->driver_data = agdev;
 
 	uac2->p_prm.uac2 = uac2;
 	uac2->c_prm.uac2 = uac2;
@@ -1095,10 +1093,6 @@ err_free_descs:
 err:
 	kfree(agdev->uac2.p_prm.rbuf);
 	kfree(agdev->uac2.c_prm.rbuf);
-	if (agdev->in_ep)
-		agdev->in_ep->driver_data = NULL;
-	if (agdev->out_ep)
-		agdev->out_ep->driver_data = NULL;
 	return -EINVAL;
 }
 
@@ -1546,11 +1540,6 @@ static void afunc_unbind(struct usb_configuration *c, struct usb_function *f)
 	prm = &agdev->uac2.c_prm;
 	kfree(prm->rbuf);
 	usb_free_all_descriptors(f);
-
-	if (agdev->in_ep)
-		agdev->in_ep->driver_data = NULL;
-	if (agdev->out_ep)
-		agdev->out_ep->driver_data = NULL;
 }
 
 struct usb_function *afunc_alloc(struct usb_function_instance *fi)
