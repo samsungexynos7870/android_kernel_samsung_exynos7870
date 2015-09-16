@@ -173,6 +173,7 @@ struct usb_ep {
 	const char		*name;
 	const struct usb_ep_ops	*ops;
 	struct list_head	ep_list;
+	bool			enabled;
 	unsigned		maxpacket:16;
 	unsigned		maxpacket_limit:16;
 	unsigned		max_streams:16;
@@ -222,6 +223,11 @@ static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
  */
 static inline int usb_ep_enable(struct usb_ep *ep)
 {
+	int ret;
+
+	if (ep->enabled)
+		return 0;
+
 	/* UDC drivers can't handle endpoints with maxpacket size 0 */
 	if (usb_endpoint_maxp(ep->desc) == 0) {
 		/*
@@ -232,7 +238,13 @@ static inline int usb_ep_enable(struct usb_ep *ep)
 		return -EINVAL;
 	}
 
-	return ep->ops->enable(ep, ep->desc);
+	ret = ep->ops->enable(ep, ep->desc);
+	if (ret)
+		return ret;
+
+	ep->enabled = true;
+
+	return 0;
 }
 
 /**
@@ -249,7 +261,18 @@ static inline int usb_ep_enable(struct usb_ep *ep)
  */
 static inline int usb_ep_disable(struct usb_ep *ep)
 {
-	return ep->ops->disable(ep);
+	int ret;
+
+	if (!ep->enabled)
+		return 0;
+
+	ret = ep->ops->disable(ep);
+	if (ret)
+		return ret;
+
+	ep->enabled = false;
+
+	return 0;
 }
 
 /**
