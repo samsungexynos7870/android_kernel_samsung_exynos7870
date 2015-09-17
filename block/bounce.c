@@ -128,6 +128,7 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool, int err)
 	struct bio *bio_orig = bio->bi_private;
 	struct bio_vec *bvec, *org_vec;
 	int i;
+	int start = bio_orig->bi_iter.bi_idx;
 
 	if (test_bit(BIO_EOPNOTSUPP, &bio->bi_flags))
 		set_bit(BIO_EOPNOTSUPP, &bio_orig->bi_flags);
@@ -136,7 +137,8 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool, int err)
 	 * free up bounce indirect pages used
 	 */
 	bio_for_each_segment_all(bvec, bio, i) {
-		org_vec = bio_orig->bi_io_vec + i;
+		org_vec = bio_orig->bi_io_vec + i + start;
+
 		if (bvec->bv_page == org_vec->bv_page)
 			continue;
 
