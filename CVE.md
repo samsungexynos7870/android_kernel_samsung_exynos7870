@@ -10,6 +10,7 @@
 | CVE-2015-0573    | not affected                             |
 | CVE-2015-1350    | not affected                             |
 | CVE-2015-2877    | no patch available                       |
+| CVE-2015-8767    | 635682a14427d241bab7bbdeebb48a7d7b91638e |
 | CVE-2016-2059    | not affected                             |
 | CVE-2016-2061    | not affected                             |
 | CVE-2016-2062    | not affected                             |
