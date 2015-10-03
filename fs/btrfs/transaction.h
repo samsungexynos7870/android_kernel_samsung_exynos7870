@@ -100,6 +100,7 @@ struct btrfs_trans_handle {
 	short aborted;
 	short adding_csums;
 	bool allocating_chunk;
+	bool can_flush_pending_bgs;
 	bool reloc_reserved;
 	bool sync;
 	bool dirty;
