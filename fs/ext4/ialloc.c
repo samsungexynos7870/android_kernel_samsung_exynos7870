@@ -1121,7 +1121,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	int bit;
 	struct buffer_head *bitmap_bh = NULL;
 	struct inode *inode = NULL;
-	int err = -EIO;
+	int err = -EFSCORRUPTED;
 
 	if (ino < EXT4_FIRST_INO(sb) || ino > max_ino)
 		goto bad_orphan;

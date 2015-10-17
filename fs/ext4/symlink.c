@@ -61,7 +61,7 @@ static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	     sizeof(struct ext4_encrypted_symlink_data) - 1) >
 	    max_size) {
 		/* Symlink data on the disk is corrupted */
-		res = -EIO;
+		res = -EFSCORRUPTED;
 		goto errout;
 	}
 	plen = (cstr.len < EXT4_FNAME_CRYPTO_DIGEST_SIZE*2) ?

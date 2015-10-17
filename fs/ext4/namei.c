@@ -109,7 +109,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 	}
 	if (!bh) {
 		ext4_error_inode(inode, __func__, line, block, "Directory hole found");
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-EFSCORRUPTED);
 	}
 	dirent = (struct ext4_dir_entry *) bh->b_data;
 	/* Determine whether or not we have an index block */
@@ -125,7 +125,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 		ext4_error_inode(inode, __func__, line, block,
 		       "directory leaf block found instead of index block");
 		brelse(bh);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-EFSCORRUPTED);
 	}
 	if (!ext4_has_metadata_csum(inode->i_sb) ||
 	    buffer_verified(bh))
@@ -143,7 +143,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 			ext4_error_inode(inode, __func__, line, block,
 				"Directory index failed checksum");
 			brelse(bh);
-			return ERR_PTR(-EIO);
+			return ERR_PTR(-EFSBADCRC);
 		}
 	}
 	if (!is_dx_block) {
@@ -153,7 +153,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 			ext4_error_inode(inode, __func__, line, block,
 				"Directory block failed checksum");
 			brelse(bh);
-			return ERR_PTR(-EIO);
+			return ERR_PTR(-EFSBADCRC);
 		}
 	}
 	return bh;
@@ -1622,19 +1622,19 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 		brelse(bh);
 		if (!ext4_valid_inum(dir->i_sb, ino)) {
 			EXT4_ERROR_INODE(dir, "bad inode number: %u", ino);
-			return ERR_PTR(-EIO);
+			return ERR_PTR(-EFSCORRUPTED);
 		}
 		if (unlikely(ino == dir->i_ino)) {
 			EXT4_ERROR_INODE(dir, "'%pd' linked to parent dir",
 					 dentry);
-			return ERR_PTR(-EIO);
+			return ERR_PTR(-EFSCORRUPTED);
 		}
 		inode = ext4_iget_normal(dir->i_sb, ino);
 		if (inode == ERR_PTR(-ESTALE)) {
 			EXT4_ERROR_INODE(dir,
 			 "deleted inode referenced: %u  at parent inode : %lu",
 					 		 ino, dir->i_ino);
-			return ERR_PTR(-EIO);
+			return ERR_PTR(-EFSCORRUPTED);
 		}
 		if (!IS_ERR(inode) && ext4_encrypted_inode(dir) &&
 		    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
@@ -1676,7 +1676,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	if (!ext4_valid_inum(child->d_inode->i_sb, ino)) {
 		EXT4_ERROR_INODE(child->d_inode,
 				 "bad parent inode number: %u", ino);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-EFSCORRUPTED);
 	}
 
 	return d_obtain_alias(ext4_iget_normal(child->d_inode->i_sb, ino));
@@ -1864,7 +1864,7 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
 	while ((char *) de <= top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 buf, buf_size, offset)) {
-			res = -EIO;
+			res = -EFSCORRUPTED;
 			goto return_result;
 		}
 		/* Provide crypto context and crypto buffer to ext4 match */
@@ -2024,7 +2024,7 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
 	if ((char *) de >= (((char *) root) + blocksize)) {
 		EXT4_ERROR_INODE(dir, "invalid rec_len for '..'");
 		brelse(bh);
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 	len = ((char *) root) + (blocksize - csum_size) - (char *) de;
 
@@ -2373,7 +2373,7 @@ int ext4_generic_delete_entry(handle_t *handle,
 	while (i < buf_size - csum_size) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 bh->b_data, bh->b_size, i))
-			return -EIO;
+			return -EFSCORRUPTED;
 		if (de == de_del)  {
 			if (pde)
 				pde->rec_len = ext4_rec_len_to_disk(
@@ -2985,7 +2985,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 
 	inode = dentry->d_inode;
 
-	retval = -EIO;
+	retval = -EFSCORRUPTED;
 	if (le32_to_cpu(de->inode) != inode->i_ino)
 		goto end_rmdir;
 
@@ -3054,7 +3054,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 
 	inode = dentry->d_inode;
 
-	retval = -EIO;
+	retval = -EFSCORRUPTED;
 	if (le32_to_cpu(de->inode) != inode->i_ino)
 		goto end_unlink;
 
@@ -3359,7 +3359,7 @@ static int ext4_rename_dir_prepare(handle_t *handle, struct ext4_renament *ent)
 	if (!ent->dir_bh)
 		return retval;
 	if (le32_to_cpu(ent->parent_de->inode) != ent->dir->i_ino)
-		return -EIO;
+		return -EFSCORRUPTED;
 	BUFFER_TRACE(ent->dir_bh, "get_write_access");
 	return ext4_journal_get_write_access(handle, ent->dir_bh);
 }
