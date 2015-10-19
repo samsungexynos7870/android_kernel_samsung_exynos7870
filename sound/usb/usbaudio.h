@@ -43,6 +43,7 @@ struct snd_usb_audio {
 	unsigned int in_pm:1;
 	unsigned int autosuspended:1;	
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
+	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
 	
 	int num_interfaces;
 	int num_suspended_intf;
