@@ -1850,9 +1850,6 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 		return;
 	runtime = substream->runtime;
 
-	if (runtime->transfer_ack_begin)
-		runtime->transfer_ack_begin(substream);
-
 	snd_pcm_stream_lock_irqsave(substream, flags);
 	if (!snd_pcm_running(substream) ||
 	    snd_pcm_update_hw_ptr0(substream, 1) < 0)
@@ -1862,8 +1859,6 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 		snd_timer_interrupt(substream->timer, 1);
  _end:
 	kill_fasync(&runtime->fasync, SIGIO, POLL_IN);
-	if (runtime->transfer_ack_end)
-		runtime->transfer_ack_end(substream);
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 }
 
