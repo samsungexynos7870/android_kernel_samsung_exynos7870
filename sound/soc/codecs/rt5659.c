@@ -1845,7 +1845,7 @@ static const struct snd_kcontrol_new rt5659_snd_controls[] = {
 };
 
 /**
- * set_dmic_clk - Set parameter of dmic.
+ * rt5659_calc_dmic_clk - Calculate the parameter of dmic.
  *
  * @w: DAPM widget.
  * @kcontrol: The kcontrol of this widget.
@@ -1854,7 +1854,7 @@ static const struct snd_kcontrol_new rt5659_snd_controls[] = {
  * Choose dmic clock between 1MHz and 3MHz.
  * It is better for clock to approximate 3MHz.
  */
-static int set_dmic_clk(struct snd_soc_dapm_widget *w,
+static int rt5659_calc_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
@@ -1863,9 +1863,9 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	int idx = -EINVAL, i, rate, red, bound, temp;
 
 	rate = rt5659->lrck[RT5659_AIF1] << 8;
-	red = 3000000 * 12;
+	red = 3072000 * 12;
 	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		bound = div[i] * 3000000;
+		bound = div[i] * 3072000;
 		if (rate > bound)
 			continue;
 		temp = bound - rate;
@@ -3301,7 +3301,7 @@ static const struct snd_soc_dapm_widget rt5659_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_NOPM, 0, 0,
-		set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
+		rt5659_calc_dmic_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("DMIC1 Power", RT5659_DMIC_CTRL_1,
 		RT5659_DMIC_1_EN_SFT, 0, set_dmic_power, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("DMIC2 Power", RT5659_DMIC_CTRL_1,
