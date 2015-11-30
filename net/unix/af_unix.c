@@ -2076,7 +2076,7 @@ static long unix_stream_data_wait(struct sock *sk, long timeo,
 		    !timeo)
 			break;
 
-		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		unix_state_unlock(sk);
 		timeo = freezable_schedule_timeout(timeo);
 		unix_state_lock(sk);
@@ -2084,7 +2084,7 @@ static long unix_stream_data_wait(struct sock *sk, long timeo,
 		if (sock_flag(sk, SOCK_DEAD))
 			break;
 
-		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	}
 
 	finish_wait(sk_sleep(sk), &wait);
@@ -2458,7 +2458,7 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 	if (writable)
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	return mask;
 }

@@ -162,7 +162,7 @@ static int skcipher_wait_for_wmem(struct sock *sk, unsigned flags)
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
 
-	set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	for (;;) {
 		if (signal_pending(current))
@@ -208,7 +208,7 @@ static int skcipher_wait_for_data(struct sock *sk, unsigned flags)
 		return -EAGAIN;
 	}
 
-	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	for (;;) {
 		if (signal_pending(current))
@@ -222,7 +222,7 @@ static int skcipher_wait_for_data(struct sock *sk, unsigned flags)
 	}
 	finish_wait(sk_sleep(sk), &wait);
 
-	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	return err;
 }
