@@ -312,7 +312,12 @@ struct __sk_buff {
 
 struct bpf_tunnel_key {
 	__u32 tunnel_id;
-	__u32 remote_ipv4;
+	union {
+		__u32 remote_ipv4;
+		__u32 remote_ipv6[4];
+	};
+	__u8 tunnel_tos;
+	__u8 tunnel_ttl;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
