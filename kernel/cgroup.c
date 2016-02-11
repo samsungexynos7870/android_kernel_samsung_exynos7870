@@ -182,6 +182,9 @@ EXPORT_SYMBOL_GPL(cgrp_dfl_root);
  */
 static bool cgrp_dfl_root_visible;
 
+/* Controllers blocked by the commandline in v1 */
+static unsigned long cgroup_no_v1_mask;
+
 /* some controllers are not supported in the default hierarchy */
 static unsigned long cgrp_dfl_root_inhibit_ss_mask;
 
@@ -229,6 +232,69 @@ static void kill_css(struct cgroup_subsys_state *css);
 static int cgroup_addrm_files(struct cgroup_subsys_state *css,
 			      struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
+
+static bool cgroup_ssid_no_v1(int ssid)
+{
+	return cgroup_no_v1_mask & (1 << ssid);
+}
+
+/**
+ * cgroup_on_dfl - test whether a cgroup is on the default hierarchy
+ * @cgrp: the cgroup of interest
+ *
+ * The default hierarchy is the v2 interface of cgroup and this function
+ * can be used to test whether a cgroup is on the default hierarchy for
+ * cases where a subsystem should behave differnetly depending on the
+ * interface version.
+ *
+ * The set of behaviors which change on the default hierarchy are still
+ * being determined and the mount option is prefixed with __DEVEL__.
+ *
+ * List of changed behaviors:
+ *
+ * - Mount options "noprefix", "xattr", "clone_children", "release_agent"
+ *   and "name" are disallowed.
+ *
+ * - When mounting an existing superblock, mount options should match.
+ *
+ * - Remount is disallowed.
+ *
+ * - rename(2) is disallowed.
+ *
+ * - "tasks" is removed.  Everything should be at process granularity.  Use
+ *   "cgroup.procs" instead.
+ *
+ * - "cgroup.procs" is not sorted.  pids will be unique unless they got
+ *   recycled inbetween reads.
+ *
+ * - "release_agent" and "notify_on_release" are removed.  Replacement
+ *   notification mechanism will be implemented.
+ *
+ * - "cgroup.clone_children" is removed.
+ *
+ * - "cgroup.subtree_populated" is available.  Its value is 0 if the cgroup
+ *   and its descendants contain no task; otherwise, 1.  The file also
+ *   generates kernfs notification which can be monitored through poll and
+ *   [di]notify when the value of the file changes.
+ *
+ * - cpuset: tasks will be kept in empty cpusets when hotplug happens and
+ *   take masks of ancestors with non-empty cpus/mems, instead of being
+ *   moved to an ancestor.
+ *
+ * - cpuset: a task can be moved into an empty cpuset, and again it takes
+ *   masks of ancestors.
+ *
+ * - memcg: use_hierarchy is on by default and the cgroup file for the flag
+ *   is not created.
+ *
+ * - blkcg: blk-throttle becomes properly hierarchical.
+ *
+ * - debug: disallowed on the default hierarchy.
+ */
+static bool cgroup_on_dfl(const struct cgroup *cgrp)
+{
+	return cgrp->root == &cgrp_dfl_root;
+}
 
 /* IDR wrappers which synchronize using cgroup_idr_lock */
 static int cgroup_idr_alloc(struct idr *idr, void *ptr, int start, int end,
@@ -1613,6 +1679,8 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 				continue;
 			if (ss->disabled)
 				continue;
+			if (cgroup_ssid_no_v1(i))
+				continue;
 
 			/* Mutually exclusive option 'all' + subsystem name */
 			if (all_ss)
@@ -1633,7 +1701,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	 */
 	if (all_ss || (!one_ss && !opts->none && !opts->name))
 		for_each_subsys(ss, i)
-			if (!ss->disabled)
+			if (!ss->disabled) && !cgroup_ssid_no_v1(i))
 				opts->subsys_mask |= (1 << i);
 
 	/*
@@ -5319,6 +5387,10 @@ int __init cgroup_init(void)
 		if (ss->disabled)
 			continue;
 
+		if (cgroup_ssid_no_v1(ssid))
+			printk(KERN_INFO "Disabling %s control group subsystem in v1 mounts\n",
+			       ss->name);
+
 		cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 
 		if (!ss->dfl_cftypes)
@@ -5754,6 +5826,33 @@ static int __init cgroup_disable(char *str)
 	return 1;
 }
 __setup("cgroup_disable=", cgroup_disable);
+
+static int __init cgroup_no_v1(char *str)
+{
+	struct cgroup_subsys *ss;
+	char *token;
+	int i;
+
+	while ((token = strsep(&str, ",")) != NULL) {
+		if (!*token)
+			continue;
+
+		if (!strcmp(token, "all")) {
+			cgroup_no_v1_mask = ~0UL;
+			break;
+		}
+
+		for_each_subsys(ss, i) {
+			if (strcmp(token, ss->name) &&
+			    strcmp(token, ss->legacy_name))
+				continue;
+
+			cgroup_no_v1_mask |= 1 << i;
+		}
+	}
+	return 1;
+}
+__setup("cgroup_no_v1=", cgroup_no_v1);
 
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry
