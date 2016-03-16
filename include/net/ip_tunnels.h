@@ -6,6 +6,8 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/bitops.h>
+
 #include <net/dsfield.h>
 #include <net/gro_cells.h>
 #include <net/inet_ecn.h>
@@ -45,6 +47,11 @@ enum {
 	IP_TUNNEL_INFO_RX,
 	IP_TUNNEL_INFO_TX,
 };
+
+/* Maximum tunnel options length. */
+#define IP_TUNNEL_OPTS_MAX					\
+	GENMASK((FIELD_SIZEOF(struct ip_tunnel_info,		\
+			      options_len) * BITS_PER_BYTE) - 1, 0)
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
