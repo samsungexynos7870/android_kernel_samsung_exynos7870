@@ -162,6 +162,7 @@ struct dentry_operations {
 	int (*d_manage)(struct dentry *, bool);
 	void (*d_canonical_path)(const struct path *, struct path *);
 	struct inode *(*d_select_inode)(struct dentry *, unsigned);
+	struct dentry *(*d_real)(struct dentry *, struct inode *);
 } ____cacheline_aligned;
 
 /*
@@ -225,6 +226,7 @@ struct dentry_operations {
 
 #define DCACHE_MAY_FREE			0x00800000
 #define DCACHE_OP_SELECT_INODE		0x02000000 /* Unioned entry: dcache op selects inode */
+#define DCACHE_OP_REAL			0x08000000
 
 #define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
 #define DCACHE_WILL_INVALIDATE		0x80000000 /* will be invalidated */
@@ -552,5 +554,13 @@ static inline struct inode *vfs_select_inode(struct dentry *dentry,
 	return inode;
 }
 
+
+static inline struct dentry *d_real(struct dentry *dentry)
+{
+	if (unlikely(dentry->d_flags & DCACHE_OP_REAL))
+		return dentry->d_op->d_real(dentry, NULL);
+	else
+		return dentry;
+}
 
 #endif	/* __LINUX_DCACHE_H */
