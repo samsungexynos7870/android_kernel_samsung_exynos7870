@@ -566,6 +566,7 @@ extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      int is_signed, int filter_type);
 extern int trace_add_event_call(struct ftrace_event_call *call);
 extern int trace_remove_event_call(struct ftrace_event_call *call);
+extern int trace_event_get_offsets(struct trace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < (type)1)
 
