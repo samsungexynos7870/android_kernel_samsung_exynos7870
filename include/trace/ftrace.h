@@ -626,6 +626,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_event_buffer fbuffer;				\
 	struct ftrace_raw_##call *entry;				\
+	struct bpf_prog *prog = event_call->prog;			\
 	int __data_size;						\
 									\
 	if (ftrace_trigger_soft_disabled(ftrace_file))			\
@@ -770,7 +771,7 @@ perf_trace_##call(void *__data, proto)					\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
-	if (__builtin_constant_p(!__task) && !__task &&			\
+	if (!prog && __builtin_constant_p(!__task) && !__task &&	\
 				hlist_empty(head))			\
 		return;							\
 									\
@@ -788,6 +789,13 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	{ assign; }							\
 									\
+	if (prog) {							\
+		*(struct pt_regs **)entry = __regs;			\
+		if (!trace_call_bpf(prog, entry) || hlist_empty(head)) { \
+			perf_swevent_put_recursion_context(rctx);	\
+			return;						\
+		}							\
+	}								\
 	perf_trace_buf_submit(entry, __entry_size, rctx,		\
 			      event_call->event.type, __count, __regs,	\
 			      head, __task);				\
