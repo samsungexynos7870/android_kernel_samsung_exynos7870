@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cputype.h>
+#include <asm/sysreg.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/pmu.h>
@@ -865,16 +866,14 @@ static const unsigned armv8_pmuv3_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 
 static inline u32 armv8pmu_pmcr_read(void)
 {
-	u32 val;
-	asm volatile("mrs %0, pmcr_el0" : "=r" (val));
-	return val;
+	return read_sysreg(pmcr_el0);
 }
 
 static inline void armv8pmu_pmcr_write(u32 val)
 {
 	val &= ARMV8_PMCR_MASK;
 	isb();
-	asm volatile("msr pmcr_el0, %0" :: "r" (val));
+	write_sysreg(val, pmcr_el0);
 }
 
 static inline int armv8pmu_has_overflowed(u32 pmovsr)
@@ -914,7 +913,7 @@ static inline int armv8pmu_select_counter(int idx)
 	}
 
 	counter = ARMV8_IDX_TO_COUNTER(idx);
-	asm volatile("msr pmselr_el0, %0" :: "r" (counter));
+	write_sysreg(counter, pmselr_el0);
 	isb();
 
 	return idx;
@@ -928,9 +927,9 @@ static inline u32 armv8pmu_read_counter(int idx)
 		pr_err("CPU%u reading wrong counter %d\n",
 			smp_processor_id(), idx);
 	else if (idx == ARMV8_IDX_CYCLE_COUNTER)
-		asm volatile("mrs %0, pmccntr_el0" : "=r" (value));
+		value = read_sysreg(pmccntr_el0);
 	else if (armv8pmu_select_counter(idx) == idx)
-		asm volatile("mrs %0, pmxevcntr_el0" : "=r" (value));
+		value = read_sysreg(pmxevcntr_el0);
 
 	return value;
 }
@@ -941,16 +940,16 @@ static inline void armv8pmu_write_counter(int idx, u32 value)
 		pr_err("CPU%u writing wrong counter %d\n",
 			smp_processor_id(), idx);
 	else if (idx == ARMV8_IDX_CYCLE_COUNTER)
-		asm volatile("msr pmccntr_el0, %0" :: "r" (value));
+		write_sysreg(value, pmccntr_el0);
 	else if (armv8pmu_select_counter(idx) == idx)
-		asm volatile("msr pmxevcntr_el0, %0" :: "r" (value));
+		write_sysreg(value, pmxevcntr_el0);
 }
 
 static inline void armv8pmu_write_evtype(int idx, u32 val)
 {
 	if (armv8pmu_select_counter(idx) == idx) {
 		val &= ARMV8_EVTYPE_MASK;
-		asm volatile("msr pmxevtyper_el0, %0" :: "r" (val));
+		write_sysreg(val, pmxevtyper_el0);
 	}
 }
 
@@ -965,7 +964,7 @@ static inline int armv8pmu_enable_counter(int idx)
 	}
 
 	counter = ARMV8_IDX_TO_COUNTER(idx);
-	asm volatile("msr pmcntenset_el0, %0" :: "r" (BIT(counter)));
+	write_sysreg(BIT(counter), pmcntenset_el0);
 	return idx;
 }
 
@@ -980,7 +979,7 @@ static inline int armv8pmu_disable_counter(int idx)
 	}
 
 	counter = ARMV8_IDX_TO_COUNTER(idx);
-	asm volatile("msr pmcntenclr_el0, %0" :: "r" (BIT(counter)));
+	write_sysreg(BIT(counter), pmcntenclr_el0);
 	return idx;
 }
 
@@ -995,7 +994,7 @@ static inline int armv8pmu_enable_intens(int idx)
 	}
 
 	counter = ARMV8_IDX_TO_COUNTER(idx);
-	asm volatile("msr pmintenset_el1, %0" :: "r" (BIT(counter)));
+	write_sysreg(BIT(counter), pmintenset_el1);
 	return idx;
 }
 
@@ -1010,10 +1009,10 @@ static inline int armv8pmu_disable_intens(int idx)
 	}
 
 	counter = ARMV8_IDX_TO_COUNTER(idx);
-	asm volatile("msr pmintenclr_el1, %0" :: "r" (BIT(counter)));
+	write_sysreg(BIT(counter), pmintenclr_el1);
 	isb();
 	/* Clear the overflow flag in case an interrupt is pending. */
-	asm volatile("msr pmovsclr_el0, %0" :: "r" (BIT(counter)));
+	write_sysreg(BIT(counter), pmovsclr_el0);
 	isb();
 	return idx;
 }
@@ -1023,11 +1022,11 @@ static inline u32 armv8pmu_getreset_flags(void)
 	u32 value;
 
 	/* Read */
-	asm volatile("mrs %0, pmovsclr_el0" : "=r" (value));
+	value = read_sysreg(pmovsclr_el0);
 
 	/* Write to clear flags */
 	value &= ARMV8_OVSR_MASK;
-	asm volatile("msr pmovsclr_el0, %0" :: "r" (value));
+	write_sysreg(value, pmovsclr_el0);
 
 	return value;
 }
@@ -1238,7 +1237,7 @@ static void armv8pmu_reset(void *info)
 	armv8pmu_pmcr_write(ARMV8_PMCR_P | ARMV8_PMCR_C);
 
 	/* Disable access from userspace. */
-	asm volatile("msr pmuserenr_el0, %0" :: "r" (0));
+	write_sysreg(0, pmuserenr_el0);
 }
 
 static int armv8_pmuv3_map_event(struct perf_event *event)
