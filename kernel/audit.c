@@ -63,7 +63,6 @@
 #include <linux/security.h>
 #endif
 #include <linux/freezer.h>
-#include <linux/tty.h>
 #include <linux/pid_namespace.h>
 #include <net/netns/generic.h>
 
@@ -1892,7 +1891,8 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	const struct cred *cred;
 	char comm[sizeof(tsk->comm)];
 	struct mm_struct *mm = tsk->mm;
-	char *tty;
+	char tty_name_buf[64];
+	struct tty_struct *tty;
 
 	if (!ab)
 		return;
@@ -1900,12 +1900,7 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	/* tsk == current */
 	cred = current_cred();
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
-		tty = tsk->signal->tty->name;
-	else
-		tty = "(none)";
-	spin_unlock_irq(&tsk->sighand->siglock);
+	tty = audit_get_tty(tsk);
 
 	audit_log_format(ab,
 			 " ppid=%d pid=%d auid=%u uid=%u gid=%u"
@@ -1922,7 +1917,9 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 from_kgid(&init_user_ns, cred->egid),
 			 from_kgid(&init_user_ns, cred->sgid),
 			 from_kgid(&init_user_ns, cred->fsgid),
-			 tty, audit_get_sessionid(tsk));
+			 tty ? tty_name(tty, tty_name_buf) : "(none)",
+			 audit_get_sessionid(tsk));
+	audit_put_tty(tty);
 
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, get_task_comm(comm, tsk));
