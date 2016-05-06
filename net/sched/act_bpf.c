@@ -52,9 +52,11 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 	rcu_read_lock();
 	if (at_ingress) {
 		__skb_push(skb, skb->mac_len);
+		bpf_compute_data_end(skb);
 		filter_res = BPF_PROG_RUN(prog->filter, skb);
 		__skb_pull(skb, skb->mac_len);
 	} else {
+		bpf_compute_data_end(skb);
 		filter_res = BPF_PROG_RUN(prog->filter, skb);
 	}
 	rcu_read_unlock();
