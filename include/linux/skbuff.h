@@ -42,6 +42,7 @@
 #include <linux/netdev_features.h>
 #include <linux/sched.h>
 #include <net/flow_keys.h>
+#include <linux/if_packet.h>
 
 /* A. Checksumming of received packets by device.
  *
@@ -759,6 +760,15 @@ static inline bool skb_dst_is_noref(const struct sk_buff *skb)
 static inline struct rtable *skb_rtable(const struct sk_buff *skb)
 {
 	return (struct rtable *)skb_dst(skb);
+}
+
+/* For mangling skb->pkt_type from user space side from applications
+ * such as nft, tc, etc, we only allow a conservative subset of
+ * possible pkt_types to be set.
+*/
+static inline bool skb_pkt_type_ok(u32 ptype)
+{
+	return ptype <= PACKET_OTHERHOST;
 }
 
 void kfree_skb(struct sk_buff *skb);
