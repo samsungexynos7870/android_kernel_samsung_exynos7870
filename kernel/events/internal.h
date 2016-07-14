@@ -81,10 +81,7 @@ static inline unsigned long perf_data_size(struct ring_buffer *rb)
 	return rb->nr_pages << (PAGE_SHIFT + page_order(rb));
 }
 
-#define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\
-static inline unsigned long						\
-func_name(struct perf_output_handle *handle,				\
-	  const void *buf, unsigned long len)				\
+#define __DEFINE_OUTPUT_COPY_BODY(memcpy_func)				\
 {									\
 	unsigned long size, written;					\
 									\
@@ -109,6 +106,17 @@ func_name(struct perf_output_handle *handle,				\
 									\
 	return len;							\
 }
+
+#define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\
+static inline unsigned long						\
+func_name(struct perf_output_handle *handle,				\
+	  const void *buf, unsigned long len)				\
+__DEFINE_OUTPUT_COPY_BODY(memcpy_func)
+
+static inline unsigned long
+__output_custom(struct perf_output_handle *handle, perf_copy_f copy_func,
+		const void *buf, unsigned long len)
+__DEFINE_OUTPUT_COPY_BODY(copy_func)
 
 static inline unsigned long
 memcpy_common(void *dst, const void *src, unsigned long n)
