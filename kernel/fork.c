@@ -1431,8 +1431,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->io_context = NULL;
 	p->audit_context = NULL;
-	if (clone_flags & CLONE_THREAD)
-		threadgroup_change_begin(current);
 	cgroup_fork(p);
 #ifdef CONFIG_NUMA
 	p->mempolicy = mpol_dup(p->mempolicy);
@@ -1578,6 +1576,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	INIT_LIST_HEAD(&p->thread_group);
 	p->task_works = NULL;
 
+	if (clone_flags & CLONE_THREAD)
+		threadgroup_change_begin(current);
 	/*
 	 * Make it visible to the rest of the system, but dont wake it up yet.
 	 * Need tasklist lock for parent etc handling!
@@ -1682,6 +1682,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	return p;
 
 bad_fork_free_pid:
+	if (clone_flags & CLONE_THREAD)
+		threadgroup_change_end(current);
 	if (pid != &init_struct_pid)
 		free_pid(pid);
 	task_integrity_cleanup(p);
@@ -1713,8 +1715,6 @@ bad_fork_cleanup_policy:
 	mpol_put(p->mempolicy);
 bad_fork_cleanup_threadgroup_lock:
 #endif
-	if (clone_flags & CLONE_THREAD)
-		threadgroup_change_end(current);
 	delayacct_tsk_free(p);
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
