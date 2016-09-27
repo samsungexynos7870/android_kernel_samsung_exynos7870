@@ -650,7 +650,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	take_dentry_name_snapshot(&old_name, old_dentry);
 
 	error = simple_rename(old_dir->d_inode, old_dentry, new_dir->d_inode,
-		dentry);
+		dentry, 0);
 	if (error) {
 		release_dentry_name_snapshot(&old_name);
 		goto exit;
