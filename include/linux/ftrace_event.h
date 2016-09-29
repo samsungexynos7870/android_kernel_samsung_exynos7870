@@ -566,7 +566,7 @@ extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      int is_signed, int filter_type);
 extern int trace_add_event_call(struct ftrace_event_call *call);
 extern int trace_remove_event_call(struct ftrace_event_call *call);
-extern int trace_event_get_offsets(struct trace_event_call *call);
+extern int trace_event_get_offsets(struct ftrace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < (type)1)
 
@@ -607,7 +607,7 @@ void perf_trace_buf_update(void *record, u16 type);
 void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp);
 
 void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
-			       struct trace_event_call *call, u64 count,
+			       struct ftrace_event_call *call, u64 count,
 			       struct pt_regs *regs, struct hlist_head *head,
 			       struct task_struct *task);
 
