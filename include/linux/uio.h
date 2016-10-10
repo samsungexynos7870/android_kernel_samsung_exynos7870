@@ -92,12 +92,12 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
 			size_t maxsize, size_t *start);
 int iov_iter_npages(const struct iov_iter *i, int maxpages);
 
-static inline size_t iov_iter_count(struct iov_iter *i)
+static inline size_t iov_iter_count(const struct iov_iter *i)
 {
 	return i->count;
 }
 
-static inline bool iter_is_iovec(struct iov_iter *i)
+static inline bool iter_is_iovec(const struct iov_iter *i)
 {
 	return !(i->type & (ITER_BVEC | ITER_KVEC));
 }
