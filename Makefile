@@ -705,6 +705,10 @@ endif
 KBUILD_CFLAGS += $(stackp-flag)
 
 ifeq ($(cc-name),clang)
+CLANG_TRIPLE	?= $(CROSS_COMPILE)
+ifneq ($(CLANG_TRIPLE),)
+KBUILD_CPPFLAGS += --target=$(notdir $(CLANG_TRIPLE:%-=%))
+endif
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
 KBUILD_CPPFLAGS += $(call cc-option,-Wno-unknown-warning-option,)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-variable)
