@@ -79,6 +79,7 @@
 #include <linux/mroute.h>
 #include <linux/netlink.h>
 #include <linux/tcp.h>
+#include <linux/bpf-cgroup.h>
 
 int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
 EXPORT_SYMBOL(sysctl_ip_default_ttl);
@@ -255,6 +256,14 @@ static int ip_finish_output_gso(struct sk_buff *skb)
 
 static int ip_finish_output(struct sk_buff *skb)
 {
+	int ret;
+
+	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(skb->sk, skb);
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
 	if (skb_dst(skb)->xfrm != NULL) {
@@ -269,6 +278,19 @@ static int ip_finish_output(struct sk_buff *skb)
 		return ip_fragment(skb, ip_finish_output2);
 
 	return ip_finish_output2(skb);
+}
+
+static int ip_mc_finish_output(struct sk_buff *skb)
+{
+	int ret;
+
+	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(skb->sk, skb);
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	return dev_loopback_xmit(skb);
 }
 
 int ip_mc_output(struct sock *sk, struct sk_buff *skb)
@@ -308,7 +330,7 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 			if (newskb)
 				NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,
 					newskb, NULL, newskb->dev,
-					dev_loopback_xmit);
+					ip_mc_finish_output);
 		}
 
 		/* Multicasts with ttl 0 must not go beyond the host */
@@ -323,7 +345,7 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 		struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 		if (newskb)
 			NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING, newskb,
-				NULL, newskb->dev, dev_loopback_xmit);
+				NULL, newskb->dev, ip_mc_finish_output);
 	}
 
 	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, skb, NULL,
