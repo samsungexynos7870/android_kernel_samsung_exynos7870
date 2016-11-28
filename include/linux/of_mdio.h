@@ -64,11 +64,15 @@ static inline struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
 
 #if defined(CONFIG_OF) && defined(CONFIG_FIXED_PHY)
 extern int of_phy_register_fixed_link(struct device_node *np);
+extern void of_phy_deregister_fixed_link(struct device_node *np);
 extern bool of_phy_is_fixed_link(struct device_node *np);
 #else
 static inline int of_phy_register_fixed_link(struct device_node *np)
 {
 	return -ENOSYS;
+}
+static inline void of_phy_deregister_fixed_link(struct device_node *np)
+{
 }
 static inline bool of_phy_is_fixed_link(struct device_node *np)
 {
