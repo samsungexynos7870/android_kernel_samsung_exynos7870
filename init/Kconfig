@@ -1225,6 +1225,10 @@ config CGROUP_BPF
           of attachment. For instance, programs that are attached using
           BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
           inet sockets.
+config SOCK_CGROUP_DATA
+	bool
+	default n
+
 endif # CGROUPS
 
 config CHECKPOINT_RESTORE
