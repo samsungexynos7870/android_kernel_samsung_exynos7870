@@ -405,6 +405,7 @@ int crypto_register_alg(struct crypto_alg *alg)
 	}
 #endif
 
+	alg->cra_flags &= ~CRYPTO_ALG_DEAD;
 	err = crypto_check_alg(alg);
 	if (err)
 		return err;
