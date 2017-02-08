@@ -5,6 +5,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/sched/loadavg.h>
 
 #include "sched.h"
 
