@@ -342,6 +342,13 @@ static struct ctl_table net_core_table[] = {
 	},
 # endif
 	{
+		.procname	= "bpf_jit_kallsyms",
+		.data		= &bpf_jit_kallsyms,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "bpf_jit_limit",
 		.data		= &bpf_jit_limit,
 		.maxlen		= sizeof(long),
