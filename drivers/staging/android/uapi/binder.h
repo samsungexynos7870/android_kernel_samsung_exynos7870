@@ -20,6 +20,7 @@
 #ifndef _UAPI_LINUX_BINDER_H
 #define _UAPI_LINUX_BINDER_H
 
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 #define B_PACK_CHARS(c1, c2, c3, c4) \
@@ -113,7 +114,7 @@ struct binder_object_header {
  */
 struct flat_binder_object {
 	struct binder_object_header	hdr;
-	__u32		flags;
+	__u32				flags;
 
 	/* 8 bytes of data. */
 	union {
@@ -252,6 +253,7 @@ struct binder_node_debug_info {
 #define BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
 #define BINDER_VERSION			_IOWR('b', 9, struct binder_version)
+#define BINDER_SET_INHERIT_FIFO_PRIO	_IO('b', 10)
 #define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_node_debug_info)
 
 /*
@@ -509,4 +511,5 @@ enum binder_driver_command_protocol {
 };
 
 #endif /* _UAPI_LINUX_BINDER_H */
+
 
