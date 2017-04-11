@@ -88,9 +88,12 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock();
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		unsigned int pkt_len = bpf_prog_run_save_cb(filter->prog, skb);
+		struct sock *save_sk = skb->sk;
+		unsigned int pkt_len;
 
-		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
+		skb->sk = sk;
+		pkt_len = bpf_prog_run_save_cb(filter->prog, skb);
+		err = pkt_len ? pskb_trim(skb, max(cap, pkt_len)) : -EPERM;
 	}
 	rcu_read_unlock();
 
