@@ -309,8 +309,8 @@ do {								\
 	"	.quad		1b, 4b\n"			\
 	"	.popsection\n"					\
 	: "=&r" (res), "+r" (data), "=&r" (temp), "=&r" (temp2)	\
-	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT),		\
-	  "i" (__SWP_LL_SC_LOOPS)				\
+	: "r" ((unsigned long)addr), "i" (-EAGAIN),		\
+	  "i" (-EFAULT),					\
 	  "i" (__SWP_LL_SC_LOOPS)				\
 	: "memory");						\
 	uaccess_disable();					\
