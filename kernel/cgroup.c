@@ -60,6 +60,9 @@
 
 #include <linux/atomic.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/cgroup.h>
+
 /*
  * pidlists linger the following amount before being destroyed.  The goal
  * is avoiding frequent destruction in the middle of consecutive read calls
@@ -1056,6 +1059,8 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 	struct cgroup *cgrp = &root->cgrp;
 	struct cgrp_cset_link *link, *tmp_link;
 
+	trace_cgroup_destroy_root(root);
+
 	mutex_lock(&cgroup_mutex);
 
 	BUG_ON(atomic_read(&root->nr_cgrps));
@@ -1729,6 +1734,9 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 		strcpy(root->release_agent_path, opts.release_agent);
 		spin_unlock(&release_agent_path_lock);
 	}
+
+	trace_cgroup_remount(root);
+
  out_unlock:
 	kfree(opts.release_agent);
 	kfree(opts.name);
@@ -1883,6 +1891,8 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 	ret = rebind_subsystems(root, ss_mask);
 	if (ret)
 		goto destroy_root;
+
+	trace_cgroup_setup_root(root);
 
 	/*
 	 * There must be no failure case after here, since rebinding takes
@@ -2603,6 +2613,10 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 		ret = cgroup_migrate(leader, threadgroup, dst_cgrp);
 
 	cgroup_migrate_finish(&preloaded_csets);
+
+	if (!ret)
+		trace_cgroup_attach_task(dst_cgrp, leader, threadgroup);
+
 	return ret;
 }
 
@@ -3274,6 +3288,8 @@ static int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	mutex_lock(&cgroup_mutex);
 
 	ret = kernfs_rename(kn, new_parent, new_name_str);
+	if (!ret)
+		trace_cgroup_rename(cgrp);
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -4037,6 +4053,8 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 
 		if (task) {
 			ret = cgroup_migrate(task, false, to);
+			if (!ret)
+				trace_cgroup_transfer_tasks(to, task, false);
 			put_task_struct(task);
 		}
 	} while (task && !ret);
@@ -4707,6 +4725,8 @@ static void css_release_work_fn(struct work_struct *work)
 			ss->css_released(css);
 	} else {
 		/* cgroup release path */
+		trace_cgroup_release(cgrp);
+
 		cgroup_idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
 		cgrp->id = -1;
 
@@ -4955,6 +4975,8 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
+	trace_cgroup_mkdir(cgrp);
+
 	/* let's create and online css's */
 	for_each_subsys(ss, ssid) {
 		if (parent->child_subsys_mask & (1 << ssid)) {
@@ -5155,6 +5177,9 @@ static int cgroup_rmdir(struct kernfs_node *kn)
 		return 0;
 
 	ret = cgroup_destroy_locked(cgrp);
+
+	if (!ret)
+		trace_cgroup_rmdir(cgrp);
 
 	cgroup_kn_unlock(kn);
 	return ret;
