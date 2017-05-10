@@ -789,6 +789,8 @@ static bool is_ctx_reg(struct bpf_verifier_env *env, int regno)
 static int check_ptr_alignment(struct bpf_verifier_env *env,
 			       struct bpf_reg_state *reg, int off, int size)
 {
+	bool strict = env->strict_alignment;
+
 	if (reg->type != PTR_TO_PACKET && reg->type != PTR_TO_MAP_VALUE_ADJ) {
 		if (off % size != 0) {
 			verbose("misaligned access off %d size %d\n",
@@ -799,7 +801,7 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && !strict)
 		/* misaligned access to packet is ok on x86,arm,arm64 */
 		return 0;
 
@@ -3724,6 +3726,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	} else {
 		log_level = 0;
 	}
+	if (attr->prog_flags & BPF_F_STRICT_ALIGNMENT)
+		env->strict_alignment = true;
+	else
+		env->strict_alignment = false;
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
@@ -3832,6 +3838,7 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	mutex_lock(&bpf_verifier_lock);
 
 	log_level = 0;
+	env->strict_alignment = false;
 
 	env->explored_states = kcalloc(env->prog->len,
 				       sizeof(struct bpf_verifier_state_list *),
