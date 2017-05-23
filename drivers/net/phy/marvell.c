@@ -159,6 +159,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 
 	err = phy_write(phydev, MII_M1011_PHY_SCR,
 			MII_M1011_PHY_SCR_AUTO_CROSS);
+
 	if (err < 0)
 		return err;
 
