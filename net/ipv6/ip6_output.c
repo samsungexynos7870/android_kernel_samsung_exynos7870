@@ -592,7 +592,6 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		if (skb->sk && dst_allfrag(skb_dst(skb)))
 			sk_nocaps_add(skb->sk, NETIF_F_GSO_MASK);
 
-		skb->dev = skb_dst(skb)->dev;
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_FRAGFAILS);
