@@ -308,7 +308,7 @@ static int page_is_consistent(struct zone *zone, struct page *page)
 /*
  * Temporary debugging check for pages not lying within a given zone.
  */
-static int bad_range(struct zone *zone, struct page *page)
+static int __maybe_unused bad_range(struct zone *zone, struct page *page)
 {
 	if (page_outside_zone_boundaries(zone, page))
 		return 1;
@@ -318,7 +318,7 @@ static int bad_range(struct zone *zone, struct page *page)
 	return 0;
 }
 #else
-static inline int bad_range(struct zone *zone, struct page *page)
+static inline int __maybe_unused bad_range(struct zone *zone, struct page *page)
 {
 	return 0;
 }
@@ -478,7 +478,7 @@ static inline void clear_page_guard_flag(struct page *page)
 	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
 }
 #else
-static inline void set_page_guard_flag(struct page *page) { }
+static inline void __maybe_unused set_page_guard_flag(struct page *page) { }
 static inline void clear_page_guard_flag(struct page *page) { }
 #endif
 
