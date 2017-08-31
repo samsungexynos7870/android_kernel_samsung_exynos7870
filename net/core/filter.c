@@ -2464,6 +2464,20 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
+sock_filter_func_proto(enum bpf_func_id func_id)
+{
+        switch (func_id) {
+        /* inet and inet6 sockets are created in a process
+         * context so there is always a valid uid/gid
+         */
+        case BPF_FUNC_get_current_uid_gid:
+                return &bpf_get_current_uid_gid_proto;
+        default:
+                return sk_filter_func_proto(func_id);
+        }
+}
+
+static const struct bpf_func_proto *
 tc_cls_act_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
