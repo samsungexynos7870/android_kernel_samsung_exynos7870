@@ -1675,6 +1675,7 @@ static int loop_add(struct loop_device **l, int i)
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
 
+	blk_queue_max_hw_sectors(lo->lo_queue, BLK_DEF_MAX_SECTORS);
 	/*
 	 * It doesn't make sense to enable merge because the I/O
 	 * submitted to backing file is handled page by page.
