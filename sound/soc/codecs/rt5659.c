@@ -1859,8 +1859,8 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
-	int div[] = { 2, 3, 4, 6, 8, 12 }, idx =
-	    -EINVAL, i, rate, red, bound, temp;
+	static const int div[] = {2, 3, 4, 6, 8, 12};
+	int idx = -EINVAL, i, rate, red, bound, temp;
 
 	rate = rt5659->lrck[RT5659_AIF1] << 8;
 	red = 3000000 * 12;
@@ -4053,7 +4053,8 @@ static const struct snd_soc_dapm_route rt5659_dapm_routes[] = {
 
 static int get_clk_info(int sclk, int rate)
 {
-	int i, pd[] = { 1, 2, 3, 4, 6, 8, 12, 16 };
+	int i;
+	static const int pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
 
 	if (sclk <= 0 || rate <= 0)
 		return -EINVAL;
