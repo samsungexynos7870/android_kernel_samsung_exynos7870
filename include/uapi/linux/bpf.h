@@ -211,6 +211,10 @@ union bpf_attr {
 		__u32	max_entries;	/* max number of entries in a map */
 		__u32	map_flags;	/* prealloc or not */
 		__u32	inner_map_fd;	/* fd pointing to the inner map */
+		__u32	numa_node;	/* numa node (effective only if
+ 					 * BPF_F_NUMA_NODE is set).
+ 					 */
+		__u8	map_name[BPF_OBJ_NAME_LEN];
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -740,6 +744,7 @@ struct bpf_map_info {
 	__u32 value_size;
 	__u32 max_entries;
 	__u32 map_flags;
+	__u8  name[BPF_OBJ_NAME_LEN];
 } __attribute__((aligned(8)));
 
 #endif /* _UAPI__LINUX_BPF_H__ */
