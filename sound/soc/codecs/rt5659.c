@@ -4323,15 +4323,15 @@ code_find:
 	return 0;
 }
 
-static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
-			unsigned int freq_in, unsigned int freq_out)
+static int rt5659_set_codec_pll(struct snd_soc_codec *codec, int pll_id,
+				int source, unsigned int freq_in,
+				unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	struct rt5659_pll_code pll_code;
 	int ret;
 
-	if (Source == rt5659->pll_src && freq_in == rt5659->pll_in &&
+	if (source == rt5659->pll_src && freq_in == rt5659->pll_in &&
 	    freq_out == rt5659->pll_out)
 		return 0;
 
@@ -4345,7 +4345,7 @@ static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 		return 0;
 	}
 
-	switch (Source) {
+	switch (source) {
 	case RT5659_PLL1_S_MCLK:
 		snd_soc_update_bits(codec, RT5659_GLB_CLK,
 			RT5659_PLL1_SRC_MASK, RT5659_PLL1_SRC_MCLK);
@@ -4363,7 +4363,7 @@ static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 				RT5659_PLL1_SRC_MASK, RT5659_PLL1_SRC_BCLK3);
 		break;
 	default:
-		dev_err(codec->dev, "Unknown PLL Source %d\n", Source);
+		dev_err(codec->dev, "Unknown PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -4382,7 +4382,7 @@ static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 
 	rt5659->pll_in = freq_in;
 	rt5659->pll_out = freq_out;
-	rt5659->pll_src = Source;
+	rt5659->pll_src = source;
 
 	return 0;
 }
@@ -4799,7 +4799,6 @@ struct snd_soc_dai_ops rt5659_aif_dai_ops = {
 	.hw_params = rt5659_hw_params,
 	.set_fmt = rt5659_set_dai_fmt,
 	.set_tdm_slot = rt5659_set_tdm_slot,
-	.set_pll = rt5659_set_dai_pll,
 	/*.set_bclk_ratio = rt5659_set_bclk_ratio, */
 /* TODO: implement rt5659_set_bclk_ratio for MX0077 bit 13, and bclk_ms */
 };
@@ -4880,6 +4879,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
 		.num_dapm_routes	= ARRAY_SIZE(rt5659_dapm_routes),
 	},
 	.set_sysclk = rt5659_set_codec_sysclk,
+	.set_pll = rt5659_set_codec_pll,
 };
 
 
