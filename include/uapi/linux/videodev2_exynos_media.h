@@ -16,6 +16,18 @@
 #define __LINUX_VIDEODEV2_EXYNOS_MEDIA_H
 
 #include <linux/videodev2.h>
+#include <linux/exynos_mfc_media.h>
+
+/* added for lihwjpeg.so */
+
+/* yuv444 of JFIF JPEG */
+#define V4L2_PIX_FMT_JPEG_444 v4l2_fourcc('J', 'P', 'G', '4')
+/* yuv422 of JFIF JPEG */
+#define V4L2_PIX_FMT_JPEG_422 v4l2_fourcc('J', 'P', 'G', '2')
+/* yuv420 of JFIF JPEG */
+#define V4L2_PIX_FMT_JPEG_420 v4l2_fourcc('J', 'P', 'G', '0')
+/* grey of JFIF JPEG */
+#define V4L2_PIX_FMT_JPEG_GRAY v4l2_fourcc('J', 'P', 'G', 'G')
 
 /*
  *	C O N T R O L S

@@ -802,6 +802,11 @@ ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC)), y)
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
 endif
 
+#ICCC
+ifeq ($(CONFIG_TZ_ICCC),y)
+    KBUILD_CFLAGS += -Idrivers/gud/gud-exynos7870/MobiCoreDriver/mci/
+endif
+
 include $(srctree)/scripts/Makefile.extrawarn
 
 #Disable the whole of the following block to disable LKM AUTH
