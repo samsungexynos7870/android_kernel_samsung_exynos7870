@@ -1,0 +1,29 @@
+#
+# USB PD driver
+#
+
+comment "USB PD configs"
+
+config USE_CCIC
+	bool "Using USBPD device driver"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you will get support for
+	  the USB PD(Power Delivery) device driver.
+
+config CCIC_S2MU004
+	bool "Using S2MU004 USB PD"
+	depends on USE_CCIC
+	default n
+	help
+	  If you say yes here you will get support for
+	  for the S2MU004 USBPD chip.
+
+config CCIC_NOTIFIER
+	bool "CCIC notifier support"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you will get support for
+	  the CCIC attached device status change notification.
