@@ -6190,10 +6190,10 @@ static __init int selinux_init(void)
 	if (avc_add_callback(selinux_netcache_avc_callback, AVC_CALLBACK_RESET))
 		panic("SELinux: Unable to register AVC netcache callback\n");
 // [ SEC_SELINUX_PORTING_COMMON
-#ifdef CONFIG_SECURITY_SELINUX_ALWAYS_ENFORCE
-		selinux_enforcing = 1;
+#if defined(CONFIG_SECURITY_SELINUX_ALWAYS_ENFORCE)
+	selinux_enforcing = 1;
 #elif defined(CONFIG_SECURITY_SELINUX_NEVER_ENFORCE)
-		selinux_enforcing = 0;
+	selinux_enforcing = 0;
 #endif
 // ] SEC_SELINUX_PORTING_COMMON
 	if (selinux_enforcing)

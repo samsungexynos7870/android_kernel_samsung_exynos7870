@@ -11,6 +11,8 @@ endif
 endif
 endif
 
+ifeq ($(TARGET_BUILD_VARIANT), user)
+endif
 # ] SEC_SELINUX_PORTING_COMMON
 
 obj-$(CONFIG_SECURITY_SELINUX) := selinux.o

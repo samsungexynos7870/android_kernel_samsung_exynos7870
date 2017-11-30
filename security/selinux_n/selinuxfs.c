@@ -174,7 +174,7 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		goto out;
 
 // [ SEC_SELINUX_PORTING_COMMON
-#ifdef CONFIG_SECURITY_SELINUX_ALWAYS_ENFORCE
+#if defined(CONFIG_SECURITY_SELINUX_ALWAYS_ENFORCE)
 	// If build is user build and enforce option is set, selinux is always enforcing
 	new_value = 1;
 	length = task_has_security(current, SECURITY__SETENFORCE);
@@ -188,7 +188,7 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	selnl_notify_setenforce(new_value);
 	selinux_status_update_setenforce(new_value);
 #elif defined(CONFIG_SECURITY_SELINUX_NEVER_ENFORCE)
-	// If build is user build and permissive option is set, selinux is always permissive
+	// Oh no you didn't
 	new_value = 0;
 	length = task_has_security(current, SECURITY__SETENFORCE);
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
