@@ -235,6 +235,12 @@ config ARCH_EXYNOS7
 	help
 	  Samsung EXYNOS7 (A57/A53) SoC based systems
 
+config BOARD_GTAXLLTE
+	bool "Tab A 2016 LTE"
+
+config BOARD_GTAXLWIFI
+	bool "Tab A 2016 WIFI"
+
 config SOC_EXYNOS8890
 	bool "Samsung EXYNOS8890"
 	select ARCH_EXYNOS
