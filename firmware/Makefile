@@ -178,13 +178,13 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_SEC_INCELL_TS) += tsp_sec/s6d7at01a01_j7toplte.f
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_SEC_TS) += tsp_sec/y761_daimler.fw tsp_sec/y761_daimler_old_rev01.fw tsp_sec/y761_daimler_old.fw
 
-fw-shipped-$(CONFIG_KEYBOARD_TC300K) += coreriver/tc350k_j7x.fw coreriver/tc305k_j7pop.fw coreriver/tc350k_j7ve.fw coreriver/tc305k_j7top.fw \
-					coreriver/tc305k_j7top_kor.fw coreriver/tc305k_j7top_gsm.fw
-fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS204) += melfas_tk/mhs204g_on7xlte.fw
-fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS2041) += melfas_tk/mhs204_j5y17.fw melfas_tk/mhs2041_j5y17.fw melfas_tk/mhs2041_j7y17.fw
-fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS2041B) += melfas_tk/mhs2041_j5y17.fw melfas_tk/mhs2041B_j5y17.fw melfas_tk/mhs2041B_j5y17_new.fw \
-						melfas_tk/mhs2041_j7y17.fw melfas_tk/mhs2041B_j7y17.fw melfas_tk/mhs2041B_j7y17_new.fw \
-						melfas_tk/mhs2041B_j7y17_ltn.fw melfas_tk/mhs2041B_j7y17_open.fw melfas_tk/melfas_mip4_tk.fw
+#fw-shipped-$(CONFIG_KEYBOARD_TC300K) += coreriver/tc350k_j7x.fw coreriver/tc305k_j7pop.fw coreriver/tc350k_j7ve.fw coreriver/tc305k_j7top.fw \
+#					coreriver/tc305k_j7top_kor.fw coreriver/tc305k_j7top_gsm.fw
+#fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS204) += melfas_tk/mhs204g_on7xlte.fw
+#fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS2041) += melfas_tk/mhs204_j5y17.fw melfas_tk/mhs2041_j5y17.fw melfas_tk/mhs2041_j7y17.fw
+#fw-shipped-$(CONFIG_KEYBOARD_MELFAS_MHS2041B) += melfas_tk/mhs2041_j5y17.fw melfas_tk/mhs2041B_j5y17.fw melfas_tk/mhs2041B_j5y17_new.fw \
+#						melfas_tk/mhs2041_j7y17.fw melfas_tk/mhs2041B_j7y17.fw melfas_tk/mhs2041B_j7y17_new.fw \
+#						melfas_tk/mhs2041B_j7y17_ltn.fw melfas_tk/mhs2041B_j7y17_open.fw melfas_tk/melfas_mip4_tk.fw
 
 fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_FT1804) += abov/abov_a7_max.fw
 fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_T316) += abov/a96t316_a3y17.fw abov/a96t316_j5y17.fw abov/a96t316_a3xpre.fw abov/a96t316_a3xpre_new.fw abov/a96t316_a3xpre_0506.fw
@@ -201,8 +201,8 @@ fw-shipped-$(CONFIG_SENSORS_A96T3X6_J6KOR) += abov/a96t326_j6ltekor.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_2017A3) += ssp_stmf410_a2017.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_A3XPREMIUM) += ssp_stmf410_a3p.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_A3Y17PREMIUM) += ssp_stmf410_a2017_p.fw
-fw-shipped-$(CONFIG_SENSORS_SSP_STM32) += ssp_crashed.fw
-fw-shipped-$(CONFIG_SENSORS_SSP_STM_V2) += ssp_crashed.fw
+#fw-shipped-$(CONFIG_SENSORS_SSP_STM32) += ssp_crashed.fw
+#fw-shipped-$(CONFIG_SENSORS_SSP_STM_V2) += ssp_crashed.fw
 
 # FPGA for IRIS
 fw-shipped-$(CONFIG_LEDS_IRIS_FPGA_ICE40XX) += ice40xx/ice40_fpga_iris_V01.fw
