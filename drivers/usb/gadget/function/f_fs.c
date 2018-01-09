@@ -2812,6 +2812,424 @@ static int ffs_func_revmap_intf(struct ffs_function *func, u8 intf)
 }
 
 
+/* Devices management *******************************************************/
+
+static LIST_HEAD(ffs_devices);
+
+static struct ffs_dev *_ffs_do_find_dev(const char *name)
+{
+	struct ffs_dev *dev;
+
+	list_for_each_entry(dev, &ffs_devices, entry) {
+		if (!dev->name || !name)
+			continue;
+		if (strcmp(dev->name, name) == 0)
+			return dev;
+	}
+
+	return NULL;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static struct ffs_dev *_ffs_get_single_dev(void)
+{
+	struct ffs_dev *dev;
+
+	if (list_is_singular(&ffs_devices)) {
+		dev = list_first_entry(&ffs_devices, struct ffs_dev, entry);
+		if (dev->single)
+			return dev;
+	}
+
+	return NULL;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static struct ffs_dev *_ffs_find_dev(const char *name)
+{
+	struct ffs_dev *dev;
+
+	dev = _ffs_get_single_dev();
+	if (dev)
+		return dev;
+
+	return _ffs_do_find_dev(name);
+}
+
+/* Configfs support *********************************************************/
+
+static inline struct f_fs_opts *to_ffs_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_fs_opts,
+			    func_inst.group);
+}
+
+static void ffs_attr_release(struct config_item *item)
+{
+	struct f_fs_opts *opts = to_ffs_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations ffs_item_ops = {
+	.release	= ffs_attr_release,
+};
+
+static struct config_item_type ffs_func_type = {
+	.ct_item_ops	= &ffs_item_ops,
+	.ct_owner	= THIS_MODULE,
+};
+
+
+/* Function registration interface ******************************************/
+
+static void ffs_free_inst(struct usb_function_instance *f)
+{
+	struct f_fs_opts *opts;
+
+	opts = to_f_fs_opts(f);
+	ffs_dev_lock();
+	_ffs_free_dev(opts->dev);
+	ffs_dev_unlock();
+	kfree(opts);
+}
+
+#define MAX_INST_NAME_LEN	40
+
+static int ffs_set_inst_name(struct usb_function_instance *fi, const char *name)
+{
+	struct f_fs_opts *opts;
+	char *ptr;
+	const char *tmp;
+	int name_len, ret;
+
+	name_len = strlen(name) + 1;
+	if (name_len > MAX_INST_NAME_LEN)
+		return -ENAMETOOLONG;
+
+	ptr = kstrndup(name, name_len, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	opts = to_f_fs_opts(fi);
+	tmp = NULL;
+
+	ffs_dev_lock();
+
+	tmp = opts->dev->name_allocated ? opts->dev->name : NULL;
+	ret = _ffs_name_dev(opts->dev, ptr);
+	if (ret) {
+		kfree(ptr);
+		ffs_dev_unlock();
+		return ret;
+	}
+	opts->dev->name_allocated = true;
+
+	ffs_dev_unlock();
+
+	kfree(tmp);
+
+	return 0;
+}
+
+static struct usb_function_instance *ffs_alloc_inst(void)
+{
+	struct f_fs_opts *opts;
+	struct ffs_dev *dev;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+
+	opts->func_inst.set_inst_name = ffs_set_inst_name;
+	opts->func_inst.free_func_inst = ffs_free_inst;
+	ffs_dev_lock();
+	dev = _ffs_alloc_dev();
+	ffs_dev_unlock();
+	if (IS_ERR(dev)) {
+		kfree(opts);
+		return ERR_CAST(dev);
+	}
+	opts->dev = dev;
+	dev->opts = opts;
+
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &ffs_func_type);
+	return &opts->func_inst;
+}
+
+static void ffs_free(struct usb_function *f)
+{
+	kfree(ffs_func_from_usb(f));
+}
+
+static void ffs_func_unbind(struct usb_configuration *c,
+			    struct usb_function *f)
+{
+	struct ffs_function *func = ffs_func_from_usb(f);
+	struct ffs_data *ffs = func->ffs;
+	struct f_fs_opts *opts =
+		container_of(f->fi, struct f_fs_opts, func_inst);
+	struct ffs_ep *ep = func->eps;
+	unsigned count = ffs->eps_count;
+	unsigned long flags;
+
+	ENTER();
+	if (ffs->func == func) {
+		ffs_func_eps_disable(func);
+		ffs->func = NULL;
+	}
+
+	if (!--opts->refcnt)
+		functionfs_unbind(ffs);
+
+	/* cleanup after autoconfig */
+	spin_lock_irqsave(&func->ffs->eps_lock, flags);
+	do {
+		if (ep->ep && ep->req)
+			usb_ep_free_request(ep->ep, ep->req);
+		ep->req = NULL;
+		++ep;
+	} while (--count);
+	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
+	kfree(func->eps);
+	func->eps = NULL;
+	/*
+	 * eps, descriptors and interfaces_nums are allocated in the
+	 * same chunk so only one free is required.
+	 */
+	func->function.fs_descriptors = NULL;
+	func->function.hs_descriptors = NULL;
+	func->function.ss_descriptors = NULL;
+	func->interfaces_nums = NULL;
+
+	ffs_event_add(ffs, FUNCTIONFS_UNBIND);
+}
+
+static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
+{
+	struct ffs_function *func;
+
+	ENTER();
+
+	func = kzalloc(sizeof(*func), GFP_KERNEL);
+	if (unlikely(!func))
+		return ERR_PTR(-ENOMEM);
+
+	func->function.name    = "Function FS Gadget";
+
+	func->function.bind    = ffs_func_bind;
+	func->function.unbind  = ffs_func_unbind;
+	func->function.set_alt = ffs_func_set_alt;
+	func->function.disable = ffs_func_disable;
+	func->function.setup   = ffs_func_setup;
+	func->function.suspend = ffs_func_suspend;
+	func->function.resume  = ffs_func_resume;
+	func->function.free_func = ffs_free;
+
+	return &func->function;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static struct ffs_dev *_ffs_alloc_dev(void)
+{
+	struct ffs_dev *dev;
+	int ret;
+
+	if (_ffs_get_single_dev())
+			return ERR_PTR(-EBUSY);
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	if (list_empty(&ffs_devices)) {
+		ret = functionfs_init();
+		if (ret) {
+			kfree(dev);
+			return ERR_PTR(ret);
+		}
+	}
+
+	list_add(&dev->entry, &ffs_devices);
+
+	return dev;
+}
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ * The caller is responsible for "name" being available whenever f_fs needs it
+ */
+static int _ffs_name_dev(struct ffs_dev *dev, const char *name)
+{
+	struct ffs_dev *existing;
+
+	existing = _ffs_do_find_dev(name);
+	if (existing)
+		return -EBUSY;
+
+	dev->name = name;
+
+	return 0;
+}
+
+/*
+ * The caller is responsible for "name" being available whenever f_fs needs it
+ */
+int ffs_name_dev(struct ffs_dev *dev, const char *name)
+{
+	int ret;
+
+	ffs_dev_lock();
+	ret = _ffs_name_dev(dev, name);
+	ffs_dev_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ffs_name_dev);
+
+int ffs_single_dev(struct ffs_dev *dev)
+{
+	int ret;
+
+	ret = 0;
+	ffs_dev_lock();
+
+	if (!list_is_singular(&ffs_devices))
+		ret = -EBUSY;
+	else
+		dev->single = true;
+
+	ffs_dev_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ffs_single_dev);
+
+/*
+ * ffs_lock must be taken by the caller of this function
+ */
+static void _ffs_free_dev(struct ffs_dev *dev)
+{
+	list_del(&dev->entry);
+	if (dev->name_allocated)
+		kfree(dev->name);
+	kfree(dev);
+	if (list_empty(&ffs_devices))
+		functionfs_cleanup();
+}
+
+static void *ffs_acquire_dev(const char *dev_name)
+{
+	struct ffs_dev *ffs_dev;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_dev = _ffs_find_dev(dev_name);
+	if (!ffs_dev)
+		ffs_dev = ERR_PTR(-ENOENT);
+	else if (ffs_dev->mounted)
+		ffs_dev = ERR_PTR(-EBUSY);
+	else if (ffs_dev->ffs_acquire_dev_callback &&
+	    ffs_dev->ffs_acquire_dev_callback(ffs_dev))
+		ffs_dev = ERR_PTR(-ENOENT);
+	else
+		ffs_dev->mounted = true;
+
+	ffs_dev_unlock();
+	return ffs_dev;
+}
+
+static void ffs_release_dev(struct ffs_data *ffs_data)
+{
+	struct ffs_dev *ffs_dev;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_dev = ffs_data->private_data;
+	if (ffs_dev) {
+		ffs_dev->mounted = false;
+
+		if (ffs_dev->ffs_release_dev_callback)
+			ffs_dev->ffs_release_dev_callback(ffs_dev);
+	}
+
+	ffs_dev_unlock();
+}
+
+static int ffs_ready(struct ffs_data *ffs)
+{
+	struct ffs_dev *ffs_obj;
+	int ret = 0;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj) {
+		ret = -EINVAL;
+		goto done;
+	}
+	if (WARN_ON(ffs_obj->desc_ready)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	ffs_obj->desc_ready = true;
+	ffs_obj->ffs_data = ffs;
+
+	if (ffs_obj->ffs_ready_callback)
+		ret = ffs_obj->ffs_ready_callback(ffs);
+
+done:
+	ffs_dev_unlock();
+	return ret;
+}
+
+static void ffs_closed(struct ffs_data *ffs)
+{
+	struct ffs_dev *ffs_obj;
+	struct f_fs_opts *opts;
+	struct config_item *ci;
+
+	ENTER();
+	ffs_dev_lock();
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj)
+		goto done;
+
+	ffs_obj->desc_ready = false;
+
+	if (ffs_obj->ffs_closed_callback)
+		ffs_obj->ffs_closed_callback(ffs);
+
+	if (ffs_obj->opts)
+		opts = ffs_obj->opts;
+	else
+		goto done;
+
+	if (opts->no_configfs || !opts->func_inst.group.cg_item.ci_parent
+	    || !atomic_read(&opts->func_inst.group.cg_item.ci_kref.refcount))
+		goto done;
+
+	ci = opts->func_inst.group.cg_item.ci_parent->ci_parent;
+	ffs_dev_unlock();
+
+	if (test_bit(FFS_FL_BOUND, &ffs->flags))
+		unregister_gadget_item(ci);
+	return;
+done:
+	ffs_dev_unlock();
+}
+
 /* Misc helper functions ****************************************************/
 
 static int ffs_mutex_lock(struct mutex *mutex, unsigned nonblock)
