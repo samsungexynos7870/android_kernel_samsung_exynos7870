@@ -735,6 +735,7 @@ __acquires(bitlock)
 	ext4_handle_error(sb, page_buf);
 	if (page_buf)
 		free_page((unsigned long)page_buf);
+	ext4_commit_super(sb, 1);
 	/*
 	 * We only get here in the ERRORS_RO case; relocking the group
 	 * may be dangerous, but nothing bad will happen since the
