@@ -39,11 +39,18 @@ static LIST_HEAD(bpf_map_types);
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 {
+	const struct bpf_map_ops *ops;
 	struct bpf_map_type_list *tl;
 	struct bpf_map *map;
+	int err;
 
 	list_for_each_entry(tl, &bpf_map_types, list_node) {
 		if (tl->type == attr->map_type) {
+			if (tl->ops->map_alloc_check) {
+				err = tl->ops->map_alloc_check(attr);
+				if (err)
+					return ERR_PTR(err);
+			}
 			map = tl->ops->map_alloc(attr);
 			if (IS_ERR(map))
 				return map;
