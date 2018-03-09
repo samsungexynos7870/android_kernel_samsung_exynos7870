@@ -180,6 +180,9 @@ static int bpf_mkobj(struct inode *dir, struct dentry *dentry, umode_t mode,
 static struct dentry *
 bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 {
+	/* Dots in names (e.g. "/sys/fs/bpf/foo.bar") are reserved for future
+	 * extensions.
+	 */
 	if (strchr(dentry->d_name.name, '.'))
 		return ERR_PTR(-EPERM);
 	return simple_lookup(dir, dentry, flags);
