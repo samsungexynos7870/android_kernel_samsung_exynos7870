@@ -1882,7 +1882,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	return idx;
 }
 
-static int set_adc_clk(struct snd_soc_dapm_widget *w,
+static int set_adc1_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
@@ -1890,13 +1890,38 @@ static int set_adc_clk(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RT5659_CHOP_ADC,
-			RT5659_CKXEN_ADCC_MASK | RT5659_CKGEN_ADCC_MASK,
-			RT5659_CKXEN_ADCC_MASK | RT5659_CKGEN_ADCC_MASK);
+			RT5659_CKXEN_ADC1_MASK | RT5659_CKGEN_ADC1_MASK,
+			RT5659_CKXEN_ADC1_MASK | RT5659_CKGEN_ADC1_MASK);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, RT5659_CHOP_ADC,
-			RT5659_CKXEN_ADCC_MASK | RT5659_CKGEN_ADCC_MASK, 0);
+			RT5659_CKXEN_ADC1_MASK | RT5659_CKGEN_ADC1_MASK, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+
+}
+
+static int set_adc2_clk(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RT5659_CHOP_ADC,
+			RT5659_CKXEN_ADC2_MASK | RT5659_CKGEN_ADC2_MASK,
+			RT5659_CKXEN_ADC2_MASK | RT5659_CKGEN_ADC2_MASK);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, RT5659_CHOP_ADC,
+			RT5659_CKXEN_ADC2_MASK | RT5659_CKGEN_ADC2_MASK, 0);
 		break;
 
 	default:
@@ -3335,9 +3360,9 @@ static const struct snd_soc_dapm_widget rt5659_dapm_widgets[] = {
 		RT5659_PWR_ADC_L2_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("ADC2 R Power", 3, RT5659_PWR_DIG_1,
 		RT5659_PWR_ADC_R2_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC1 clock", SND_SOC_NOPM, 0, 0, set_adc_clk,
+	SND_SOC_DAPM_SUPPLY("ADC1 clock", SND_SOC_NOPM, 0, 0, set_adc1_clk,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("ADC2 clock", SND_SOC_NOPM, 0, 0, set_adc_clk,
+	SND_SOC_DAPM_SUPPLY("ADC2 clock", SND_SOC_NOPM, 0, 0, set_adc2_clk,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* ADC Mux */
