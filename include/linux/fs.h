@@ -1168,9 +1168,6 @@ static inline int lease_modify(struct file_lock **before, int arg,
 }
 #endif /* !CONFIG_FILE_LOCKING */
 
-/* sb->s_iflags */
-#define SB_I_NOEXEC	0x00000002	/* Ignore executables on this fs */
-
 struct fasync_struct {
 	spinlock_t		fa_lock;
 	int			magic;
@@ -1210,6 +1207,9 @@ struct mm_struct;
 #define UMOUNT_NOFOLLOW	0x00000008	/* Don't follow symlink on umount */
 #define UMOUNT_UNUSED	0x80000000	/* Flag guaranteed to be unused */
 
+/* sb->s_iflags */
+#define SB_I_NOEXEC	0x00000002	/* Ignore executables on this fs */
+#define SB_I_MULTIROOT	0x00000008	/* Multiple roots to the dentry tree */
 
 /* Possible states of 'frozen' field */
 enum {
