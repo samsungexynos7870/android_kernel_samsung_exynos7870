@@ -2953,6 +2953,14 @@ static void binder_transaction(struct binder_proc *proc,
 			}
 			binder_inc_node(target_node, 1, 0, NULL);
 			mutex_unlock(&context->context_mgr_node_lock);
+			if (target_node && target_proc == proc) {
+				binder_user_error("%d:%d got transaction to context manager from process owning it\n",
+						  proc->pid, thread->pid);
+				return_error = BR_FAILED_REPLY;
+				return_error_param = -EINVAL;
+				return_error_line = __LINE__;
+				goto err_invalid_target_handle;
+			}
 		}
 		e->to_node = target_node->debug_id;
 		binder_node_lock(target_node);
