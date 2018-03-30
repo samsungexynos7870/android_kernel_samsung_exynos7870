@@ -202,6 +202,13 @@ void addrconf_prefix_rcv(struct net_device *dev,
 
 u32 addrconf_rt_table(const struct net_device *dev, u32 default_table);
 
+/* A stub used by bpf helpers. Similarly ugly as ipv6_stub */
+struct ipv6_bpf_stub {
+	int (*inet6_bind)(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+			  bool force_bind_address_no_port, bool with_lock);
+};
+extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
+
 /*
  *	anycast prototypes (anycast.c)
  */
