@@ -6,6 +6,7 @@
 #include <uapi/linux/bpf.h>
 
 struct sock;
+struct sockaddr;
 struct cgroup;
 struct sk_buff;
 
@@ -58,6 +59,10 @@ int __cgroup_bpf_run_filter(struct sock *sk,
 int __cgroup_bpf_run_filter_sk(struct sock *sk,
 			    enum bpf_attach_type type);
 
+int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
+				      struct sockaddr *uaddr,
+				      enum bpf_attach_type type);
+
 /* Wrappers for __cgroup_bpf_run_filter() guarded by cgroup_bpf_enabled. */
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb)			\
 ({									\
@@ -90,6 +95,20 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 	__ret;								       \
 })
 
+#define BPF_CGROUP_RUN_SA_PROG(sk, uaddr, type)				       \
+({									       \
+	int __ret = 0;							       \
+	if (cgroup_bpf_enabled)						       \
+		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, type);    \
+	__ret;								       \
+})
+
+#define BPF_CGROUP_RUN_PROG_INET4_BIND(sk, uaddr)			       \
+	BPF_CGROUP_RUN_SA_PROG(sk, uaddr, BPF_CGROUP_INET4_BIND)
+
+#define BPF_CGROUP_RUN_PROG_INET6_BIND(sk, uaddr)			       \
+	BPF_CGROUP_RUN_SA_PROG(sk, uaddr, BPF_CGROUP_INET6_BIND)
+
 #else
 
 struct cgroup_bpf {};
@@ -99,6 +118,8 @@ static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_SOCK(sk) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_INET4_BIND(sk, uaddr) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_INET6_BIND(sk, uaddr) ({ 0; })
 
 #endif /* CONFIG_CGROUP_BPF */
 
