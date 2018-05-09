@@ -4076,8 +4076,8 @@ limEnableHT20Protection(tpAniSirGlobal pMac, tANI_U8 enable,
     if(!psessionEntry->htCapability)
         return eSIR_SUCCESS; // this protection  is only for HT stations.
 
-        //overlapping protection configuration check.
-        if(overlap) {
+    //overlapping protection configuration check.
+    if(overlap) {
         } else {
             //normal protection config check
             if (LIM_IS_AP_ROLE(psessionEntry) &&
