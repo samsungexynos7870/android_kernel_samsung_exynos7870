@@ -3735,8 +3735,9 @@ tLimMlmRemoveKeyCnf  mlmRemoveKeyCnf;
 
       goto end;
   }
-  else
+  else {
     staIdx = pStaDs->staIndex;
+  }
 
 
 
