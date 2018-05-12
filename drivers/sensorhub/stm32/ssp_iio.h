@@ -35,11 +35,19 @@
 
 #define PROX_AVG_READ_NUM	80
 
+#if ANDROID_VERSION >= 80000
+#define SCONTEXT_DATA_LEN	56
+#define SCONTEXT_HEADER_LEN	8
+#endif
+
 struct sensor_value;
 
 void report_sensor_data(struct ssp_data *, int, struct sensor_value *);
-void report_meta_data(struct ssp_data *, int, struct sensor_value *);
+void report_meta_data(struct ssp_data *, struct sensor_value *);
 int initialize_indio_dev(struct ssp_data *data);
 void remove_indio_dev(struct ssp_data *data);
-
+#if ANDROID_VERSION >= 80000
+void report_scontext_notice_data(struct ssp_data *data, char notice);
+void report_scontext_data(struct ssp_data *data, char *data_buf, u32 length);
+#endif
 #endif

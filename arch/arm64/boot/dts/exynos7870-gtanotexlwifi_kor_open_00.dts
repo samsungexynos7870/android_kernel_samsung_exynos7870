@@ -441,7 +441,7 @@
 				};
 
 				ldo34_reg: LDO34 {
-					regulator-name = "VDD_CAM_IO_1P8";
+					regulator-name = "VDDIO_1.8V_CAM";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-initial-mode = <0>;

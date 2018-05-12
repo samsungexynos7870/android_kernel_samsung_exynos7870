@@ -70,7 +70,11 @@ void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
+
+	/* user process should be freezed before device shutdown */
+	events_check_enabled = false;
 	freeze_processes();
+
 	usermodehelper_disable();
 	ignore_fs_panic = 1;
 	device_shutdown();
@@ -233,7 +237,11 @@ static void kernel_shutdown_prepare(enum system_states state)
 	blocking_notifier_call_chain(&reboot_notifier_list,
 		(state == SYSTEM_HALT) ? SYS_HALT : SYS_POWER_OFF, NULL);
 	system_state = state;
+
+	/* user process should be freezed before device shutdown */
+	events_check_enabled = false;
 	freeze_processes();
+
 	usermodehelper_disable();
 	ignore_fs_panic = 1;
 	device_shutdown();

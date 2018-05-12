@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to IP Protocol
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2018, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmip.h 594480 2015-10-22 03:14:33Z $
+ * $Id: bcmip.h 700076 2017-05-17 14:42:22Z $
  */
 
 #ifndef _bcmip_h_

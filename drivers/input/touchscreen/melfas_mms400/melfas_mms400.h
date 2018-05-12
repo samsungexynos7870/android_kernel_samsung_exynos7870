@@ -178,7 +178,7 @@
 #define FFU_FW_PATH	"ffu_tsp.bin"
 #define MMS_USE_AUTO_FW_UPDATE		1
 #define MMS_FW_MAX_SECT_NUM		4
-#define MMS_FW_UPDATE_DEBUG		1 // temporary patch s880911.kim, for analyze firmware update issue(Related P170227-00589)
+#define MMS_FW_UPDATE_DEBUG		0
 #define MMS_FW_UPDATE_SECTION		1
 #define MMS_EXT_FW_FORCE_UPDATE		1
 
@@ -264,6 +264,9 @@ struct mms_ts_info {
 
 	u8 esd_cnt;
 	bool disable_esd;
+
+	unsigned int sram_addr_num;
+	u32 sram_addr[8];
 
 	u8 *print_buf;
 	int *image_buf;

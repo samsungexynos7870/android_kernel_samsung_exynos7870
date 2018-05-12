@@ -358,5 +358,9 @@ config SND_SOC_SEC_HS_SYSFS
 	  This is sysfs for headset driver jack type and
 	  btn type adc values.
 
+config SND_SOC_TFA_LOG
+	tristate "TFA9890 Bigdata logging driver"  
+	select SND_SOC_TFA_LOG_USER_HOST
+
 # For support SEIREN audio
 source "sound/soc/samsung/seiren/Kconfig"

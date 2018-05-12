@@ -25,5 +25,6 @@ struct stk3013_platform_data {
 	int int_pin;
 	uint32_t transmittance;
 	uint32_t int_flags;
+	int vled_ldo;  //gpio pin to control power
 };
 #endif

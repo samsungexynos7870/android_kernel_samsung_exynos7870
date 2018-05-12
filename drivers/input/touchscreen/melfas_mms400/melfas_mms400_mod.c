@@ -139,7 +139,7 @@ void mms_input_event_handler(struct mms_ts_info *info, u8 sz, u8 *buf)
 	tsp_debug_dbg(false, &client->dev, "%s [START]\n", __func__);
 	tsp_debug_dbg(false, &client->dev, "%s - sz[%d] buf[0x%02X]\n", __func__, sz, buf[0]);
 
-	for (i = 1; i < sz; i += info->event_size) {
+	for (i = 0; i < sz; i += info->event_size) {
 		u8 *tmp = &buf[i];
 
 		int id = (tmp[0] & MIP_EVENT_INPUT_ID) - 1;
@@ -372,11 +372,6 @@ int mms_vbus_notification(struct notifier_block *nb,
 
 	tsp_debug_info(true, &info->client->dev, "%s cmd=%lu, vbus_type=%d\n", __func__, cmd, vbus_type);
 
-	if (!info->enabled) {
-		tsp_debug_err(true, &info->client->dev, "%s tsp disabled",__func__);
-		return 0;
-	}
-
 	switch (vbus_type) {
 	case STATUS_VBUS_HIGH:
 		tsp_debug_info(true, &info->client->dev, "%s : attach\n",__func__);
@@ -389,6 +384,12 @@ int mms_vbus_notification(struct notifier_block *nb,
 	default:
 		break;
 	}
+
+	if (!info->enabled) {
+		tsp_debug_err(true, &info->client->dev, "%s tsp disabled",__func__);
+		return 0;
+	}
+
 	mms_charger_attached(info, info->ta_stsatus);
 	return 0;
 }

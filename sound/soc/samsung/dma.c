@@ -1,4 +1,4 @@
-﻿/*
+/*
  * dma.c  --  ALSA Soc Audio Layer
  *
  * (c) 2006 Wolfson Microelectronics PLC.

@@ -15,7 +15,7 @@ const int last_fmp_rodata = 1000;
 int last_fmp_data   = 2000;
 
 void last_fmp_text(void) __attribute__((unused));
-void last_fmp_text (void)
+void last_fmp_text(void)
 {
 }
 

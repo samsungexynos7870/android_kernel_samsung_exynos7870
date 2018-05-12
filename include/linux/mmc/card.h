@@ -267,11 +267,12 @@ struct mmc_card_error_log {
 	u64     first_issue_time;
 	u64     last_issue_time;
 	u32     count;
-	u32		ge_cnt;			// status[19] : general error or unknown error_count
-	u32		cc_cnt;			// status[20] : internal card controller error_count
-	u32		ecc_cnt;		// status[21] : ecc error_count
-	u32		wp_cnt;			// status[26] : write protection error_count
-	u32		oor_cnt;		// status[31] : out of range error
+	u32	ge_cnt;			// status[19] : general error or unknown error_count
+	u32	cc_cnt;			// status[20] : internal card controller error_count
+	u32	ecc_cnt;		// status[21] : ecc error_count
+	u32	wp_cnt;			// status[26] : write protection error_count
+	u32	oor_cnt;		// status[31] : out of range error
+	u32	noti_cnt;		// uevent notification count
 };
 
 /*
@@ -345,7 +346,7 @@ struct mmc_card {
 	u8 en_strobe_enhanced;	/*enhanced strobe ctrl */
 
 	struct device_attribute error_count;
-	struct mmc_card_error_log err_log[8];
+	struct mmc_card_error_log err_log[10];
 };
 
 /*

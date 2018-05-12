@@ -150,7 +150,7 @@
 		/* gpd1-6: VDD_TOUCH_3P3_EN */
 
 		PIN_SLP(gpd2-0, INPUT, DOWN);	/* NC */
-		PIN_SLP(gpd2-1, OUT1, UP);	/* VDD_NFC_EN */
+		PIN_SLP(gpd2-1, PREV, NONE);	/* VDD_NFC_EN */
 		PIN_SLP(gpd2-2, INPUT, DOWN);	/* NC */
 		PIN_SLP(gpd2-3, INPUT, DOWN);	/* NC */
 		PIN_SLP(gpd2-4, INPUT, NONE);	/* HW_REV0 */

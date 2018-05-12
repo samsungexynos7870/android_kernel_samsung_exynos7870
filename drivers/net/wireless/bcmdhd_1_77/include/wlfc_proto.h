@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2018, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlfc_proto.h 675983 2016-12-19 23:18:49Z $
+ * $Id: wlfc_proto.h 735359 2017-12-08 10:56:04Z $
  *
  */
 
@@ -304,15 +304,12 @@
 #define WLFC_BREADCRUMB(x) do {if ((x) == NULL) \
 	{printf("WLFC: %s():%d:caller:%p\n", \
 	__FUNCTION__, __LINE__, CALL_SITE);}} while (0)
-#define WLFC_PRINTMAC(banner, ea) do {printf("%s MAC: [%02x:%02x:%02x:%02x:%02x:%02x]\n", \
-	banner, ea[0], 	ea[1], 	ea[2], 	ea[3], 	ea[4], 	ea[5]); } while (0)
 #define WLFC_WHEREIS(s) printf("WLFC: at %s():%d, %s\n", __FUNCTION__, __LINE__, (s))
 #else
 #define WLFC_DBGMESG(x)
 #define WLFC_BREADCRUMB(x)
-#define WLFC_PRINTMAC(banner, ea)
 #define WLFC_WHEREIS(s)
-#endif
+#endif /* PROP_TXSTATUS_DEBUG */
 
 /* AMPDU host reorder packet flags */
 #define WLHOST_REORDERDATA_MAXFLOWS		256

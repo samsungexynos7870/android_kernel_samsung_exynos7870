@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -121,6 +121,33 @@ enum kbase_pm_suspend_handler {
  * @return non-zero Indicates failure due to the system being suspending/suspended.
  */
 int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev, enum kbase_pm_suspend_handler suspend_handler);
+
+/**
+ * Suspend 'safe' variant of kbase_pm_context_active(), but only if the GPU is
+ * already powered.
+ *
+ * If a suspend is in progress, this allows for various different ways of
+ * handling the suspend.
+ * Refer to @ref enum kbase_pm_suspend_handler for details.
+ *
+ * We returns a status code indicating whether we're allowed to keep the GPU
+ * active during the suspend, depending on the handler code. If the status code
+ * indicates a failure, the caller must abort whatever operation it was
+ * attempting, and potentially queue it up for after the OS has resumed.
+ *
+ * If the GPU wasn't already active, an error is returned to indicate that no
+ * activation happened.
+ *
+ * @kbdev:		The kbase device structure for the device (must be a
+ *			valid pointer)
+ * @suspend_handler:	The handler code for how to handle a suspend that
+ *			might occur
+ * @return zero     Indicates success
+ * @return non-zero Indicates failure due to the system being
+ *                  suspending/suspended.
+ */
+int kbase_pm_context_hold_noactivate_handle_suspend(struct kbase_device *kbdev,
+				enum kbase_pm_suspend_handler suspend_handler);
 
 /** Decrement the reference count of active contexts.
  *

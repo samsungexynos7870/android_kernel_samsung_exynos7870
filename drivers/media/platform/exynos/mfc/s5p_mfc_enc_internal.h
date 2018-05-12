@@ -205,7 +205,7 @@ static struct v4l2_queryctrl controls[] = {
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "The slice partitioning method",
 		.minimum = V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE,
-		.maximum = V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW,
+		.maximum = V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES,
 		.step = 1,
 		.default_value = V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE,
 	},
@@ -913,7 +913,7 @@ static struct v4l2_queryctrl controls[] = {
 		.name = "VP8 number of partitions",
 		.minimum = 0,
 		.maximum = 8,
-		.step = 2,
+		.step = 1,
 		.default_value = 0,
 	},
 	{

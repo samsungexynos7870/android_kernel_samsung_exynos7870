@@ -18,62 +18,18 @@
 #ifndef __LINUX_TC300K_H
 #define __LINUX_TC300K_H
 
-#ifdef CONFIG_SEC_DEBUG_TSP_LOG
-#define SEC_DEBUG_TK_LOG
-#endif
-
 #define TC300K_NAME "sec_touchkey_driver"
-
-#ifdef SEC_DEBUG_TK_LOG
-#include <linux/sec_debug.h>
-#endif
-
-#ifdef SEC_DEBUG_TK_LOG
-#define tk_debug_dbg(mode, dev, fmt, ...)	\
-({								\
-	if (mode) {					\
-		dev_dbg(dev, fmt, ## __VA_ARGS__);	\
-		sec_debug_tsp_log(fmt, ## __VA_ARGS__);		\
-	}				\
-	else					\
-		dev_dbg(dev, fmt, ## __VA_ARGS__);	\
-})
-
-#define tk_debug_info(mode, dev, fmt, ...)	\
-({								\
-	if (mode) {							\
-		dev_info(dev, fmt, ## __VA_ARGS__);		\
-		sec_debug_tsp_log(fmt, ## __VA_ARGS__);		\
-	}				\
-	else					\
-		dev_info(dev, fmt, ## __VA_ARGS__);	\
-})
-
-#define tk_debug_err(mode, dev, fmt, ...)	\
-({								\
-	if (mode) {					\
-		dev_err(dev, fmt, ## __VA_ARGS__);	\
-		sec_debug_tsp_log(fmt, ## __VA_ARGS__);	\
-	}				\
-	else					\
-		dev_err(dev, fmt, ## __VA_ARGS__); \
-})
-#else
-#define tk_debug_dbg(mode, dev, fmt, ...)	dev_dbg(dev, fmt, ## __VA_ARGS__)
-#define tk_debug_info(mode, dev, fmt, ...)	dev_info(dev, fmt, ## __VA_ARGS__)
-#define tk_debug_err(mode, dev, fmt, ...)	dev_err(dev, fmt, ## __VA_ARGS__)
-#endif
-
 
 struct tc300k_platform_data {
 	int gpio_int;
 	int gpio_sda;
 	int gpio_scl;
+	int gpio_pwr;
 	int gpio_sub_det;
 	int i2c_gpio;
-	int (*power) (bool on);
+	int (*power) (void *, bool on);
 	int (*power_isp) (bool on);
-	int (*keyled) (bool on);
+	int (*keyled) (void *, bool on);
 	u32 irq_gpio_flags;
 	u32 sda_gpio_flags;
 	u32 scl_gpio_flags;

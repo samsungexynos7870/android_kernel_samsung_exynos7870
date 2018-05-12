@@ -1627,7 +1627,7 @@ static void sm5703_muic_detect_dev(struct sm5703_muic_data *muic_data)
 			intr = MUIC_INTR_ATTACH;
 //			new_dev = ATTACHED_DEV_CHARGING_CABLE_MUIC;
 //			pr_info("%s : PS_CABLE DETECTED\n", MUIC_DEV_NAME);
-#if defined(CONFIG_NON_WATERPROOF_MODEL)
+#if !defined(CONFIG_TYPEB_WATERPROOF_MODEL)
 			new_dev = ATTACHED_DEV_UNDEFINED_CHARGING_MUIC;
 			pr_info("%s : UNDEFINED_CHARGING DETECTED\n", MUIC_DEV_NAME);
 #else
@@ -1711,6 +1711,11 @@ static int sm5703_muic_reg_init(struct sm5703_muic_data *muic_data)
 	ret = sm5703_i2c_write_byte(i2c, SM5703_MUIC_REG_RSVD_ID3, 0);
 	if (ret < 0)
 		pr_err("%s: err write ctrl(%d)\n", __func__, ret);
+
+#if !defined(CONFIG_SEC_FACTORY)
+	/*Set USB ID checking mode as one-shot, for rustproof feature*/
+	disable_periodic_adc_scan(muic_data);
+#endif
 
 	return ret;
 }

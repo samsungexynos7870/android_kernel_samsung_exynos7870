@@ -264,4 +264,11 @@ config FM_LNA
 	  This enables LNA(Low Noise Amplifier) ON for FM radio.      
 	  default is n.
 
+config FM_DTV_CTRL
+	bool "Enable Antenna Switch(FM_ANT, DTV_B28_ANT e DTV_ANT)"
+	default n
+	help
+	  This enables Antenna switch for DTV model.      
+	  default is n.
+
 endmenu

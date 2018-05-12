@@ -19,10 +19,6 @@
 #ifndef _ET320_LINUX_DIRVER_H_
 #define _ET320_LINUX_DIRVER_H_
 
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
-#define FEATURE_SPI_WAKELOCK
-#endif /* CONFIG_SEC_FACTORY */
-
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
@@ -202,14 +198,10 @@ struct etspi_data {
 	struct workqueue_struct *wq_dbg;
 	struct timer_list dbg_timer;
 	int sensortype;
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 	struct device *fp_device;
-#endif
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 	bool enabled_clk;
-#ifdef FEATURE_SPI_WAKELOCK
 	struct wake_lock fp_spi_lock;
-#endif
 	struct task_struct *t;
 	int user_pid;
 	int signal_id;
@@ -248,11 +240,9 @@ int etspi_eeprom_read(struct etspi_data *etspi,
 		u8 *addr, u8 *buf, int read_len);
 int etspi_eeprom_write(struct etspi_data *etspi, u8 *buf, int write_len);
 
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 extern int fingerprint_register(struct device *dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 extern void fingerprint_unregister(struct device *dev,
 	struct device_attribute *attributes[]);
-#endif
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 461443 2014-03-12 02:40:59Z $
+ * $Id: bcmsdh_linux.c 679689 2017-01-17 04:33:01Z $
  */
 
 /**
@@ -313,6 +313,14 @@ void bcmsdh_oob_intr_set(bcmsdh_info_t *bcmsdh, bool enable)
 	spin_unlock_irqrestore(&bcmsdh_osinfo->oob_irq_spinlock, flags);
 }
 
+#ifdef ENABLE_WAKEUP_PKT_DUMP
+extern volatile bool dhd_mmc_suspend;
+extern volatile bool dhd_mmc_wake;
+#ifdef BT_OVER_SDIO
+extern volatile bool dhd_bt_wake;
+#endif /* BT_OVER_SDIO */
+#endif /* ENABLE_WAKEUP_PKT_DUMP */
+
 static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)dev_id;
@@ -322,6 +330,15 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 	bcmsdh_oob_intr_set(bcmsdh, FALSE);
 #endif /* !BCMSPI_ANDROID */
 	bcmsdh_osinfo->oob_irq_handler(bcmsdh_osinfo->oob_irq_handler_context);
+
+#ifdef ENABLE_WAKEUP_PKT_DUMP
+	if (dhd_mmc_suspend) {
+		dhd_mmc_wake = TRUE;
+#ifdef BT_OVER_SDIO
+		dhd_bt_wake = TRUE;
+#endif /* BT_OVER_SDIO */
+	}
+#endif /* ENABLE_WAKEUP_PKT_DUMP */
 
 	return IRQ_HANDLED;
 }

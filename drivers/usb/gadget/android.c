@@ -35,7 +35,7 @@
 
 #include "gadget_chips.h"
 
-//#include "../function/f_fs.c"
+#include "../function/f_fs.c"
 #include "../function/f_audio_source.c"
 #include "../function/f_midi.c"
 #include "../function/f_mass_storage.c"
@@ -51,6 +51,7 @@
 #include "../function/rndis.c"
 #include "../function/f_dm.c"
 #include "../function/u_ether.c"
+
 
 MODULE_AUTHOR("Mike Lockwood");
 MODULE_DESCRIPTION("Android Composite USB Driver");
@@ -165,7 +166,9 @@ EXPORT_SYMBOL_GPL(is_rndis_use);
 void set_usb_enumeration_state(int state);
 void set_usb_enable_state(void);
 #endif
-
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_CCR_PROTOCOL
+#include "../function/u_ccr.c"
+#endif
 /* String Table */
 static struct usb_string strings_dev[] = {
 	[STRING_MANUFACTURER_IDX].s = manufacturer_string,
@@ -232,7 +235,7 @@ static void android_work(struct work_struct *data)
 	char **uevent_envp = NULL;
 	unsigned long flags;
 
-	printk(KERN_DEBUG "usb: %s config=%p,connected=%d,sw_connected=%d\n",
+	printk(KERN_DEBUG "usb: %s config=%pK,connected=%d,sw_connected=%d\n",
 			__func__, cdev->config, dev->connected,
 			dev->sw_connected);
 	spin_lock_irqsave(&cdev->lock, flags);
@@ -270,7 +273,7 @@ static void android_work(struct work_struct *data)
 		printk(KERN_DEBUG "usb: %s sent uevent %s\n",
 			 __func__, uevent_envp[0]);
 	} else {
-		printk(KERN_DEBUG "usb: %s did not send uevent (%d %d %p)\n",
+		printk(KERN_DEBUG "usb: %s did not send uevent (%d %d %pK)\n",
 		 __func__, dev->connected, dev->sw_connected, cdev->config);
 	}
 }
@@ -300,7 +303,7 @@ static void android_disable(struct android_dev *dev)
 		usb_remove_config(cdev, &android_config_driver);
 	}
 }
-#if 0
+
 /*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
 struct functionfs_config {
@@ -457,7 +460,6 @@ static void *functionfs_acquire_dev_callback(const char *dev_name)
 static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
 {
 }
-#endif
 
 struct adb_data {
 	bool opened;
@@ -1460,7 +1462,7 @@ static struct android_usb_function midi_function = {
 
 
 static struct android_usb_function *supported_functions[] = {
-//	&ffs_function,
+	&ffs_function,
 	&adb_function,
 	&acm_function,
 	&mtp_function,
@@ -1477,6 +1479,9 @@ static struct android_usb_function *supported_functions[] = {
 	&conn_gadget_function,
 #endif
 	&midi_function,
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_CCR_PROTOCOL
+	&ccr_function,
+#endif		
 	NULL
 };
 
@@ -2101,7 +2106,10 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 	if (value < 0)
 		value = terminal_ctrl_request(cdev, c);
 #endif
-
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_CCR_PROTOCOL
+	if (value < 0)
+		value = ccr_ctrl_request(cdev, c);
+#endif
 	/* Special case the accessory function.
 	 * It needs to handle control requests before it is enabled.
 	 */

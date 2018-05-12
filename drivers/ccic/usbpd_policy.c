@@ -443,8 +443,13 @@ policy_state usbpd_policy_snk_evaluate_capability(struct policy_data *policy)
 	usbpd_protocol_rx(pd_data);
 
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
-	if (pd_noti.sink_status.selected_pdo_num == 0)
+	if (pd_noti.sink_status.selected_pdo_num == 0) {
 		pd_noti.sink_status.selected_pdo_num = 1;
+		if (policy->sink_cap_received) {
+			policy->send_sink_cap = 1;
+			policy->sink_cap_received = 0;
+		}
+	}
 #endif
 	sink_request_obj_num = usbpd_manager_evaluate_capability(pd_data);
 
@@ -579,24 +584,17 @@ policy_state usbpd_policy_snk_transition_to_default(struct policy_data *policy)
 policy_state usbpd_policy_snk_give_sink_cap(struct policy_data *policy)
 {
 	struct usbpd_data *pd_data = policy_to_usbpd(policy);
-	struct usbpd_manager_data *manager = &pd_data->manager;
 
 	dev_info(pd_data->dev, "%s\n", __func__);
 
-	/* TODO: Get present sink cap from device policy manager */
-	policy->tx_msg_header.msg_type = USBPD_Sink_Capabilities;
-	policy->tx_msg_header.port_data_role = USBPD_UFP;
-	policy->tx_msg_header.port_power_role = USBPD_SINK;
-	policy->tx_msg_header.num_data_objs = 1;
+#ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
+	pd_noti.sink_status.selected_pdo_num = 0;
+#endif
+	policy->tx_msg_header.word = pd_data->sink_msg_header.word;
+	policy->tx_data_obj[0].object = pd_data->sink_data_obj[0].object;
+	policy->tx_data_obj[1].object = pd_data->sink_data_obj[1].object;
 
-	policy->tx_data_obj[0].power_data_obj_battery.max_power
-		= manager->sink_max_power;
-	policy->tx_data_obj[0].power_data_obj_battery.min_voltage
-		= manager->sink_min_volt;
-	policy->tx_data_obj[0].power_data_obj_battery.max_voltage
-		= manager->sink_max_volt;
-	policy->tx_data_obj[0].power_data_obj_battery.supply_type
-		= POWER_TYPE_BATTERY;
+	policy->sink_cap_received = 1;
 
 	if (usbpd_send_msg(pd_data, &policy->tx_msg_header,
 				policy->tx_data_obj))
@@ -2704,6 +2702,8 @@ void usbpd_init_policy(struct usbpd_data *pd_data)
 	policy->rx_msg_header.word = 0;
 	policy->tx_msg_header.word = 0;
 	policy->modal_operation = 0;
+	policy->sink_cap_received = 0;
+	policy->send_sink_cap = 0;
 	for (i = 0; i < USBPD_MAX_COUNT_MSG_OBJECT; i++) {
 		policy->rx_data_obj[i].object = 0;
 		policy->tx_data_obj[i].object = 0;

@@ -80,7 +80,7 @@
 			io_device_2 {
 				iod,name = "umts_rfs0";
 				iod,id = <245>;
-				iod,format = <1>;		/* IPC_RFS */
+				iod,format = <2>;		/* IPC_RFS */
 				iod,io_type = <0>;
 				iod,links = <0x200>;
 				iod,attrs = <0x82>;

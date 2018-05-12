@@ -100,6 +100,12 @@ config TORCH_CURRENT_CHANGE_SUPPORT
         default n
         help
           Change torch current in recording mode.
+config SECURE_CAMERA_USE
+        bool "Use secure camera"
+        depends on VENDER_MCD
+        default n
+        help
+          Use secure camera.
 config CAMERA_JOSHUA
         bool "This camera is joshua project"
         depends on VENDER_MCD
@@ -184,3 +190,57 @@ config CAMERA_J7VE
         default n
         help
           This camera is j7ve project.
+config CAMERA_GTACTIVE2
+        bool "This camera is gtactive2 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is gtactive2 project.
+config CAMERA_GRANDPPIRIS
+        bool "This camera is grandppiris project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is grandppiris project.
+config CAMERA_ON7XREF
+        bool "This camera is on7xref project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is on7xref project.
+config CAMERA_J7TOP
+        bool "This camera is j7top project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is j7top project.
+config CAMERA_DEGASY18
+        bool "This camera is degasy18 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is degasy18 project.
+config CAMERA_J8
+        bool "This camera is j8 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is j8 project.
+config CAMERA_GTAXLAD
+        bool "This camera is gtaxlad project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is gtaxlad project.
+config CAMERA_J6
+        bool "This camera is j6 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is j6 project.
+config CAMERA_A6
+        bool "This camera is a6 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is a6 project.

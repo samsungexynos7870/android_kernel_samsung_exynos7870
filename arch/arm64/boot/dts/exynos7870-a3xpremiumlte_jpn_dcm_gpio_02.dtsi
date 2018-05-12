@@ -77,8 +77,8 @@
 	pinctrl-names = "sleep";
 	pinctrl-0 = <&sleep4>;
 	sleep4: sleep-state {
-		PIN_SLP(gpm0-0, INPUT, NONE);	/* PMIC_SDA_1P8 */
-		PIN_SLP(gpm0-1, INPUT, NONE);	/* PMIC_SCL_1P8 */
+		PIN_SLP(gpm0-0, PREV, UP);	/* PMIC_SDA_1P8 */
+		PIN_SLP(gpm0-1, PREV, UP);	/* PMIC_SCL_1P8 */
 	};
 };
 

@@ -28,6 +28,54 @@ config SENSORS_K2HH_VDD
 	  Say Y here if you use SENSORS_K2HH_VDD.
 	  This option enables accelerometer sensors using VDD.
 
+config SENSORS_LIS2DS
+	tristate "STMicroelectronics LIS2DS/LIS2DS12 sensors"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LIS2DS/LIS2DS12 sensors.
+	   It is a accelerometer device.
+	   To compile this driver as a module, choose M here. The module
+	   will be called lis2ds.
+
+config SENSORS_LIS2DS_I2C
+	tristate "STMicroelectronics LIS2DS/LIS2DS12 sensors"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LIS2DS/LIS2DS12 sensors.
+	   It is a accelerometer device.
+	   To compile this driver as a module, choose M here. The module
+	   will be called lis2ds.
+
+config SENSORS_LIS2DS_SPI
+	tristate "STMicroelectronics LIS2DS/LIS2DS12 sensors"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LIS2DS/LIS2DS12 sensors.
+	   It is a accelerometer device.
+	   To compile this driver as a module, choose M here. The module
+	   will be called lis2ds.
+
+config SENSORS_LSM6DSL
+	tristate "STMicroelectronics LSM6DSL sensor"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LSM6DSL sensor.
+
+	   To compile this driver as a module, choose M here. The module
+	   will be called lsm6dsl.
+
+config SENSORS_LSM6DSL_I2C
+	tristate "STMicroelectronics LSM6DSL sensor"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LSM6DSL sensor.
+
+config SENSORS_LSM6DSL_SPI
+	tristate "STMicroelectronics LSM6DSL sensor"
+	depends on (I2C || SPI) && SYSFS
+	help
+	   This driver support the STMicroelectronics LSM6DSL sensor.
+
 config SENSORS_PPSX60
 	tristate "PARTRON & TI PPSX60 HRM Sensor"
 	default n
@@ -116,6 +164,13 @@ config SENSORS_CM36672P_SMART_PERS
 	help
 	  This option enables smart persistence option using CM36672P driver.
 
+config SENSORS_CM36686
+	depends on I2C
+	tristate "CM36686 driver"
+	default n
+	help
+	  This option enables proximity & light sensors using CM36686 driver.
+
 config SENSORS_TCS3490
 	depends on I2C
 	tristate "TCS3490 driver"
@@ -151,12 +206,26 @@ config SENSORS_TMD3725
 	help
 	   This option enables proximity & light sensors using TMD3725 driver.
 
+config SENSORS_TMD3725_RF_NOISE_DEFENCE_CODE
+	depends on SENSORS_TMD3725
+	tristate "TMD3725 driver defence code feature"
+	default n
+	help
+	   This option enables proximity using defence code in TMD3725 driver.
+
 config SENSORS_STK3013
 	depends on I2C
 	tristate "STK3013 driver"
 	default n
 	help
 	  This option enables proximity sensor using STK3013 driver.
+
+config SENSORS_GP2AP070S
+	depends on I2C
+	tristate "GP2AP070S driver"
+	default n
+	help
+	  This option enables proximity sensor using GP2AP070S driver
 
 config SENSORS_SX9306
 	depends on I2C
@@ -165,19 +234,19 @@ config SENSORS_SX9306
 	help
 	 This option enables grip sensors using SemTech sx9306 device driver.
 
-config SENSORS_SX9306_NORMAL_TOUCH_THRESHOLD
-	int "SX9306 Grip sensor threshold for normal touch"
-	depends on SENSORS_SX9306
-	default "17"
+config SENSORS_SX9306_SUB
+	depends on I2C
+	tristate "SX9306 sub driver"
+	default n
 	help
-	  This value is the standard of normal touch using SemTech sx9306 device driver.
+	 This option enables grip sensors using SemTech sx9306 sub device driver.
 
 config SENSORS_SX9306_WIFI
 	depends on I2C
 	tristate "SX9306 wifi driver"
 	default n
 	help
-	  This option enables grip sensors using
+	  This option enables wifi grip sensors using
 	  SemTech sx9306 wifi device driver.
 
 config SENSORS_SX9310
@@ -250,6 +319,17 @@ config SENSORS_SX9320
 	  Say Y here if you use sx9320.
 	  This option enables grip sensors using
 	  SemTech sx9320 device driver.
+
+	  Say N here if you do not use sx9320.
+	  
+config SENSORS_SX9320_WIFI
+	depends on I2C
+	tristate "SX9320 wifi driver"
+	default n
+	help
+	  Say Y here if you use sx9320.
+	  This option enables wifi grip sensors using
+	  SemTech sx9320 wifi device driver.
 
 	  Say N here if you do not use sx9320.
 
@@ -349,6 +429,67 @@ config SENSORS_GRIP_CHK_HALLIC
 	default n
 	help
 	 This option enables grip sensors checking hall ic status.
+
+config SENSORS_ABOV_A96T316
+	depends on I2C
+	tristate "A96T316 driver for grip"
+	default n
+	help
+	  Say Y here if you use A96T316 for grip.
+	  This option enables grip sensors using
+	  Above A96T316 device driver for grip.
+
+	  Say N here if you do not use A96T316 for grip.
+
+config TOUCHKEY_GRIP
+	tristate "touch grip for sar"
+	depends on I2C
+	help
+	  Say Y here if you want to use touch grip.
+
+config SENSORS_A96T3X6
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  Say Y here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+	  Say N here if you do not use A96T3X6 for grip.
+
+config SENSORS_A96T3X6_J8
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  Say Y here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+	  Say N here if you do not use A96T3X6 for grip.
+
+config SENSORS_A96T3X6_J6
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  Say Y here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+	  Say N here if you do not use A96T3X6 for grip.
+
+config SENSORS_A96T3X6_A6
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  Say Y here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+	  Say N here if you do not use A96T3X6 for grip.
 
 config SENSORS_MAX86900
 	tristate "MAXIM MAX86900 HRM Sensor"

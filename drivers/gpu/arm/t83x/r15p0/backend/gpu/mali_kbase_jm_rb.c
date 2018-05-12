@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -676,6 +676,7 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 	}
 
 	katom->gpu_rb_state = KBASE_ATOM_GPU_RB_WAITING_BLOCKED;
+	katom->protected_state.exit = KBASE_ATOM_EXIT_PROTECTED_CHECK;
 }
 
 static void kbase_gpu_mark_atom_for_return(struct kbase_device *kbdev,

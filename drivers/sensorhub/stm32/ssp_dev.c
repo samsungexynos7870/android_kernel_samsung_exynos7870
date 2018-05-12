@@ -457,7 +457,7 @@ void ssp_timestamp_resume(struct ssp_data* data)
 {
 	int type;
 	for (type = 0; type < SENSOR_TYPE_MAX; type++) {
-		if (atomic64_read(&data->aSensorEnable) & (1 << type)) 
+		if (atomic64_read(&data->aSensorEnable) & (1ULL << type)) 
 		{
 			//ssp_infof("type = %d", type);
 			data->latest_timestamp[type] = -1;

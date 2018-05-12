@@ -547,6 +547,37 @@
 		};
 	};
 
+	spi_0: spi@13920000 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		status = "okay";
+
+		ese_spi@0 {
+			compatible = "ese_p3";
+			reg = <0>;
+			spi-max-frequency = <13000000>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			p3-vdd_1p8-gpio = <&gpd3 7 0>;
+			p3-ap_vendor = "slsi";
+
+			clocks = <&clock 191>, <&clock 633>;
+			clock-names = "pclk", "sclk";
+
+			pinctrl-names = "ese_active", "ese_suspend";
+			pinctrl-0 = <&spi0_bus &ese_cs_func>;
+			pinctrl-1 = <&spi0_bus_suspend &ese_cs_func_suspend>;
+
+			controller-data {
+				cs-gpio = <&gpc3 2 0>;
+				samsung,spi-feedback-delay = <0>;
+				samsung,spi-chip-select-mode = <1>;
+			};
+		};
+	};
+
 	i2c@13880000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <400000>;
@@ -615,8 +646,8 @@
 	decon_fb@14830000 {
 		psr_mode = <0>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		trig_mode = <1>;	/* 0: hw trigger, 1: sw trigger */
-		disp-pll-clk = <83000000>;
-		disp-vclk = <83000000>;
+		disp-pll-clk = <72000000>;
+		disp-vclk = <72000000>;
 		disp-eclk = <200000000>;
 		disp-dvfs = <200000>;
 		status = "okay";
@@ -627,17 +658,16 @@
 		/* HD(720 x 1280) */
 		panel_name = "s6e8aa5x01";
 		resolution = <720 1280>;
-		size = <62 106>;
+		size = <65 115>;	/* 64.62 114.88*/
 		ddi_type = <0>;
 		timing,refresh = <60>;
 		/* HBP HFP HSW */
-		timing,h-porch = <60 257 20>;
+		timing,h-porch = <60 120 20>;
 		/* VBP VFP VSW */
 		timing,v-porch = <8 14 2>;
 		timing,dsi-hs-clk = <496>;
 		timing,dsi-escape-clk = <16>;
 		timing,pms = <3 229 2>;
-		clklane_onoff = <0>;
 	};
 
 };

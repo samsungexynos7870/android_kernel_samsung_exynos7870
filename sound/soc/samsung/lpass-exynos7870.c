@@ -767,7 +767,6 @@ static int lpass_probe(struct platform_device *pdev)
 	pm_qos_add_request(&lpass.aud_mif_qos, PM_QOS_BUS_THROUGHPUT, 0);
 	pm_qos_add_request(&lpass.aud_int_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
 #endif
-
 	dev_dbg(dev, "%s Completed\n", __func__);
 	return 0;
 }

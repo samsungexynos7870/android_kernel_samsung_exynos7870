@@ -55,8 +55,14 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		if (PGD_SIZE == PAGE_SIZE)
 			ret = (pgd_t *)get_zeroed_page(GFP_KERNEL);
 		else
-			return kmem_cache_zalloc(pgd_cache, GFP_KERNEL);
+			ret = kmem_cache_zalloc(pgd_cache, GFP_KERNEL);
 	}
+
+	if(unlikely(!ret)) {
+		pr_warn("%s: pgd alloc is failed\n", __func__);
+		return ret;
+	}
+
 #ifdef CONFIG_KNOX_KAP
 	if (boot_mode_security && rkp_started)
 #endif  //CONFIG_KNOX_KAP

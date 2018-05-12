@@ -202,6 +202,7 @@ static int check_calibration_offset(struct stk3013_data *ps_data);
 static int stk3013_validate_n_handle(struct i2c_client *client);
 #endif
 static int stk3013_regulator_onoff(struct device *dev, bool onoff);
+static int stk3013_vled_onoff(struct device *dev, bool onoff);
 static int32_t stk3013_init_all_setting(struct i2c_client *client,
 				struct stk3013_platform_data *plat_data);
 
@@ -634,6 +635,8 @@ static int32_t stk3013_enable_ps(struct device *dev,
 
 	if (enable) {
 		/*stk3013_regulator_onoff(dev, ON);*/
+		if(ps_data->pdata->vled_ldo)
+			stk3013_vled_onoff(dev,ON);
 		msleep(20);
 		ret = stk3013_init_all_setting(ps_data->client,
 							ps_data->pdata);
@@ -687,7 +690,7 @@ static int32_t stk3013_enable_ps(struct device *dev,
 			near_far_state = ret & STK_FLG_NF_MASK;
 			ps_data->ps_distance_last = near_far_state;
 			input_report_abs(ps_data->ps_input_dev,
-					ABS_DISTANCE, enable);
+					ABS_DISTANCE, near_far_state);
 			input_sync(ps_data->ps_input_dev);
 			wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
 			read_value = stk3013_get_ps_reading(ps_data);
@@ -696,6 +699,8 @@ static int32_t stk3013_enable_ps(struct device *dev,
 		}
 	} else {
 		disable_irq(ps_data->irq);
+		if(ps_data->pdata->vled_ldo)
+			stk3013_vled_onoff(dev,OFF);
 		/*stk3013_regulator_onoff(dev, OFF);*/
 		ps_data->ps_enabled = false;
 	}
@@ -1490,11 +1495,25 @@ static int stk3013_regulator_onoff(struct device *dev, bool onoff)
 	return 0;
 }
 
+static int stk3013_vled_onoff(struct device *dev, bool onoff)
+{
+	struct stk3013_data *ps_data = dev_get_drvdata(dev);
+
+	SENSOR_INFO("stk3013_vled_onoff %s\n",(onoff) ? "on" : "off");
+
+	/* ldo control */
+	if (ps_data->pdata->vled_ldo) {
+		gpio_set_value(ps_data->pdata->vled_ldo, onoff);	
+	}
+	return 0;
+}
+
 static int stk3013_parse_dt(struct device *dev,
 			struct stk3013_platform_data *pdata)
 {
 	int rc;
 	struct device_node *np = dev->of_node;
+	enum of_gpio_flags flags;
 	u32 temp_val;
 
 	if (!pdata)
@@ -1610,6 +1629,20 @@ static int stk3013_parse_dt(struct device *dev,
 		dev_err(dev, "Unable to read ps-default-offset\n");
 		return rc;
 	}
+	
+	pdata->vled_ldo = of_get_named_gpio_flags(np, "stk,vled_ldo",0, &flags);
+	if (pdata->vled_ldo < 0) {
+		SENSOR_ERR("fail to get vled_ldo\n");
+		pdata->vled_ldo = 0;
+	} else {
+		rc = gpio_request(pdata->vled_ldo, "prox_vled_en");
+		if (rc < 0) {
+			SENSOR_ERR("gpio %d request failed (%d)\n",
+				pdata->vled_ldo, rc);
+			return rc;
+		}
+		gpio_direction_output(pdata->vled_ldo, 0);
+	}
 
 	return 0;
 }
@@ -1723,13 +1756,15 @@ static int stk3013_probe(struct i2c_client *client,
 		SENSOR_ERR("no stk3013 platform data!\n");
 		ret = -ENOMEM;
 		goto err_als_input_allocate;
-	}
-
-	stk3013_regulator_onoff(&client->dev, ON);
+	}	
 
 	ps_data->int_pin = plat_data->int_pin;
 	ps_data->pdata = plat_data;
-
+	
+	stk3013_regulator_onoff(&client->dev, ON);
+	if(ps_data->pdata->vled_ldo)
+		stk3013_vled_onoff(&client->dev,ON);
+	
 	stk3013_set_wq(ps_data);
 	ret = stk3013_init_all_setting(client, plat_data);
 	if (ret < 0)
@@ -1795,6 +1830,9 @@ static int stk3013_probe(struct i2c_client *client,
 	}
 
 	/*stk3013_regulator_onoff(&client->dev, OFF);*/
+	if(ps_data->pdata->vled_ldo)
+		stk3013_vled_onoff(&client->dev,OFF);
+
 	SENSOR_INFO("success\n");
 	return 0;
 	/*device_init_wakeup(&client->dev, false);*/
@@ -1815,6 +1853,10 @@ err_input_alloc_device:
 err_init_all_setting:
 	destroy_workqueue(ps_data->stk_wq);
 	/*stk3013_regulator_onoff(&client->dev, OFF);*/
+	if(ps_data->pdata->vled_ldo){
+		stk3013_vled_onoff(&client->dev,OFF);
+		gpio_free(ps_data->pdata->vled_ldo);
+	}
 err_als_input_allocate:
 	wake_lock_destroy(&ps_data->ps_wakelock);
 	mutex_destroy(&ps_data->io_lock);

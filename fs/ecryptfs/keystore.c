@@ -1481,12 +1481,6 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		crypt_stat->key_size = 24;
 		break;
 	default:
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	if (crypt_stat->mount_crypt_stat->cipher_code == RFC2440_CIPHER_AES_XTS_256)
-		crypt_stat->key_size =
-			crypt_stat->mount_crypt_stat->global_default_cipher_key_size;
-	else
-#endif
 		crypt_stat->key_size =
 			(*new_auth_tok)->session_key.encrypted_key_size;
 	}
@@ -2315,25 +2309,14 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	if (crypt_stat->key_size == 0)
 		crypt_stat->key_size =
 			mount_crypt_stat->global_default_cipher_key_size;
-	if (auth_tok->session_key.encrypted_key_size == 0) {
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-		if (crypt_stat->mount_crypt_stat->cipher_code == RFC2440_CIPHER_AES_XTS_256)
-			auth_tok->session_key.encrypted_key_size = crypt_stat->key_size * 2;
-		else
-#endif
+	if (auth_tok->session_key.encrypted_key_size == 0)
 			auth_tok->session_key.encrypted_key_size = crypt_stat->key_size;
-	}
 	if (crypt_stat->key_size == 24
 	    && strcmp("aes", crypt_stat->cipher) == 0) {
 		memset((crypt_stat->key + 24), 0, 8);
 		auth_tok->session_key.encrypted_key_size = 32;
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	} else if (mount_crypt_stat->cipher_code == RFC2440_CIPHER_AES_XTS_256) {
-		auth_tok->session_key.encrypted_key_size = crypt_stat->key_size * 2;
-#endif
-	} else {
+	} else
 		auth_tok->session_key.encrypted_key_size = crypt_stat->key_size;
-	}
 	key_rec->enc_key_size =
 		auth_tok->session_key.encrypted_key_size;
 	encrypted_session_key_valid = 0;

@@ -19,12 +19,12 @@
 #include "exynos7870-j7y17lte_kor_tdmb_00.dtsi"
 
 / {
-	model = "Samsung J7Y17 LTE OPENM rev05 board based on Exynos7870";
+	model = "Samsung J7Y17 LTE OPENM rev06 board based on Exynos7870";
         model_info-chip = <7870>;
         model_info-platform = "android";
         model_info-subtype = "samsung";
         model_info-hw_rev = <6>;
-        model_info-hw_rev_end = <255>;
+        model_info-hw_rev_end = <6>;
 	compatible = "samsung, J7Y17 LTE KOR OPENM 06", "samsung,exynos7870";
 
 	i2c@13870000 {
@@ -384,11 +384,11 @@
 			io-channel-names = "adc-jack";
 			#io-channel-cells = <1>;
 			io-channel-ranges;
-			but-zones-list = <&but_zones 226 0 258>, /* send/end */
-					<&but_zones 582 259 332>, /* google */
-					<&but_zones 115 333 539>, /* vol up */
-					<&but_zones 114 540 1000>; /* vol down */
-			mic-adc-range = <1370>;
+			but-zones-list = <&but_zones 226 0 275>, /* send/end */
+					<&but_zones 582 276 356>, /* google */
+					<&but_zones 115 357 562>, /* vol up */
+					<&but_zones 114 563 1000>; /* vol down */
+			mic-adc-range = <1390>;
 			mic-det-delay = <550>;
 		};
 	};

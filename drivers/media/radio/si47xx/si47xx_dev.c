@@ -941,6 +941,28 @@ int si47xx_dev_chan_get(u32 *frequency)
 	return ret;
 }
 
+int si47xx_dev_chan_check_valid(bool *valid)
+{
+	int ret = 0;
+	struct rsq_data_t rsq_data;
+
+	pr_info("%s():\n", __func__);
+
+	mutex_lock(&(si47xx_dev->lock));
+
+	if (si47xx_dev->valid == eFALSE) {
+		pr_err("si47xx did not power up\n");
+		ret = -EPERM;
+	} else {
+		fmRsqStatus(0, &rsq_data);
+		*valid = rsq_data.valid;
+	}
+	mutex_unlock(&(si47xx_dev->lock));
+
+	return ret;
+}
+
+
 int si47xx_dev_seek_full(u32 *frequency)
 {
 	int ret = 0;

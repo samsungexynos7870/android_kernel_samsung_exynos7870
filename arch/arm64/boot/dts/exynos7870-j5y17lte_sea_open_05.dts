@@ -578,8 +578,8 @@
 			compatible = "yas_magnetometer";
 			reg = <0x2e>;
 			yas,orientation = <0>;
-			yas,softiron = <9947 2523 163 2523 8973 303 163 303 11083>;
-			yas,softiron_sign = <2 2 0 2 2 2 0 2 2>;
+			yas,softiron = <9457 138 331 42 9772 256 78 8 10551>;
+			yas,softiron_sign = <2 2 0 2 2 0 2 0 2>;
 		};
 	};
 

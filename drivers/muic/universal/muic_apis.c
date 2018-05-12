@@ -156,6 +156,52 @@ int do_BCD_rescan(muic_data_t *pmuic)
 	return 0;
 }
 
+int BCD_rescan_incomplete_insertion(muic_data_t *pmuic, int get) // get == 0 do BCD rescan, get == 1 get chgtype
+{
+	pr_info("%s\n", __func__);
+
+	if (get) {
+		int chg_type = get_charger_type(pmuic);
+		int new_dev = 0;
+
+		if (chg_type < 0)
+			pr_err("%s:%s err %d\n", MUIC_DEV_NAME, __func__, chg_type);
+
+		pr_info("%s [MUIC] BCD result chg_type = 0x%x \n", __func__, chg_type);
+		switch(chg_type) {
+		case 0x01 : // DCP
+			new_dev = ATTACHED_DEV_TA_MUIC;
+			break;
+		case 0x02 : // CDP
+			new_dev = ATTACHED_DEV_CDP_MUIC;
+			break;
+		case 0x04 : // SDP
+			new_dev = ATTACHED_DEV_USB_MUIC;
+			break;
+		case 0x08 : // Time out SDP
+			new_dev = ATTACHED_DEV_USB_MUIC;
+			break;
+		case 0x10 : // U200
+			new_dev = ATTACHED_DEV_TA_MUIC;
+			break;
+		}
+
+		return new_dev;
+	}
+	else {
+		pr_info("[MUIC] Incomplete insertion.\n");
+		pr_info("[MUIC] BCD rescan\n");
+
+		// 0x21 -> 1  0x21 -> 0
+		set_BCD_RESCAN_reg(pmuic, 0x01);
+		msleep(1);
+		pr_info("[MUIC] Writing BCD_RECAN\n");
+		set_BCD_RESCAN_reg(pmuic, 0x00);
+
+		return 0;
+	}
+}
+
 int get_switch_mode(muic_data_t *pmuic)
 {
 	struct vendor_ops *pvendor = pmuic->regmapdesc->vendorops;

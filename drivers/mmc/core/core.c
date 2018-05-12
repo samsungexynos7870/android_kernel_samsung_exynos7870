@@ -56,7 +56,6 @@
  */
 #define MMC_BKOPS_MAX_TIMEOUT	(4 * 60 * 1000) /* max time to wait in ms */
 
-static struct workqueue_struct *workqueue;
 static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
 /*
@@ -67,21 +66,16 @@ static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 bool use_spi_crc = 1;
 module_param(use_spi_crc, bool, 0);
 
-/*
- * Internal function. Schedule delayed work in the MMC work queue.
- */
 static int mmc_schedule_delayed_work(struct delayed_work *work,
 				     unsigned long delay)
 {
-	return queue_delayed_work(workqueue, work, delay);
-}
-
-/*
- * Internal function. Flush all scheduled work from the MMC work queue.
- */
-static void mmc_flush_scheduled_work(void)
-{
-	flush_workqueue(workqueue);
+	/*
+	 * We use the system_freezable_wq, because of two reasons.
+	 * First, it allows several works (not the same work item) to be
+	 * executed simultaneously. Second, the queue becomes frozen when
+	 * userspace becomes frozen during system PM.
+	 */
+	return queue_delayed_work(system_freezable_wq, work, delay);
 }
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
@@ -1400,7 +1394,8 @@ int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 	int old_signal_voltage = host->ios.signal_voltage;
 
 #if defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
 	/* Some devices use only dedicated specific signaling level for
 	 * design reasons. MMC_CAP2_BROKEN_VOLTAGE flag is used when
 	 * there is no needs to change to any signaling level.
@@ -1408,7 +1403,8 @@ int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 	if (host->caps2 & MMC_CAP2_BROKEN_VOLTAGE)
 		return 0;
 #endif /*(CONFIG_BCM43454) || (CONFIG_BCM43454_MODULE) || \
-	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE)*/
+	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE) || \
+	(CONFIG_BCM43456) || (CONFIG_BCM43456_MODULE)*/
 
 	host->ios.signal_voltage = signal_voltage;
 	if (host->ops->start_signal_voltage_switch) {
@@ -1433,7 +1429,8 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	BUG_ON(!host);
 
 #if defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
 	/* Some devices use only dedicated specific signaling level for
 	 * design reasons. MMC_CAP2_BROKEN_VOLTAGE flag is used when
 	 * there is no needs to change to any signaling level.
@@ -1441,7 +1438,8 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	if (host->caps2 & MMC_CAP2_BROKEN_VOLTAGE)
 		return 0;
 #endif /*(CONFIG_BCM43454) || (CONFIG_BCM43454_MODULE) || \
-	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE)*/
+	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE) || \
+	(CONFIG_BCM43456) || (CONFIG_BCM43456_MODULE)*/
 
 	/*
 	 * Send CMD11 only if the request is to switch the card to
@@ -2567,6 +2565,7 @@ void mmc_rescan(struct work_struct *work)
 	if (host->detect_complete)
 		complete(host->detect_complete);
 #endif
+	host->pm_progress = 0;
 	if (!host->rescan_disable)
 		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
 	if (host->caps & MMC_CAP_NEEDS_POLL)
@@ -2584,7 +2583,8 @@ void mmc_start_host(struct mmc_host *host)
 		mmc_power_up(host, host->ocr_avail);
 #if defined(CONFIG_QCOM_WIFI) || defined(CONFIG_BCM4343)  || defined(CONFIG_BCM4343_MODULE) || \
 	defined(CONFIG_BCM43454)  || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455)  || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455)  || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456)  || defined(CONFIG_BCM43456_MODULE)
 	if (!strcmp("mmc1", mmc_hostname(host))) {
 		printk("%s skip mmc_detect_change\n", mmc_hostname(host));
 	} else if (host->caps2 & MMC_CAP2_SKIP_INIT_SCAN) {
@@ -2602,7 +2602,8 @@ void mmc_start_host(struct mmc_host *host)
 	}
 #endif /* CONFIG_QCOM_WIFI || CONFIG_BCM4343 || CONFIG_BCM4343_MODULE || \
 	CONFIG_BCM43454 || CONFIG_BCM43454_MODULE || \
-	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE */
+	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE || \
+	CONFIG_BCM43456 || CONFIG_BCM43456_MODULE */
 }
 
 void mmc_stop_host(struct mmc_host *host)
@@ -2618,7 +2619,6 @@ void mmc_stop_host(struct mmc_host *host)
 
 	host->rescan_disable = 1;
 	cancel_delayed_work_sync(&host->detect);
-	mmc_flush_scheduled_work();
 
 	/* clear pm flags now and let card drivers set them as needed */
 	host->pm_flags = 0;
@@ -2770,6 +2770,9 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		spin_lock_irqsave(&host->lock, flags);
 		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
+		/* SD sync mode will be enabled during pm_progress is set */
+		if (host->card && mmc_card_sd(host->card))
+			host->pm_progress = 1;
 		_mmc_detect_change(host, 0, false);
 
 	}
@@ -2815,13 +2818,9 @@ static int __init mmc_init(void)
 {
 	int ret;
 
-	workqueue = alloc_ordered_workqueue("kmmcd", 0);
-	if (!workqueue)
-		return -ENOMEM;
-
 	ret = mmc_register_bus();
 	if (ret)
-		goto destroy_workqueue;
+		return ret;
 
 	ret = mmc_register_host_class();
 	if (ret)
@@ -2837,14 +2836,12 @@ unregister_host_class:
 	mmc_unregister_host_class();
 unregister_bus:
 	mmc_unregister_bus();
-destroy_workqueue:
-	destroy_workqueue(workqueue);
-
 	return ret;
 }
 #if defined(CONFIG_BCM4343) || defined(CONFIG_BCM4343_MODULE) || \
 	defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
 void mmc_ctrl_power(struct mmc_host *host, bool onoff)
 {
 	 if (!onoff) {
@@ -2857,7 +2854,8 @@ void mmc_ctrl_power(struct mmc_host *host, bool onoff)
 EXPORT_SYMBOL(mmc_ctrl_power);
 #endif /* CONFIG_BCM4343 || CONFIG_BCM4343_MODULE || \
 	  CONFIG_BCM43454 || CONFIG_BCM43454_MODULE || \
-	  CONFIG_BCM43455 || CONFIG_BCM43455_MODULE */
+	  CONFIG_BCM43455 || CONFIG_BCM43455_MODULE || \
+	  CONFIG_BCM43456 || CONFIG_BCM43456_MODULE */
 
 
 static void __exit mmc_exit(void)
@@ -2865,7 +2863,6 @@ static void __exit mmc_exit(void)
 	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();
-	destroy_workqueue(workqueue);
 }
 
 subsys_initcall(mmc_init);

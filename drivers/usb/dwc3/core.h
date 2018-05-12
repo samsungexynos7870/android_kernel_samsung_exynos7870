@@ -868,6 +868,9 @@ struct dwc3 {
 	unsigned		adj_sof_accuracy:1;
 	unsigned		is_not_vbus_pad:1;
 	unsigned		sparse_transfer_control:1;
+#ifdef CONFIG_ARGOS
+	u32			irq_affinity_cpu_mask;
+#endif
 };
 
 /* -------------------------------------------------------------------------- */

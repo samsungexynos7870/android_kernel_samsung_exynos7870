@@ -537,11 +537,25 @@ config VEXPRESS_SYSCFG
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
 
-config UID_CPUTIME
-	tristate "Per-UID cpu time statistics"
-	depends on PROFILING
+config UID_SYS_STATS
+	bool "Per-UID statistics"
+	depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
+	  Per UID based io statistics exported to /proc/uid_io
+
+config UID_SYS_STATS_DEBUG
+	bool "Per-TASK statistics"
+	depends on UID_SYS_STATS
+	default n
+	help
+	  Per TASK based io statistics exported to /proc/uid_io
+
+config MEMORY_STATE_TIME
+	tristate "Memory freq/bandwidth time statistics"
+	depends on PROFILING
+	help
+	  Memory time statistics exported to /sys/kernel/memory_state_time
 
 config SAMSUNG_JACK
 	bool "3.5 PI Jack driver for Samsung devices"
@@ -561,6 +575,21 @@ config TIMA_LOG
 	help
 		This option enables support for dumping TIMA log.
 
+config LEDS_IRIS_IRLED_SUPPORT
+	tristate "this feature allows IRIS IRLED"
+	default n
+	help
+	  This is a driver for IRIS Led driver
+
+config LEDS_IRIS_FPGA_ICE40XX
+	tristate "this feature allows ICE40XX IRIS"
+	default n
+	help
+	  This is a driver for IRIS LEd driver based on Lattice chip.
+	  Lattice FPGA can support IRIS LED.
+	  To compile this driver as a module, choose M here.
+	  If unsure, say N.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -579,4 +608,5 @@ source "drivers/misc/uart_sel/Kconfig"
 source "drivers/misc/modem_v1/Kconfig"
 source "drivers/misc/gnss_if/Kconfig"
 source "drivers/misc/bhy/Kconfig"
+source "drivers/misc/tzdev/Kconfig"
 endmenu

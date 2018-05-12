@@ -54,6 +54,10 @@ struct workqueue_struct *sensor_pwr_ctrl_wq = 0;
 #define CAMERA_WORKQUEUE_MAX_WAITING	1000
 #endif
 
+#ifdef CONFIG_SECURE_CAMERA_USE
+static u32 secure_sensor_id;
+#endif
+
 #ifdef USE_CAMERA_HW_BIG_DATA
 static struct cam_hw_param_collector cam_hwparam_collector;
 static bool mipi_err_check;
@@ -271,6 +275,9 @@ int fimc_is_vender_probe(struct fimc_is_vender *vender)
 	specific->eeprom_client1 = NULL;
 	specific->suspend_resume_disable = false;
 	specific->need_cold_reset = false;
+#ifdef CONFIG_SECURE_CAMERA_USE
+	specific->secure_sensor_id = secure_sensor_id;
+#endif
 
 	vender->private_data = specific;
 
@@ -325,6 +332,14 @@ int fimc_is_vender_dt(struct device_node *np)
 	if (ret) {
 		probe_err("front_sensor_id read is fail(%d)", ret);
 	}
+
+#ifdef CONFIG_SECURE_CAMERA_USE
+	ret = of_property_read_u32(np, "secure_sensor_id", &secure_sensor_id);
+	if (ret) {
+		probe_err("secure_sensor_id read is fail(%d)", ret);
+		secure_sensor_id = 0;
+	}
+#endif
 
 	check_sensor_vendor = of_property_read_bool(np, "check_sensor_vendor");
 	if (!check_sensor_vendor) {
@@ -1178,6 +1193,10 @@ extern int s2mpb02_set_torch_current(bool movie);
 extern bool flash_control_ready;
 extern int sm5703_led_mode_ctrl(int state);
 #endif
+#ifdef CONFIG_LEDS_KTD2692
+extern int	ktd2692_led_mode_ctrl(int);
+#endif
+
 
 #ifdef CONFIG_LEDS_SUPPORT_FRONT_FLASH_AUTO
 int fimc_is_vender_set_torch(u32 aeflashMode, u32 frontFlashMode)
@@ -1193,13 +1212,10 @@ int fimc_is_vender_set_torch(u32 aeflashMode, u32 frontFlashMode)
 	case AA_FLASHMODE_ON: /* Main flash Mode */
 #if defined(CONFIG_LEDS_S2MU005_FLASH) && defined(CONFIG_LEDS_SUPPORT_FRONT_FLASH)
 		if(frontFlashMode == CAM2_FLASH_MODE_LCD)
-			s2mu005_led_mode_ctrl(S2MU005_FLED_MODE_MOVIE);
+			s2mu005_led_mode_ctrl(S2MU005_FLED_MODE_FLASH);
 #endif
 		break;
 	case AA_FLASHMODE_CAPTURE: /*Main flash mode*/
-#if defined(CONFIG_LEDS_S2MU005_FLASH) && defined(CONFIG_LEDS_SUPPORT_FRONT_FLASH)
-		s2mu005_led_mode_ctrl(S2MU005_FLED_MODE_MOVIE);
-#endif
 		break;
 	case AA_FLASHMODE_OFF: /*OFF mode*/
 #if defined(CONFIG_LEDS_S2MU005_FLASH)
@@ -1235,6 +1251,8 @@ int fimc_is_vender_set_torch(u32 aeflashMode)
 		}
 #elif defined(CONFIG_LEDS_RT8547)
 		rt8547_led_mode_ctrl(RT8547_ENABLE_MOVIE_MODE);
+#elif defined(CONFIG_LEDS_KTD2692)
+		ktd2692_led_mode_ctrl(3);
 #endif
 		break;
 	case AA_FLASHMODE_START: /*Pre flash mode*/
@@ -1254,6 +1272,8 @@ int fimc_is_vender_set_torch(u32 aeflashMode)
 		}
 #elif defined(CONFIG_LEDS_RT8547)
 		rt8547_led_mode_ctrl(RT8547_ENABLE_PRE_FLASH_MODE);
+#elif defined(CONFIG_LEDS_KTD2692)
+		ktd2692_led_mode_ctrl(4);
 #endif
 		break;
 	case AA_FLASHMODE_CAPTURE: /*Main flash mode*/
@@ -1263,6 +1283,8 @@ int fimc_is_vender_set_torch(u32 aeflashMode)
 		sm5703_led_mode_ctrl(2);
 #elif defined(CONFIG_LEDS_RT8547)
 		rt8547_led_mode_ctrl(RT8547_ENABLE_FLASH_MODE);
+#elif defined(CONFIG_LEDS_KTD2692)
+		ktd2692_led_mode_ctrl(2);
 #endif
 		break;
 	case AA_FLASHMODE_OFF: /*OFF mode*/
@@ -1276,6 +1298,8 @@ int fimc_is_vender_set_torch(u32 aeflashMode)
 		sm5703_led_mode_ctrl(0);
 #elif defined(CONFIG_LEDS_RT8547)
 		rt8547_led_mode_ctrl(RT8547_DISABLES_MOVIE_FLASH_MODE);
+#elif defined(CONFIG_LEDS_KTD2692)
+		ktd2692_led_mode_ctrl(1);
 #endif
 		break;
 	default:

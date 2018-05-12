@@ -224,6 +224,9 @@ struct fimc_is_hw_ip {
 	/* control interface */
 	struct fimc_is_interface_ischain	*itfc;
 	struct fimc_is_setfile_info		setfile_info;
+	/* for dump sfr */
+	u8					*sfr_dump;
+	u8					*sfr_b_dump;
 	atomic_t				rsccount;
 
 	struct fimc_is_clk_gate			*clk_gate;
@@ -348,4 +351,5 @@ int fimc_is_hardware_runtime_suspend(struct fimc_is_hardware *hardware);
 
 void fimc_is_hardware_clk_gate(struct fimc_is_hw_ip *hw_ip, u32 instance,
 	bool on, bool close);
+void fimc_is_hardware_sfr_dump(struct fimc_is_hardware *hardware);
 #endif

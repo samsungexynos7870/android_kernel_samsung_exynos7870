@@ -41,7 +41,9 @@ struct sm5705_fled_info {
 static struct sm5705_fled_info *g_sm5705_fled;
 static bool fimc_is_activated = 0;
 static bool assistive_light = false;
+#if defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
 static bool muic_flash_on_status = false;
+#endif
 
 extern struct class *camera_class; /*sys/class/camera*/
 extern int sm5705_call_fg_device_id(void);
@@ -566,9 +568,10 @@ static ssize_t sm5705_rear_flash_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct sm5705_fled_info *sm5705_fled = dev_get_drvdata(dev->parent);
-	int ret, value_u32;
+	int ret, value ;
+	int torch_current = 0;
 
-	if ((buf == NULL) || kstrtouint(buf, 10, &value_u32)) {
+	if ((buf == NULL) || kstrtouint(buf, 10, &value)) {
 		return -1;
 	}
 
@@ -579,40 +582,50 @@ static ssize_t sm5705_rear_flash_store(struct device *dev,
 		sm5705_fled = g_sm5705_fled;
 	}
 
-	dev_info(dev, "%s: value=%d\n", __func__, value_u32);
+	dev_info(dev, "%s: %s - value(%d)\n", __func__,
+		value == 0 ? "Torch OFF" : "Torch ON", value);
 
-	switch (value_u32) {
-	case 0:
+	if (value == 0) {
 		/* Turn off Torch */
-		ret = sm5705_fled_turn_off(sm5705_fled, REAR_FLASH_INDEX);
 		assistive_light = false;
-		break;
-	case 1:
+		ret = sm5705_fled_turn_off(sm5705_fled, REAR_FLASH_INDEX);
+	} else if (value == 1) {
 		/* Turn on Torch */
-		ret = sm5705_fled_turn_on_torch(sm5705_fled, REAR_FLASH_INDEX,
-			g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_current_mA);
 		assistive_light = true;
 		fimc_is_activated = 0;
-		break;
-	case 100:
+		ret = sm5705_fled_turn_on_torch(sm5705_fled, REAR_FLASH_INDEX, 
+			g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_current_mA);
+	} else if (value == 100) {
 		/* Factory mode Turn on Torch */
+		assistive_light = true;
 		ret = sm5705_fled_turn_on_torch(sm5705_fled, REAR_FLASH_INDEX,
 			g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].factory_current_mA);
-		break;
-	default:
-		if (value_u32 > 1000 && value_u32 < (1000 + 32)) {
-			/* Turn on Torch : 20mA ~ 320mA */
-			ret = sm5705_fled_turn_on_torch(sm5705_fled, REAR_FLASH_INDEX,
-				_calc_torch_current_mA_to_offset(value_u32 - 1000));
-		} else {
-			dev_err(dev, "%s: can't process, invalid value=%d\n", __func__, value_u32);
-			ret = -EINVAL;
-		}
-		break;
+	} else if (1001 <= value && value <= 1010) {
+		/* (value) 1001, 1002, 1004, 1006, 1009 */
+		assistive_light = true;
+		fimc_is_activated = 0;
+		if (value <= 1001)
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[0];
+		else if (value <= 1002)
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[1];
+		else if (value <= 1004)
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[2];
+		else if (value <= 1006)
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[3];
+		else if (value <= 1009)
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[4];
+		else
+			torch_current = g_sm5705_fled->pdata->led[REAR_FLASH_INDEX].torch_table[2];
+
+		dev_info(dev, "%s, torch_current:%d\n", __func__, torch_current);
+		ret = sm5705_fled_turn_on_torch(sm5705_fled, REAR_FLASH_INDEX, torch_current);
+	} else {
+		dev_info(dev, "%s, Invalid value:%d\n", __func__, value);
 	}
+
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(dev, "%s: fail to rear flash file operation:store (value=%d, ret=%d)\n",
-			__func__, value_u32, ret);
+			__func__, value, ret);
 	}
 
 	return count;
@@ -710,6 +723,16 @@ static int sm5705_fled_parse_dt(struct device *dev,
 		}
 		pdata->led[index].used_gpio = (bool)(temp & 0x1);
 
+		ret = of_property_read_u32_array(c_np, "torch_table", pdata->led[index].torch_table, TORCH_STEP);
+		if (ret) {
+			pr_info("%s : set a default torch_table\n", __func__);
+			pdata->led[index].torch_table[0] = 20;
+			pdata->led[index].torch_table[1] = 40;
+			pdata->led[index].torch_table[2] = 60;
+			pdata->led[index].torch_table[3] = 90;
+			pdata->led[index].torch_table[4] = 120;
+		}
+
 		if (pdata->led[index].used_gpio) {
 			ret = of_get_named_gpio(c_np, "flash-en-gpio", 0);
 			if (ret < 0) {
@@ -782,7 +805,7 @@ static int sm5705_fled_probe(struct platform_device *pdev)
 	struct sm5705_fled_info *sm5705_fled;
 	struct sm5705_fled_platform_data *sm5705_fled_pdata;
 	struct device *dev = &pdev->dev;
-	int i,ret;
+	int i = 0, ret = 0;
 
 	if (IS_ERR_OR_NULL(camera_class)) {
 		dev_err(dev, "%s: can't find camera_class sysfs object, didn't used rear_flash attribute\n",

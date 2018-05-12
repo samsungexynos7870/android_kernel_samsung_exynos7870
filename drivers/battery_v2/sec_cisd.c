@@ -12,6 +12,10 @@
 #include "include/sec_battery.h"
 #include "include/sec_cisd.h"
 
+#if defined(CONFIG_SEC_ABC)
+#include <linux/sti/abc_common.h>
+#endif
+
 bool sec_bat_cisd_check(struct sec_battery_info *battery)
 {
 	union power_supply_propval incur_val = {0, };
@@ -45,6 +49,9 @@ bool sec_bat_cisd_check(struct sec_battery_info *battery)
 					vbat_val);
 			pcisd->data[CISD_DATA_OVER_VOLTAGE]++;
 			pcisd->state |= CISD_STATE_OVER_VOLTAGE;
+#if defined(CONFIG_SEC_ABC)
+			sec_abc_send_event("MODULE=battery@ERROR=over_voltage");
+#endif
 		}
 
 		/* get actual input current */
@@ -188,6 +195,9 @@ bool sec_bat_cisd_check(struct sec_battery_info *battery)
 					!(pcisd->state & CISD_STATE_OVER_VOLTAGE)) {
 				pcisd->data[CISD_DATA_OVER_VOLTAGE]++;
 				pcisd->state |= CISD_STATE_OVER_VOLTAGE;
+#if defined(CONFIG_SEC_ABC)
+				sec_abc_send_event("MODULE=battery@ERROR=over_voltage");
+#endif
 			}
 		}
 
@@ -313,6 +323,6 @@ void sec_battery_cisd_init(struct sec_battery_info *battery)
 
 	battery->cisd.ab_vbat_max_count = 5;
 	battery->cisd.ab_vbat_check_count = 0;
-	battery->cisd.max_voltage_thr = 4400;
+	battery->cisd.max_voltage_thr = battery->pdata->max_voltage_thr;
 	battery->cisd.cisd_alg_index = 1;
 }

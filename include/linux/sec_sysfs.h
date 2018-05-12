@@ -13,6 +13,7 @@
 
 #ifdef CONFIG_SEC_SYSFS
 extern struct device *sec_device_create(void *drvdata, const char *fmt);
+extern struct device *sec_device_find(const char *name);
 extern void sec_device_destroy(dev_t devt);
 #else
 static inline struct device *sec_device_create(void *drvdata, const char *fmt)

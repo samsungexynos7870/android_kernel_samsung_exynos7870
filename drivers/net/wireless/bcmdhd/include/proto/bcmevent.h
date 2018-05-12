@@ -1,7 +1,7 @@
 /*
  * Broadcom Event  protocol definitions
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -23,7 +23,7 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 487871 2014-06-27 07:48:00Z $
+ * $Id: bcmevent.h 682522 2017-02-02 07:33:46Z $
  *
  */
 
@@ -93,6 +93,19 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 	wl_event_msg_t		event;
 	/* data portion follows */
 } BWL_POST_PACKED_STRUCT bcm_event_t;
+
+/*
+ * used by host event
+ * note: if additional event types are added, it should go with is_wlc_event_frame() as well.
+ */
+typedef union bcm_event_msg_u {
+	wl_event_msg_t		event;
+#if defined(HEALTH_CHECK) || defined(DNGL_EVENT_SUPPORT)
+	bcm_dngl_event_msg_t	dngl_event;
+#endif /* HEALTH_CHECK || DNGL_EVENT_SUPPORT */
+
+	/* add new event here */
+} bcm_event_msg_u_t;
 
 #define BCM_MSG_LEN	(sizeof(bcm_event_t) - sizeof(bcmeth_hdr_t) - sizeof(struct ether_header))
 
@@ -231,6 +244,9 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #if (WLC_E_LAST > 140)
 #error "WLC_E_LAST: Invalid value for last event; must be <= 140."
 #endif /* WLC_E_LAST */
+
+extern int is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
+	bcm_event_msg_u_t *out_event);
 
 
 /* Table of event name strings for UIs and debugging dumps */

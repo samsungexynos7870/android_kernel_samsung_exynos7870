@@ -32,28 +32,23 @@ static void get_timestamp(struct ssp_data *data, char *dataframe,
 	memcpy(&ts_delta_us, dataframe + *ptr_data, 4);
 
 	ts_delta_ns = (((u64) ts_delta_us) * U64_US2NS);
-	if(data->info[type].report_mode == REPORT_MODE_CONTINUOUS)
-	{	
 
-		if(data->latest_timestamp[type] == -1) /* first sensordata after resume*/
-		{
-			data->latest_timestamp[type] = current_timestamp; 
-		}
-		else
-		{
+	if (data->info[type].report_mode == REPORT_MODE_CONTINUOUS) {
+
+		if (data->latest_timestamp[type] == -1) /* first sensordata after resume*/ {
+			data->latest_timestamp[type] = current_timestamp;
+		} else {
 			data->latest_timestamp[type] += ts_delta_ns;
-			if(data->latest_timestamp[type] > current_timestamp)
-			{
-				//ssp_infof("future timestamp T^T last = %lld, cur = %lld",data->latest_timestamp[type],current_timestamp);
+			if (data->latest_timestamp[type] > current_timestamp) {
+				/* ssp_infof("future timestamp : last = %lld, cur = %lld",
+				data->latest_timestamp[type],current_timestamp); */
 				data->latest_timestamp[type] = current_timestamp;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		data->latest_timestamp[type] = current_timestamp;
 	}
-	
+
 	event->timestamp = data->latest_timestamp[type];
 
 	*ptr_data += 4;
@@ -95,7 +90,7 @@ void refresh_task(struct work_struct *work)
 			struct ssp_data, work_refresh);
 
 	ssp_dbgf("REFESH TASK");
-	
+
 	if (data->is_ssp_shutdown == true) {
 		ssp_errf("ssp already shutdown");
 		return;
@@ -106,7 +101,11 @@ void refresh_task(struct work_struct *work)
 	data->cnt_reset++;
 	if (initialize_mcu(data) > 0) {
 		sync_sensor_state(data);
+#if ANDROID_VERSION >= 80000
+		report_scontext_notice_data(data, MSG2SSP_AP_STATUS_RESET);
+#else
 		ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_RESET);
+#endif
 		if (data->uLastAPState != 0)
 			ssp_send_cmd(data, data->uLastAPState, 0);
 		if (data->uLastResumeState != 0)
@@ -198,7 +197,7 @@ int parse_dataframe(struct ssp_data *data, char *dataframe, int frame_len)
 		case MSG2AP_INST_META_DATA:
 			event.meta_data.what = dataframe[index++];
 			event.meta_data.sensor = dataframe[index++];
-			report_meta_data(data, SENSOR_TYPE_META, &event);
+			report_meta_data(data, &event);
 			break;
 		case MSG2AP_INST_TIME_SYNC:
 			data->is_time_syncing = true;
@@ -206,7 +205,7 @@ int parse_dataframe(struct ssp_data *data, char *dataframe, int frame_len)
 		case MSG2AP_INST_RESET:
 			data->uSensorState = 0;
 			ssp_infof("Reset MSG received from MCU");
-			if(data->is_probe_done == true)
+			if (data->is_probe_done == true)
 				queue_refresh_task(data, 0);
 			else
 				ssp_infof("skip reset msg");

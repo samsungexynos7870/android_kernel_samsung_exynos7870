@@ -113,6 +113,8 @@
 #define FW_2T2			"A20LL"
 #define FW_SR544		"L05LF"
 #define FW_3P8			"N16LL"
+#define FW_2P6			"U16LL"
+#define FW_2P6_FRONT	"S16LL"
 
 #define SDCARD_FW
 #define FIMC_IS_FW_2P2				"fimc_is_fw2_2p2.bin"
@@ -127,6 +129,8 @@
 #define FIMC_IS_FW_4H5YC			"fimc_is_lib.bin"
 #define FIMC_IS_FW_IMX219			"fimc_is_lib.bin"
 #define FIMC_IS_FW_IMX258			"fimc_is_lib.bin"
+#define FIMC_IS_FW_2P6				"fimc_is_lib.bin"
+#define FIMC_IS_FW_2P6_FRONT		"fimc_is_lib.bin"
 #else
 #define FIMC_IS_FW_3L2				"fimc_is_fw2_3l2.bin"
 #define FIMC_IS_FW_3P3				"fimc_is_fw2_3p3.bin"
@@ -171,6 +175,8 @@
 #define FIMC_IS_2T2_SETF			"setfile_2t2.bin"
 #define FIMC_IS_2P3_SETF			"setfile_2p3.bin"
 #define FIMC_IS_SR544_SETF			"setfile_sr544.bin"
+#define FIMC_IS_2P6_SETF			"setfile_2p6.bin"
+#define FIMC_IS_2P6_FRONT_SETF			"setfile_2p6_front.bin"
 #define FIMC_IS_COMPANION_MASTER_SETF			"companion_master_setfile.bin"
 #define FIMC_IS_COMPANION_MODE_SETF			"companion_mode_setfile.bin"
 #define FIMC_IS_COMPANION_2P2_MASTER_SETF			"companion_2p2_master_setfile.bin"

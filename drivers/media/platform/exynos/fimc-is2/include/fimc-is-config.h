@@ -19,7 +19,7 @@
  * CONFIG - GLOBAL OPTIONS
  * =================================================================================================
  */
-#define FIMC_IS_SENSOR_COUNT	6
+#define FIMC_IS_SENSOR_COUNT	4
 #define FIMC_IS_STREAM_COUNT	4
 
 /*
@@ -304,8 +304,10 @@
 
 #if defined(CONFIG_USE_DIRECT_IS_CONTROL)
 #undef ENABLE_IS_CORE
+#define ENABLE_FPSIMD_FOR_USER
 #else
 #define ENABLE_IS_CORE
+#undef ENABLE_FPSIMD_FOR_USER
 #endif
 
 #if defined(DEBUG)

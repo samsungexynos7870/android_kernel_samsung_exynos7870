@@ -252,6 +252,11 @@ void __show_regs(struct pt_regs *regs)
 		exynos_ss_set_enable("log_kevents", false);
 	}
 
+	pr_info("TIF_FOREIGN_FPSTATE: %d, FP/SIMD depth %d, cpu: %d\n",
+			test_thread_flag(TIF_FOREIGN_FPSTATE),
+			atomic_read(&current->thread.fpsimd_kernel_state.depth),
+			current->thread.fpsimd_kernel_state.cpu);
+
 	show_regs_print_info(KERN_DEFAULT);
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", lr);

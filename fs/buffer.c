@@ -3081,6 +3081,17 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
 		clear_buffer_sync_flush(bh);
 	}
 
+#ifdef CONFIG_JOURNAL_DATA_TAG
+	if(buffer_journal(bh)) {
+		set_bit(BIO_JOURNAL, &bio->bi_flags);
+		clear_buffer_journal(bh);
+	}
+	if(buffer_jmeta(bh)) {
+		//set_bit(BIO_JMETA, &bio->bi_flags);
+		clear_buffer_jmeta(bh);
+	}
+#endif
+
 	bio_get(bio);
 	submit_bio(rw, bio);
 

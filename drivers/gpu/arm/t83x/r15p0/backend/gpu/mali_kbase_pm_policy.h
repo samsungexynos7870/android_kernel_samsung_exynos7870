@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,6 +49,8 @@ void kbase_pm_policy_term(struct kbase_device *kbdev);
  * Calls into the current power policy
  */
 void kbase_pm_update_active(struct kbase_device *kbdev);
+
+void kbase_pm_keep_active_nolock(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_update_cores - Update the desired core state of the GPU

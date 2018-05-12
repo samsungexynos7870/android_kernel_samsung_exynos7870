@@ -55,10 +55,9 @@
 #include <linux/sec_batt.h>
 #endif // CONFIG_BATTERY_SAMSUNG
 
-#if defined (CONFIG_VBUS_NOTIFIER) && defined (CONFIG_TOUCHKEY_GRIP)
+#if defined (CONFIG_MUIC_NOTIFIER) && defined (CONFIG_TOUCHKEY_GRIP)
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
-#include <linux/vbus_notifier.h>
 #endif
 
 //Chip info
@@ -197,6 +196,9 @@ struct mip4_tk_info {
 	int key_code[MAX_KEY_NUM];
 	bool key_code_loaded;
 
+	bool irq_checked;
+	int irq_key_count[MAX_KEY_NUM];
+
 #ifdef CONFIG_TOUCHKEY_GRIP
 	struct wake_lock touchkey_wake_lock;
 	u16 grip_p_thd;
@@ -214,8 +216,8 @@ struct mip4_tk_info {
 	int abnormal_mode;
 	s32 diff;
 	s32 max_diff;
-#if defined (CONFIG_VBUS_NOTIFIER)
-	struct notifier_block vbus_nb;
+#if defined (CONFIG_MUIC_NOTIFIER)
+	struct notifier_block cpuidle_muic_nb;
 #endif	
 #endif
 

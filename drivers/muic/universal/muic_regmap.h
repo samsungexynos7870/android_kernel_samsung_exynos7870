@@ -107,6 +107,7 @@ struct vendor_ops {
 	int (*muic_enable_accdet)(struct regmap_desc *);
 	int (*muic_disable_accdet)(struct regmap_desc *);
 	int (*rescan)(struct regmap_desc *, int);
+	int (*reset_vbus_path)(struct regmap_desc *);
 };
 
 struct afc_ops {

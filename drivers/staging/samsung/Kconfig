@@ -25,24 +25,61 @@ menuconfig SEC_DEBUG
 	depends on EXYNOS_SNAPSHOT && SEC_REBOOT
 	default y
 
-config SEC_HW_REV
-	bool "Get GPIO HW REV"
+config SEC_DEBUG_RESET_REASON
+	bool "Enable TN reset reason"
+	depends on SEC_DEBUG
+	default y
+	help
+	  This option enables storing reset reason history file
+	  This option enables reading the reset reason history using proc/reset_reason file
+
+config SEC_DEBUG_EXTRA_INFO
+	bool "Enable TN reset reason extra info"
+	depends on SEC_DEBUG && SEC_DEBUG_RESET_REASON
+	default n
+	help
+	  This option enables storing reset reason extra info
+	  This option enables ap reset info bigdata based on reset reason extra info
+
+config SEC_DEBUG_HW_PARAM
+	bool "Enable TN HW PARAM bigdata info"
+	depends on SEC_DEBUG && SEC_DEBUG_RESET_REASON
+	default n
+	help
+	  This option enables storing hw param bigdata info
+
+config SEC_DEBUG_AUTO_SUMMARY
+	bool "Enable TN kernel fault auto summary"
 	depends on SEC_DEBUG
 	default n
+	help
+	  This option enables kernel fault auto summary feature
+	  This option also requires bootloader change that enables auto summary extraction along with ramdump
 
 config SEC_DEBUG_LAST_KMSG
 	bool "Write last_kmsg at /proc/last_kmsg"
 	depends on SEC_DEBUG
 	default y
+	help
+	  This option enables /proc/last_kmsg support.
 
-config SEC_DEBUG_USER_RESET
-	bool "USER RESET debug feature"
+config SEC_DEBUG_FILE_LEAK
+	bool "Panic when file leak detected"
+	depends on !SAMSUNG_PRODUCT_SHIP
+	default y
+
+config SEC_UPLOAD
+	bool "Enable TN upload mode"
 	depends on SEC_DEBUG
 	default y
 	help
-	  This option enables debugging log for User Reset.
-	  This option provides reset history log in user version.
-	  This option enable proc/reset_reason support
+	  Samsung TN upload mode
+
+config SEC_HW_REV
+	bool "Get GPIO HW REV"
+	depends on SEC_DEBUG
+	default n
+
 
 config SEC_DEBUG_MDM_SEPERATE_CRASH
 	bool "Enable modem crash with a seperated command"
@@ -50,11 +87,6 @@ config SEC_DEBUG_MDM_SEPERATE_CRASH
 	default n
 	help
 	  This option enables modem crash other debug level.
-
-config SEC_DEBUG_FILE_LEAK
-	bool "Panic when file leak detected"
-	depends on SEC_DEBUG
-	default n
 
 comment "Samsung TN BSP Options"
 config SEC_PARAM
@@ -70,9 +102,11 @@ config SEC_BOOTSTAT
 	default y
 
 config SEC_INITCALL_DEBUG
-	bool "Enable TN Initcall logging"
-	depends on SEC_EXT
-	default y
+	bool "Enable Initcall Debug Feature"
+	default n
+	depends on SEC_EXT && !SAMSUNG_PRODUCT_SHIP
+	help
+	  Enable Samsung initcall debug support.
 
 config ARGOS
 	bool "Throughput monitoring Feature"
@@ -137,3 +171,26 @@ config SEC_NAD_MANUAL_PARAM_READTIME
 	help
 	  Samsung TN NAD Feature, set param reading time manually.
 
+config SEC_NAD_API
+	bool "Samsung TN NAD API Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  Samsung TN NAD Feature, Support NAD API to check gpio pull-up registance
+
+choice
+	prompt "Version of GAF structure"
+	depends on SEC_DEBUG
+	default SEC_DEBUG_GAF_V4 if FIVE
+	default SEC_DEBUG_GAF_V3
+
+	config SEC_DEBUG_GAF_V3
+		bool "Use GAF structure version 3"
+		help
+		  Default option for FIVE-disabled kernel
+
+	config SEC_DEBUG_GAF_V4
+		bool "Use GAF structure version 4"
+		help
+		  Default option for FIVE-enabled kernel
+endchoice

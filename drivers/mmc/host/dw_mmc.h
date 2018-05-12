@@ -241,6 +241,7 @@ enum dw_mci_misc_control {
 	CTRL_REQUEST_EXT_IRQ,
 	CTRL_CHECK_CD,
 	CTRL_SET_ETC_GPIO,
+	CTRL_ADD_SYSFS,
 };
 
 #define SDMMC_DATA_TMOUT_SHIFT		11

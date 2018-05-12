@@ -1615,8 +1615,13 @@ static ssize_t store_cmd(struct device *dev, struct device_attribute
 	int param_cnt = 0;
 	int ret;
 
-	if (strlen(buf) >= TSP_CMD_STR_LEN) {		
-		pr_err("%s: cmd length is over (%s,%d)!!\n", __func__, buf, (int)strlen(buf));
+	if (strlen(buf) >= TSP_CMD_STR_LEN) {
+		pr_err("%s: cmd length(strlen(buf)) is over (%s,%d)!!\n", __func__, buf, (int)strlen(buf));
+		return -EINVAL;
+	}
+
+	if (count >= (unsigned int)TSP_CMD_STR_LEN) {
+		pr_err("%s: cmd length(count) is over (%s,%d)!!\n", __func__, buf, (unsigned int)count);
 		return -EINVAL;
 	}
 

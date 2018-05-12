@@ -107,6 +107,57 @@ static inline void wq_func_schedule(struct fimc_is_interface *itf,
 		schedule_work(work_wq);
 }
 
+static void prepare_sfr_dump(struct fimc_is_hardware *hardware)
+{
+	int hw_slot = -1;
+	int reg_size = 0;
+	struct fimc_is_hw_ip *hw_ip = NULL;
+
+	if (!hardware) {
+		err_hw("hardware is null\n");
+		return;
+	}
+
+	for (hw_slot = 0; hw_slot < HW_SLOT_MAX; hw_slot++) {
+		hw_ip = &hardware->hw_ip[hw_slot];
+
+		if (hw_ip->id == DEV_HW_END || hw_ip->id == 0)
+			continue;
+
+		if (IS_ERR_OR_NULL(hw_ip->regs) ||
+			(hw_ip->regs_start == 0) ||
+			(hw_ip->regs_end == 0)) {
+			warn_hw("[ID:%d] reg iomem is invalid", hw_ip->id);
+			continue;
+		}
+
+		/* alloc sfr dump memory */
+		reg_size = (hw_ip->regs_end - hw_ip->regs_start + 1);
+		hw_ip->sfr_dump = (u8 *)kzalloc(reg_size, GFP_KERNEL);
+		if (IS_ERR_OR_NULL(hw_ip->sfr_dump))
+			err_hw("[ID:%d] sfr dump memory alloc fail", hw_ip->id);
+		else
+			info_hw("[ID:%d] sfr dump memory (V/P/S):(%p/%p/0x%X)[0x%llX~0x%llX]",
+				hw_ip->id, hw_ip->sfr_dump, (void *)virt_to_phys(hw_ip->sfr_dump),
+				reg_size, hw_ip->regs_start, hw_ip->regs_end);
+
+		if (IS_ERR_OR_NULL(hw_ip->regs_b) ||
+			(hw_ip->regs_b_start == 0) ||
+			(hw_ip->regs_b_end == 0))
+			continue;
+
+		/* alloc sfr B dump memory */
+		reg_size = (hw_ip->regs_b_end - hw_ip->regs_b_start + 1);
+		hw_ip->sfr_b_dump = (u8 *)kzalloc(reg_size, GFP_KERNEL);
+		if (IS_ERR_OR_NULL(hw_ip->sfr_b_dump))
+			err_hw("[ID:%d] sfr B dump memory alloc fail", hw_ip->id);
+		else
+			info_hw("[ID:%d] sfr B dump memory (V/P/S):(%p/%p/0x%X)[0x%llX~0x%llX]",
+				hw_ip->id, hw_ip->sfr_b_dump, (void *)virt_to_phys(hw_ip->sfr_b_dump),
+				reg_size, hw_ip->regs_b_start, hw_ip->regs_b_end);
+	}
+}
+
 void print_hw_frame_count(struct fimc_is_hw_ip *hw_ip)
 {
 	int hw_slot = -1, f_index, p_index;
@@ -326,6 +377,8 @@ int fimc_is_hardware_probe(struct fimc_is_hardware *hardware,
 	atomic_set(&hardware->rsccount, 0);
 	atomic_set(&hardware->bug_count, 0);
 	atomic_set(&hardware->log_count, 0);
+
+	prepare_sfr_dump(hardware);
 
 	return ret;
 }
@@ -2475,4 +2528,54 @@ exit:
 
 	return;
 #endif
+}
+
+void fimc_is_hardware_sfr_dump(struct fimc_is_hardware *hardware)
+{
+	int hw_slot = -1;
+	int reg_size = 0;
+	struct fimc_is_hw_ip *hw_ip = NULL;
+
+	if (!hardware) {
+		err_hw("hardware is null\n");
+		return;
+	}
+
+	for (hw_slot = 0; hw_slot < HW_SLOT_MAX; hw_slot++) {
+		hw_ip = &hardware->hw_ip[hw_slot];
+
+		if (!test_bit(HW_OPEN, &hw_ip->state))
+			continue;
+
+		if (IS_ERR_OR_NULL(hw_ip->sfr_dump)) {
+			warn_hw("[ID:%d] sfr_dump memory is invalid", hw_ip->id);
+			continue;
+		}
+
+		/* dump reg */
+		reg_size = (hw_ip->regs_end - hw_ip->regs_start + 1);
+		memcpy(hw_ip->sfr_dump, hw_ip->regs, reg_size);
+
+		info_hw("[ID:%d] ##### SFR DUMP(V/P/S):(%p/%p/0x%X)[0x%llX~0x%llX]\n",
+				hw_ip->id, hw_ip->sfr_dump, (void *)virt_to_phys(hw_ip->sfr_dump),
+				reg_size, hw_ip->regs_start, hw_ip->regs_end);
+#ifdef ENABLE_PANIC_SFR_PRINT
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 32, 4,
+				hw_ip->regs, reg_size, false);
+#endif
+		if (IS_ERR_OR_NULL(hw_ip->sfr_b_dump))
+			continue;
+
+		/* dump reg B */
+		reg_size = (hw_ip->regs_b_end - hw_ip->regs_b_start + 1);
+		memcpy(hw_ip->sfr_b_dump, hw_ip->regs_b, reg_size);
+
+		info_hw("[ID:%d] ##### SFR B DUMP(V/P/S):(%p/%p/0x%X)[0x%llX~0x%llX]\n",
+				hw_ip->id, hw_ip->sfr_b_dump, (void *)virt_to_phys(hw_ip->sfr_b_dump),
+				reg_size, hw_ip->regs_b_start, hw_ip->regs_b_end);
+#ifdef ENABLE_PANIC_SFR_PRINT
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 32, 4,
+				hw_ip->regs_b, reg_size, false);
+#endif
+	}
 }

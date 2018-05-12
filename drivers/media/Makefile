@@ -35,3 +35,4 @@ obj-y += common/ platform/ pci/ usb/ mmc/ firewire/ parport/
 obj-$(CONFIG_VIDEO_DEV) += radio/
 obj-$(CONFIG_TDMB)  += tdmb/
 obj-$(CONFIG_ISDBT) += isdbt/
+obj-$(CONFIG_MTV) += mtv/

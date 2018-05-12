@@ -1422,6 +1422,11 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 	mutex_unlock(&kbdev->hwcnt.mlock);
 #endif
 
+	/* Process any pending slot updates */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_backend_slot_update(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
 	kbase_pm_context_idle(kbdev);
 
 	/* Release vinstr */

@@ -17,6 +17,10 @@
  *
  */
 
+#if defined(CONFIG_IFPMIC_SUPPORT)
+#include <linux/ifpmic/muic/s2mu004-muic.h>
+#endif
+
 #ifndef __S2MU004_MUIC_H__
 #define __S2MU004_MUIC_H__
 
@@ -85,7 +89,7 @@
 
 /* S2MU004 ADC register */
 #define ADC_MASK				(0x1f)
-#define ADC_CONVERSION_MASK	(0x1 << 7)
+#define ADC_CONVERSION_ERR_MASK	(0x1 << 7)
 
 /* S2MU004 Timing Set 1 & 2 register Timing table */
 #define KEY_PRESS_TIME_100MS		(0x00)
@@ -155,6 +159,9 @@
 /* S2MU004_REG_MUIC_BCD_RESCAN */
 #define BCD_RESCAN_MASK 0x1
 
+/* S2MU004_REG_MUIC_RID_CTRL */
+#define RID_CTRL_ADC_OFF_SHIFT	1
+#define RID_CTRL_ADC_OFF_MASK	0x1 << RID_CTRL_ADC_OFF_SHIFT
 /*
  * Manual Switch
  * D- [7:5] / D+ [4:2] / CHARGER[1] / OTGEN[0]
@@ -178,26 +185,66 @@
 #define MANUAL_SW_OTGEN		(0x1)
 #define MANUAL_SW_CHARGER	(0x1 << MANUAL_SW_CHG_SHIFT)
 
-#ifndef CONFIG_SEC_FACTORY
+#define WATER_DET_RETRY_CNT				10
+#define WATER_CCIC_WAIT_DURATION_MS		4000
+#define WATER_DRY_RETRY_INTERVAL_MS		30000
+#define WATER_DRY_INTERVAL_MS			10000
+#define WATER_DET_STABLE_DURATION_MS	2000
+#define DRY_DET_RETRY_CNT_MAX			3
+#define RID_REFRESH_DURATION_MS			100
+#define WATER_TOGGLE_WA_DURATION_US		20000
+
+/* s2mu004-muic macros */
+#define REQUEST_IRQ(_irq, _dev_id, _name)				\
+do {									\
+	ret = request_threaded_irq(_irq, NULL, s2mu004_muic_irq_thread,	\
+				0, _name, _dev_id);	\
+	if (ret < 0) {							\
+		pr_err("%s:%s Failed to request IRQ #%d: %d\n",		\
+				MUIC_DEV_NAME, __func__, _irq, ret);	\
+		_irq = 0;						\
+	}								\
+} while (0)
+
+#define FREE_IRQ(_irq, _dev_id, _name)					\
+do {									\
+	if (_irq) {							\
+		free_irq(_irq, _dev_id);				\
+		pr_info("%s:%s IRQ(%d):%s free done\n", MUIC_DEV_NAME,	\
+				__func__, _irq, _name);			\
+	}								\
+} while (0)
+
+#define IS_WATER_ADC(adc)\
+		( ((adc) > (ADC_GND)) && ((adc) < (ADC_OPEN)) \
+		? 1 : 0 )
+#define IS_AUDIO_ADC(adc)\
+		( ((adc) >= (ADC_SEND_END)) && ((adc) <= (ADC_REMOTE_S12)) \
+		? 1 : 0 )
+#define IS_ACC_ADC(adc)\
+		( ((adc) >= (ADC_RESERVED_VZW)) \
+		&& ((adc) <= (ADC_AUDIOMODE_W_REMOTE)) \
+		? 1 : 0 )
+
+/* end of macros */
+
 /* S2MU004_REG_LDOADC_VSETH register */
 #define LDOADC_VSETH_MASK	0x1F
 #define LDOADC_VSETL_MASK	0x1F
 #define LDOADC_VSET_3V		0x1F
+#define LDOADC_VSET_2_7V	0x1C
 #define LDOADC_VSET_2_6V	0x0E
-#define LDOADC_VSET_2_0V	0x08
-#define LDOADC_VSET_2_2V	0x0A
 #define LDOADC_VSET_2_4V	0x0C
+#define LDOADC_VSET_2_2V	0x0A
+#define LDOADC_VSET_2_0V	0x08
+#define LDOADC_VSET_1_8V	0x06
+#define LDOADC_VSET_1_7V	0x05
+#define LDOADC_VSET_1_6V	0x04
 #define LDOADC_VSET_1_5V	0x03
 #define LDOADC_VSET_1_4V	0x02
 #define LDOADC_VSET_1_2V	0x00
-
-/* S2MU004_REG_MUIC_RID_CTRL register */
-#define CLK_DIV2_SHIFT	7
-#define CLK_DIV2_MASK	0x1 << CLK_DIV2_SHIFT
-
-#define IS_WATER_ADC(adc)( ((adc) > (ADC_GND)) && ((adc) < (ADC_OPEN)) ? 1 : 0 )
-#define IS_AUDIO_ADC(adc)( ((adc) >= (ADC_SEND_END)) && ((adc) <= (ADC_REMOTE_S12)) ? 1 : 0 )
-#endif
+#define LDOADC_VSETH_WAKE_HYS_SHIFT	6
+#define LDOADC_VSETH_WAKE_HYS_MASK	0x1 << LDOADC_VSETH_WAKE_HYS_SHIFT
 
 enum s2mu004_reg_manual_sw_value {
 	MANSW_OPEN		=	(MANUAL_SW_OPEN),
@@ -223,6 +270,21 @@ enum s2mu004_muic_adc_mode {
 	S2MU004_ADC_PERIODIC,
 };
 
+typedef enum {
+	S2MU004_WATER_MUIC_IDLE,
+	S2MU004_WATER_MUIC_DET,
+	S2MU004_WATER_MUIC_CCIC_DET,
+	S2MU004_WATER_MUIC_CCIC_STABLE,
+	S2MU004_WATER_MUIC_CCIC_INVALID,
+}t_water_status;
+
+typedef enum {
+	S2MU004_WATER_DRY_MUIC_IDLE,
+	S2MU004_WATER_DRY_MUIC_DET,
+	S2MU004_WATER_DRY_MUIC_CCIC_DET,
+	S2MU004_WATER_DRY_MUIC_CCIC_INVALID,
+}t_water_dry_status;
+
 /* muic chip specific internal data structure
  * that setted at muic-xxxx.c file
  */
@@ -232,8 +294,14 @@ struct s2mu004_muic_data {
 	struct mutex muic_mutex;
 	struct mutex afc_mutex;
 	struct mutex switch_mutex;
+#if defined(CONFIG_CCIC_S2MU004)
+	struct mutex water_det_mutex;
+	struct mutex water_dry_mutex;
+#endif
 	struct s2mu004_dev *s2mu004_dev;
-
+#if defined(CONFIG_CCIC_S2MU004)
+	wait_queue_head_t wait;
+#endif
 	/* model dependant mfd platform data */
 	struct s2mu004_platform_data	*mfd_pdata;
 
@@ -269,7 +337,10 @@ struct s2mu004_muic_data {
 	struct muic_platform_data *pdata;
 
 	struct wake_lock wake_lock;
-
+#if defined(CONFIG_CCIC_S2MU004)
+	struct wake_lock water_wake_lock;
+	struct wake_lock water_dry_wake_lock;
+#endif
 	/* muic support vps list */
 	bool muic_support_list[ATTACHED_DEV_NUM];
 
@@ -307,7 +378,10 @@ struct s2mu004_muic_data {
 	struct delayed_work afc_check_interrupt;
 	struct delayed_work dcd_recheck;
 	struct delayed_work incomplete_check;
+#if defined(CONFIG_CCIC_S2MU004)
+	struct delayed_work water_detect_handler;
 	struct delayed_work water_dry_handler;
+#endif
 
 	struct delayed_work afc_mrxrdy;
 	int rev_id;
@@ -321,13 +395,15 @@ struct s2mu004_muic_data {
 	bool is_otg_reboost;
 
 	bool otg_state;
+	t_water_status water_status;
+	t_water_dry_status water_dry_status;
 #else
 #ifndef CONFIG_SEC_FACTORY
 	bool is_water_wa;
 #endif
 	int bcd_rescan_cnt;
 #endif
-	
+
 #if defined(CONFIG_HV_MUIC_S2MU004_AFC)
 	bool				is_afc_muic_ready;
 	bool				is_afc_handshaking;
@@ -348,7 +424,7 @@ struct s2mu004_muic_data {
 	u8				status1;
 	u8				status2;
 	u8				status3;
-	u8				status4;	
+	u8				status4;
 
 	/* muic hvcontrol value */
 	u8				hvcontrol1;

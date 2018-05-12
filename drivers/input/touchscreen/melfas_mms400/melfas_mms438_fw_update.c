@@ -408,8 +408,14 @@ int mms_flash_fw(struct mms_ts_info *info, const u8 *fw_data,
 	//Erase first page
 	tsp_debug_info(true, &client->dev, "%s - Erase first page : Offset[0x%04X]\n",
 				__func__, offsetStart);
-	nRet = mms_isc_erase_page(info, offsetStart);
-	if (nRet != 0) {
+	retires = 3;
+	while (retires--) {
+		nRet = mms_isc_erase_page(info, offsetStart);
+		if (nRet == 0) {
+			break;
+		}
+	}
+	if (retires < 0) {
 		tsp_debug_err(true, &client->dev, "%s [ERROR] clear first page failed\n", __func__);
 		goto ERROR;
 	}

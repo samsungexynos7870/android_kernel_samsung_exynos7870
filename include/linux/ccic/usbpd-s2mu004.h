@@ -12,8 +12,12 @@
  * GNU General Public License for more details.
  *
  */
+#if defined(CONFIG_IFPMIC_SUPPORT)
+#include <linux/ifpmic/ccic/usbpd-s2mu004.h>
+#else
 #include <linux/ccic/pdic_notifier.h>
 #include <linux/ccic/usbpd_msg.h>
+#endif
 
 #ifndef __USBPD_S2MU004_H__
 #define __USBPD_S2MU004_H__
@@ -35,7 +39,9 @@
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
 #define DUAL_ROLE_SET_MODE_WAIT_MS		(2000)
 #endif
-#define S2MU004_WATER_INTERVAL_TIME		(50)
+#define S2MU004_WATER_CHK_INTERVAL_TIME		(200)
+
+#define WATER_CHK_RETRY_CNT	5
 
 /*****************************************/
 /***********DEFINITION REGISTER***********/
@@ -487,6 +493,7 @@ struct s2mu004_usbpd_data {
 	bool is_muic_water_detect;
 	bool is_otg_vboost;
 	bool is_otg_reboost;
+	int water_detect_cnt;
 	int check_msg_pass;
 	int rid;
 	int is_host;
@@ -505,6 +512,8 @@ struct s2mu004_usbpd_data {
 	struct workqueue_struct *pdic_queue;
 	struct delayed_work plug_work;
 	struct s2mu004_pdic_notifier_struct pdic_notifier;
+	struct delayed_work water_detect_handler;
+	struct delayed_work water_dry_handler;
 
 	struct regulator *regulator;
 };

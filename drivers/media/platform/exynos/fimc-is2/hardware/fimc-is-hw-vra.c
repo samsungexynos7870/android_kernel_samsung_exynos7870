@@ -258,7 +258,13 @@ int fimc_is_hw_vra_init(struct fimc_is_hw_ip *hw_ip,
 
 	fimc_is_hw_vra_reset(hw_ip);
 
+#ifdef ENABLE_FPSIMD_FOR_USER
+	fpsimd_get();
 	get_lib_vra_func((void *)&hw_vra->lib_vra.itf_func);
+	fpsimd_put();
+#else
+	get_lib_vra_func((void *)&hw_vra->lib_vra.itf_func);
+#endif
 	if (ret) {
 		err_hw("[%d]get_lib_vra_func is fail (%d)", instance, hw_ip->id);
 		return ret;

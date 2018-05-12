@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2018, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 676811 2016-12-24 20:48:46Z $
+ * $Id: bcmutils.c 699163 2017-05-12 05:18:23Z $
  */
 
 #include <bcm_cfg.h>
@@ -2320,7 +2320,7 @@ bcm_mkiovar(const char *name, const char *data, uint datalen, char *buf, uint bu
 	strncpy(buf, name, buflen);
 
 	/* append data onto the end of the name string */
-	if (data) {
+	if (data && datalen != 0) {
 		memcpy(&buf[len], data, datalen);
 		len += datalen;
 	}

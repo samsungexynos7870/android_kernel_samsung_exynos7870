@@ -573,11 +573,12 @@ struct sec_battery_platform_data {
 	/* battery swelling */
 	int swelling_high_temp_block;
 	int swelling_high_temp_recov;
-	int swelling_low_temp_block;
-	int swelling_low_temp_recov;
-	int swelling_low_temp_additional;
+	int swelling_low_temp_block_1st;
+	int swelling_low_temp_recov_1st;
+	int swelling_low_temp_block_2nd;
+	int swelling_low_temp_recov_2nd;
+	int swelling_low_temp_2step_mode;
 	unsigned int swelling_low_temp_current;
-	unsigned int swelling_low_temp_additional_current;
 	unsigned int swelling_low_temp_topoff;
 	unsigned int swelling_high_temp_current;
 	unsigned int swelling_high_temp_topoff;
@@ -815,6 +816,9 @@ struct sec_battery_platform_data {
 	bool fake_capacity;
 	bool always_enable;
 	bool chg_eoc_dualpath;
+	unsigned int expired_time;
+	unsigned int recharging_expired_time;
+	int standard_curr;
 
 	/* ADC setting */
 	unsigned int adc_check_count;
@@ -843,6 +847,7 @@ struct sec_charger_platform_data {
 	unsigned long chg_irq_attr;
 
 	bool support_slow_charging;
+	unsigned int slow_current_threshold;
 
 	/* otg_en setting */
 	int otg_en;

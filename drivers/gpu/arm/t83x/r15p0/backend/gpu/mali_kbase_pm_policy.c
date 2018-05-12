@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -333,6 +333,34 @@ void kbase_pm_cancel_deferred_poweroff(struct kbase_device *kbdev)
 	kbdev->pm.backend.shader_poweroff_pending_time = 0;
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+}
+
+void kbase_pm_keep_active_nolock(struct kbase_device *kbdev)
+{
+	struct kbase_pm_device_data *pm = &kbdev->pm;
+	struct kbase_pm_backend_data *backend = &pm->backend;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&pm->lock);
+
+	/* pm_current_policy will never be NULL while pm.lock is held */
+	KBASE_DEBUG_ASSERT(backend->pm_current_policy);
+	KBASE_DEBUG_ASSERT(backend->pm_current_policy->get_core_active(kbdev));
+
+	/* ensure any power-offs are cancelled */
+	if (backend->gpu_poweroff_pending) {
+		/* Cancel any pending power off request */
+		backend->gpu_poweroff_pending = 0;
+
+		/* If a request was pending then the GPU was still
+		 * powered, so no need to continue */
+		if (!kbdev->poweroff_pending)
+			return;
+	}
+
+	/* Cancel any poweroff that is set up */
+	if (pm->backend.poweroff_wait_in_progress)
+		pm->backend.poweron_required = true;
 }
 
 void kbase_pm_update_active(struct kbase_device *kbdev)

@@ -1,7 +1,7 @@
 /*
  * DHD Bus Module for SDIO
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 655334 2016-08-19 02:09:04Z $
+ * $Id: dhd_sdio.c 700407 2017-05-19 03:32:21Z $
  */
 
 #include <typedefs.h>
@@ -81,6 +81,10 @@ bool dhd_mp_halting(dhd_pub_t *dhdp);
 extern void bcmsdh_waitfor_iodrain(void *sdh);
 extern void bcmsdh_reject_ioreqs(void *sdh, bool reject);
 extern bool  bcmsdh_fatal_error(void *sdh);
+
+#ifdef DHD_PM_CONTROL_FROM_FILE
+extern bool g_pm_control;
+#endif /* DHD_PM_CONTROL_FROM_FILE */
 
 #ifndef DHDSDIO_MEM_DUMP_FNAME
 #define DHDSDIO_MEM_DUMP_FNAME         "mem_dump"
@@ -421,10 +425,6 @@ extern uint *dhd_spi_lockcount;
 #endif /* BCMSPI_ANDROID */
 
 extern void dhd_os_wd_timer(void *bus, uint wdtick);
-
-#ifdef DHD_PM_CONTROL_FROM_FILE
-extern bool g_pm_control;
-#endif /* DHD_PM_CONTROL_FROM_FILE */
 
 /* Tx/Rx bounds */
 uint dhd_txbound;
@@ -2276,13 +2276,16 @@ dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 			}
 #ifdef DHD_LOSSLESS_ROAMING
 			pktdata = (uint8 *)PKTDATA(osh, pkts[i]);
+#ifdef BDC
+			/* Skip BDC header */
+			pktdata += BDC_HEADER_LEN + ((struct bdc_header *)pktdata)->dataOffset;
+#endif
 			eh = (struct ether_header *)pktdata;
-
 			if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
-                                uint8 prio = (uint8)PKTPRIO(pkts[i]);
+				uint8 prio = (uint8)PKTPRIO(pkts[i]);
 
-                                /* Restore to original priority for 802.1X packet */
-                                if (prio == PRIO_8021D_NC) {
+				/* Restore to original priority for 802.1X packet */
+				if (prio == PRIO_8021D_NC) {
 					PKTSETPRIO(pkts[i], dhd->prio_8021x);
 				}
 			}
@@ -2525,7 +2528,8 @@ done:
 		}
 #else
 		return -ETIMEDOUT;
-#endif /* DHD_PM_CONTROL_FROM_FILE */		
+
+#endif  /* DHD_PM_CONTROL_FROM_FILE */
 	}
 
 	if (ret == BCME_NODEVICE)
@@ -2606,11 +2610,11 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		if (g_pm_control == TRUE) {
 			return -BCME_ERROR;
 		} else {
-		return -ETIMEDOUT;
+			return -ETIMEDOUT;
 		}
 #else
 		return -ETIMEDOUT;
-#endif /* DHD_PM_CONTROL_FROM_FILE */
+#endif  /* DHD_PM_CONTROL_FROM_FILE */
 	}
 
 	if (bus->dhd->dongle_trap_occured)
@@ -4503,7 +4507,6 @@ dhd_txglom_enable(dhd_pub_t *dhdp, bool enable)
 	 */
 	dhd_bus_t *bus = dhdp->bus;
 #ifdef BCMSDIOH_TXGLOM
-	char buf[256];
 	uint32 rxglom;
 	int32 ret;
 
@@ -4516,9 +4519,8 @@ dhd_txglom_enable(dhd_pub_t *dhdp, bool enable)
 
 	if (enable) {
 		rxglom = 1;
-		memset(buf, 0, sizeof(buf));
-		bcm_mkiovar("bus:rxglom", (void *)&rxglom, 4, buf, sizeof(buf));
-		ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
+		ret = dhd_iovar(dhdp, 0, "bus:rxglom", (char *)&rxglom, sizeof(rxglom), NULL, 0,
+				TRUE);
 		if (ret >= 0)
 			bus->txglom_enable = TRUE;
 		else {

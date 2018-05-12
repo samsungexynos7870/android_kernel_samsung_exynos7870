@@ -16,9 +16,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/smc.h>
 
-#include <crypto/hash.h>
-#include <crypto/sha.h>
-
 #include <asm/cacheflush.h>
 
 #include "fmpdev_int.h"
@@ -31,47 +28,6 @@
 #define INIT		0
 #define UPDATE		1
 #define FINAL		2
-
-static void fmpdev_complete(struct crypto_async_request *req, int err)
-{
-	struct fmpdev_result *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
-static inline int waitfor(struct fmp_info *info, struct fmpdev_result *cr,
-			ssize_t ret)
-{
-	struct device *dev = info->dev;
-
-	switch (ret) {
-	case 0:
-		break;
-	case -EINPROGRESS:
-	case -EBUSY:
-		wait_for_completion(&cr->completion);
-		/* At this point we known for sure the request has finished,
-		 * because wait_for_completion above was not interruptible.
-		 * This is important because otherwise hardware or driver
-		 * might try to access memory which will be freed or reused for
-		 * another request. */
-
-		if (unlikely(cr->err)) {
-			dev_err(dev, "error from async request: %d\n", cr->err);
-			return cr->err;
-		}
-
-		break;
-	default:
-		return ret;
-	}
-
-	return 0;
-}
 
 /*
  * FMP library to call FMP driver
@@ -180,274 +136,102 @@ static int fmpdev_cipher_decrypt(struct fmp_info *info,
 	return 0;
 }
 
-/* Hash functions */
-int fmpfw_hash_init(struct fmp_info *info, struct hash_data *hdata,
-			const char *alg_name, int hmac_mode,
-			void *mackey, size_t mackeylen)
-{
-	int ret;
-	unsigned long addr;
-	struct device *dev = info->dev;
-	struct hmac_sha256_fmpfw_info *fmpfw_info;
-
-	fmpfw_info = (struct hmac_sha256_fmpfw_info *)kzalloc(sizeof(*fmpfw_info), GFP_KERNEL);
-	if (unlikely(!fmpfw_info)) {
-		dev_err(dev, "Fail to alloc fmpfw info\n");
-		ret = ENOMEM;
-		goto error_alloc_info;
-	}
-
-	if (hmac_mode != 0) {
-		fmpfw_info->s.step = INIT;
-		fmpfw_info->hmac_mode = 1;
-		fmpfw_info->key = (uint32_t)virt_to_phys(mackey);
-		__flush_dcache_area(mackey, mackeylen);
-		fmpfw_info->key_len = mackeylen;
-		__flush_dcache_area(fmpfw_info, sizeof(*fmpfw_info));
-		addr = virt_to_phys(fmpfw_info);
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_HMAC_SHA2_TEST, (uint32_t)addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW HMAC SHA256 init. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-			goto error_hmac_smc;
-		}
-	} else {
-		fmpfw_info->s.step = INIT;
-		fmpfw_info->hmac_mode = 0;
-		fmpfw_info->key = 0;
-		fmpfw_info->key_len = 0;
-		__flush_dcache_area(fmpfw_info, sizeof(*fmpfw_info));
-		addr = virt_to_phys(fmpfw_info);
-
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_SHA2_TEST, (uint32_t)addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW SHA256 init. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-			goto error_sha_smc;
-		}
-	}
-
-	hdata->digestsize = SHA256_DIGEST_SIZE;
-	hdata->alignmask = 0x0;
-	hdata->fmpfw_info = fmpfw_info;
-
-	hdata->async.result = kzalloc(sizeof(*hdata->async.result), GFP_KERNEL);
-	if (unlikely(!hdata->async.result)) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	init_completion(&hdata->async.result->completion);
-
-	hdata->init = 1;
-
-	return 0;
-
-error_hmac_smc:
-error_sha_smc:
-	kfree(fmpfw_info);
-error_alloc_info:
-	hdata->fmpfw_info = NULL;
-error:
-	kfree(hdata->async.result);
-	return ret;
-}
-
-void fmpfw_hash_deinit(struct hash_data *hdata)
-{
-	if (hdata->init) {
-		kfree(hdata->async.result);
-		hdata->init = 0;
-	}
-}
-
-ssize_t fmpfw_hash_update(struct fmp_info *info, struct hash_data *hdata,
-				struct scatterlist *sg, size_t len)
-{
-	int ret = 0;
-	unsigned long addr;
-	struct device *dev = info->dev;
-	struct hmac_sha256_fmpfw_info *fmpfw_info = hdata->fmpfw_info;
-
-	fmpfw_info->s.step = UPDATE;
-	fmpfw_info->s.input = (uint32_t)sg_phys(sg);
-	__flush_dcache_area(sg_virt(sg), len);
-	fmpfw_info->s.input_len = len;
-	__flush_dcache_area(fmpfw_info, sizeof(*fmpfw_info));
-	addr = virt_to_phys(fmpfw_info);
-
-	reinit_completion(&hdata->async.result->completion);
-	if (fmpfw_info->hmac_mode) {
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_HMAC_SHA2_TEST, addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW HMAC SHA256 update. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-		}
-	} else {
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_SHA2_TEST, addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW SHA256 update. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-		}
-	}
-
-	return waitfor(info, hdata->async.result, ret);
-}
-
-int fmpfw_hash_final(struct fmp_info *info, struct hash_data *hdata, void *output)
-{
-	int ret = 0;
-	unsigned long addr;
-	struct device *dev = info->dev;
-	struct hmac_sha256_fmpfw_info *fmpfw_info = hdata->fmpfw_info;
-
-	memset(output, 0, hdata->digestsize);
-	fmpfw_info->s.step = FINAL;
-	fmpfw_info->s.output = (uint32_t)virt_to_phys(output);
-	__flush_dcache_area(fmpfw_info, sizeof(*fmpfw_info));
-	addr = virt_to_phys(fmpfw_info);
-
-	reinit_completion(&hdata->async.result->completion);
-	__dma_unmap_area((void *)output, hdata->digestsize, DMA_FROM_DEVICE);
-	if (fmpfw_info->hmac_mode) {
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_HMAC_SHA2_TEST, addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW HMAC SHA256 final. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-		}
-	} else {
-		ret = exynos_smc(SMC_CMD_FMP, FMP_FW_SHA2_TEST, addr, 0);
-		if (unlikely(ret)) {
-			dev_err(dev, "Fail to smc call for FMPFW SHA256 final. ret = 0x%x\n", ret);
-			ret = -EFAULT;
-		}
-	}
-	__dma_unmap_area((void *)output, hdata->digestsize, DMA_FROM_DEVICE);
-
-	if (fmpfw_info->hmac_mode)
-		dev_info(dev, "fmp fw hmac sha256 F/W final is done\n");
-	else
-		dev_info(dev, "fmp fw sha256 F/W final is done\n");
-
-	kfree(fmpfw_info);
-	return waitfor(info, hdata->async.result, ret);
-}
-
 int fmpdev_hash_init(struct fmp_info *info, struct hash_data *hdata,
 			const char *alg_name,
 			int hmac_mode, void *mackey, size_t mackeylen)
 {
-	int ret;
+	int ret = -ENOMSG;
 	struct device *dev = info->dev;
 
-	hdata->fmpfw_info = NULL;
-	hdata->async.s = crypto_alloc_ahash(alg_name, 0, 0);
-	if (unlikely(IS_ERR(hdata->async.s))) {
-		dev_err(dev, "Failed to load transform for %s\n", alg_name);
-		return -EINVAL;
-	}
+	hdata->init = 0;
 
-	/* Copy the key from user and set to TFM. */
-	if (hmac_mode != 0) {
-		ret = crypto_ahash_setkey(hdata->async.s, mackey, mackeylen);
-		if (unlikely(ret)) {
-			dev_err(dev, "Setting hmac key failed for %s-%zu.\n",
-					alg_name, mackeylen*8);
-			ret = -EINVAL;
-			goto error;
-		}
-	}
+	switch (hmac_mode) {
+	case 0:
+		hdata->sha = kzalloc(sizeof(*hdata->sha), GFP_KERNEL);
+		if (!hdata->sha)
+			return -ENOMEM;
 
-	hdata->digestsize = crypto_ahash_digestsize(hdata->async.s);
-	hdata->alignmask = crypto_ahash_alignmask(hdata->async.s);
+		ret = sha256_init(hdata->sha);
+		break;
+	case 1:
+		hdata->hmac = kzalloc(sizeof(*hdata->hmac), GFP_KERNEL);
+		if (!hdata->hmac)
+			return -ENOMEM;
 
-	hdata->async.result = kzalloc(sizeof(*hdata->async.result), GFP_KERNEL);
-	if (unlikely(!hdata->async.result)) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	init_completion(&hdata->async.result->completion);
-
-	hdata->async.request = ahash_request_alloc(hdata->async.s, GFP_KERNEL);
-	if (unlikely(!hdata->async.request)) {
-		dev_err(dev, "error allocating async crypto request\n");
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	ahash_request_set_callback(hdata->async.request,
-			CRYPTO_TFM_REQ_MAY_BACKLOG,
-			fmpdev_complete, hdata->async.result);
-
-	ret = crypto_ahash_init(hdata->async.request);
-	if (unlikely(ret)) {
-		dev_err(dev, "error in fmpdev_hash_init()\n");
-		goto error_request;
-	}
-
-	hdata->init = 1;
-	return 0;
-
-error_request:
-	ahash_request_free(hdata->async.request);
-error:
-	kfree(hdata->async.result);
-	crypto_free_ahash(hdata->async.s);
-	return ret;
-}
-
-
-void fmpdev_hash_deinit(struct hash_data *hdata)
-{
-	if (hdata->init) {
-		if (hdata->async.request)
-			ahash_request_free(hdata->async.request);
-		kfree(hdata->async.result);
-		if (hdata->async.s)
-			crypto_free_ahash(hdata->async.s);
-		hdata->init = 0;
-	}
-}
-
-int fmpdev_hash_reset(struct fmp_info *info, struct hash_data *hdata)
-{
-	int ret;
-	struct device *dev = info->dev;
-
-	ret = crypto_ahash_init(hdata->async.request);
-	if (unlikely(ret)) {
-		dev_err(dev, "error in crypto_hash_init()\n");
+		ret = hmac_sha256_init(hdata->hmac,
+						mackey,
+						mackeylen);
+		break;
+	default:
+		dev_err(dev, "Wrong mode\n");
 		return ret;
 	}
 
-	return 0;
+	if (ret == 0)
+		hdata->init = 1;
 
+	return ret;
+}
+
+void fmpdev_hash_deinit(struct hash_data *hdata)
+{
+	if (hdata->hmac != NULL) {
+		hmac_sha256_ctx_cleanup(hdata->hmac);
+		kfree(hdata->hmac);
+		hdata->init = 0;
+		return;
+	}
+
+	if (hdata->sha != NULL) {
+		memset(hdata->sha, 0x00, sizeof(*hdata->sha));
+		kfree(hdata->sha);
+		hdata->init = 0;
+		return;
+	}
 }
 
 ssize_t fmpdev_hash_update(struct fmp_info *info, struct hash_data *hdata,
 				struct scatterlist *sg, size_t len)
 {
-	int ret;
+	int ret = -ENOMSG;
+	int8_t *buf;
+	struct device *dev = info->dev;
 
-	reinit_completion(&hdata->async.result->completion);
-	ahash_request_set_crypt(hdata->async.request, sg, NULL, len);
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
-	ret = crypto_ahash_update(hdata->async.request);
+	if (len != sg_copy_to_buffer(sg, 1, buf, len)) {
+		dev_err(dev, "%s: sg_copy_buffer error copying\n", __func__);
+		goto exit;
+	}
 
-	return waitfor(info, hdata->async.result, ret);
+	if (hdata->sha != NULL)
+		ret = sha256_update(hdata->sha, buf, len);
+	else
+		ret = hmac_sha256_update(hdata->hmac, buf, len);
+
+exit:
+	kfree(buf);
+	return ret;
 }
 
 int fmpdev_hash_final(struct fmp_info *info, struct hash_data *hdata, void *output)
 {
-	int ret;
+	int ret_crypto = 0; /* OK if zero */
 
-	reinit_completion(&hdata->async.result->completion);
-	ahash_request_set_crypt(hdata->async.request, NULL, output, 0);
+	if (hdata->sha != NULL)
+		ret_crypto = sha256_final(hdata->sha, output);
+	else
+		ret_crypto = hmac_sha256_final(hdata->hmac, output);
 
-	ret = crypto_ahash_final(hdata->async.request);
+	if (ret_crypto != 0)
+		return -ENOMSG;
 
-	return waitfor(info, hdata->async.result, ret);
+	hdata->digestsize = 32;
+	return 0;
 }
 
 static int fmp_n_crypt(struct fmp_info *info, struct csession *ses_ptr,
@@ -460,11 +244,7 @@ static int fmp_n_crypt(struct fmp_info *info, struct csession *ses_ptr,
 
 	if (cop->op == COP_ENCRYPT) {
 		if (ses_ptr->hdata.init != 0) {
-			if (!ses_ptr->hdata.fmpfw_info)
-				ret = fmpdev_hash_update(info, &ses_ptr->hdata,
-								src_sg, len);
-			else
-				ret = fmpfw_hash_update(info, &ses_ptr->hdata,
+			ret = fmpdev_hash_update(info, &ses_ptr->hdata,
 								src_sg, len);
 			if (unlikely(ret))
 				goto out_err;
@@ -485,11 +265,7 @@ static int fmp_n_crypt(struct fmp_info *info, struct csession *ses_ptr,
 		}
 
 		if (ses_ptr->hdata.init != 0) {
-			if (!ses_ptr->hdata.fmpfw_info)
-				ret = fmpdev_hash_update(info, &ses_ptr->hdata,
-								dst_sg, len);
-			else
-				ret = fmpfw_hash_update(info, &ses_ptr->hdata,
+			ret = fmpdev_hash_update(info, &ses_ptr->hdata,
 								dst_sg, len);
 			if (unlikely(ret))
 				goto out_err;
@@ -584,15 +360,6 @@ int fmp_run(struct fmp_info *info, struct fcrypt *fcr, struct kernel_crypt_op *k
 		return -EINVAL;
 	}
 
-	if (ses_ptr->hdata.init != 0 && (cop->flags == 0 || cop->flags & COP_FLAG_RESET) && \
-				!ses_ptr->hdata.fmpfw_info) {
-		ret = fmpdev_hash_reset(info, &ses_ptr->hdata);
-		if (unlikely(ret)) {
-			dev_err(dev, "error in fmpdev_hash_reset()");
-			goto out_unlock;
-		}
-	}
-
 	if (ses_ptr->cdata.init != 0) {
 		int blocksize = ses_ptr->cdata.blocksize;
 
@@ -624,10 +391,7 @@ int fmp_run(struct fmp_info *info, struct fcrypt *fcr, struct kernel_crypt_op *k
 	if (ses_ptr->hdata.init != 0 &&
 		((cop->flags & COP_FLAG_FINAL) ||
 		   (!(cop->flags & COP_FLAG_UPDATE) || cop->len == 0))) {
-		if (!ses_ptr->hdata.fmpfw_info)
-			ret = fmpdev_hash_final(info, &ses_ptr->hdata, kcop->hash_output);
-		else
-			ret = fmpfw_hash_final(info, &ses_ptr->hdata, kcop->hash_output);
+		ret = fmpdev_hash_final(info, &ses_ptr->hdata, kcop->hash_output);
 		if (unlikely(ret)) {
 			dev_err(dev, "CryptoAPI failure: %d\n", ret);
 			goto out_unlock;
@@ -649,6 +413,7 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 	char **Ct = 0;
 	char **Pt = 0;
 	int ret = 0, k = 0;
+	char *data = NULL;
 
 	if (unlikely(cop->op != COP_ENCRYPT && cop->op != COP_DECRYPT)) {
 		dev_err(dev, "invalid operation op=%u\n", cop->op);
@@ -685,7 +450,6 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 	if (likely(cop->len)) {
 		if (cop->flags & COP_FLAG_AES_CBC_MCT) {
 		// do MCT here
-		char *data;
 	        char __user *src, *dst, *secondLast;
 	        struct scatterlist sg;
 	        size_t nbytes, bufsize;
@@ -700,12 +464,30 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 		}
 
 		Pt = (char**)kmalloc(1000 * sizeof(char*), GFP_KERNEL);
-		for (k=0; k<1000; k++)
+		if (!Pt) {
+			ret = -ENOMEM;
+			goto out_err_mem_data;
+		}
+		for (k=0; k<1000; k++) {
 		       Pt[k]= (char*)kmalloc(nbytes, GFP_KERNEL);
+		       if (!Pt[k]) {
+				ret = -ENOMEM;
+				goto out_err_mem_pt_k;
+			}
+		}
 
 		Ct = (char**)kmalloc(1000 * sizeof(char*), GFP_KERNEL);
-		for (k=0; k<1000; k++)
-		       Ct[k]= (char*)kmalloc(nbytes, GFP_KERNEL);
+		if (!Ct) {
+			ret = -ENOMEM;
+			goto out_err_mem_ct;
+		}
+		for (k=0; k<1000; k++) {
+			Ct[k]= (char*)kmalloc(nbytes, GFP_KERNEL);
+			if (!Ct[k]) {
+				ret = -ENOMEM;
+				goto out_err_mem_ct_k;
+			}
+		}
 
 	        bufsize = PAGE_SIZE < nbytes ? PAGE_SIZE : nbytes;
 
@@ -716,7 +498,7 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 		if (unlikely(copy_from_user(data, src, nbytes))) {
 			printk(KERN_ERR "Error copying %d bytes from user address %p.\n", (int)nbytes, src);
 		        ret = -EFAULT;
-		        goto out_err;
+		        goto out_err_fail;
 	        }
 
 	        sg_init_one(&sg, data, nbytes);
@@ -741,7 +523,8 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 
 			if (unlikely(ret)) {
 				printk(KERN_ERR "fmp_n_crypt failed.\n");
-				goto out_err;
+				ret = -EFAULT;
+				goto out_err_fail;
 			}
 
 			if (cop->op == COP_ENCRYPT)
@@ -754,29 +537,26 @@ int fmp_run_AES_CBC_MCT(struct fmp_info *info, struct fcrypt *fcr,
 			if (unlikely(copy_to_user(dst, data, nbytes))) {
 				printk(KERN_ERR "could not copy to user.\n");
 				ret = -EFAULT;
-				goto out_err;
+				goto out_err_fail;
 			}
 		}
 
-		for (k=0; k<1000; k++) {
+out_err_fail:
+		for (k=0; k<1000; k++)
 			kfree(Ct[k]);
-			kfree(Pt[k]);
-		}
-
+out_err_mem_ct_k:
 		kfree(Ct);
+out_err_mem_ct:
+		for (k=0; k<1000; k++)
+			kfree(Pt[k]);
+out_err_mem_pt_k:
 		kfree(Pt);
+out_err_mem_data:
 		free_page((unsigned long)data);
 		} else
 			goto out_unlock;
 	}
-
 out_unlock:
 	fmp_put_session(ses_ptr);
-	return ret;
-
-out_err:
-	fmp_put_session(ses_ptr);
-	dev_info(dev, "CryptoAPI failure: %d\n", ret);
-
 	return ret;
 }

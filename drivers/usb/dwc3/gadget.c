@@ -1861,7 +1861,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 			return -ENOMEM;
 	
 		cpumask_copy(default_cpu_mask, get_default_cpu_mask());
-		cpumask_or(affinity_cpu_mask, affinity_cpu_mask, cpumask_of(1));
+		cpumask_or(affinity_cpu_mask, affinity_cpu_mask, cpumask_of(dwc->irq_affinity_cpu_mask));
 		argos_irq_affinity_setup_label(irq, "USB", affinity_cpu_mask, default_cpu_mask);
 #endif
 	return 0;

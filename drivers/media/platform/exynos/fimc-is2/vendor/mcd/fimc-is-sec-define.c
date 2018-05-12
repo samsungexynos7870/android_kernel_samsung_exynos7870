@@ -256,14 +256,25 @@ u8 fimc_is_sec_compare_ver(int position)
 	u32 from_ver = 0, def_ver = 0;
 	u8 ret = 0;
 	char ver[3] = {'V', '0', '0'};
+	
 	struct fimc_is_from_info *finfo = NULL;
 
-#if defined(CONFIG_CAMERA_EEPROM_SUPPORT_FRONT)
+#if defined(CONFIG_CAMERA_EEPROM_SUPPORT_FRONT) || defined(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)
 	if (position == SENSOR_POSITION_FRONT)
+	{
 		finfo = &sysfs_finfo_front;
-	else
+#if defined(CONFIG_CAMERA_J8) || defined(CONFIG_CAMERA_A6)
+		ver[1] = 'F';
 #endif
+	}
+	else
+	{
 		finfo = &sysfs_finfo;
+	}
+#else
+	finfo = &sysfs_finfo;
+#endif
+
 
 	def_ver = ver[0] << 16 | ver[1] << 8 | ver[2];
 	from_ver = finfo->cal_map_ver[0] << 16 | finfo->cal_map_ver[1] << 8 | finfo->cal_map_ver[2];
@@ -291,7 +302,7 @@ bool fimc_is_sec_check_from_ver(struct fimc_is_core *core, int position)
 		return false;
 	}
 
-#if defined(CONFIG_CAMERA_EEPROM_SUPPORT_FRONT)
+#if defined(CONFIG_CAMERA_EEPROM_SUPPORT_FRONT) || defined(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)
 	if (position == SENSOR_POSITION_FRONT) {
 		finfo = &sysfs_finfo_front;
 		latest_from_ver = CAL_MAP_ES_VERSION_FRONT;
@@ -2461,7 +2472,11 @@ crc_retry:
 		memcpy(finfo->cal_map_ver,
 		       &buf[OTP_HEADER_CAL_MAP_VER_START_ADDR_FRONT], FIMC_IS_CAL_MAP_VER_SIZE);
 		pr_info("FRONT OTPROM header version = %s\n", finfo->header_ver);
-
+#ifdef OTP_HEADER_MODULE_ID_ADDR_FRONT
+		memcpy(finfo->module_id, &buf[OTP_HEADER_MODULE_ID_ADDR_FRONT], FIMC_IS_MODULE_ID_SIZE);
+#else
+		memset(finfo->module_id, 0x0, FIMC_IS_MODULE_ID_SIZE);
+#endif
 #if defined(OTP_HEADER_PROJECT_NAME_START_ADDR_FRONT)
 		memcpy(finfo->project_name,
 		       &buf[OTP_HEADER_PROJECT_NAME_START_ADDR_FRONT], FIMC_IS_PROJECT_NAME_SIZE);
@@ -2511,7 +2526,11 @@ crc_retry:
 		finfo->header_ver[FIMC_IS_HEADER_VER_SIZE] = '\0';
 		/* HEARDER Data : Cal Map Version */
 		memcpy(finfo->cal_map_ver, &buf[OTP_HEADER_CAL_MAP_VER_START_ADDR], FIMC_IS_CAL_MAP_VER_SIZE);
-
+#ifdef OTP_HEADER_MODULE_ID_ADDR
+		memcpy(finfo->module_id, &buf[OTP_HEADER_MODULE_ID_ADDR], FIMC_IS_MODULE_ID_SIZE);
+#else
+		memset(finfo->module_id, 0x0, FIMC_IS_MODULE_ID_SIZE);
+#endif
 		memcpy(finfo->project_name, &buf[OTP_HEADER_PROJECT_NAME_START_ADDR], FIMC_IS_PROJECT_NAME_SIZE);
 		finfo->project_name[FIMC_IS_PROJECT_NAME_SIZE] = '\0';
 		finfo->header_section_crc_addr = OTP_CHECKSUM_HEADER_ADDR;
@@ -4606,6 +4625,14 @@ int fimc_is_sec_fw_find(struct fimc_is_core *core)
 		snprintf(sysfs_finfo.load_fw_name, sizeof(FIMC_IS_FW_SR544), "%s", FIMC_IS_FW_SR544);
 		snprintf(sysfs_finfo.load_setfile_name, sizeof(FIMC_IS_SR544_SETF), "%s", FIMC_IS_SR544_SETF);
 		specific->rear_sensor_id = SENSOR_NAME_SR544;
+	} else if (fimc_is_sec_fw_module_compare(sysfs_finfo.header_ver, FW_2P6)) {
+		snprintf(sysfs_finfo.load_fw_name, sizeof(FIMC_IS_FW_2P6), "%s", FIMC_IS_FW_2P6);
+		snprintf(sysfs_finfo.load_setfile_name, sizeof(FIMC_IS_2P6_SETF), "%s", FIMC_IS_2P6_SETF);
+		specific->rear_sensor_id = SENSOR_NAME_S5K2P6;
+	} else if (fimc_is_sec_fw_module_compare(sysfs_finfo.header_ver, FW_2P6_FRONT)) {
+		snprintf(sysfs_finfo.load_fw_name, sizeof(FIMC_IS_FW_2P6_FRONT), "%s", FIMC_IS_FW_2P6_FRONT);
+		snprintf(sysfs_finfo.load_setfile_name, sizeof(FIMC_IS_2P6_FRONT_SETF), "%s", FIMC_IS_2P6_FRONT_SETF);
+		specific->front_sensor_id = SENSOR_NAME_S5K2P6;
 	} else {
 		/* default firmware and setfile */
 		sensor_id = specific->rear_sensor_id;
@@ -4695,9 +4722,12 @@ int fimc_is_sec_run_fw_sel(struct device *dev, int position)
 
 	/* Check reload cal data enabled */
 	if (!sysfs_finfo.is_check_cal_reload) {
-		fimc_is_sec_check_reload(core);
+		if (fimc_is_sec_file_exist("/data/media/0/")) {
+			/* Check reload cal data enabled */
+			fimc_is_sec_check_reload(core);
+			sysfs_finfo.is_check_cal_reload = true;
+		}
 	}
-	sysfs_finfo.is_check_cal_reload = true;
 
 #if defined(CONFIG_CAMERA_EEPROM_SUPPORT_FRONT) || defined(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)
 	if (position == SENSOR_POSITION_FRONT) {

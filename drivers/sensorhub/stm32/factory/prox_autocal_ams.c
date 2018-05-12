@@ -63,7 +63,7 @@ static ssize_t proximity_probe_show(struct device *dev,
 	struct ssp_data *data = dev_get_drvdata(dev);
 	bool probe_pass_fail = FAIL;
 
-	if (data->uSensorState & (1 << SENSOR_TYPE_PROXIMITY)) {
+	if (data->uSensorState & (1ULL << SENSOR_TYPE_PROXIMITY)) {
         probe_pass_fail = SUCCESS;
 	}
 	else {

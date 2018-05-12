@@ -497,24 +497,4 @@
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
-		dsim_set_panel_power_enable {
-			type = "gpio,high", "delay,usleep", "regulator,enable", "delay,usleep";
-			delay = <10000 11000>,<10000 11000>;
-			regulator = "LCD_1P8";
-			gpios = <&gpd3 4 0x1>;
-		};
-		dsim_set_panel_power_disable {
-			type = "gpio,low", "delay,usleep", "regulator,disable","delay,usleep","gpio,low";
-			delay = <10000 11000>,  <10000 11000>;
-			regulator = "LCD_1P8";
-			gpios = <&gpd1 1 0x1>, <&gpd3 4 0x1>;
-		};
-		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd1 1 0x1>, <&gpd1 1 0x1>, <&gpd1 1 0x1>;
-			delay = <10000 11000>, <20000 21000>, <100000 110000>;
-		};
-	};
-
 };

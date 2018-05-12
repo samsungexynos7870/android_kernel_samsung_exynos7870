@@ -23,6 +23,24 @@
 
 #define BT532_TS_DEVICE		"bt532_ts_device"
 
+#ifdef CONFIG_INPUT_TOUCHSCREEN_TCLMV2
+#define TCLM_CONCEPT
+#endif
+
+/* TCLM_CONCEPT */
+#define BT532_TS_NVM_OFFSET_FAC_RESULT			0
+#define BT532_TS_NVM_OFFSET_DISASSEMBLE_COUNT		2
+
+#define BT532_TS_NVM_OFFSET_CAL_COUNT			4
+#define BT532_TS_NVM_OFFSET_TUNE_VERSION			5
+#define BT532_TS_NVM_OFFSET_CAL_POSITION			7
+#define BT532_TS_NVM_OFFSET_HISTORY_QUEUE_COUNT		8
+#define BT532_TS_NVM_OFFSET_HISTORY_QUEUE_LASTP		9
+#define BT532_TS_NVM_OFFSET_HISTORY_QUEUE_ZERO		10
+#define BT532_TS_NVM_OFFSET_HISTORY_QUEUE_SIZE		20
+
+#define BT532_TS_NVM_OFFSET_LENGTH		(BT532_TS_NVM_OFFSET_HISTORY_QUEUE_ZERO + BT532_TS_NVM_OFFSET_HISTORY_QUEUE_SIZE)
+
 #ifdef CONFIG_SEC_DEBUG_TSP_LOG
 #include <linux/sec_debug.h>
 
@@ -105,9 +123,19 @@ struct bt532_ts_platform_data {
 	int		(*tsp_power)(void *data, bool on);
 	u16		x_resolution;
 	u16		y_resolution;
+	u8		area_indicator;
+	u8		area_navigation;
+	u8		area_edge;
 	u16		page_size;
 	u8		orientation;
 	bool		support_touchkey;
+	bool		support_spay;
+	bool		support_aod;
+	bool		support_lpm_mode;
+	bool		bringup;
+	bool		mis_cal_check;
+	u16 		pat_function;
+	u16 		afe_base;
 	const char *project_name;
 	void (*register_cb)(void *);
 
@@ -117,6 +145,7 @@ struct bt532_ts_platform_data {
 	const char *firmware_name;
 	const char *chip_name;
 	struct pinctrl *pinctrl;
+	int item_version;
 };
 
 extern struct class *sec_class;

@@ -517,6 +517,13 @@ static void __init mm_init(void)
 	vmalloc_init();
 }
 #ifdef	CONFIG_TIMA_RKP
+#ifdef CONFIG_TIMA_RKP_4G
+__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x20000] = {0};
+__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x20000] = {0};
+#else
+__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x18000] = {0};
+__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x18000] = {0};
+#endif
 extern void* vmm_extra_mem;
 u8 rkp_started = 0;
 static void rkp_init(void)

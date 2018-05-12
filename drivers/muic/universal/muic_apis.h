@@ -4,6 +4,7 @@
 extern int attach_ta(muic_data_t *pmuic);
 extern int detach_ta(muic_data_t *pmuic);
 extern int do_BCD_rescan(muic_data_t *pmuic);
+extern int BCD_rescan_incomplete_insertion(muic_data_t *pmuic, int get); // get == 0 do BCD rescan, get == 1 get chgtype
 extern int enable_periodic_adc_scan(muic_data_t *pmuic);
 extern int disable_periodic_adc_scan(muic_data_t *pmuic);
 extern int com_to_open_with_vbus(muic_data_t *pmuic);

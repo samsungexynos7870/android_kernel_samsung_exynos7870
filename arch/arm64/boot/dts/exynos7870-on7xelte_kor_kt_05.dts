@@ -14,7 +14,7 @@
 #include "modem-ss315ap-pdata.dtsi"
 #include "exynos7870-on7xelte_kor_kt_gpio_05.dtsi"
 #include "exynos7870-on7xelte_kor_open_battery_00.dtsi"
-#include "exynos7870-on7xelte_fingerprint-sensor_00.dtsi"
+#include "exynos7870-on7xelte_fingerprint-sensor_02.dtsi"
 #include "exynos7870-on7xelte_kor-tdmb_01.dtsi"
 
 / {
@@ -624,6 +624,5 @@
 		timing,dsi-hs-clk = <1000>;
 		timing,dsi-escape-clk = <16>;
 		timing,pms = <1 77 1>;
-		clklane_onoff = <0>;
 	};
 };

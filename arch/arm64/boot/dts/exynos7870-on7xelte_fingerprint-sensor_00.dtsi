@@ -73,6 +73,7 @@
 			etspi-sleepPin = <&gpd4 3 0x00>;
 			etspi-drdyPin = <&gpa0 7 0x00>;
 			etspi-ldoPin = <&gpd4 5 0x00>;
+			etspi-chipid = "ET510";
 			controller-data {
 				samsung,spi-feedback-delay = <0>;
 				samsung,spi-chip-select-mode = <0>;

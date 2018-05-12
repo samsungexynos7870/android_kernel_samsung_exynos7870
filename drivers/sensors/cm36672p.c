@@ -211,6 +211,7 @@ static int proximity_open_cancelation(struct cm36672p_data *data)
 {
 	struct file *cancel_filp = NULL;
 	int err = 0;
+	u16 buf = 0;	
 	mm_segment_t old_fs;
 
 	old_fs = get_fs();
@@ -225,13 +226,17 @@ static int proximity_open_cancelation(struct cm36672p_data *data)
 		return err;
 	}
 
-	err = cancel_filp->f_op->read(cancel_filp,
-		(char *)&ps_reg_init_setting[PS_CANCEL][CMD],
+	err = cancel_filp->f_op->read(cancel_filp, (char *)&buf,
 		sizeof(u16), &cancel_filp->f_pos);
 	if (err != sizeof(u16)) {
 		SENSOR_ERR("Can't read the cancel data from file(%d)\n", err);
 		err = -EIO;
 	}
+
+	if (buf < data->pdata->offset_range_low)
+		goto exit;
+
+	ps_reg_init_setting[PS_CANCEL][CMD] = buf;
 
 	/*If there is an offset cal data. */
 	if (ps_reg_init_setting[PS_CANCEL][CMD] != data->pdata->default_trim) {
@@ -250,6 +255,7 @@ static int proximity_open_cancelation(struct cm36672p_data *data)
 		ps_reg_init_setting[PS_THD_HIGH][CMD],
 		ps_reg_init_setting[PS_THD_LOW][CMD]);
 
+exit:
 	filp_close(cancel_filp, current->files);
 	set_fs(old_fs);
 

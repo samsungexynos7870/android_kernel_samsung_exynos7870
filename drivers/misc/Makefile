@@ -57,7 +57,7 @@ obj-$(CONFIG_GENWQE)		+= genwqe/
 obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
 obj-$(CONFIG_CXL_BASE)		+= cxl/
-obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
+obj-$(CONFIG_UID_SYS_STATS) += uid_sys_stats.o
 obj-$(CONFIG_MCU_IPC)		+= mcu_ipc/
 obj-$(CONFIG_UART_SEL)	+= uart_sel/
 obj-$(CONFIG_SEC_SIPC_MODEM_IF)	+= modem_v1/
@@ -65,8 +65,12 @@ obj-$(CONFIG_GNSS_SHMEM_IF)	+= gnss_if/
 obj-$(CONFIG_SD8XXX_RFKILL)	+= sd8x_rfkill.o
 obj-$(CONFIG_SENSORS_BHI)       += bhy/
 
-# Secure OS Mobicore Interface
-obj-$(CONFIG_TRUSTONIC_TEE)  += tzic64.o
+# TEEGRIS kernel driver
+ccflags-$(CONFIG_TZDEV) += -I$(srctree)/drivers/misc/tzdev/include
+obj-$(CONFIG_TZDEV)		+= tzdev/
+
+# TZIC
+obj-y				+= tzic64.o
 
 # Samsung Jack Support
 obj-$(CONFIG_SAMSUNG_JACK)	+= sec_jack.o
@@ -77,3 +81,5 @@ obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o
 # for DMVerity
 obj-$(CONFIG_DM_VERITY)		+= dmverity_query.o
 
+# FPGA for IRIS
+obj-$(CONFIG_LEDS_IRIS_FPGA_ICE40XX)  += ice40xx_iris.o

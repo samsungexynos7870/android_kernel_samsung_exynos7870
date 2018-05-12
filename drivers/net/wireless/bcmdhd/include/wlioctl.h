@@ -4,7 +4,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 598321 2015-11-09 10:25:30Z $
+ * $Id: wlioctl.h 701788 2017-05-26 11:12:34Z $
  */
 
 #ifndef _wlioctl_h_
@@ -3164,6 +3164,13 @@ typedef struct nbr_element {
 	uint8 phytype;
 	uint8 pad;
 } nbr_element_t;
+
+/* values for IOV_MFP arg */
+enum {
+	WL_MFP_NONE = 0,
+	WL_MFP_CAPABLE,
+	WL_MFP_REQUIRED
+};
 
 /* no default structure packing */
 #include <packed_section_end.h>

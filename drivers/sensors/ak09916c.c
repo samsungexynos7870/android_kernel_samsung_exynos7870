@@ -31,36 +31,39 @@
 
 #include <linux/sensor/sensors_core.h>
 #include "ak09916c_reg.h"
-#include <linux/pm_qos.h>
 
 /* Rx buffer size. i.e ST,TMPS,H1X,H1Y,H1Z*/
-#define SENSOR_DATA_SIZE		9
-#define AK09916C_DEFAULT_DELAY		200000000LL
-#define AK09916C_DRDY_TIMEOUT_MS	100
-#define AK09916C_WIA1_VALUE		0x48
-#define AK09916C_WIA2_VALUE		0x09
+#define SENSOR_DATA_SIZE                9
+#define AK09916C_DEFAULT_DELAY          200000000LL
+#define AK09916C_DRDY_TIMEOUT_MS        100
+#define AK09916C_WIA1_VALUE             0x48
+#define AK09916C_WIA2_VALUE             0x09
 
-#define I2C_M_WR			0 /* for i2c Write */
-#define I2c_M_RD			1 /* for i2c Read */
+#define I2C_M_WR                        0 /* for i2c Write */
+#define I2c_M_RD                        1 /* for i2c Read */
 
-#define VENDOR_NAME			"AKM"
-#define MODEL_NAME			"AK09916C"
-#define MODULE_NAME			"magnetic_sensor"
+#define VENDOR_NAME                     "AKM"
+#define MODEL_NAME                      "AK09916C"
+#define MODULE_NAME                     "magnetic_sensor"
 
-#define AK09916C_TOP_LOWER_RIGHT	0
-#define AK09916C_TOP_LOWER_LEFT		1
-#define AK09916C_TOP_UPPER_LEFT		2
-#define AK09916C_TOP_UPPER_RIGHT	3
-#define AK09916C_BOTTOM_LOWER_RIGHT	4
-#define AK09916C_BOTTOM_LOWER_LEFT	5
-#define AK09916C_BOTTOM_UPPER_LEFT	6
-#define AK09916C_BOTTOM_UPPER_RIGHT	7
+#define AK09916C_TOP_LOWER_RIGHT         0
+#define AK09916C_TOP_LOWER_LEFT          1
+#define AK09916C_TOP_UPPER_LEFT          2
+#define AK09916C_TOP_UPPER_RIGHT         3
+#define AK09916C_BOTTOM_LOWER_RIGHT      4
+#define AK09916C_BOTTOM_LOWER_LEFT       5
+#define AK09916C_BOTTOM_UPPER_LEFT       6
+#define AK09916C_BOTTOM_UPPER_RIGHT      7
 
-#define AK09916C_MAX_DELAY		200000000LL
-#define AK09916C_MIN_DELAY		10000000LL
+#define AK09916C_MAX_DELAY               200000000LL
+#define AK09916C_MIN_DELAY               10000000LL
 
-#define PC_ON		1
-#define PC_OFF		0
+#define MAG_LOG_TIME                15 /* 15 sec */
+
+enum {
+	OFF = 0,
+	ON = 1,
+};
 
 struct ak09916c_v {
 	union {
@@ -80,19 +83,23 @@ struct ak09916c_p {
 	struct ak09916c_v magdata;
 	struct mutex lock;
 	struct mutex enable_lock;
-	struct delayed_work work;
-	struct pm_qos_request pm_qos_req;
 
-	atomic_t delay;
+	ktime_t delay;
+	struct work_struct mag_work;
+	struct workqueue_struct *wq;
+	struct hrtimer mag_timer;
+	int time_count;
+
 	atomic_t enable;
-#if defined(CONFIG_SENSORS_SW_RESET)
+#if defined(CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET)
 	int reset_state;
 #endif
-
+	int cal_reset_flag;
 	u8 asa[3];
 	u32 chip_pos;
 	u64 timestamp;
-	u64 old_timestamp;
+	int ak09916c_ldo_pin;
+	u32 si_p[27];
 };
 
 static int ak09916c_i2c_read(struct i2c_client *client,
@@ -100,12 +107,12 @@ static int ak09916c_i2c_read(struct i2c_client *client,
 {
 	int ret;
 	struct i2c_msg msg[2];
-#if defined(CONFIG_SENSORS_SW_RESET)
+#if defined(CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET)
 	struct ak09916c_p *data =
 			(struct ak09916c_p *)i2c_get_clientdata(client);
 
 	if (data->reset_state)
-		return -1;
+		return -EPERM;
 #endif
 
 	msg[0].addr = client->addr;
@@ -120,8 +127,7 @@ static int ak09916c_i2c_read(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - i2c bus read error %d\n",
-			__func__, ret);
+		SENSOR_ERR("i2c bus read error %d\n", ret);
 		return ret;
 	}
 
@@ -135,13 +141,13 @@ static int ak09916c_i2c_write(struct i2c_client *client,
 	struct i2c_msg msg;
 	unsigned char w_buf[2];
 
-#if defined(CONFIG_SENSORS_SW_RESET)
+#if defined(CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET)
 	struct ak09916c_p *data =
 			(struct ak09916c_p *)i2c_get_clientdata(client);
 
 	if (data->reset_state) {
-		pr_info("[SENSOR]: %s - reset_state %d start!!!\n", __func__,data->reset_state);
-		return -1;
+		SENSOR_INFO("reset_state %d start!!!\n", data->reset_state);
+		return -EPERM;
 	}
 #endif
 
@@ -155,8 +161,7 @@ static int ak09916c_i2c_write(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - i2c bus write error %d\n",
-			__func__, ret);
+		SENSOR_ERR("i2c bus write error %d\n", ret);
 		return ret;
 	}
 
@@ -166,18 +171,16 @@ static int ak09916c_i2c_write(struct i2c_client *client,
 static int ak09916c_i2c_read_block(struct i2c_client *client,
 	unsigned char reg_addr, unsigned char *buf, unsigned char len)
 {
-#if 1
 	int ret;
 	struct i2c_msg msg[2];
 
-#if defined(CONFIG_SENSORS_SW_RESET)
+#if defined(CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET)
 	struct ak09916c_p *data =
 			(struct ak09916c_p *)i2c_get_clientdata(client);
 
 	if (data->reset_state)
-		return -1;
+		return -EPERM;
 #endif
-
 
 	msg[0].addr = client->addr;
 	msg[0].flags = I2C_M_WR;
@@ -191,20 +194,11 @@ static int ak09916c_i2c_read_block(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - i2c bus read error %d\n",
-			__func__, ret);
+		SENSOR_ERR("i2c bus read error %d\n", ret);
 		return ret;
 	}
 
 	return 0;
-#else
-	int i, ret = 0;
-
-	for (i = 0; i < len; i++)
-		ret += ak09916c_i2c_read(client, reg_addr + i, &buf[i]);
-
-	return ret;
-#endif
 }
 
 static int ak09916c_ecs_set_mode_power_down(struct ak09916c_p *data)
@@ -212,7 +206,6 @@ static int ak09916c_ecs_set_mode_power_down(struct ak09916c_p *data)
 	unsigned char reg;
 	int ret;
 
-	data->old_timestamp = 0LL;
 	reg = AK09916C_MODE_POWERDOWN;
 	ret = ak09916c_i2c_write(data->client, AK09916C_REG_CNTL2, reg);
 
@@ -257,154 +250,122 @@ static int ak09916c_read_mag_xyz(struct ak09916c_p *data,
 	int ret = 0, retries = 0;
 
 	mutex_lock(&data->lock);
-
 	ret = ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
-	if (ret < 0) {
-		pr_err("[SENSOR]: %s - ak09916c_ecs_set_mode error\n",
-			__func__);
-		goto exit;
-	}
+	if (ret < 0)
+		goto exit_i2c_read_err;
 
 again:
 	ret = ak09916c_i2c_read(data->client, AK09916C_REG_ST1, &temp[0]);
-	if (ret < 0) {
-		pr_err("[SENSOR]: %s - ak09916c_i2c_read error\n",
-				__func__);
-		goto exit;
-	}
+	if (ret < 0)
+		goto exit_i2c_read_err;
 
 	/* Check ST bit */
 	if (!(temp[0] & 0x01)) {
 		if ((retries++ < 5) && (temp[0] == 0)) {
-			usleep_range(2000, 2100);
 			goto again;
 		} else {
 			ret = -1;
-			pr_err("[SENSOR]: %s - ST1 = %u, ST2 = %u\n",
-				__func__, temp[0], temp[8]);
-			goto exit;
+			goto exit_i2c_read_err;
 		}
 	}
 
 	ret = ak09916c_i2c_read_block(data->client, AK09916C_REG_ST1 + 1,
 			&temp[1], SENSOR_DATA_SIZE - 1);
-	if (ret < 0) {
-		pr_err("[SENSOR]: %s - ak09916c_i2c_read_block error\n",
-				__func__);
-		goto exit;
-	}
+	if (ret < 0)
+		goto exit_i2c_read_err;
+
 	mag->x = temp[1] | (temp[2] << 8);
 	mag->y = temp[3] | (temp[4] << 8);
 	mag->z = temp[5] | (temp[6] << 8);
 
 	remap_sensor_data(mag->v, data->chip_pos);
 
+	goto exit;
+
+exit_i2c_read_err:
+	SENSOR_ERR("ST1 = %u, ST2 = %u\n", temp[0], temp[8]);
 exit:
 	mutex_unlock(&data->lock);
 	return ret;
 }
 
+static enum hrtimer_restart ak09916c_timer_func(struct hrtimer *timer)
+{
+	struct ak09916c_p *data = container_of(timer,
+					struct ak09916c_p, mag_timer);
+
+	if (!work_pending(&data->mag_work))
+		queue_work(data->wq, &data->mag_work);
+
+	hrtimer_forward_now(&data->mag_timer, data->delay);
+
+	return HRTIMER_RESTART;
+}
 
 static void ak09916c_work_func(struct work_struct *work)
 {
-	int ret;
+	struct ak09916c_p *data = container_of(work,
+			struct ak09916c_p, mag_work);
 	struct ak09916c_v mag;
-	struct timespec ts;
+	struct timespec ts = ktime_to_timespec(ktime_get_boottime());
+	u64 timestamp_new = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 	int time_hi, time_lo;
+	int ret;
 
-	struct ak09916c_p *data = container_of((struct delayed_work *)work,
-			struct ak09916c_p, work);
-	unsigned long delay = nsecs_to_jiffies(atomic_read(&data->delay));
-	unsigned long pdelay = atomic_read(&data->delay);
-
-#ifdef CONFIG_SENSORS_SW_RESET
-	if(data->reset_state)
-	{
-		pr_err("[SENSOR]:ak09916c_work_func: reset state\n");
+#ifdef CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET
+	if (data->reset_state) {
+		SENSOR_ERR("reset state (%d)\n", data->reset_state);
 		return;
 	}
 #endif
 
-	ts = ktime_to_timespec(ktime_get_boottime());
-	data->timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-
 	ret = ak09916c_read_mag_xyz(data, &mag);
-
 	if (ret >= 0) {
-		if (data->old_timestamp != 0 &&
-			((data->timestamp - data->old_timestamp) * 10
-				> (pdelay) * 18)) {
-			u64 shift_timestamp = pdelay >> 1;
-			u64 timestamp = 0ULL;
-
-			for (timestamp = data->old_timestamp + pdelay; timestamp
-					< data->timestamp - shift_timestamp; timestamp += pdelay) {
-				time_hi = (int)((timestamp & TIME_HI_MASK) >> TIME_HI_SHIFT);
-				time_lo = (int)(timestamp & TIME_LO_MASK);
-
-				input_report_rel(data->input, REL_X, mag.x);
-				input_report_rel(data->input, REL_Y, mag.y);
-				input_report_rel(data->input, REL_Z, mag.z);
-				input_report_rel(data->input, REL_RX, time_hi);
-				input_report_rel(data->input, REL_RY, time_lo);
-				input_sync(data->input);
-				data->magdata = mag;
-			}
-		}
-		time_hi = (int)((data->timestamp & TIME_HI_MASK)
-							>> TIME_HI_SHIFT);
-		time_lo = (int)(data->timestamp & TIME_LO_MASK);
+		time_hi = (int)((timestamp_new & TIME_HI_MASK) >> TIME_HI_SHIFT);
+		time_lo = (int)(timestamp_new & TIME_LO_MASK);
 
 		input_report_rel(data->input, REL_X, mag.x);
 		input_report_rel(data->input, REL_Y, mag.y);
 		input_report_rel(data->input, REL_Z, mag.z);
+		if (data->cal_reset_flag) {
+			SENSOR_INFO("Magnetic cal reset!\n");
+			input_report_rel(data->input, REL_RZ, data->cal_reset_flag);
+			data->cal_reset_flag = 0;
+		}
 		input_report_rel(data->input, REL_RX, time_hi);
 		input_report_rel(data->input, REL_RY, time_lo);
 		input_sync(data->input);
 		data->magdata = mag;
-		data->old_timestamp = data->timestamp;
 	}
 
-	schedule_delayed_work(&data->work, delay);
-}
-
-static void ak09916c_power_collapse(struct ak09916c_p *data, int enable)
-{
-	if (enable) {
-		pr_info("%s - enable\n", __func__);
-		if (atomic_read(&data->delay) == 20000000){
-			pr_info("[SENSOR]: %s - delay :%d\n", __func__, atomic_read(&data->delay));
-			pm_qos_update_request(&data->pm_qos_req, PM_QOS_DEFAULT_VALUE);
-		}
-		else
-			pm_qos_update_request(&data->pm_qos_req, 1);
+	if ((ktime_to_ns(data->delay) * data->time_count)
+			>= ((int64_t)MAG_LOG_TIME * NSEC_PER_SEC)) {
+		SENSOR_INFO("x = %d, y = %d, z = %d\n", mag.x, mag.y, mag.z);
+		data->time_count = 0;
 	} else {
-		pr_info("%s - disable\n", __func__);
-		pm_qos_update_request(&data->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+		data->time_count++;
 	}
-}
 
+}
 
 static void ak09916c_set_enable(struct ak09916c_p *data, int enable)
 {
 	int pre_enable = atomic_read(&data->enable);
 
 	if (enable) {
-		ak09916c_power_collapse(data, PC_ON);
 		if (pre_enable == 0) {
-			data->old_timestamp = 0LL;
 			ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
-			schedule_delayed_work(&data->work,
-				nsecs_to_jiffies(atomic_read(&data->delay)));
+			hrtimer_start(&data->mag_timer, data->delay,
+							HRTIMER_MODE_REL);
 			atomic_set(&data->enable, 1);
 		}
 	} else {
 		if (pre_enable == 1) {
-			cancel_delayed_work_sync(&data->work);
 			ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
+			cancel_work_sync(&data->mag_work);
+			hrtimer_cancel(&data->mag_timer);
 			atomic_set(&data->enable, 0);
 		}
-		ak09916c_power_collapse(data, PC_OFF);
 	}
 }
 
@@ -425,13 +386,15 @@ static ssize_t ak09916c_enable_store(struct device *dev,
 
 	ret = kstrtou8(buf, 2, &enable);
 	if (ret) {
-		pr_err("[SENSOR]: %s - Invalid Argument\n", __func__);
+		SENSOR_ERR("Invalid Argument\n");
 		return ret;
 	}
-	pr_info("[SENSOR]: %s - new_value = %u\n", __func__, enable);
-#if defined(CONFIG_SENSORS_SW_RESET)
+
+	SENSOR_INFO("new_value = %u\n", enable);
+
+#if defined(CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET)
 	if (data->reset_state) {
-		pr_info("[SENSOR]: %s - sw reset come enable is = %u\n", __func__, enable);
+		SENSOR_INFO("sw reset come enable is = %u\n", enable);
 		atomic_set(&data->enable, enable);
 		return size;
 	}
@@ -450,7 +413,7 @@ static ssize_t ak09916c_delay_show(struct device *dev,
 {
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&data->delay));
+	return snprintf(buf, 16, "%lld\n", ktime_to_ns(data->delay));
 }
 
 static ssize_t ak09916c_delay_store(struct device *dev,
@@ -463,22 +426,22 @@ static ssize_t ak09916c_delay_store(struct device *dev,
 
 	ret = kstrtoll(buf, 10, &delay);
 	if (ret) {
-		pr_err("[SENSOR]: %s - Invalid Argument\n", __func__);
+		SENSOR_ERR("Invalid Argument\n");
 		return ret;
 	}
 
 	if (delay > AK09916C_MAX_DELAY) {
-		pr_info("[SENSOR]: %s - %lld > AK09916C_MAX_DELAY\n", __func__, delay);
+		SENSOR_INFO("%lld > AK09916C_MAX_DELAY\n", delay);
 		delay = AK09916C_MAX_DELAY;
 	} else if (delay < AK09916C_MIN_DELAY) {
-		pr_info("[SENSOR]: %s - %lld < AK09916C_MAX_DELAY\n", __func__, delay);
+		SENSOR_INFO("%lld < AK09916C_MAX_DELAY\n", delay);
 		delay = AK09916C_MIN_DELAY;
 	}
 
 	mutex_lock(&data->enable_lock);
-	atomic_set(&data->delay, (int64_t)delay);
-	pr_info("[SENSOR]: %s - poll_delay = %lld\n", __func__, delay);
+	data->delay = ns_to_ktime(delay);
 	mutex_unlock(&data->enable_lock);
+	SENSOR_INFO("poll_delay = %lld\n", ktime_to_ns(data->delay));
 
 	return size;
 }
@@ -504,7 +467,9 @@ static int ak09916c_selftest(struct ak09916c_p *data, int *dac_ret, int *sf)
 	s16 x, y, z;
 	int retry_count = 0;
 	int ready_count = 0;
-	int ret = -1;
+	int ret;
+
+	data->cal_reset_flag = 1;
 retry:
 	mutex_lock(&data->lock);
 	/* power down */
@@ -515,8 +480,7 @@ retry:
 
 	/* read device info */
 	ak09916c_i2c_read_block(data->client, AK09916C_REG_WIA1, temp, 2);
-	pr_info("[SENSOR]: %s - device id = 0x%x, info = 0x%x\n",
-		__func__, temp[0], temp[1]);
+	SENSOR_INFO("device id = 0x%x, info = 0x%x\n", temp[0], temp[1]);
 
 	/* start self test */
 	reg = AK09916C_MODE_SELF_TEST;
@@ -539,26 +503,19 @@ retry:
 	y = temp[2] | (temp[3] << 8);
 	z = temp[4] | (temp[5] << 8);
 
-	pr_info("[SENSOR]: %s - self test x = %d, y = %d, z = %d\n",
-		__func__, x, y, z);
+	SENSOR_INFO("self test x = %d, y = %d, z = %d\n", x, y, z);
 	if ((x >= -200) && (x <= 200))
-		pr_info("[SENSOR]: %s - x passed self test, -200<=x<=200\n",
-			__func__);
+		SENSOR_INFO("x passed self test, -200<=x<=200\n");
 	else
-		pr_info("[SENSOR]: %s - x failed self test, -200<=x<=200\n",
-			__func__);
+		SENSOR_INFO("x failed self test, -200<=x<=200\n");
 	if ((y >= -200) && (y <= 200))
-		pr_info("[SENSOR]: %s - y passed self test, -200<=y<=200\n",
-			__func__);
+		SENSOR_INFO("y passed self test, -200<=y<=200\n");
 	else
-		pr_info("[SENSOR]: %s - y failed self test, -200<=y<=200\n",
-			__func__);
+		SENSOR_INFO("y failed self test, -200<=y<=200\n");
 	if ((z >= -1000) && (z <= -200))
-		pr_info("[SENSOR]: %s - z passed self test, -1000<=z<=-200\n",
-			__func__);
+		SENSOR_INFO("z passed self test, -1000<=z<=-200\n");
 	else
-		pr_info("[SENSOR]: %s - z failed self test, -1000<=z<=-200\n",
-			__func__);
+		SENSOR_INFO("z failed self test, -1000<=z<=-200\n");
 
 	sf[0] = x;
 	sf[1] = y;
@@ -567,8 +524,8 @@ retry:
 	if (((x >= -200) && (x <= 200)) &&
 		((y >= -200) && (y <= 200)) &&
 		((z >= -1000) && (z <= -200))) {
-		pr_info("%s, Selftest is successful.\n", __func__);
-		return 0;
+		SENSOR_INFO("successful.\n");
+		ret = 0;
 	} else {
 		if (retry_count < 5) {
 			retry_count++;
@@ -577,11 +534,11 @@ retry:
 			pr_warn("############################################");
 			goto retry;
 		} else {
-			pr_err("[SENSOR]: %s - Selftest is failed.\n",
-				__func__);
-			return ret;
+			SENSOR_ERR("failed.\n");
+			ret = -1;
 		}
 	}
+	return ret;
 }
 
 static ssize_t ak09916c_vendor_show(struct device *dev,
@@ -605,6 +562,50 @@ static ssize_t ak09916c_get_asa(struct device *dev,
 			data->asa[0], data->asa[1], data->asa[2]);
 }
 
+static ssize_t ak09916c_dhr_sensor_info_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	int i = 0;
+	struct ak09916c_p *data = dev_get_drvdata(dev);
+
+	if (sscanf(buf,
+		"%10u %10u %10u %10u %10u %10u %10u %10u %10u "\
+		"%10u %10u %10u %10u %10u %10u %10u %10u %10u "\
+		"%10u %10u %10u %10u %10u %10u %10u %10u %10u",
+		&data->si_p[0], &data->si_p[1], &data->si_p[2], &data->si_p[3],
+		&data->si_p[4], &data->si_p[5], &data->si_p[6], &data->si_p[7],
+		&data->si_p[8], &data->si_p[9], &data->si_p[10], &data->si_p[11],
+		&data->si_p[12], &data->si_p[13], &data->si_p[14], &data->si_p[15],
+		&data->si_p[16], &data->si_p[17], &data->si_p[18], &data->si_p[19],
+		&data->si_p[20], &data->si_p[21], &data->si_p[22], &data->si_p[23],
+		&data->si_p[24], &data->si_p[25], &data->si_p[26]) != 27) {
+		SENSOR_ERR("The number of data are wrong\n");
+		for (i = 0; i < 27; i++)
+			data->si_p[i] = 0;
+	}
+
+	return size;
+}
+
+static ssize_t ak09916c_dhr_sensor_info_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ak09916c_p *data = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE,
+		"\"SI_PARAMETER\":\""\
+		"%u %u %u %u %u %u %u %u %u "\
+		"%u %u %u %u %u %u %u %u %u "\
+		"%u %u %u %u %u %u %u %u %u\"\n",
+		data->si_p[0], data->si_p[1], data->si_p[2], data->si_p[3],
+		data->si_p[4], data->si_p[5], data->si_p[6], data->si_p[7],
+		data->si_p[8], data->si_p[9], data->si_p[10], data->si_p[11],
+		data->si_p[12], data->si_p[13], data->si_p[14], data->si_p[15],
+		data->si_p[16], data->si_p[17], data->si_p[18], data->si_p[19],
+		data->si_p[20], data->si_p[21], data->si_p[22], data->si_p[23],
+		data->si_p[24], data->si_p[25], data->si_p[26]);
+}
+
 static ssize_t ak09916c_get_selftest(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -623,7 +624,8 @@ static ssize_t ak09916c_get_selftest(struct device *dev,
 
 	if (atomic_read(&data->enable) == 1) {
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
-		cancel_delayed_work_sync(&data->work);
+		cancel_work_sync(&data->mag_work);
+		hrtimer_cancel(&data->mag_timer);
 	}
 
 	sf_ret = ak09916c_selftest(data, &dac_ret, sf);
@@ -631,23 +633,23 @@ static ssize_t ak09916c_get_selftest(struct device *dev,
 	for (retries = 0; retries < 5; retries++) {
 		if (ak09916c_read_mag_xyz(data, &mag) == 0) {
 			if ((mag.x < 6500) && (mag.x > -6500)
-				&& (mag.y < 6500) && (mag.y > -6500)
-				&& (mag.z < 6500) && (mag.z > -6500))
+					&& (mag.y < 6500) && (mag.y > -6500)
+					&& (mag.z < 6500) && (mag.z > -6500))
 				adc_ret = 0;
 			else
-				pr_err("[SENSOR]: %s adc specout %d, %d, %d\n",
-					__func__, mag.x, mag.y, mag.z);
+				SENSOR_ERR("adc specout %d, %d, %d\n",
+						mag.x, mag.y, mag.z);
 			break;
 		}
 
 		usleep_range(20000, 21000);
-		pr_err("[SENSOR]: %s - adc retries %d", __func__, retries);
+		SENSOR_ERR("adc retries %d", retries);
 	}
 
 	if (atomic_read(&data->enable) == 1) {
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
-		schedule_delayed_work(&data->work,
-			nsecs_to_jiffies(atomic_read(&data->delay)));
+		hrtimer_start(&data->mag_timer, data->delay,
+						HRTIMER_MODE_REL);
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
@@ -694,7 +696,7 @@ static ssize_t ak09916c_check_cntl(struct device *dev,
 	mutex_unlock(&data->lock);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(((reg == AK09916C_MODE_POWERDOWN) &&
+		(((reg == AK09916C_MODE_POWERDOWN) &&
 			(ret == 0)) ? "OK" : "NG"));
 }
 
@@ -759,6 +761,26 @@ exit:
 	return snprintf(buf, PAGE_SIZE, "%d,%d,%d\n", mag.x, mag.y, mag.z);
 }
 
+static ssize_t ak09916c_raw_data_write(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	u8 enable;
+	int ret;
+	struct ak09916c_p *data = dev_get_drvdata(dev);
+
+	ret = kstrtou8(buf, 2, &enable);
+	if (ret) {
+		SENSOR_ERR("Invalid Argument\n");
+		return size;
+	}
+
+	SENSOR_INFO("%u\n", enable);
+	if (enable == 1)
+		data->cal_reset_flag = 1;
+
+	return size;
+}
+
 static int ak09916c_check_device(struct ak09916c_p *data)
 {
 	unsigned char reg, buf[2];
@@ -766,49 +788,47 @@ static int ak09916c_check_device(struct ak09916c_p *data)
 
 	ret = ak09916c_i2c_read_block(data->client, AK09916C_REG_WIA1, buf, 2);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - unable to read AK09916C_REG_WIA1\n",
-			__func__);
+		SENSOR_ERR("unable to read AK09916C_REG_WIA1\n");
 		return ret;
 	}
 
 	reg = AK09916C_MODE_POWERDOWN;
 	ret = ak09916c_i2c_write(data->client, AK09916C_REG_CNTL2, reg);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - Error in setting power down mode\n",
-			__func__);
+		SENSOR_ERR("Error in setting power down mode\n");
 		return ret;
 	}
 
 	if ((buf[0] != AK09916C_WIA1_VALUE)
 		|| (buf[1] != AK09916C_WIA2_VALUE)) {
-		pr_err("[SENSOR]: %s - The device is not AKM Compass. %u, %u",
-			__func__, buf[0], buf[1]);
+		SENSOR_ERR("Wrong Device. Value = %u, %u\n", buf[0], buf[1]);
 		return -ENXIO;
 	}
 
 	return 0;
 }
 
-#ifdef CONFIG_SENSORS_SW_RESET
+#ifdef CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET
 static ssize_t ak09916c_power_reset_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 	int enabled = atomic_read(&data->enable);
 
-	pr_info("[SENSOR]: %s - magnetic power reset start!!!\n", __func__);
+	SENSOR_INFO("magnetic power reset start!!!\n");
 
 	data->reset_state = 1;
 	mutex_lock(&data->enable_lock);
 
 	if (enabled) {
-		cancel_delayed_work_sync(&data->work);
-		pr_info("[SENSOR]: %s - cancel_delayed_work_sync done!!!\n", __func__);
+		cancel_work_sync(&data->mag_work);
+		hrtimer_cancel(&data->mag_timer);
+		SENSOR_INFO("cancel_delayed_work_sync done!!!\n");
 	}
 
-		mutex_unlock(&data->enable_lock);
+	mutex_unlock(&data->enable_lock);
 
-	pr_info("[SENSOR]: %s - magnetic power reset end!!!\n", __func__);
+	SENSOR_INFO("magnetic power reset end!!!\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", enabled);
 }
@@ -820,25 +840,23 @@ static ssize_t ak09916c_sw_reset_show(struct device *dev,
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 	int enabled = atomic_read(&data->enable);
 
-	pr_info("[SENSOR]: %s - magnetic sw reset start!!!\n", __func__);
+	SENSOR_INFO("magnetic sw reset start!!!\n");
 
 	mutex_lock(&data->enable_lock);
 	data->reset_state = 0;
-	data->old_timestamp = 0;
 	if (enabled == 1) {
-		pr_info("[SENSOR]: %s - magnetic was enabled so make enable!!!\n", __func__);
+		SENSOR_INFO("magnetic was enabled so make enable!!!\n");
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
-		schedule_delayed_work(&data->work,
-			nsecs_to_jiffies(atomic_read(&data->delay)));
-	}
-	else {
-		pr_info("[SENSOR]: %s - magnetic was disabled so make disable!!!\n", __func__);
+		hrtimer_start(&data->mag_timer, data->delay,
+						HRTIMER_MODE_REL);
+	} else {
+		SENSOR_INFO("magnetic was disabled so make disable!!!\n");
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
 	}
 
 	mutex_unlock(&data->enable_lock);
 
-	pr_info("[SENSOR]: %s - magnetic sw reset end!!!\n", __func__);
+	SENSOR_INFO("magnetic sw reset end!!!\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", enabled);
 }
@@ -846,17 +864,22 @@ static ssize_t ak09916c_sw_reset_show(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, ak09916c_name_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, ak09916c_vendor_show, NULL);
-static DEVICE_ATTR(raw_data, S_IRUGO, ak09916c_raw_data_read, NULL);
+static DEVICE_ATTR(raw_data, S_IRUGO | S_IWUSR | S_IWGRP,
+	ak09916c_raw_data_read, ak09916c_raw_data_write);
 static DEVICE_ATTR(adc, S_IRUGO, ak09916c_adc, NULL);
 static DEVICE_ATTR(dac, S_IRUGO, ak09916c_check_cntl, NULL);
 static DEVICE_ATTR(chk_registers, S_IRUGO, ak09916c_check_registers, NULL);
 static DEVICE_ATTR(selftest, S_IRUGO, ak09916c_get_selftest, NULL);
 static DEVICE_ATTR(asa, S_IRUGO, ak09916c_get_asa, NULL);
 static DEVICE_ATTR(status, S_IRUGO, ak09916c_get_status, NULL);
-#ifdef CONFIG_SENSORS_SW_RESET
-static DEVICE_ATTR(power_reset, S_IRUSR | S_IRGRP, ak09916c_power_reset_show, NULL);
-static DEVICE_ATTR(sw_reset, S_IRUSR | S_IRGRP, ak09916c_sw_reset_show, NULL);
+#ifdef CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET
+static DEVICE_ATTR(power_reset, S_IRUSR | S_IRGRP,
+	ak09916c_power_reset_show, NULL);
+static DEVICE_ATTR(sw_reset, S_IRUSR | S_IRGRP,
+	ak09916c_sw_reset_show, NULL);
 #endif
+static DEVICE_ATTR(dhr_sensor_info, S_IRUGO | S_IWUSR | S_IWGRP,
+	ak09916c_dhr_sensor_info_show, ak09916c_dhr_sensor_info_store);
 
 static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_name,
@@ -868,10 +891,11 @@ static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_selftest,
 	&dev_attr_asa,
 	&dev_attr_status,
-#ifdef CONFIG_SENSORS_SW_RESET
+#ifdef CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET
 	&dev_attr_power_reset,
 	&dev_attr_sw_reset,
 #endif
+	&dev_attr_dhr_sensor_info,
 	NULL,
 };
 
@@ -890,6 +914,7 @@ static int ak09916c_input_init(struct ak09916c_p *data)
 	input_set_capability(dev, EV_REL, REL_X);
 	input_set_capability(dev, EV_REL, REL_Y);
 	input_set_capability(dev, EV_REL, REL_Z);
+	input_set_capability(dev, EV_REL, REL_RZ); /* cal reset flag */
 	input_set_capability(dev, EV_REL, REL_RX); /* time_hi */
 	input_set_capability(dev, EV_REL, REL_RY); /* time_lo */
 	input_set_drvdata(dev, data);
@@ -919,12 +944,45 @@ static int ak09916c_input_init(struct ak09916c_p *data)
 	return 0;
 }
 
+static int ak09916c_vdd_onoff(struct ak09916c_p *data, int onoff)
+{
+	/* ldo control */
+	if (data->ak09916c_ldo_pin) {
+		gpio_set_value(data->ak09916c_ldo_pin, onoff);
+		if (onoff)
+			msleep(20);
+		return 0;
+	}
+
+	return 0;
+}
+
 static int ak09916c_parse_dt(struct ak09916c_p *data, struct device *dev)
 {
-	struct device_node *dNode = dev->of_node;
-	if (dNode == NULL)
+	struct device_node *d_node = dev->of_node;
+	enum of_gpio_flags flags;
+	int ret = 0;
+
+	if (d_node == NULL)
 		return -ENODEV;
-	if (of_property_read_u32(dNode,
+
+	data->ak09916c_ldo_pin = of_get_named_gpio_flags(d_node,
+				"ak09916c,vdd_ldo_pin", 0, &flags);
+	if (data->ak09916c_ldo_pin < 0) {
+		SENSOR_INFO("Cannot set vdd_ldo_pin through DTSI\n");
+		data->ak09916c_ldo_pin = 0;
+	} else {
+		ret = gpio_request(data->ak09916c_ldo_pin,
+			"ak09916c,vdd_ldo_pin");
+		if (ret < 0)
+			SENSOR_ERR("gpio %d request failed %d\n",
+				data->ak09916c_ldo_pin, ret);
+		else
+			gpio_direction_output(data->ak09916c_ldo_pin, 0);
+	}
+
+
+	if (of_property_read_u32(d_node,
 			"ak09916c-i2c,chip_pos", &data->chip_pos) < 0)
 		data->chip_pos = AK09916C_TOP_LOWER_RIGHT;
 
@@ -937,40 +995,36 @@ static int ak09916c_probe(struct i2c_client *client,
 	int ret = -ENODEV;
 	struct ak09916c_p *data = NULL;
 
-	pr_info("[SENSOR]: %s - Probe Start!\n", __func__);
+	SENSOR_INFO("Start!\n");
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		pr_err("[SENSOR]: %s - i2c_check_functionality error\n",
-			__func__);
+		SENSOR_ERR("i2c_check_functionality error\n");
 		goto exit;
 	}
 
 	data = kzalloc(sizeof(struct ak09916c_p), GFP_KERNEL);
 	if (data == NULL) {
-		pr_err("[SENSOR]: %s - kzalloc error\n", __func__);
+		SENSOR_ERR("kzalloc error\n");
 		ret = -ENOMEM;
 		goto exit_kzalloc;
 	}
 
 	ret = ak09916c_parse_dt(data, &client->dev);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - of_node error\n", __func__);
-		ret = -ENODEV;
+		SENSOR_ERR("of_node error\n");
 		goto exit_of_node;
 	}
+
+	ak09916c_vdd_onoff(data, ON);
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
 
 	ret = ak09916c_check_device(data);
 	if (ret < 0) {
-		pr_err("[SENSOR] %s - check_device fail (err=%d)\n",
-			__func__, ret);
+		SENSOR_ERR("check_device fail (err=%d)\n", ret);
 		goto exit_set_mode_check_device;
 	}
-
-	pm_qos_add_request(&data->pm_qos_req,
-		PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
 	/* input device init */
 	ret = ak09916c_input_init(data);
@@ -981,33 +1035,45 @@ static int ak09916c_probe(struct i2c_client *client,
 		MODULE_NAME);
 
 	/* workqueue init */
-	INIT_DELAYED_WORK(&data->work, ak09916c_work_func);
+	hrtimer_init(&data->mag_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	data->delay = ns_to_ktime(AK09916C_DEFAULT_DELAY);
+	data->mag_timer.function = ak09916c_timer_func;
+
+	data->wq = create_singlethread_workqueue("mag_wq");
+	if (!data->wq) {
+		ret = -ENOMEM;
+		SENSOR_ERR("could not create accel workqueue\n");
+		goto exit_input_init;
+	}
+
+	INIT_WORK(&data->mag_work, ak09916c_work_func);
+
 	mutex_init(&data->lock);
-#ifdef CONFIG_SENSORS_SW_RESET
+#ifdef CONFIG_SENSORS_BHA250_DEFENCE_SW_RESET
 	data->reset_state = 0;
 #endif
 	mutex_init(&data->enable_lock);
 
-	atomic_set(&data->delay, AK09916C_DEFAULT_DELAY);
 	atomic_set(&data->enable, 0);
 
 	data->asa[0] = 128;
 	data->asa[1] = 128;
 	data->asa[2] = 128;
+	data->cal_reset_flag = 0;
 
-	pr_info("[SENSOR]: %s - Probe done!(chip pos : %d)\n",
-		__func__, data->chip_pos);
+	SENSOR_INFO("done!(chip pos : %d)\n", data->chip_pos);
 
 	return 0;
 
 exit_input_init:
-	pm_qos_remove_request(&data->pm_qos_req);
 exit_set_mode_check_device:
+	if (data->ak09916c_ldo_pin)
+		gpio_free(data->ak09916c_ldo_pin);
 exit_of_node:
 	kfree(data);
 exit_kzalloc:
 exit:
-	pr_err("[SENSOR]: %s - Probe fail!\n", __func__);
+	SENSOR_ERR("fail\n");
 	return ret;
 }
 
@@ -1016,31 +1082,17 @@ static void ak09916c_shutdown(struct i2c_client *client)
 	struct ak09916c_p *data =
 			(struct ak09916c_p *)i2c_get_clientdata(client);
 
-	pr_info("[SENSOR]: %s\n", __func__);
+	SENSOR_INFO("\n");
 	if (atomic_read(&data->enable) == 1) {
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
-		cancel_delayed_work_sync(&data->work);
+		cancel_work_sync(&data->mag_work);
+		hrtimer_cancel(&data->mag_timer);
 	}
 }
 
 static int ak09916c_remove(struct i2c_client *client)
 {
-	struct ak09916c_p *data =
-			(struct ak09916c_p *)i2c_get_clientdata(client);
-
-	if (atomic_read(&data->enable) == 1)
-		ak09916c_set_enable(data, 0);
-	mutex_destroy(&data->lock);
-	mutex_destroy(&data->enable_lock);
-
-	sensors_unregister(data->factory_device, sensor_attrs);
-	sensors_remove_symlink(&data->input->dev.kobj, data->input->name);
-	pm_qos_remove_request(&data->pm_qos_req);
-
-	sysfs_remove_group(&data->input->dev.kobj, &ak09916c_attribute_group);
-	input_unregister_device(data->input);
-	kfree(data);
-
+	SENSOR_INFO("\n");
 	return 0;
 }
 
@@ -1049,7 +1101,8 @@ static int ak09916c_suspend(struct device *dev)
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 
 	if (atomic_read(&data->enable) == 1) {
-		cancel_delayed_work_sync(&data->work);
+		cancel_work_sync(&data->mag_work);
+		hrtimer_cancel(&data->mag_timer);
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
 	}
 
@@ -1062,8 +1115,8 @@ static int ak09916c_resume(struct device *dev)
 
 	if (atomic_read(&data->enable) == 1) {
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
-		schedule_delayed_work(&data->work,
-			nsecs_to_jiffies(atomic_read(&data->delay)));
+		hrtimer_start(&data->mag_timer, data->delay,
+						HRTIMER_MODE_REL);
 	}
 
 	return 0;

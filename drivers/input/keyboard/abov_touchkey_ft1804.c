@@ -2995,7 +2995,9 @@ static int abov_power(void *data, bool on)
 				return ret;
 			}
 		}
+		abov_led_power(info, on);
 	} else {
+		abov_led_power(info, on);
 		if (info->pdata->dvdd_vreg) {
 			ret = regulator_disable(info->pdata->dvdd_vreg);
 			if(ret){
@@ -3005,8 +3007,6 @@ static int abov_power(void *data, bool on)
 		}
 	}
 	regulator_put(info->pdata->dvdd_vreg);
-
-	abov_led_power(info, on);
 
 	input_info(true, &client->dev, "%s %s\n", __func__, on ? "on" : "off");
 
@@ -3544,6 +3544,9 @@ static int abov_tk_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct abov_tk_info *info = i2c_get_clientdata(client);
 	u8 led_data;
+#ifdef CONFIG_TOUCHKEY_LIGHT_EFS
+	int ret = 0;
+#endif
 
 	if (info->enabled) {
 		input_info(true, &client->dev, "%s: already power on\n", __func__);
@@ -3560,6 +3563,19 @@ static int abov_tk_resume(struct device *dev)
 		get_tk_fw_version(info, true);
 
 	info->enabled = true;
+
+#ifdef CONFIG_TOUCHKEY_LIGHT_EFS
+	/*led dimming */
+	ret = abov_tk_i2c_write(info->client, ABOV_LED_BACK, &info->light_reg, 1);
+	if (ret < 0) {
+		input_err(true, &info->client->dev, "%s led dimming back key write fail(%d)\n", __func__, ret);
+	}
+
+	ret = abov_tk_i2c_write(info->client, ABOV_LED_RECENT, &info->light_reg, 1);
+	if (ret < 0) {
+		input_err(true, &info->client->dev, "%s led dimming recent key write fail(%d)\n", __func__, ret);
+	}
+#endif
 
 	if (abov_touchled_cmd_reserved && \
 		abov_touchkey_led_status == CMD_LED_ON) {

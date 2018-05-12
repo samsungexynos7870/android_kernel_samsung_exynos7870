@@ -48,6 +48,11 @@
 static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 			muic_attached_dev_t new_dev, int adc, u8 vbvolt);
 static void s2mu005_muic_handle_detach(struct s2mu005_muic_data *muic_data);
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+static void s2mu005_muic_set_water_wa(struct s2mu005_muic_data *muic_data, bool en);
+static int s2mu005_i2c_update_bit(struct i2c_client *i2c,
+			u8 reg, u8 mask, u8 shift, u8 value);
+#endif
 
 /*
 #define DEBUG_MUIC
@@ -174,6 +179,27 @@ static int s2mu005_i2c_write_byte(struct i2c_client *client,
 #endif
 	return ret;
 }
+
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+static int s2mu005_i2c_update_bit(struct i2c_client *i2c,
+			u8 reg, u8 mask, u8 shift, u8 value)
+{
+	int ret;
+	u8 reg_val = 0;
+
+	reg_val = s2mu005_i2c_read_byte(i2c, reg);
+	reg_val &= ~mask;
+	reg_val |= value << shift;
+	ret = s2mu005_i2c_write_byte(i2c, reg, reg_val);
+	pr_info("[update_bit:%s] reg(0x%x):  value(0x%x)\n", __func__, reg, reg_val);
+	if (ret < 0) {
+		pr_err("%s: Reg = 0x%X, mask = 0x%X, val = 0x%X write err : %d\n",
+				__func__, reg, mask, value, ret);
+	}
+
+	return ret;
+}
+#endif
 
 #if defined(GPIO_DOC_SWITCH)
 static int s2mu005_set_gpio_doc_switch(int val)
@@ -309,6 +335,38 @@ static int init_otg_reg(struct s2mu005_muic_data *muic_data)
 	return ret;
 }
 #endif
+
+static int set_jig_sw(struct s2mu005_muic_data *muic_data, bool en)
+{
+	struct i2c_client *i2c = muic_data->i2c;
+	bool cur = false;
+	int reg_val = 0, ret = 0;
+
+	reg_val = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_SW_CTRL);
+	if (reg_val < 0)
+		pr_err("%s:%s failed to read 0x%x\n", MUIC_DEV_NAME, __func__, reg_val);
+
+	cur = !!(reg_val & MANUAL_SW_JIG_EN);
+
+	if (!muic_data->jigonb_enable)
+		en = false;
+
+	if (en != cur) {
+		pr_info("%s:%s  0x%x != 0x%x, update\n", MUIC_DEV_NAME, __func__,
+			reg_val, reg_val);
+
+		if (en)
+			reg_val |= (MANUAL_SW_JIG_EN);
+		else
+			reg_val &= ~(MANUAL_SW_JIG_EN);
+
+		ret = s2mu005_i2c_write_byte(i2c, S2MU005_REG_MUIC_SW_CTRL, reg_val);
+		if (ret < 0)
+			pr_err("%s:%s failed to write 0x%x\n", MUIC_DEV_NAME, __func__, reg_val);
+	}
+
+	return ret;
+}
 
 static ssize_t s2mu005_muic_show_uart_en(struct device *dev,
 						struct device_attribute *attr, char *buf)
@@ -530,6 +588,34 @@ static ssize_t s2mu005_muic_show_usb_en(struct device *dev,
 						MUIC_DEV_NAME, __func__, muic_data->attached_dev);
 }
 
+static ssize_t s2mu005_muic_jig_disable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct s2mu005_muic_data *muic_data = dev_get_drvdata(dev);
+
+	if (muic_data->jig_disable)
+		return sprintf(buf, "DISABLE\n");
+	else
+		return sprintf(buf, "ENABLE\n");
+}
+
+static ssize_t s2mu005_muic_jig_disable_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct s2mu005_muic_data *muic_data = dev_get_drvdata(dev);
+
+	pr_info("%s:%s : %s\n", MUIC_DEV_NAME, __func__, buf);
+	if (!strncasecmp(buf, "DISABLE", 7)) {
+		muic_data->jig_disable = true;
+		set_jig_sw(muic_data, false);
+	} else {
+		muic_data->jig_disable = false;
+		set_jig_sw(muic_data, true);
+	}
+
+	return count;
+}
+
 static ssize_t s2mu005_muic_show_attached_dev(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -640,6 +726,29 @@ static ssize_t s2mu005_muic_set_apo_factory(struct device *dev,
 	return count;
 }
 
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+static void s2mu005_muic_set_water_wa(struct s2mu005_muic_data *muic_data, bool en)
+{
+	struct i2c_client *i2c = muic_data->i2c;
+
+	muic_data->is_water_wa = en;
+	pr_info("%s: en : (%d)\n", __func__, (int)en);
+	if (en) {
+		/* W/A apply */
+		s2mu005_i2c_update_bit(i2c,
+				S2MU005_REG_MUIC_LDOADC_VSETH, LDOADC_VSET_MASK, 0, LDOADC_VSET_1_2V);
+		usleep_range(WATER_TOGGLE_WA_MIN_DURATION_US, WATER_TOGGLE_WA_MAX_DURATION_US);
+		s2mu005_i2c_update_bit(i2c,
+				S2MU005_REG_MUIC_LDOADC_VSETH, LDOADC_VSET_MASK, 0, LDOADC_VSET_1_5V);
+	} else {
+		/* W/A unapply */
+		s2mu005_i2c_update_bit(i2c,
+				S2MU005_REG_MUIC_LDOADC_VSETH, LDOADC_VSET_MASK, 0, LDOADC_VSET_3V);
+	}
+	return;
+}
+#endif
+
 static DEVICE_ATTR(uart_en, 0664, s2mu005_muic_show_uart_en,
 					s2mu005_muic_set_uart_en);
 static DEVICE_ATTR(adc, 0664, s2mu005_muic_show_adc, NULL);
@@ -659,6 +768,8 @@ static DEVICE_ATTR(apo_factory, 0664, s2mu005_muic_show_apo_factory,
 					s2mu005_muic_set_apo_factory);
 static DEVICE_ATTR(usb_en, 0664, s2mu005_muic_show_usb_en,
 					s2mu005_muic_set_usb_en);
+static DEVICE_ATTR(jig_disable, 0664, s2mu005_muic_jig_disable_show,
+					s2mu005_muic_jig_disable_store);
 
 static struct attribute *s2mu005_muic_attributes[] = {
 	&dev_attr_uart_en.attr,
@@ -676,6 +787,7 @@ static struct attribute *s2mu005_muic_attributes[] = {
 	&dev_attr_is_jig_powered.attr,
 	&dev_attr_apo_factory.attr,
 	&dev_attr_usb_en.attr,
+	&dev_attr_jig_disable.attr,
 	NULL
 };
 
@@ -725,26 +837,25 @@ static int set_com_sw(struct s2mu005_muic_data *muic_data,
 	struct i2c_client *i2c = muic_data->i2c;
 	int ret = 0;
 	int temp = 0;
-
+	int res = 0;
 	/*  --- MANSW [7:5][4:2][1][0] : DM DP RSVD JIG  --- */
 	temp = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_SW_CTRL);
 	if (temp < 0)
 		pr_err("%s:%s: err read MANSW(0x%x)\n", MUIC_DEV_NAME, __func__, temp);
+	if (muic_data->jigonb_enable && !muic_data->jig_disable)
+		reg_val |= (MANUAL_SW_JIG_EN);
 
-	if ((reg_val & MANUAL_SW_DM_DP_MASK) != (temp & MANUAL_SW_DM_DP_MASK)) {
+	if (reg_val != temp) {
 		pr_info("%s:%s: 0x%x != 0x%x, update\n", MUIC_DEV_NAME, __func__,
-			(reg_val & MANUAL_SW_DM_DP_MASK), (temp & MANUAL_SW_DM_DP_MASK));
+			reg_val, temp);
 
-		ret = s2mu005_i2c_write_byte(i2c,
-			S2MU005_REG_MUIC_SW_CTRL, ((reg_val & MANUAL_SW_DM_DP_MASK)|(temp & 0x03)));
+		ret = s2mu005_i2c_write_byte(i2c, S2MU005_REG_MUIC_SW_CTRL, reg_val);
 		if (ret < 0)
-			pr_err("%s:%s: err write MANSW(0x%x)\n", MUIC_DEV_NAME, __func__,
-				((reg_val & MANUAL_SW_DM_DP_MASK)|(temp & 0x03)));
+			pr_err("%s:%s: err write MANSW(0x%x)\n", MUIC_DEV_NAME, __func__, reg_val);
 	}
-	else {
-		pr_info("%s:%s: MANSW reg(0x%x), just pass\n", MUIC_DEV_NAME, __func__, reg_val);
-	}
-
+	res = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_SW_CTRL);
+	if (res < 0)
+		pr_err("%s:%s: err read MANSW(0x%x)\n", MUIC_DEV_NAME, __func__, res);
 	return ret;
 }
 
@@ -853,7 +964,7 @@ static int attach_usb(struct s2mu005_muic_data *muic_data)
 	return ret;
 }
 
-static int attach_jig_uart_boot_off(struct s2mu005_muic_data *muic_data)
+static int attach_jig_uart_boot_on_off(struct s2mu005_muic_data *muic_data)
 {
 	struct muic_platform_data *pdata = muic_data->pdata;
 	int ret = 0;
@@ -868,20 +979,6 @@ static int attach_jig_uart_boot_off(struct s2mu005_muic_data *muic_data)
 	return ret;
 }
 
-#if 0
-static int attach_jig_uart_boot_on(struct s2mu005_muic_data *muic_data)
-{
-	int ret = 0;
-
-	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
-
-	ret = set_com_sw(muic_data, MANSW_OPEN);
-	if (ret)
-		pr_err( "%s:%s: set_com_sw err\n", MUIC_DEV_NAME, __func__);
-
-	return ret;
-}
-#endif
 
 static int attach_jig_usb_boot_on_off(struct s2mu005_muic_data *muic_data)
 {
@@ -896,9 +993,38 @@ static int attach_jig_usb_boot_on_off(struct s2mu005_muic_data *muic_data)
 	return ret;
 }
 
+#ifdef CONFIG_MUIC_S2MU005_INNER_BATTERY
+/* Power-off SW work-around by disconnecting JIG cable for EVT4
+ * in case of In-battery model
+ */
+static void s2mu005_muic_power_off(struct s2mu005_muic_data *muic_data, int on)
+{
+	struct i2c_client *i2c = muic_data->i2c;
+	int ret = 0;
+
+	if (muic_data->muic_version >= 4) {
+		if (on) {
+			/* 0x27[0]=0 */
+			ret = s2mu005_i2c_read_byte(i2c, 0x27);
+			ret |= 0x30;
+			s2mu005_i2c_write_byte(i2c, 0x27, (u8)ret);
+		} else {
+			/* 0x27[0]=1 : default */
+			ret = s2mu005_i2c_read_byte(i2c, 0x27);
+			ret &= ~0x30;
+			ret |= 0x10;
+			s2mu005_i2c_write_byte(i2c, 0x27, (u8)ret);
+		}
+	}
+	pr_info("%s:%s: 0x27:0x%x, rev_id(%d)\n", MUIC_DEV_NAME,
+			__func__, ret, muic_data->muic_version);
+}
+#endif
+
 static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 			muic_attached_dev_t new_dev, int adc, u8 vbvolt)
 {
+	struct muic_platform_data *pdata = muic_data->pdata;
 	int ret = 0;
 	bool noti = (new_dev != muic_data->attached_dev) ? true : false;
 
@@ -926,6 +1052,9 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 #if defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)		
 	case ATTACHED_DEV_CARKIT_MUIC:
 #endif
+#ifdef CONFIG_MUIC_S2MU005_INNER_BATTERY
+		s2mu005_muic_power_off(muic_data, 0);
+#endif
 		s2mu005_muic_handle_detach(muic_data);
                 break;
 	case ATTACHED_DEV_DESKDOCK_MUIC:
@@ -935,6 +1064,9 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 		case ATTACHED_DEV_DESKDOCK_VB_MUIC:
 			break;
 		default:
+#ifdef CONFIG_MUIC_S2MU005_INNER_BATTERY
+		s2mu005_muic_power_off(muic_data, 0);
+#endif
 			s2mu005_muic_handle_detach(muic_data);
 			break;
 		}
@@ -944,6 +1076,7 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 	}
 	pr_info("%s:%s: new(%d)!=attached(%d)\n", MUIC_DEV_NAME, __func__,
 							new_dev, muic_data->attached_dev);
+	muic_data->jigonb_enable = false;
 
 	/* Attach Accessary */
 	noti = true;
@@ -961,18 +1094,38 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 		break;
 	case ATTACHED_DEV_JIG_UART_OFF_VB_MUIC:
 	case ATTACHED_DEV_JIG_UART_OFF_MUIC:
-		ret = attach_jig_uart_boot_off(muic_data);
+#ifdef CONFIG_MUIC_S2MU005_INNER_BATTERY 
+		s2mu005_muic_power_off(muic_data, 1); 
+#endif 
+		if (pdata->is_new_factory)
+#if !IS_ENABLED(CONFIG_SEC_FACTORY)
+			muic_data->jigonb_enable = false;
+#else
+			muic_data->jigonb_enable = true;
+#endif	
+		else
+			muic_data->jigonb_enable = true;
+		ret = attach_jig_uart_boot_on_off(muic_data);
 		break;
 	case ATTACHED_DEV_JIG_UART_ON_MUIC:
-		/* Workaround for EVT0, EVT1: 619k works same with 523k */
-		pr_info("%s:%s: 619K -> 523K switch W/A\n", MUIC_DEV_NAME, __func__);
-		ret = attach_jig_uart_boot_off(muic_data);
+		if (pdata->is_new_factory)
+			muic_data->jigonb_enable = false;
+		else
+			muic_data->jigonb_enable = true;
+		ret = attach_jig_uart_boot_on_off(muic_data);
 		break;
+	case ATTACHED_DEV_JIG_USB_OFF_MUIC:
+#ifdef CONFIG_MUIC_S2MU005_INNER_BATTERY 
+		s2mu005_muic_power_off(muic_data, 1); 
+#endif 
 #if defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)		
 	case ATTACHED_DEV_CARKIT_MUIC:
 #endif
-	case ATTACHED_DEV_JIG_USB_OFF_MUIC:
 	case ATTACHED_DEV_JIG_USB_ON_MUIC:
+		if (pdata->is_new_factory)
+			muic_data->jigonb_enable = false;
+		else
+			muic_data->jigonb_enable = true;
 		ret = attach_jig_usb_boot_on_off(muic_data);
 		break;
 	case ATTACHED_DEV_DESKDOCK_MUIC:
@@ -1005,6 +1158,8 @@ static void s2mu005_muic_handle_detach(struct s2mu005_muic_data *muic_data)
 	int ret = 0;
 	bool noti = true;
 
+	muic_data->jigonb_enable = false;
+	
 	if (muic_data->attached_dev == ATTACHED_DEV_NONE_MUIC) {
 		pr_info("%s:%s: Detach duplicated(NONE)\n", MUIC_DEV_NAME, __func__);
 		goto out_without_noti;
@@ -1024,6 +1179,31 @@ static void s2mu005_muic_handle_detach(struct s2mu005_muic_data *muic_data)
 out_without_noti:
 	ret = com_to_open(muic_data);
 	muic_data->attached_dev = ATTACHED_DEV_NONE_MUIC;
+}
+
+static void update_jig_state(struct s2mu005_muic_data *muic_data)
+{
+	struct muic_platform_data *pdata = muic_data->pdata;
+	int jig_state;
+
+	switch (muic_data->attached_dev) {
+	case ATTACHED_DEV_JIG_UART_OFF_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_MUIC:     /* VBUS enabled */
+	case ATTACHED_DEV_JIG_UART_OFF_VB_OTG_MUIC:    /* for otg test */
+	case ATTACHED_DEV_JIG_UART_OFF_VB_FG_MUIC:    /* for fg test */
+	case ATTACHED_DEV_JIG_UART_ON_MUIC:
+	case ATTACHED_DEV_JIG_UART_ON_VB_MUIC:       /* VBUS enabled */
+	case ATTACHED_DEV_JIG_USB_OFF_MUIC:
+	case ATTACHED_DEV_JIG_USB_ON_MUIC:
+		jig_state = true;
+		break;
+	default:
+		jig_state = false;
+		break;
+	}
+	pr_info("%s jig_state : %d\n", __func__, jig_state);
+
+	pdata->jig_uart_cb(jig_state);
 }
 
 static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
@@ -1324,6 +1504,9 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 		s2mu005_muic_handle_detach(muic_data);
 	}
 
+	if (muic_data->pdata->jig_uart_cb)
+		update_jig_state(muic_data);
+
 #if defined(CONFIG_VBUS_NOTIFIER)
 	vbus_notifier_handle((!!vbvolt) ? STATUS_VBUS_HIGH : STATUS_VBUS_LOW);
 #endif /* CONFIG_VBUS_NOTIFIER */
@@ -1368,6 +1551,10 @@ static int s2mu005_muic_reg_init(struct s2mu005_muic_data *muic_data)
 
 	ctrl1 = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_CTRL1);
 	pr_info("%s:%s: CTRL1:0x%02x\n", MUIC_DEV_NAME, __func__, ctrl1);
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+	s2mu005_i2c_write_byte(i2c, S2MU005_REG_MUIC_LDOADC_VSETL, LDOADC_VSET_3V);
+	s2mu005_i2c_write_byte(i2c, S2MU005_REG_MUIC_LDOADC_VSETH, LDOADC_VSET_3V);
+#endif
 
 	return ret;
 }
@@ -1378,12 +1565,40 @@ static irqreturn_t s2mu005_muic_irq_thread(int irq, void *data)
 	struct i2c_client *i2c = muic_data->i2c;
 	enum s2mu005_reg_manual_sw_value reg_val;
 	int ctrl, ret = 0;
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+	int vbvolt = 0, adc = 0;
+#endif
 
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
 
 	mutex_lock(&muic_data->muic_mutex);
 	wake_lock(&muic_data->wake_lock);
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+	vbvolt = !!(s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_DEVICE_APPLE) 
+				& DEV_TYPE_APPLE_VBUS_WAKEUP);
+	adc = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_ADC) & ADC_MASK;
+	pr_info("%s:%s vbvolt : %d, adc: 0x%X, irq : %d\n",
+				MFD_DEV_NAME, __func__, vbvolt, adc, irq);
 
+	if (!vbvolt) {
+		if (IS_AUDIO_ADC(adc) && !muic_data->is_water_wa) {
+			if (irq == muic_data->irq_adc_change) {
+				s2mu005_muic_set_water_wa(muic_data, true);
+			}
+		} else if (IS_WATER_ADC(adc) && !muic_data->is_water_wa) {
+			if (irq == muic_data->irq_attach) {
+				s2mu005_muic_set_water_wa(muic_data, true);
+			}
+		}
+	}
+
+	if (adc == ADC_OPEN
+		&& irq ==  muic_data->irq_adc_change
+		&& muic_data->is_water_wa) {
+		usleep_range(WATER_TOGGLE_WA_MIN_DURATION_US, WATER_TOGGLE_WA_MAX_DURATION_US);
+		s2mu005_muic_set_water_wa(muic_data, false);
+	}
+#endif
 	/* check for muic reset and re-initialize registers */
 	ctrl = s2mu005_i2c_read_byte(i2c, S2MU005_REG_MUIC_CTRL1);
 
@@ -1522,6 +1737,7 @@ static void s2mu005_muic_free_irqs(struct s2mu005_muic_data *muic_data)
 static int of_s2mu005_muic_dt(struct device *dev, struct s2mu005_muic_data *muic_data)
 {
 	struct device_node *np, *np_muic;
+	struct muic_platform_data *pdata = muic_data->pdata;
 	int ret = 0;
 	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
 
@@ -1531,7 +1747,7 @@ static int of_s2mu005_muic_dt(struct device *dev, struct s2mu005_muic_data *muic
 		return -ENODEV;
 	}
 
-	np_muic = of_find_node_by_name(np, "muic");
+	np_muic = of_find_node_by_name(NULL, "muic");
 	if (!np_muic) {
 		pr_err("%s:%s: could not find muic sub-node np_muic\n", MUIC_DEV_NAME, __func__);
 		return -EINVAL;
@@ -1544,7 +1760,7 @@ static int of_s2mu005_muic_dt(struct device *dev, struct s2mu005_muic_data *muic
 	} else
 		muic_data->pdata->gpio_uart_sel = of_get_gpio(np_muic, 0);
 #endif
-
+	pdata->is_new_factory = of_property_read_bool(np_muic, "new_factory");
 	return ret;
 }
 #endif /* CONFIG_OF */
@@ -1593,6 +1809,11 @@ static int s2mu005_muic_probe(struct platform_device *pdev)
 	muic_data->is_factory_start = false;
 	muic_data->attached_dev = ATTACHED_DEV_UNKNOWN_MUIC;
 	muic_data->is_usb_ready = false;
+	muic_data->jigonb_enable = false;
+	muic_data->jig_disable = false;
+#if !defined (CONFIG_SEC_FACTORY) && !defined (CONFIG_MUIC_S2MU005_WATER_WA_DISABLE)
+	muic_data->is_water_wa = false;
+#endif
 	platform_set_drvdata(pdev, muic_data);
 
 	if (muic_data->pdata->init_gpio_cb)
@@ -1685,28 +1906,34 @@ static int s2mu005_muic_remove(struct platform_device *pdev)
 
 static void s2mu005_muic_shutdown(struct device *dev)
 {
-	struct s2mu005_muic_data *muic_data = dev_get_drvdata(dev);
-	int ret;
+#if !defined(CONFIG_MUIC_S2MU005_JIGB_CONTROL)
+		struct s2mu005_muic_data *muic_data = dev_get_drvdata(dev);
+		int ret;
+#endif
+	
+		pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
+		
+#if !defined(CONFIG_MUIC_S2MU005_JIGB_CONTROL)
+		if (!muic_data->i2c) {
+			pr_err( "%s:%s: no muic i2c client\n", MUIC_DEV_NAME, __func__);
+			return;
+		}
+	
+		pr_info("%s:%s: open D+,D-,V_bus line\n", MUIC_DEV_NAME, __func__);
+		ret = com_to_open(muic_data);
+		if (ret < 0)
+			pr_err( "%s:%s: fail to open mansw\n", MUIC_DEV_NAME, __func__);
+	
+		/* set auto sw mode before shutdown to make sure device goes into */
+		/* LPM charging when TA or USB is connected during off state */
+		pr_info("%s:%s: muic auto detection enable\n", MUIC_DEV_NAME, __func__);
+		ret = set_ctrl_reg(muic_data, CTRL_MANUAL_SW_SHIFT, true);
+		if (ret < 0) {
+			pr_err( "%s:%s: fail to update reg\n", MUIC_DEV_NAME, __func__);
+			return;
+		}
+#endif
 
-	pr_info("%s:%s\n", MUIC_DEV_NAME, __func__);
-	if (!muic_data->i2c) {
-		pr_err( "%s:%s: no muic i2c client\n", MUIC_DEV_NAME, __func__);
-		return;
-	}
-
-	pr_info("%s:%s: open D+,D-,V_bus line\n", MUIC_DEV_NAME, __func__);
-	ret = com_to_open(muic_data);
-	if (ret < 0)
-		pr_err( "%s:%s: fail to open mansw\n", MUIC_DEV_NAME, __func__);
-
-	/* set auto sw mode before shutdown to make sure device goes into */
-	/* LPM charging when TA or USB is connected during off state */
-	pr_info("%s:%s: muic auto detection enable\n", MUIC_DEV_NAME, __func__);
-	ret = set_ctrl_reg(muic_data, CTRL_MANUAL_SW_SHIFT, true);
-	if (ret < 0) {
-		pr_err( "%s:%s: fail to update reg\n", MUIC_DEV_NAME, __func__);
-		return;
-	}
 }
 
 #if defined CONFIG_PM

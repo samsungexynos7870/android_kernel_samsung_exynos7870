@@ -158,6 +158,40 @@ static inline void ion_buffer_page_clean(struct page **page)
 	*page = (struct page *)((unsigned long)(*page) & ~(1UL));
 }
 
+void ion_debug_heap_usage_show(struct ion_heap *heap)
+{
+	struct scatterlist *sg;
+	struct sg_table *table;
+	struct rb_node *n;
+	struct page *page;
+	struct ion_device *dev = heap->dev;
+	int i;
+	ion_phys_addr_t paddr;
+
+	/* show the usage for only contiguous buffer */
+	if ((heap->type != ION_HEAP_TYPE_CARVEOUT)
+			&& (heap->type != ION_HEAP_TYPE_DMA))
+		return;
+
+	pr_err("[HEAP %16s (id %4d) DETAIL USAGE]\n", heap->name, heap->id);
+
+	mutex_lock(&dev->buffer_lock);
+	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
+		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
+						     node);
+		if (buffer->heap->id != heap->id)
+			continue;
+		table = buffer->sg_table;
+		for_each_sg(table->sgl, sg, table->nents, i) {
+			page = sg_page(sg);
+			paddr = PFN_PHYS(page_to_pfn(page));
+			pr_err("[%16lx--%16lx] %16zu\n",
+				paddr, paddr + sg->length, buffer->size);
+		}
+	}
+	mutex_unlock(&dev->buffer_lock);
+}
+
 #ifdef CONFIG_ION_EXYNOS_STAT_LOG
 static inline void ION_EVENT_ALLOC(struct ion_buffer *buffer, ktime_t begin)
 {
@@ -734,8 +768,10 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 	struct ion_handle *entry;
 
 	id = idr_alloc(&client->idr, handle, 1, 0, GFP_KERNEL);
-	if (id < 0)
+	if (id < 0) {
+		pr_err("%s: Fail to get bad id (ret %d)\n", __func__, id);
 		return id;
+	}
 
 	handle->id = id;
 
@@ -757,7 +793,7 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 	return 0;
 }
 
-int ion_parse_heap_id(unsigned int heap_id_mask, unsigned int flags);
+unsigned int ion_parse_heap_id(unsigned int heap_id_mask, unsigned int flags);
 
 static struct ion_handle *__ion_alloc(struct ion_client *client, size_t len,
 			     size_t align, unsigned int heap_id_mask,
@@ -787,9 +823,14 @@ static struct ion_handle *__ion_alloc(struct ion_client *client, size_t len,
 		return ERR_PTR(-EINVAL);
 	}
 
-	down_read(&dev->lock);
 	heap_id_mask = ion_parse_heap_id(heap_id_mask, flags);
+	if (heap_id_mask == 0) {
+		trace_ion_alloc_fail(client->name, EINVAL, len,
+				align, heap_id_mask, flags);
+		return ERR_PTR(-EINVAL);
+	}
 
+	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
@@ -1049,9 +1090,8 @@ static int ion_debug_client_show(struct seq_file *s, void *unused)
 		return -EINVAL;
 	}
 
-	seq_printf(s, "%16.s %16.s %4.s %16.s %4.s %10.s %8.s %9.s\n",
-			"buffer", "task", "pid", "thread", "tid", "size",
-			"# procs", "flag");
+	seq_printf(s, "%16.s %4.s %16.s %4.s %10.s %8.s %9.s\n",
+		   "task", "pid", "thread", "tid", "size", "# procs", "flag");
 	seq_printf(s, "----------------------------------------------"
 			"--------------------------------------------\n");
 
@@ -1066,8 +1106,8 @@ static int ion_debug_client_show(struct seq_file *s, void *unused)
 			names[id] = buffer->heap->name;
 		sizes[id] += buffer->size;
 		sizes_pss[id] += (buffer->size / buffer->handle_count);
-		seq_printf(s, "%16p %16.s %4u %16.s %4u %10zu %8d %9lx\n",
-				buffer, buffer->task_comm, buffer->pid,
+		seq_printf(s, "%16.s %4u %16.s %4u %10zu %8d %9lx\n",
+			   buffer->task_comm, buffer->pid,
 				buffer->thread_comm, buffer->tid, buffer->size,
 				buffer->handle_count, buffer->flags);
 	}
@@ -1603,13 +1643,13 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 		mutex_unlock(&client->lock);
 		goto end;
 	}
-	mutex_unlock(&client->lock);
 
 	handle = ion_handle_create(client, buffer);
-	if (IS_ERR(handle))
+	if (IS_ERR(handle)) {
+		mutex_unlock(&client->lock);
 		goto end;
+	}
 
-	mutex_lock(&client->lock);
 	ret = ion_handle_add(client, handle);
 	mutex_unlock(&client->lock);
 	if (ret) {
@@ -1668,8 +1708,18 @@ static int ion_sync_for_device(struct ion_client *client, int fd)
 				buffer->sg_table->nents, DMA_BIDIRECTIONAL,
 				ion_buffer_flush, false);
 	} else {
-		dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
-					buffer->sg_table->nents, DMA_BIDIRECTIONAL);
+		struct scatterlist *sg, *sgl;
+		int nelems;
+		void *vaddr;
+		int i = 0;
+
+		sgl = buffer->sg_table->sgl;
+		nelems = buffer->sg_table->nents;
+
+		for_each_sg(sgl, sg, nelems, i) {
+			vaddr = phys_to_virt(sg_phys(sg));
+			__dma_flush_range(vaddr, vaddr + sg->length);
+		}
 	}
 
 	trace_ion_sync_end(_RET_IP_, buffer->dev->dev.this_device,
@@ -1849,8 +1899,14 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 						data.allocation.align,
 						data.allocation.heap_id_mask,
 						data.allocation.flags, true);
-		if (IS_ERR(handle))
+		if (IS_ERR(handle)) {
+			pr_err("%s: len %zu align %zu heap_id_mask %u flags %x (ret %ld)\n",
+				__func__, data.allocation.len,
+				data.allocation.align,
+				data.allocation.heap_id_mask,
+				data.allocation.flags, PTR_ERR(handle));
 			return PTR_ERR(handle);
+		}
 		pass_to_user(handle);
 		data.allocation.handle = handle->id;
 

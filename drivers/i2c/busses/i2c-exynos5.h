@@ -55,6 +55,7 @@ struct exynos5_i2c {
 	int			use_old_timing_values;
 	unsigned int		transfer_delay;
 	unsigned int		sda_trigger_timing;
+	int			scl_extended_low;
 #ifdef CONFIG_EXYNOS_APM
 	int			use_apm_mode;
 #endif

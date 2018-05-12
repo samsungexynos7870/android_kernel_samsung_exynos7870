@@ -112,6 +112,7 @@
 
 #define MIP_ALERT_ESD					1
 #define MIP_ALERT_WAKEUP				2
+#define MIP_ALERT_SRAM_FAILURE			6
 
 #define MIP_CTRL_STATUS_NONE				0x05
 #define MIP_CTRL_STATUS_READY				0xA0

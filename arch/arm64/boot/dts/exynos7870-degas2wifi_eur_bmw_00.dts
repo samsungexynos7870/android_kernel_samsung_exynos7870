@@ -532,4 +532,8 @@
 		status = "okay";
 	};
 
+	dsim_0: dsim@14800000 {
+		decon_board = <&decon_board_old>;
+	};
+
 };

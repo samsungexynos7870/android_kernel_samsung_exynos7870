@@ -70,9 +70,10 @@ struct sec_nfc_i2c_info {};
 
 #define SEC_NFC_GET_INFO(dev) i2c_get_clientdata(to_i2c_client(dev))
 enum sec_nfc_irq {
+	SEC_NFC_SKIP = -1,
 	SEC_NFC_NONE,
 	SEC_NFC_INT,
-	SEC_NFC_SKIP,
+	SEC_NFC_READ_TIMES,
 };
 
 struct sec_nfc_i2c_info {
@@ -139,7 +140,7 @@ static irqreturn_t sec_nfc_irq_thread_fn(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	info->i2c_info.read_irq = SEC_NFC_INT;
+	info->i2c_info.read_irq += SEC_NFC_READ_TIMES;
 	mutex_unlock(&info->i2c_info.read_mutex);
 
 	wake_up_interruptible(&info->i2c_info.read_wait);
@@ -178,6 +179,14 @@ static ssize_t sec_nfc_read(struct file *file, char __user *buf,
 	}
 
 	mutex_lock(&info->i2c_info.read_mutex);
+	if(count == 0)
+	{
+		if (info->i2c_info.read_irq >= SEC_NFC_INT)
+			info->i2c_info.read_irq--;
+		mutex_unlock(&info->i2c_info.read_mutex);
+		goto out;
+	}
+
 	irq = info->i2c_info.read_irq;
 	mutex_unlock(&info->i2c_info.read_mutex);
 	if (irq == SEC_NFC_NONE) {
@@ -213,7 +222,12 @@ static ssize_t sec_nfc_read(struct file *file, char __user *buf,
 		goto read_error;
 	}
 
-	info->i2c_info.read_irq = SEC_NFC_NONE;
+	if (info->i2c_info.read_irq >= SEC_NFC_INT)
+		info->i2c_info.read_irq--;
+
+	if(info->i2c_info.read_irq == SEC_NFC_READ_TIMES)
+		wake_up_interruptible(&info->i2c_info.read_wait);
+
 	mutex_unlock(&info->i2c_info.read_mutex);
 
 	if (copy_to_user(buf, info->i2c_info.buf, ret)) {
@@ -318,7 +332,7 @@ static unsigned int sec_nfc_poll(struct file *file, poll_table *wait)
 
 	mutex_lock(&info->i2c_info.read_mutex);
 	irq = info->i2c_info.read_irq;
-	if (irq == SEC_NFC_INT)
+	if (irq == SEC_NFC_READ_TIMES)
 		ret = (POLLIN | POLLRDNORM);
 	mutex_unlock(&info->i2c_info.read_mutex);
 
@@ -1047,7 +1061,10 @@ static int __devinit __sec_nfc_probe(struct device *dev)
 			pr_info("%s : nfc support model : %d\n", __func__, nfc_support);
 		}else{
 			pr_info("%s : nfc not support model : %d\n", __func__, nfc_support);
-			return 0;
+			if (dev->of_node)
+				devm_kfree(dev, pdata);
+			kfree(info);
+			return -ENXIO;
 		}
 	}
 

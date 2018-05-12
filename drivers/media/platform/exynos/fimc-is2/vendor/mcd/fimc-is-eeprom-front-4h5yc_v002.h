@@ -15,6 +15,7 @@
 #define EEP_HEADER_PROJECT_NAME_START_ADDR_FRONT     0x38
 #define EEP_HEADER_CAL_MAP_VER_START_ADDR_FRONT      0x30
 #define EEP_HEADER_VERSION_START_ADDR_FRONT          0x20
+#define EEP_HEADER_MODULE_ID_ADDR_FRONT              0xAE
 
 /* OEM referenced section */
 #define EEP_OEM_VER_START_ADDR_FRONT                 0x150

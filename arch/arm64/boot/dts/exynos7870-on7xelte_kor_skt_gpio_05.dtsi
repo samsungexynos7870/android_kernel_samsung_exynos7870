@@ -93,8 +93,8 @@
 	pinctrl-names = "sleep";
 	pinctrl-0 = <&sleep4>;
 	sleep4: sleep-state {
-		PIN_SLP(gpm0-0, INPUT, NONE);	/* PMIC_SDA_1P8 */
-		PIN_SLP(gpm0-1, INPUT, NONE);	/* PMIC_SCL_1P8 */
+		PIN_SLP(gpm0-0, PREV, UP);	/* PMIC_SDA_1P8 */
+		PIN_SLP(gpm0-1, PREV, UP);	/* PMIC_SCL_1P8 */
 	};
 };
 
@@ -173,7 +173,7 @@
 		PIN_SLP(gpd1-6, INPUT, NONE);	/* NC */
 
 		PIN_SLP(gpd2-0, INPUT, DOWN);	/* NC */
-		PIN_SLP(gpd2-1, OUT1, UP);	/* VDD_NFC_EN */
+		PIN_SLP(gpd2-1, PREV, NONE);	/* VDD_NFC_EN */
 		PIN_SLP(gpd2-2, INPUT, DOWN);	/* NC */
 		PIN_SLP(gpd2-3, INPUT, DOWN);	/* NC */
 		PIN_SLP(gpd2-4, INPUT, NONE);	/* HW_REV0 */

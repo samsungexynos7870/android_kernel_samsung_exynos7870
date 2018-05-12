@@ -418,6 +418,69 @@ static void exynos_usbdrd_fill_hstune(struct exynos_usbdrd_phy *phy_drd,
 		break;
 	}
 }
+static int exynos_usbdrd_set_hstune_from_dt(struct exynos_usbdrd_phy *phy_drd,
+				enum exynos_usbphy_mode phy_mode)
+{
+	struct device *dev = phy_drd->dev;
+	struct device_node *node = dev->of_node;
+	struct exynos_usbphy_hs_tune *hs_tune = phy_drd->usbphy_info.hs_tune;
+	u8 usb_phy_tune_values[10] =  {0xff}; 
+	int ret, i;
+	if (phy_mode == USBPHY_MODE_DEV) {
+		ret = of_property_read_u8_array(node, "device_usbphy_hstune_parameter",
+					 &usb_phy_tune_values[0], 10);
+	} else {
+		ret = of_property_read_u8_array(node, "host_usbphy_hstune_parameter",
+					 &usb_phy_tune_values[0], 10);
+		
+	}
+	if (ret) {
+		pr_err("usb:%s dt devnode is not defined \n ",__func__);
+		return ret;
+	}
+	pr_err("usb: %s Updating tune values from dt for phy_mode %d\n", __func__, phy_mode);
+	/*tx_vref,tx_pre_emp,tx_pre_emp_plus,tx_res,tx_rise,tx_hsxv,tx_fsls,rx_sqrx,compdis,otg*/
+	/* 0        1          2              3       4       5       6       7       8      9*/
+	for (i = 0; i < 10; i++) {
+		if (usb_phy_tune_values[i] != 0xFF) {
+			switch(i) {
+				case 0:
+				 hs_tune->tx_vref = usb_phy_tune_values[i];
+				break;
+				case 1:
+				 hs_tune->tx_pre_emp = usb_phy_tune_values[i];
+				break;
+				case 2:
+				 hs_tune->tx_pre_emp_plus = usb_phy_tune_values[i];
+				break;
+				case 3:
+				 hs_tune->tx_res = usb_phy_tune_values[i];
+				break;
+				case 4:
+				 hs_tune->tx_rise = usb_phy_tune_values[i];
+				break;
+				case 5:
+				 hs_tune->tx_hsxv = usb_phy_tune_values[i];
+				break;
+				case 6:
+				 hs_tune->tx_fsls = usb_phy_tune_values[i];
+				break;
+				case 7:
+				 hs_tune->rx_sqrx = usb_phy_tune_values[i];
+				break;
+				case 8:
+				 hs_tune->compdis = usb_phy_tune_values[i];
+				break;
+				case 9:
+				 hs_tune->otg = usb_phy_tune_values[i];
+				break;
+				default:
+				break;	
+			} 
+		}
+	}
+	return ret;
+}
 
 static void exynos_usbdrd_set_hstune(struct exynos_usbdrd_phy *phy_drd,
 				enum exynos_usbphy_mode phy_mode)
@@ -455,6 +518,7 @@ static void exynos_usbdrd_set_hstune(struct exynos_usbdrd_phy *phy_drd,
 		}
 
 	}
+	exynos_usbdrd_set_hstune_from_dt(phy_drd,phy_mode);
 }
 
 /*

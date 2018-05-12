@@ -360,6 +360,9 @@ struct dw_mci {
 
 	/* Sfr dump */
 	struct dw_mci_sfe_ram_dump	*sfr_dump;
+	struct buffer_head *self_test_bh;
+	int self_test_mode;
+	struct idmac_desc_64addr *desc_st;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -453,7 +456,8 @@ struct dw_mci_board {
 	enum dw_mci_cd_types cd_type;
 #if defined(CONFIG_BCM4343)  || defined(CONFIG_BCM4343_MODULE) || \
 	defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
 	int (*ext_cd_init)(void (*notify_func)
 		(void *dev_id, int state), void *dev_id, struct mmc_host *mmc);
 #else
@@ -461,7 +465,8 @@ struct dw_mci_board {
 			(void *dev_id, int state), void *dev_id);
 #endif /* CONFIG_BCM4343 || CONFIG_BCM4343_MODULE || \
 	CONFIG_BCM43454 || CONFIG_BCM43454_MODULE || \
-	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE */
+	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE || \
+	CONFIG_BCM43456 || CONFIG_BCM43456_MODULE */
 	int (*ext_cd_cleanup)(void (*notify_func)
 			(void *dev_id, int state), void *dev_id);
 	struct dw_mci_dma_ops *dma_ops;
@@ -487,7 +492,7 @@ struct dw_mci_board {
 				 SDMMC_IDMAC_INT_FBE | SDMMC_IDMAC_INT_RI | \
 				 SDMMC_IDMAC_INT_TI)
 
-#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT) || defined(CONFIG_MMC_DW_FMP_ECRYPT_FS)
+#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT)
 struct idmac_desc_64addr {
 	u32		des0;	/* Control Descriptor */
 #define IDMAC_DES0_DIC	BIT(1)
@@ -507,6 +512,8 @@ struct idmac_desc_64addr {
 	((d)->des2 = ((d)->des2 & 0xcfffffff) | v << 28)
 #define IDMAC_SET_DAS(d, v) \
 	((d)->des2 = ((d)->des2 & 0x3fffffff) | v << 30)
+#define IDMAC_GET_FAS(d)	((d)->des2 & 0x30000000)
+#define IDMAC_GET_DAS(d)	((d)->des2 & 0xc0000000)
 	u32		des3;	/* Reserved */
 	u32		des4;	/* Lower 32-bits of Buffer Address Pointer 1*/
 	u32		des5;	/* Upper 32-bits of Buffer Address Pointer 1*/
@@ -607,5 +614,9 @@ do {	\
 #define CLEAR		0
 #define AES_CBC		1
 #define AES_XTS		2
+
+#define MMC_FMP_DISK_ENC_MODE	(1 << 0)
+#define MMC_FMP_FILE_ENC_MODE	(1 << 1)
+#define MMC_FMP_SELF_TEST_MODE	(1 << 2)
 
 #endif /* LINUX_MMC_DW_MMC_H */

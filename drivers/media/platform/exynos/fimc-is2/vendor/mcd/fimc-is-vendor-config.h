@@ -37,6 +37,24 @@
 #include "fimc-is-vendor-config_j7pop.h"
 #elif defined(CONFIG_CAMERA_J7VE)
 #include "fimc-is-vendor-config_j7ve.h"
+#elif defined(CONFIG_CAMERA_GTACTIVE2)
+#include "fimc-is-vendor-config_gtactive2.h"
+#elif defined(CONFIG_CAMERA_GRANDPPIRIS)
+#include "fimc-is-vendor-config_grandppiris.h"
+#elif defined(CONFIG_CAMERA_ON7XREF)
+#include "fimc-is-vendor-config_on7xref.h"
+#elif defined(CONFIG_CAMERA_J7TOP)
+#include "fimc-is-vendor-config_j7top.h"
+#elif defined(CONFIG_CAMERA_J8)
+#include "fimc-is-vendor-config_j8.h"
+#elif defined(CONFIG_CAMERA_DEGASY18)
+#include "fimc-is-vendor-config_degasy18.h"
+#elif defined(CONFIG_CAMERA_GTAXLAD)
+#include "fimc-is-vendor-config_gtaxlad.h"
+#elif defined(CONFIG_CAMERA_J6)
+#include "fimc-is-vendor-config_j6.h"
+#elif defined(CONFIG_CAMERA_A6)
+#include "fimc-is-vendor-config_a6.h"
 #else
 #include "fimc-is-vendor-config_joshua.h"
 #endif

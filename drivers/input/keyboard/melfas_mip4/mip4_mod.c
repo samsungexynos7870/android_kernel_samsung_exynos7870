@@ -169,12 +169,17 @@ void mip4_tk_input_event_handler(struct mip4_tk_info *info, u8 sz, u8 *buf)
 
 				input_report_key(info->input_dev, keycode, state);
 #ifdef CONFIG_SAMSUNG_PRODUCT_SHIP				
-				input_info(true, &info->client->dev, "%s - Key : Event[%d] ver 0x%02x\n",
-							__func__, state, info->fw_version[7]);
+				input_info(true, &info->client->dev, "%s - Key : Event[%d] ver 0x%02x%02x\n",
+							__func__, state, info->fw_version[6], info->fw_version[7]);
 #else
-				input_info(true, &info->client->dev, "%s - Key : Code[%d] Event[%d] Strength[%d] ver 0x%02x\n",
-							__func__, keycode, state, strength, info->fw_version[7]);
+				input_info(true, &info->client->dev, "%s - Key : Code[%d] Event[%d] Strength[%d] ver 0x%02x%02x\n",
+							__func__, keycode, state, strength, info->fw_version[6], info->fw_version[7]);
 #endif
+#ifdef CONFIG_SEC_FACTORY
+				if(info->irq_checked){
+					info->irq_key_count[id-1]++;
+				}
+#endif			
 			} else {
 				input_err(true, &info->client->dev, "%s [ERROR] Unknown Key ID [%d]\n", __func__, id);
 				continue;

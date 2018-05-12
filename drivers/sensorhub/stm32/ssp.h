@@ -257,17 +257,22 @@ enum {
 #define SENSOR_TYPE_GLANCE_GESTURE                  (24)
 #define SENSOR_TYPE_PICK_UP_GESTURE                 (25)
 #define SENSOR_TYPE_WRIST_TILT_GESTURE              (26)
-#define SENSOR_TYPE_META                            (27)
+#define SENSOR_TYPE_ANDROID_MAX                            (27)
 
 /* Sensor types defined by Samsung */
-#define SENSOR_TYPE_DEVICE_PRIVATE_BASE             (SENSOR_TYPE_META)
+#define SENSOR_TYPE_DEVICE_PRIVATE_BASE             (SENSOR_TYPE_ANDROID_MAX)
 #define SENSOR_TYPE_ACCELEROMETER_INT               (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 1)
 #define SENSOR_TYPE_PROXIMITY_RAW                   (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 2)
 #define SENSOR_TYPE_GEOMAGNETIC_POWER               (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 3)
 #define SENSOR_TYPE_INTERRUPT_GYRO                  (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 4)
+#if ANDROID_VERSION >= 80000
+#define SENSOR_TYPE_SCONTEXT                        (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 5)
+#define SENSOR_TYPE_MOBEAM                          (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 6)
+#define SENSOR_TYPE_LIGHT_CCT                       (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 7)
+#define SENSOR_TYPE_MAX                             (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 8)
+#else
 #define SENSOR_TYPE_MAX                             (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 5)
-#define SENSOR_CONTROL_BASE                         (100)
-#define SENSOR_TYPE_MOBEAM                          (SENSOR_CONTROL_BASE + 1)
+#endif
 
 enum {
 	AP2HUB_READ = 0,
@@ -401,8 +406,7 @@ enum {
 	BATCH_MODE_RUN,
 };
 
-struct sensor_info
-{
+struct sensor_info {
 	char name[SENSOR_NAME_MAX_LEN];
 	bool enable;
 	int report_mode;

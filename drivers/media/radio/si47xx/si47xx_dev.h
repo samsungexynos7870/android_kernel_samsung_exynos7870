@@ -200,6 +200,7 @@ extern int si47xx_dev_band_set(int);
 extern int si47xx_dev_ch_spacing_set(int);
 extern int si47xx_dev_chan_select(u32);
 extern int si47xx_dev_chan_get(u32 *);
+extern int si47xx_dev_chan_check_valid(bool *);
 extern int si47xx_dev_seek_full(u32 *);
 extern int si47xx_dev_seek_up(u32 *);
 extern int si47xx_dev_seek_down(u32 *);

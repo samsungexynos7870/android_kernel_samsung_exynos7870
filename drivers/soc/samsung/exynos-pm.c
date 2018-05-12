@@ -419,8 +419,40 @@ static const struct attribute_group *exynos_info_sysfs_groups[] = {
 	NULL,
 };
 
+#if defined(CONFIG_SEC_DEBUG)
+enum ids_info
+{
+	table_ver,
+	cpu_asv,
+	g3d_asv
+};
+
+extern int asv_ids_information(enum ids_info id);
+
+static ssize_t show_asv_info(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	int count = 0;
+
+	/* Set asv group info to buf */
+	count += sprintf(&buf[count], "%d ", asv_ids_information(table_ver));
+	count += sprintf(&buf[count], "%03x ", asv_ids_information(cpu_asv));
+	count += sprintf(&buf[count], "%03x ", asv_ids_information(g3d_asv));
+	count += sprintf(&buf[count], "\n");
+
+	return count;
+}
+
+static DEVICE_ATTR(asv_info, 0664, show_asv_info, NULL);
+
+#endif /* CONFIG_SEC_FACTORY */
+
 static __init int exynos_pm_drvinit(void)
 {
+#if defined(CONFIG_SEC_DEBUG)
+	int ret;
+#endif
 	if (subsys_system_register(&exynos_info_subsys,
 					exynos_info_sysfs_groups))
 		pr_err("fail to register exynos_info subsys\n");
@@ -435,6 +467,15 @@ static __init int exynos_pm_drvinit(void)
 				__func__);
 		BUG();
 	}
+
+#if defined(CONFIG_SEC_DEBUG)
+	/* create sysfs group */
+	ret = sysfs_create_file(power_kobj, &dev_attr_asv_info.attr);
+	if (ret) {
+		pr_err("%s: failed to create exynos8890 asv attribute file\n",
+				__func__);
+	}
+#endif
 
 	return 0;
 }

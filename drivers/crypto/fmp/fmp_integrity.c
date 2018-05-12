@@ -18,19 +18,23 @@
  *
  */
 
-#include <linux/crypto.h>
 #include <linux/kallsyms.h>
 #include <linux/err.h>
 #include <linux/scatterlist.h>
 #include <linux/smc.h>
+
+#include "hmac-sha256.h"
 #include "fmpdev_int.h" //for FIPS_FMP_FUNC_TEST macro
 
-//#define FIPS_DEBUG
+#undef FIPS_DEBUG
 
-static const char *symtab[][3] =
-		{{".text",	"first_fmp_text",	"last_fmp_text"  },
-	      {".rodata",	"first_fmp_rodata",	"last_fmp_rodata"},
-	      {".init.text",	"first_fmp_init",	"last_fmp_init"  }};
+/* Same as build time */
+static const unsigned char *integrity_check_key = "The quick brown fox jumps over the lazy dog";
+
+static const char *symtab[][3] = {
+		{".text",	"first_fmp_text",	"last_fmp_text"  },
+		{".rodata",	"first_fmp_rodata",	"last_fmp_rodata"},
+		{".init.text",	"first_fmp_init",	"last_fmp_init"  } };
 
 extern const char *get_builtime_fmp_hmac(void);
 
@@ -75,153 +79,19 @@ static int query_symbol_addresses(const char *first_symbol, const char *last_sym
 	return 0;
 }
 
-static int init_hash(struct hash_desc *desc)
-{
-	struct crypto_hash *tfm = NULL;
-	int ret = -1;
-
-	/* Same as build time */
-	const unsigned char *key = "The quick brown fox jumps over the lazy dog";
-
-	tfm = crypto_alloc_hash("hmac-fmp(sha256-fmp)", 0, 0);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "FIPS(%s): integrity failed to allocate tfm %ld", __FUNCTION__, PTR_ERR(tfm));
-		return -1;
-	}
-
-	ret = crypto_hash_setkey (tfm, key, strlen(key));
-	if (ret) {
-		printk(KERN_ERR "FIPS(%s): fail at crypto_hash_setkey", __FUNCTION__);
-		return -1;
-	}
-
-	desc->tfm = tfm;
-	desc->flags = 0;
-
-	ret = crypto_hash_init(desc);
-	if (ret) {
-		printk(KERN_ERR "FIPS(%s): fail at crypto_hash_init", __FUNCTION__);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int finalize_hash(struct hash_desc *desc, unsigned char *out, unsigned int out_size)
-{
-	int ret = -1;
-
-	if (!desc || !desc->tfm || !out || !out_size) {
-		printk(KERN_ERR "FIPS(%s): Invalid args", __FUNCTION__);
-		return ret;
-	}
-
-	if (crypto_hash_digestsize(desc->tfm) > out_size) {
-		printk(KERN_ERR "FIPS(%s): Not enough space for digest", __FUNCTION__);
-		return ret;
-	}
-
-	ret = crypto_hash_final(desc, out);
-	if (ret) {
-		printk(KERN_ERR "FIPS(%s): crypto_hash_final failed", __FUNCTION__);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int update_hash(struct hash_desc *desc, unsigned char *start_addr, unsigned int size)
-{
-	struct scatterlist sg;
-	unsigned char *buf = NULL;
-	unsigned char *cur = NULL;
-	unsigned int bytes_remaining;
-	unsigned int bytes;
-	int ret = -1;
-#if FIPS_FMP_FUNC_TEST == 5
-	static int total = 0;
-#endif
-
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_ERR "FIPS(%s): kmalloc failed", __FUNCTION__);
-		return ret;
-	}
-
-	bytes_remaining = size;
-	cur = start_addr;
-
-	while (bytes_remaining > 0) {
-		if (bytes_remaining >= PAGE_SIZE)
-			bytes = PAGE_SIZE;
-		else
-			bytes = bytes_remaining;
-
-		memcpy(buf, cur, bytes);
-
-		sg_init_one(&sg, buf, bytes);
-
-#if FIPS_FMP_FUNC_TEST == 5
-		if (total == 0) {
-			printk(KERN_INFO "FIPS : Failing Integrity Test");
-			buf[bytes / 2] += 1;
-		}
-#endif
-
-		ret = crypto_hash_update(desc, &sg, bytes);
-		if (ret) {
-			printk(KERN_ERR "FIPS(%s): crypto_hash_update failed", __FUNCTION__);
-			kfree(buf);
-			buf = 0;
-			return -1;
-		}
-
-		cur += bytes;
-		bytes_remaining -= bytes;
-
-#if FIPS_FMP_FUNC_TEST == 5
-		total += bytes;
-#endif
-	}
-
-	if (buf) {
-		kfree(buf);
-		buf = 0;
-        }
-
-	return 0;
-}
-
-int do_fmp_fw_integrity_check(void)
-{
-	int err = 0;
-
-	err = exynos_smc(SMC_CMD_FMP, FMP_FW_INTEGRITY, 0, 0);
-	if (err) {
-		printk(KERN_ERR "Fail to check integrity for FMP F/W. err = 0x%x\n", err);
-		return -1;
-	}
-
-	return 0;
-}
-
 int do_fips_fmp_integrity_check(void)
 {
 	int i, rows, err;
 	unsigned long start_addr = 0;
 	unsigned long end_addr = 0;
 	unsigned char runtime_hmac[32];
-	struct hash_desc desc;
+	struct hmac_sha256_ctx ctx;
 	const char *builtime_hmac = 0;
 	unsigned int size = 0;
 
-	err = do_fmp_fw_integrity_check();
-	if (err) {
-		printk(KERN_ERR "FIPS(%s): FMP FW Integrity Check Failed", __FUNCTION__);
-		return -1;
-	}
+	memset(runtime_hmac, 0x00, 32);
 
-	err = init_hash(&desc);
+	err = hmac_sha256_init(&ctx, integrity_check_key, strlen(integrity_check_key));
 	if (err) {
 		printk(KERN_ERR "FIPS(%s): init_hash failed", __FUNCTION__);
 		return -1;
@@ -233,7 +103,6 @@ int do_fips_fmp_integrity_check(void)
 		err = query_symbol_addresses(symtab[i][1], symtab[i][2], &start_addr, &end_addr);
 		if (err) {
 			printk (KERN_ERR "FIPS(%s): Error to get start / end addresses", __FUNCTION__);
-			crypto_free_hash(desc.tfm);
 			return -1;
 		}
 
@@ -242,22 +111,26 @@ int do_fips_fmp_integrity_check(void)
 #endif
 		size = end_addr - start_addr;
 
-		err = update_hash(&desc, (unsigned char *)start_addr, size);
+		err = hmac_sha256_update(&ctx, (unsigned char *)start_addr, size);
 		if (err) {
 			printk(KERN_ERR "FIPS(%s): Error to update hash", __FUNCTION__);
-			crypto_free_hash(desc.tfm);
 			return -1;
 		}
 	}
 
-	err = finalize_hash(&desc, runtime_hmac, sizeof(runtime_hmac));
+#if FIPS_FMP_FUNC_TEST == 5
+	pr_info("FIPS(%s): Failing Integrity Test\n", __func__);
+	err = hmac_sha256_update(&ctx, (unsigned char *)start_addr, 1);
+#endif
+
+	err = hmac_sha256_final(&ctx, runtime_hmac);
 	if (err) {
 		printk(KERN_ERR "FIPS(%s): Error in finalize", __FUNCTION__);
-		crypto_free_hash(desc.tfm);
+		hmac_sha256_ctx_cleanup(&ctx);
 		return -1;
 	}
 
-	crypto_free_hash(desc.tfm);
+	hmac_sha256_ctx_cleanup(&ctx);
 	builtime_hmac = get_builtime_fmp_hmac();
 	if (!builtime_hmac) {
 		printk(KERN_ERR "FIPS(%s): Unable to retrieve builtime_hmac", __FUNCTION__);

@@ -62,6 +62,7 @@ obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_KEYBOARD_TC300K)		+= tc300k.o
 obj-$(CONFIG_KEYBOARD_ABOV_TOUCH_FT1804)	+= abov_touchkey_ft1804.o
 obj-$(CONFIG_KEYBOARD_ABOV_TOUCH_T316)	+= abov_touchkey_ft1804.o
+obj-$(CONFIG_KEYBOARD_ABOV_TOUCH_3X6)	+= abov_touchkey_3x6.o
 obj-$(CONFIG_KEYBOARD_ABOV_TOUCH)	+= abov_touchkey.o
 obj-$(CONFIG_KEYBOARD_MELFAS_MHS204) += melfas_mip4/
 obj-$(CONFIG_KEYBOARD_MELFAS_MHS204G) += melfas_mip4/

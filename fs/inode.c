@@ -170,19 +170,6 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	mapping->private_data = NULL;
 	mapping->backing_dev_info = &default_backing_dev_info;
 	mapping->writeback_index = 0;
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	mapping->iv = NULL;
-	mapping->key = NULL;
-	mapping->key_length = 0;
-	mapping->alg = NULL;
-	mapping->sensitive_data_index = 0;
-	mapping->hash_tfm = NULL;
-#ifdef CONFIG_CRYPTO_FIPS
-	mapping->cc_enable = 0;
-#endif
-	mapping->use_fmp = 0;
-	mapping->plain_text = 0;
-#endif
 #ifdef CONFIG_SDP
 	mapping->userid = 0;
 #endif
@@ -1411,11 +1398,7 @@ static void iput_final(struct inode *inode)
 	else
 		drop = generic_drop_inode(inode);
 
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	if (!drop && (sb->s_flags & MS_ACTIVE) && !inode->i_mapping->key) {
-#else
 	if (!drop && (sb->s_flags & MS_ACTIVE)) {
-#endif
 		inode->i_state |= I_REFERENCED;
 		inode_add_lru(inode);
 		spin_unlock(&inode->i_lock);
@@ -1618,7 +1601,7 @@ int should_remove_suid(struct dentry *dentry)
 }
 EXPORT_SYMBOL(should_remove_suid);
 
-static int __remove_suid(struct dentry *dentry, int kill)
+static int __remove_suid(struct vfsmount *mnt, struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
 
@@ -1627,7 +1610,7 @@ static int __remove_suid(struct dentry *dentry, int kill)
 	 * Note we call this on write, so notify_change will not
 	 * encounter any conflicting delegations:
 	 */
-	return notify_change(dentry, &newattrs, NULL);
+	return notify_change2(mnt, dentry, &newattrs, NULL);
 }
 
 int file_remove_suid(struct file *file)
@@ -1650,7 +1633,7 @@ int file_remove_suid(struct file *file)
 	if (killpriv)
 		error = security_inode_killpriv(dentry);
 	if (!error && killsuid)
-		error = __remove_suid(dentry, killsuid);
+		error = __remove_suid(file->f_path.mnt, dentry, killsuid);
 	if (!error && (inode->i_sb->s_flags & MS_NOSEC))
 		inode->i_flags |= S_NOSEC;
 

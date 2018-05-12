@@ -66,6 +66,17 @@ config USB_OTG_WHITELIST
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
 
+config USB_OTG_WHITELIST_FOR_MDM
+	bool "Rely on OTG and EH Targeted Peripherals List"
+	depends on USB
+	help
+	  If you say Y here, the "otg_whitelist.h" file will be used as a
+	  product whitelist, so USB peripherals not listed there will be
+	  rejected during enumeration.  This behavior is required by the
+	  USB OTG and EH specification for all devices not on your product's
+	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
+	  allowed to support only a limited number of peripherals.
+
 config USB_OTG_BLACKLIST_HUB
 	bool "Disable external hubs"
 	depends on USB_OTG || EXPERT
@@ -84,3 +95,21 @@ config USB_OTG_FSM
 	  Implements OTG Finite State Machine as specified in On-The-Go
 	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
 
+config HOST_COMPLIANT_TEST
+	bool "Embedded High-speed Host Electrical Test Support"
+	depends on USB && USB_ARCH_HAS_HCD
+	default n
+	help
+	  This option is only used if you are developing firmware for
+	  an embedded device with a Hi-speed USB Host or OTG port.
+
+	  If you say Y here, software support for the Embedded
+	  High-speed Host Electrical Tests will be added to the USB
+	  Host stack. This is one of the tests performed during
+	  High-speed USB Host certification testing.
+
+	  Please note that the USB Host Controller Driver must also
+	  support this option. For an example of how to add support
+	  for this to a USB Host Controller Driver see the EHCI driver.
+
+	  If you are at all unsure then say N here.

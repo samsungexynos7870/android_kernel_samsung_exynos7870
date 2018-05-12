@@ -910,6 +910,14 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->sparse_transfer_control = of_property_read_bool(node, "enable_sprs_transfer");
 		dwc->dr_mode = of_usb_get_dr_mode(node);
 		dwc->suspend_clk_freq = of_usb_get_suspend_clk_freq(node);
+#ifdef CONFIG_ARGOS
+		/*
+		 * read irq affinity cpu mask from DT
+		 * default value is 1 (cpu1)
+		 */
+		if (of_property_read_u32(node, "irq_affinity_cpu", &dwc->irq_affinity_cpu_mask))
+			dwc->irq_affinity_cpu_mask = 1;
+#endif
 	} else if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
 

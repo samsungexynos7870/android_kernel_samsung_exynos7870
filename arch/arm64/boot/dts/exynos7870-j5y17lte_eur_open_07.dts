@@ -49,6 +49,7 @@
 				torch_current = <75>;
 				factory_current = <300>;
 				front_torch_current = <100>;
+				factory_front_torch_current = <25>;	/* prevent glare */
 
 				status = "okay";
 				s2mu005-leds1 {
@@ -110,6 +111,11 @@
 			samsung,pin-function = <0x1>;
 			samsung,pin-pud = <0>;
 			samsung,pin-val = <1>;
+		};
+		grip_int: grip_int {
+			samsung,pins = "gpa2-5";
+			samsung,pin-function = <0xf>;
+			samsung,pin-pud = <0>;
 		};
 	};
 
@@ -457,7 +463,6 @@
 			mip4_tk,pwr-reg-name = "vtouch_2.8v";
 			mip4_tk,boot-on-ldo = <1>;
 			mip4_tk,firmware-name = "melfas_tk/mhs2041B_j5y17_new.fw";
-			mip4_tk,grip_ch = <1>;
 		};
 	};
 
@@ -538,6 +543,12 @@
 			samsung,pin-pud = <0>;
 		};
 
+		grip_i2c: grip_i2c {
+			samsung,pins = "gpf3-0", "gpf3-1";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+		};
+
 		bt_en_bcm: bt-en {
 			samsung,pins = "gpd4-0";
 			samsung,pin-function = <1>;
@@ -572,8 +583,8 @@
 			compatible = "yas_magnetometer";
 			reg = <0x2e>;
 			yas,orientation = <6>;
-			yas,softiron = <10222 2794 269 794 8018 187 25 407 10635>;
-			yas,softiron_sign = <2 2 0 2 2 0 0 2 2>;
+			yas,softiron = <9457 138 331 42 9772 256 78 8 10551>;
+			yas,softiron_sign = <2 2 0 2 2 0 2 0 2>;
 		};
 	};
 
@@ -612,4 +623,41 @@
 		};
 	};
 
+	i2c@18 {
+		compatible = "i2c-gpio";
+		gpios = <&gpf3 1 0 /* sda */
+			&gpf3 0 0 /* scl */>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&grip_i2c>;
+
+		sx9320-i2c@28 {
+			compatible = "sx9320";
+			reg = <0x28>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&grip_int>;
+			interrupt-parent = <&gpa2>;
+			interrupts = <5 0 0>;
+
+			sx9320,nirq-gpio = <&gpa2 5 0>;
+			/* only phase 3 enable */
+			sx9320,phen = <0x03>;
+			sx9320,gain = <0x01>;
+			sx9320,again = <0x08>;
+			sx9320,scan_period = <0x16>;
+			sx9320,range = <0x00>;
+			sx9320,sampling_freq = <0x00>;
+			sx9320,resolution = <0x07>;
+			sx9320,rawfilt = <0x01>;
+			sx9320,hyst = <0x01>;
+			sx9320,avgposfilt = <0x04>;
+			sx9320,avgnegfilt = <0x01>;
+			sx9320,avgthresh = <0x20>;
+			#sx9320,debouncer = <0x01>;
+			sx9320,normal_thd = <0x20>;
+		};
+	};
 };

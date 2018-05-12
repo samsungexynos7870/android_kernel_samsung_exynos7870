@@ -533,26 +533,32 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&ea8064g>;
-		decon_board = <&decon_board_list>;
-		/* lcd reset, power */
-		/* gpios = <&gpd3 4 0x1>, <&gpd1 5 0x1>; */
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "regulator,enable";
-			regulator = "LCD_3P0", "LCD_1P8";
+			type =
+			"regulator,enable",	"LCD_3P0",
+			"regulator,enable",	"LCD_1P8";
 		};
 		dsim_set_panel_power_disable {
-			type = "regulator,disable", "delay,usleep", "regulator,disable";
-			delay = <5000 6000>;
-			regulator = "LCD_1P8", "LCD_3P0";
+			type =
+			"regulator,disable",	"LCD_1P8",
+			"delay,usleep",	"5000 6000",
+			"regulator,disable",	"LCD_3P0";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <10000 11000>, <10000 11000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 
@@ -579,7 +585,18 @@
 		pinctrl-0=<&bt_hostwake &bt_btwake &bt_en>;
 		status = "okay";
 	};
-
+	
+	pinctrl@13750000 {
+		sd1_cmd: sd1-cmd {
+			samsung,pins = "gpr2-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <2>;
+			samsung,pin-con-pdn = <2>;
+			samsung,pin-pud-pdn = <3>;
+		};
+	};
+	
 	pinctrl@139F0000 {
 		mpu_irq: mpu_irq {
 			samsung,pins = "gpa2-3";

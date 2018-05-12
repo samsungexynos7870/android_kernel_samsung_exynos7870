@@ -242,7 +242,7 @@ Retry_selftest:
 	data->buf[SENSOR_TYPE_GEOMAGNETIC_POWER].y = 0;
 	data->buf[SENSOR_TYPE_GEOMAGNETIC_POWER].z = 0;
 
-	if (!(atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_GEOMAGNETIC_POWER)))
+	if (!(atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_GEOMAGNETIC_POWER)))
 		send_instruction(data, ADD_SENSOR, SENSOR_TYPE_GEOMAGNETIC_POWER,
 			bufAdc, 4);
 
@@ -259,7 +259,7 @@ Retry_selftest:
 	iADC_Y = data->buf[SENSOR_TYPE_GEOMAGNETIC_POWER].y;
 	iADC_Z = data->buf[SENSOR_TYPE_GEOMAGNETIC_POWER].z;
 
-	if (!(atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_GEOMAGNETIC_POWER)))
+	if (!(atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_GEOMAGNETIC_POWER)))
 		send_instruction(data, REMOVE_SENSOR, SENSOR_TYPE_GEOMAGNETIC_POWER,
 			bufAdc, 4);
 
@@ -916,7 +916,7 @@ static ssize_t adc_data_read(struct device *dev,
 	data->buf[SENSOR_TYPE_GEOMAGNETIC_FIELD].y = 0;
 	data->buf[SENSOR_TYPE_GEOMAGNETIC_FIELD].z = 0;
 
-	if (!(atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_GEOMAGNETIC_FIELD)))
+	if (!(atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_GEOMAGNETIC_FIELD)))
 		send_instruction(data, ADD_SENSOR, SENSOR_TYPE_GEOMAGNETIC_FIELD,
 			chTempbuf, 4);
 
@@ -933,7 +933,7 @@ static ssize_t adc_data_read(struct device *dev,
 	iSensorBuf[1] = data->buf[SENSOR_TYPE_GEOMAGNETIC_FIELD].y;
 	iSensorBuf[2] = data->buf[SENSOR_TYPE_GEOMAGNETIC_FIELD].z;
 
-	if (!(atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_GEOMAGNETIC_FIELD)))
+	if (!(atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_GEOMAGNETIC_FIELD)))
 		send_instruction(data, REMOVE_SENSOR, SENSOR_TYPE_GEOMAGNETIC_FIELD,
 			chTempbuf, 4);
 

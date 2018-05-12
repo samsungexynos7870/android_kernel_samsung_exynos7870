@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-2000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung J7POPELTE board based on Exynos7870";
@@ -1360,17 +1360,21 @@
 		status = "okay";
 	};
 
-	i2c@35 {
-		compatible = "i2c-gpio";
-		gpios = <&gpc9 0 0
-			&gpc9 1 0>;
-		i2c-gpio,delay-us = <5>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
+	pinctrl@139B0000 {
+		i2c8_bus: i2c8-bus {
+			samsung,pins = "gpc9-1", "gpc9-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
 
-		isl98611@35 {
-			compatible = "isl98611,i2c";
+	i2c_8: i2c@13860000 {
+		status = "okay";
+		samsung,i2c-max-bus-freq = <400000>;
+
+		isl98611@29 {
+			compatible = "i2c,isl98611";
 			reg = <0x29>;
 		};
 	};
@@ -1387,34 +1391,52 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&td4100>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_en = <&gpd1 1 0x1>;
+		gpio_panel_enn = <&gpd1 4 0x1>;
+		gpio_panel_enp = <&gpd1 6 0x1>;
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+		gpio_blic_on = <&gpd3 7 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "gpio,high", "delay,usleep";
-			gpios = <&gpd1 1 0x1>; // DDI
-			delay = <5000 6000>;
+			type =
+			"gpio,high",	"gpio_lcd_en",
+			"delay,usleep",	"5000 6000";
 		};
 		dsim_set_panel_power_disable {
-			type = "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "gpio,low";
-			gpios = <&gpd1 4 0x1>, <&gpd1 6 0x1>, <&gpd3 4 0x1>, <&gpd3 7 0x1>, <&gpd1 1 0x1>; //  ENN -> ENP -> RESET -> BL_EN -> DDI
-			delay = <5000 6000>, <5000 6000>, <15000 16000>, <5000 6000>, <10000 11000>;
+			type =
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_panel_enn",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_panel_enp",
+			"delay,usleep",	"15000 16000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_blic_on",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_en";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,msleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <1000 1100>, <1000 1100>, <130>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"1000 1100",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"1000 1100",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,msleep",	"130";
 		};
 		dsim_panel_resume {
-			type = "gpio,high", "delay,usleep","gpio,high", "delay,usleep","gpio,high", "delay,usleep";
-			gpios = <&gpd1 6 0x1>, <&gpd1 4 0x1>, <&gpd3 7 0x1>; // ENP -> ENN -> BL_EN
-			delay = <1000 2000>, <1000 2000>, <10000 11000>;
-		};
-		td4100_displayon_late {
-			type = "delay,msleep"; // over 6 frame wait
-			delay = <110>;
+			type =
+			"gpio,high",	"gpio_panel_enp",
+			"delay,usleep",	"1000 2000",
+			"gpio,high",	"gpio_panel_enn",
+			"delay,usleep",	"1000 2000",
+			"gpio,high",	"gpio_blic_on",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 

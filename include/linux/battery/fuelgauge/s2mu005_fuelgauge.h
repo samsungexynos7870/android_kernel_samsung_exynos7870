@@ -65,7 +65,7 @@ struct sec_fg_info {
 
 	/* battery info */
 	int soc;
-
+#if !defined(CONFIG_BATTERY_AGE_FORECAST)
 	/* copy from platform data /
 	 * DTS or update by shell script */
 	int battery_table1[88]; // evt1
@@ -78,13 +78,26 @@ struct sec_fg_info {
 	int ocv_arr_evt2[22];
 	int batcap[4];
 	int fg_accumulative_rate_evt2[4];
-
+#endif
 	/* miscellaneous */
 	unsigned long fullcap_check_interval;
 	int full_check_flag;
 	bool is_first_check;
 };
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+struct fg_age_data_info {
+        int battery_table3[88]; // evt2
+        int battery_table4[22]; // evt2
+        int batcap[4];
+        int accum[2];
+	int soc_arr_val[22];
+        int ocv_arr_val[22];
+};
+
+#define	fg_age_data_info_t \
+	struct fg_age_data_info
+#endif
 struct s2mu005_platform_data {
 	int capacity_max;
 	int capacity_max_margin;
@@ -116,12 +129,19 @@ struct s2mu005_fuelgauge_data {
 	bool is_charging;
 	int mode;
 	int revision;
+	int change_step; 
 
 	/* HW-dedicated fuel guage info structure
 	 * used in individual fuel gauge file only
 	 * (ex. dummy_fuelgauge.c)
 	 */
 	struct sec_fg_info      info;
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	fg_age_data_info_t*	age_data_info;
+	int fg_num_age_step;
+	int fg_age_step;
+	int age_reset_status;
+#endif
 	bool is_fuel_alerted;
 	struct wake_lock fuel_alert_wake_lock;
 

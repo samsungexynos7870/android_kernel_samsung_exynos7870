@@ -36,6 +36,10 @@
 #include <linux/muic/muic_notifier.h>
 #endif /* CONFIG_MUIC_NOTIFIER */
 
+#if defined(CONFIG_VBUS_NOTIFIER)
+#include <linux/vbus_notifier.h>
+#endif /* CONFIG_VBUS_NOTIFIER */
+
 #if defined(CONFIG_OF)
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -50,6 +54,11 @@
 #include "muic_debug.h"
 #include "muic_dt.h"
 #include "muic_regmap.h"
+#include "muic_state.h"
+
+#if defined(CONFIG_MUIC_UNIVERSAL_CCIC)
+#include "muic_ccic.h"
+#endif
 
 #define MUIC_INT_DETACH_MASK	(0x1 << 1)
 #define MUIC_INT_ATTACH_MASK	(0x1 << 0)
@@ -71,6 +80,7 @@
 #define MUIC_REG_INT2	0x04
 #define MUIC_REG_INT3	0x05
 
+static muic_data_t *tmp_pmuic;
 extern struct muic_platform_data muic_pdata;
 #if defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
 /* SM5705 Interrupt 3  AFC register */
@@ -121,7 +131,6 @@ static int muic_irq_handler_afc(muic_data_t *pmuic, int irq)
 	}
 	if (intr1 & MUIC_INT_DETACH_MASK) {
 		cancel_delayed_work(&pmuic->afc_retry_work);
-		cancel_delayed_work(&pmuic->afc_restart_work);
 	}
 
 	pr_info("%s:%s intr[1:0x%x, 2:0x%x, 3:0x%x]\n", pmuic->chip_name, __func__,
@@ -186,10 +195,31 @@ static int muic_irq_handler_afc(muic_data_t *pmuic, int irq)
 	return INT_REQ_DONE;
 }
 #else
+#if defined(CONFIG_VBUS_NOTIFIER)
+static void muic_handle_vbus(muic_data_t *pmuic)
+{
+	vbus_status_t status;
+
+	status = pmuic->vps.s.vbvolt ? STATUS_VBUS_HIGH: STATUS_VBUS_LOW;
+
+	pr_info("%s:%s <%d>\n", MUIC_DEV_NAME, __func__, status);
+
+	vbus_notifier_handle(status);
+
+	return;
+}
+#else
+static void muic_handle_vbus(muic_data_t *pmuic)
+{
+	pr_info("%s:%s <%d> Not implemented.\n", MUIC_DEV_NAME,
+			__func__, pmuic->vps.t.vbvolt);
+}
+#endif
+
 static int muic_irq_handler(muic_data_t *pmuic, int irq)
 {
 	struct i2c_client *i2c = pmuic->i2c;
-	int intr1, intr2, ctrl = 0;
+	int intr1, intr2, intr3, ctrl = 0;
 
 	pr_info("%s:%s irq(%d)\n", pmuic->chip_name, __func__, irq);
 
@@ -201,6 +231,7 @@ static int muic_irq_handler(muic_data_t *pmuic, int irq)
 	/* read and clear interrupt status bits */
 	intr1 = muic_i2c_read_byte(i2c, MUIC_REG_INT1);
 	intr2 = muic_i2c_read_byte(i2c, MUIC_REG_INT2);
+	intr3 = muic_i2c_read_byte(i2c, MUIC_REG_INT3);
 
 	if ((intr1 < 0) || (intr2 < 0)) {
 		pr_err("%s: err read interrupt status [1:0x%x, 2:0x%x]\n",
@@ -219,8 +250,8 @@ static int muic_irq_handler(muic_data_t *pmuic, int irq)
 		intr1 |= intr_tmp;
 	}
 
-	pr_info("%s:%s intr[1:0x%x, 2:0x%x]\n", pmuic->chip_name, __func__,
-			intr1, intr2);
+	pr_info("%s:%s intr[1:0x%x, 2:0x%x, 3:0x%x]\n", pmuic->chip_name, __func__,
+			intr1, intr2, intr3);
 
 	ctrl = muic_i2c_read_byte(i2c, MUIC_REG_CTRL);
 
@@ -246,6 +277,7 @@ static int muic_irq_handler(muic_data_t *pmuic, int irq)
 
 	pmuic->intr.intr1 = intr1;
 	pmuic->intr.intr2 = intr2;
+	pmuic->intr.intr3 = intr3;
 
 	return INT_REQ_DONE;
 }
@@ -306,15 +338,19 @@ static irqreturn_t muic_irq_thread(int irq, void *data)
 	mutex_lock(&pmuic->muic_mutex);
 	pmuic->irq_n = irq;
 	if (pmuic->vps_table == VPS_TYPE_TABLE) {
-		if (max77849_muic_irq_handler(pmuic, irq) & INT_REQ_DONE)
+		if (max77849_muic_irq_handler(pmuic, irq) & INT_REQ_DONE) {
 			muic_detect_dev(pmuic);
+			muic_handle_vbus(pmuic);
+		}
 	} else{
 #if defined(CONFIG_MUIC_UNIVERSAL_SM5705_AFC)
 		if (muic_irq_handler_afc(pmuic, irq) & INT_REQ_DONE)
 			muic_detect_dev(pmuic);
 #else
-		if (muic_irq_handler(pmuic, irq) & INT_REQ_DONE)
+		if (muic_irq_handler(pmuic, irq) & INT_REQ_DONE) {
 			muic_detect_dev(pmuic);
+			muic_handle_vbus(pmuic);
+		}
 #endif
 	}
 
@@ -429,13 +465,15 @@ static int muic_probe(struct i2c_client *i2c,
 
 	mutex_init(&pmuic->muic_mutex);
 
+	tmp_pmuic = pmuic;
 	pmuic->pdata = pdata;
 	pmuic->i2c = i2c;
 	pmuic->is_factory_start = false;
 	pmuic->is_otg_test = false;
 	pmuic->attached_dev = ATTACHED_DEV_UNKNOWN_MUIC;
 	pmuic->is_usb_ready = false;
-
+	pmuic->is_dcdtmr_intr = false;
+	pmuic->is_rescanned = false;
 	if (!strcmp(pmuic->chip_name, "max,max77849"))
 		pmuic->vps_table = VPS_TYPE_TABLE;
 	else
@@ -475,6 +513,12 @@ static int muic_probe(struct i2c_client *i2c,
 	pdesc->muic = pmuic;
 	pops = pdesc->regmapops;
 	pmuic->regmapdesc = pdesc;
+
+#if defined(CONFIG_MUIC_UNIVERSAL_CCIC)
+	pmuic->rprd = false;
+
+	pmuic->opmode = get_ccic_info() & 0x0F;
+#endif
 
 	/* set switch device's driver_data */
 	dev_set_drvdata(switch_device, pmuic);
@@ -519,6 +563,16 @@ static int muic_probe(struct i2c_client *i2c,
 	INIT_DELAYED_WORK(&pmuic->usb_work, muic_show_debug_info);
 	schedule_delayed_work(&pmuic->usb_work, msecs_to_jiffies(10000));
 #endif
+
+#if defined(CONFIG_MUIC_UNIVERSAL_CCIC)
+	muic_is_ccic_supported_jig(pmuic, pmuic->attached_dev);
+
+	if (pmuic->opmode & OPMODE_CCIC)
+		muic_register_ccic_notifier(pmuic);
+	else
+		pr_info("%s: OPMODE_MUIC. CCIC is not used.\n", __func__);
+#endif
+
 	return 0;
 
 fail_init_irq:
@@ -536,6 +590,23 @@ err_io:
 	kfree(pmuic);
 err_return:
 	return ret;
+}
+
+void muic_detect_dev_for_wcin(void)
+{
+	pr_info("%s:%s wcin irq\n", MUIC_DEV_NAME, __func__);
+	tmp_pmuic->is_dcdtmr_intr = false;
+	tmp_pmuic->is_rescanned = false;
+	muic_detect_dev(tmp_pmuic);
+}
+
+void muic_detect_dev_for_nobat(void)
+{
+	pr_info("%s:%s nobat irq\n", MUIC_DEV_NAME, __func__);
+	tmp_pmuic->attached_dev = ATTACHED_DEV_NONE_MUIC;
+	detach_ta(tmp_pmuic);
+	muic_notifier_detach_attached_dev(tmp_pmuic->attached_dev);
+	muic_detect_dev(tmp_pmuic);
 }
 
 static int muic_remove(struct i2c_client *i2c)

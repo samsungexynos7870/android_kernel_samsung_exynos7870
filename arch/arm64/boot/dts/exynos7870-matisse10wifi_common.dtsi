@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-2000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung J7XELTE board based on Exynos7870";
@@ -1371,17 +1371,21 @@
 		status = "okay";
 	};
 
-	i2c@35 {
-		compatible = "i2c-gpio";
-		gpios = <&gpc2 0 0
-			&gpc2 1 0>;
-		i2c-gpio,delay-us = <5>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
+	pinctrl@139C0000 {
+		i2c2_bus: i2c2-bus {
+			samsung,pins = "gpc2-1", "gpc2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
 
-		tc358764@35 {
-			compatible = "tc358764,i2c";
+	i2c_2: i2c@13890000 {
+		status = "okay";
+		samsung,i2c-max-bus-freq = <400000>;
+
+		tc358764@0f {
+			compatible = "i2c,tc358764";
 			reg = <0x0F>;
 			pinctrl-names = "default";
 			/* [0] : panel power [1] : PWM temporarily */
@@ -1402,26 +1406,36 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&ili101al06>;
-		decon_board = <&decon_board_list>;
-		/* lcd reset, power */
-		/* gpios = <&gpd3 4 0x1>, <&gpd1 5 0x1>; */
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_power_en = <&gpd4 5 0x1>;
+		gpio_lcd_rst = <&gpd1 1 0x1>;
+		gpio_panel_en = <&gpd3 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "gpio,high";
-			gpios = <&gpd4 5 0x1>;
+			type =
+			"gpio,high",	"gpio_power_en";
 		};
 		dsim_set_panel_power_disable {
-			type = "gpio,low","delay,usleep","gpio,low", "delay,usleep", "gpio,low","delay,usleep";
-			gpios = <&gpd1 1 0x1>,<&gpd4 5 0x1>,<&gpd3 4 0x1>;
-			delay = <220000 221000>,<10000 11000>, <500000 501000>;
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,msleep",	"220",
+			"gpio,low",	"gpio_power_en",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_panel_en",
+			"delay,msleep",	"500";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd1 1 0x1>, <&gpd1 1 0x1>, <&gpd1 1 0x1>;
-			delay = <10000 11000>, <50000 51000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,msleep",	"50",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 

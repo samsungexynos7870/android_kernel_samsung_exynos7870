@@ -112,7 +112,7 @@ int set_accel_cal(struct ssp_data *data)
 	struct ssp_msg *msg;
 	s16 accel_cal[3];
 
-	if (!(data->uSensorState & (1 << SENSOR_TYPE_ACCELEROMETER))) {
+	if (!(data->uSensorState & (1ULL << SENSOR_TYPE_ACCELEROMETER))) {
 		pr_info("[SSP]: %s - Skip this function!!!"\
 			", accel sensor is not connected(0x%llx)\n",
 			__func__, data->uSensorState);
@@ -150,7 +150,7 @@ static int enable_accel_for_cal(struct ssp_data *data)
 	s32 dMsDelay = get_msdelay(data->delay[SENSOR_TYPE_ACCELEROMETER]);
 	memcpy(&buf[0], &dMsDelay, 4);
 
-	if (atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_ACCELEROMETER)) {
+	if (atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_ACCELEROMETER)) {
 		if (get_msdelay(data->delay[SENSOR_TYPE_ACCELEROMETER]) != 10) {
 			send_instruction(data, CHANGE_DELAY,
 				SENSOR_TYPE_ACCELEROMETER, buf, 9);
@@ -170,7 +170,7 @@ static void disable_accel_for_cal(struct ssp_data *data, int delay)
 	s32 dMsDelay = get_msdelay(data->delay[SENSOR_TYPE_ACCELEROMETER]);
 	memcpy(&buf[0], &dMsDelay, 4);
 
-	if (atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_ACCELEROMETER)) {
+	if (atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_ACCELEROMETER)) {
 		if (delay)
 			send_instruction(data, CHANGE_DELAY,
 				SENSOR_TYPE_ACCELEROMETER, buf, 9);

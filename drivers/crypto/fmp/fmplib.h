@@ -16,10 +16,6 @@ int fmpdev_cipher_init(struct fmp_info *info, struct cipher_data *out,
 			const char *alg_name,
 			uint8_t *enckey, uint8_t *twkey, size_t keylen);
 void fmpdev_cipher_deinit(struct cipher_data *cdata);
-int fmpfw_hash_init(struct fmp_info *info, struct hash_data *hdata,
-			const char *alg_name, int hmac_mode,
-			void *mackey, size_t mackeylen);
-void fmpfw_hash_deinit(struct hash_data *hdata);
 int fmpdev_hash_init(struct fmp_info *info, struct hash_data *hdata,
 			const char *alg_name,
 			int hmac_mode, void *mackey, size_t mackeylen);

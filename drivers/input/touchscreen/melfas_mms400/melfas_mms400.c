@@ -313,6 +313,10 @@ static int mms_input_open(struct input_dev *dev)
 			disable_irq(info->client->irq);
 			mms_reboot(info);
 			enable_irq(info->client->irq);
+#ifdef CONFIG_VBUS_NOTIFIER
+			if (info->ta_stsatus)
+				mms_charger_attached(info, true);
+#endif
 		} else {
 			mms_enable(info);
 		}
@@ -675,7 +679,7 @@ ERROR:
  */
 static int mms_alert_handler_esd(struct mms_ts_info *info, u8 *rbuf)
 {
-	u8 frame_cnt = rbuf[2];
+	u8 frame_cnt = rbuf[1];
 
 	tsp_debug_info(true, &info->client->dev, "%s [START] - frame_cnt[%d]\n",
 		__func__, frame_cnt);
@@ -708,6 +712,40 @@ static int mms_alert_handler_esd(struct mms_ts_info *info, u8 *rbuf)
 
 	tsp_debug_info(true, &info->client->dev, "%s [DONE]\n", __func__);
 	return 0;
+}
+
+/*
+ * Alert event handler - SRAM failure
+ */
+static int mms_alert_handler_sram(struct mms_ts_info *info, u8 *data)
+{
+	int i;
+
+	tsp_debug_dbg(true, &info->client->dev, "%s [START]\n", __func__);
+
+	info->sram_addr_num = (unsigned int) (data[0] | (data[1] << 8));
+	tsp_debug_info(true, &info->client->dev, "%s - sram_addr_num [%d]\n", __func__, info->sram_addr_num);
+
+	if (info->sram_addr_num > 8) {
+		tsp_debug_err(true, &info->client->dev, "%s [ERROR] sram_addr_num [%d]\n", __func__, info->sram_addr_num);
+		goto error;
+	}
+
+	for (i = 0; i < info->sram_addr_num; i++) {
+		info->sram_addr[i] = data[2 + 4 * i] | (data[2 + 4 * i + 1] << 8) | (data[2 + 4 * i + 2] << 16) | (data[2 + 4 * i + 3] << 24);
+		tsp_debug_info(true, &info->client->dev, "%s - sram_addr #%d [0x%08X]\n", __func__, i, info->sram_addr[i]);
+	}
+	for (i = info->sram_addr_num; i < 8; i++) {
+		info->sram_addr[i] = 0;
+		tsp_debug_info(true, &info->client->dev, "%s - sram_addr #%d [0x%08X]\n", __func__, i, info->sram_addr[i]);
+	}
+
+	tsp_debug_dbg(true, &info->client->dev, "%s [DONE]\n", __func__);
+	return 0;
+
+error:
+	tsp_debug_err(true, &info->client->dev, "%s [ERROR]\n", __func__);
+	return 1;
 }
 
 #ifdef CONFIG_VBUS_NOTIFIER
@@ -744,7 +782,7 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 	u8 wbuf[8];
 	u8 rbuf[256];
 	unsigned int size = 0;
-	int event_size = info->event_size;
+//	int event_size = info->event_size;
 	u8 category = 0;
 	u8 alert_type = 0;
 
@@ -806,10 +844,10 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	//Read first packet
+	//Read packet info
 	wbuf[0] = MIP_R0_EVENT;
 	wbuf[1] = MIP_R1_EVENT_PACKET_INFO;
-	if (mms_i2c_read(info, wbuf, 2, rbuf, (1 + event_size))) {
+	if (mms_i2c_read(info, wbuf, 2, rbuf, 1)) {
 		tsp_debug_err(true, &client->dev, "%s [ERROR] Read packet info\n", __func__);
 		goto ERROR;
 	}
@@ -818,24 +856,30 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 
 	//Check event
 	size = (rbuf[0] & 0x7F);
+	if (size <= 0) {	
+		tsp_debug_err(true, &client->dev, "%s [ERROR] packet size = 0\n", __func__);
+		goto ERROR;
+	}
+
+	category = ((rbuf[0] >> 7) & 0x1);
 
 	tsp_debug_dbg(false, &client->dev, "%s - packet size [%d]\n", __func__, size);
 
-	category = ((rbuf[0] >> 7) & 0x1);
+	//Read packet data
+	wbuf[0] = MIP_R0_EVENT;
+	wbuf[1] = MIP_R1_EVENT_PACKET_DATA;
+	if (mms_i2c_read(info, wbuf, 2, rbuf, size)) {
+		tsp_debug_err(true, &client->dev, "%s [ERROR] Read packet data\n", __func__);
+		goto ERROR;
+	}
+
 	if (category == 0) {
 		//Touch event
-		if (size > event_size) {
-			//Read next packet
-			if (mms_i2c_read_next(info, rbuf, (1 + event_size), (size - event_size))) {
-				tsp_debug_err(true, &client->dev, "%s [ERROR] Read next packet\n", __func__);
-				goto ERROR;
-			}
-		}
 		info->esd_cnt = 0;
 		mms_input_event_handler(info, size, rbuf);
 	} else {
 		//Alert event
-		alert_type = rbuf[1];
+		alert_type = rbuf[0];
 
 		tsp_debug_dbg(true, &client->dev, "%s - alert type [%d]\n", __func__, alert_type);
 
@@ -853,6 +897,11 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 				input_sync(info->input_dev);
 				input_info(true, &client->dev, "%s: [Gesture] Spay, flag%x\n",
 						__func__, info->lowpower_flag);
+			}
+		} else if (alert_type == MIP_ALERT_SRAM_FAILURE) {
+			//SRAM failure
+			if (mms_alert_handler_sram(info, &rbuf[1])) {
+				goto ERROR;
 			}
 		} else {
 			tsp_debug_err(true, &client->dev, "%s [ERROR] Unknown alert type [%d]\n",
@@ -1304,6 +1353,7 @@ static int mms_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ret = mms_fw_update_from_kernel(info, false);
 	if(ret){
 		tsp_debug_err(true, &client->dev, "%s [ERROR] mms_fw_update_from_kernel\n", __func__);
+		goto err_fw_update;
 	}
 #endif
 
@@ -1422,6 +1472,8 @@ err_test_dev_create:
 	mms_disable(info);
 	free_irq(info->irq, info);
 err_request_irq:
+err_fw_update:
+	mms_power_control(info, 0);
 	input_unregister_device(info->input_dev);
 	info->input_dev = NULL;
 err_input_register_device:

@@ -150,7 +150,7 @@ static void cm3323_vdd_onoff(struct cm3323_p *data, bool onoff)
 	SENSOR_INFO("PMIC: %s\n", (onoff)?"on":"off");
 	if(data->vdd_pmic == NULL)
 	{
-		data->vdd_pmic = devm_regulator_get(&data->i2c_client->dev, "cm3323-i2c,vdd");
+		data->vdd_pmic = devm_regulator_get(&data->i2c_client->dev, "VDD_SENSOR_2P8");
 		if (IS_ERR(data->vdd_pmic)) {
 			SENSOR_ERR("cannot get vdd\n");
 			devm_regulator_put(data->vdd_pmic);

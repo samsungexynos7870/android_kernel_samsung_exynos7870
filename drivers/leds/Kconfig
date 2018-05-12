@@ -580,6 +580,18 @@ config LEDS_RT8547
 	  If you say yes here you will get support for
 	  for the RT8547 FLASH led chip.
 
+config LEDS_IRIS_IRLED_KTD2692
+	bool "IRLED support for the KTD2692"
+	help
+	  If you say yes here you will get support for
+	  for the KTD2692 FLASH led chip.
+
+config LEDS_KTD2692
+	bool "LED support for the KTD2692 Flash driver"
+	help
+	  If you say yes here you will get support for
+	  for the KTD2692 FLASH led chip.	  
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

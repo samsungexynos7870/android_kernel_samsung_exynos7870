@@ -26,20 +26,6 @@ struct ion_device *ion_exynos;
 /* starting from index=1 regarding default index=0 for system heap */
 static int nr_heaps = 1;
 
-struct exynos_ion_platform_heap {
-	struct ion_platform_heap heap_data;
-	struct reserved_mem *rmem;
-	unsigned int id;
-	unsigned int compat_ids;
-	bool secure;
-	bool reusable;
-	bool protected;
-	bool noprot;
-	atomic_t secure_ref;
-	struct device dev;
-	struct ion_heap *heap;
-};
-
 static struct ion_platform_heap ion_noncontig_heap = {
 	.name = "ion_noncontig_heap",
 	.type = ION_HEAP_TYPE_SYSTEM,
@@ -125,8 +111,9 @@ int ion_secure_protect(struct ion_buffer *buffer)
 	if (pdata->noprot)
 		return 0;
 
-	return (pdata->reusable ? __ion_secure_protect_buffer(pdata, buffer) :
-				__ion_secure_protect_region(pdata, buffer));
+	return (pdata->reusable && !pdata->should_isolate)
+				? __ion_secure_protect_buffer(pdata, buffer)
+				: __ion_secure_protect_region(pdata, buffer);
 }
 
 static int __ion_secure_unprotect_buffer(struct exynos_ion_platform_heap *pdata,
@@ -189,8 +176,9 @@ int ion_secure_unprotect(struct ion_buffer *buffer)
 	if (pdata->noprot)
 		return 0;
 
-	return (pdata->reusable ? __ion_secure_unprotect_buffer(pdata, buffer) :
-				__ion_secure_unprotect_region(pdata, buffer));
+	return (pdata->reusable && !pdata->should_isolate)
+				? __ion_secure_unprotect_buffer(pdata, buffer)
+				: __ion_secure_unprotect_region(pdata, buffer);
 }
 #else
 int ion_secure_protect(struct ion_buffer *buffer)
@@ -210,7 +198,7 @@ bool ion_is_heap_available(struct ion_heap *heap,
 	return true;
 }
 
-int ion_parse_heap_id(unsigned int heap_id_mask, unsigned int flags)
+unsigned int ion_parse_heap_id(unsigned int heap_id_mask, unsigned int flags)
 {
 	unsigned int heap_id = 1;
 	int i;
@@ -232,7 +220,7 @@ int ion_parse_heap_id(unsigned int heap_id_mask, unsigned int flags)
 
 	if (i == nr_heaps) {
 		pr_err("%s: bad heap flags %#x\n", __func__, flags);
-		return -EINVAL;
+		return 0;
 	}
 
 	pr_debug("%s: found new heap id %d for %s\n", __func__,
@@ -272,6 +260,8 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 	pdata->secure = !!of_get_flat_dt_prop(rmem->fdt_node, "secure", NULL);
 	pdata->reusable = !!of_get_flat_dt_prop(rmem->fdt_node, "reusable", NULL);
 	pdata->noprot = !!of_get_flat_dt_prop(rmem->fdt_node, "noprot", NULL);
+	pdata->should_isolate = !!of_get_flat_dt_prop(
+				rmem->fdt_node, "ion,bulk_reclaim", NULL);
 
 	prop = of_get_flat_dt_prop(rmem->fdt_node, "id", &len);
 	if (!prop) {
@@ -358,6 +348,7 @@ DECLARE_EXYNOS_ION_RESERVED_REGION("exynos8890-ion,", vframe);
 DECLARE_EXYNOS_ION_RESERVED_REGION("exynos8890-ion,", vscaler);
 DECLARE_EXYNOS_ION_RESERVED_REGION("exynos8890-ion,", gpu_crc);
 DECLARE_EXYNOS_ION_RESERVED_REGION("exynos8890-ion,", gpu_buffer);
+DECLARE_EXYNOS_ION_RESERVED_REGION("exynos8890-ion,", secure_camera);
 
 int ion_exynos_contig_heap_info(int region_id, phys_addr_t *phys, size_t *size)
 {

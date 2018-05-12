@@ -103,11 +103,11 @@ config MALI_BTS_OPTIMIZATION
       Choose this option to enable BTS in the Mali tMIX DDK.
 
 config MALI_DEBUG_KERNEL_SYSFS
-       bool "Support Kernel Group Debug SysFS"
-       depends on MALI_T83X && MALI_DEBUG_SYS
-       default y
-       help
-               Support Support Kernel Group Debug SysFS on /sys/kernel/gpu
+   bool "Support Kernel Group Debug SysFS"
+   depends on MALI_T83X && MALI_DEBUG_SYS
+   default n
+   help
+	   Support Support Kernel Group Debug SysFS on /sys/kernel/gpu
 
 config MALI_EXYNOS_SECURE_RENDERING
     bool "Enable EXYNOS Secure Rendering Support"

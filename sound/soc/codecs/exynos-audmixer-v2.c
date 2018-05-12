@@ -838,7 +838,6 @@ static int audmixer_hw_params(struct snd_pcm_substream *substream,
 			}
 			break;
 		}
-
 		break;
 
 	case AUDMIXER_IF_AP1:
@@ -869,6 +868,7 @@ static int audmixer_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
+
 
 /*
  * audmixer_startup: Start a particular interface of Audio Mixer

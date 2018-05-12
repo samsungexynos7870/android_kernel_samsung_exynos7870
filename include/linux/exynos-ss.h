@@ -15,6 +15,7 @@
 #define EXYNOS_SNAPSHOT_H
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT
+#include <asm/ptrace.h>
 #include "exynos-ss-soc.h"
 
 /* mandatory */
@@ -25,7 +26,7 @@ extern void exynos_ss_suspend(void *fn, void *dev, int en);
 extern void exynos_ss_irq(int irq, void *fn, unsigned int val, int en);
 extern int exynos_ss_try_enable(const char *name, unsigned long long duration);
 extern int exynos_ss_set_enable(const char *name, int en);
-extern int exynos_ss_get_enable(const char *name);
+extern int exynos_ss_get_enable(const char *name, bool init);
 extern int exynos_ss_save_context(void *regs);
 extern int exynos_ss_save_reg(void *regs);
 extern int exynos_ss_dump_panic(char *str, size_t len);
@@ -36,6 +37,7 @@ extern int exynos_ss_set_hardlockup(int);
 extern int exynos_ss_get_hardlockup(void);
 extern unsigned int exynos_ss_get_item_size(char *);
 extern unsigned int exynos_ss_get_item_paddr(char *);
+extern void exynos_ss_panic_handler_safe(struct pt_regs *regs);
 #ifdef CONFIG_EXYNOS_DRAMTEST
 extern int disable_mc_powerdn(void);
 #endif
@@ -133,6 +135,8 @@ void exynos_ss_dump_sfr(void);
 #define exynos_ss_dump_sfr()		do { } while(0)
 #endif
 
+extern void exynos_ss_i2c_clk(struct clk *clk, int bus_id, int en);
+
 #else
 #define exynos_ss_task(a,b)		do { } while(0)
 #define exynos_ss_work(a,b,c,d)		do { } while(0)
@@ -167,7 +171,8 @@ void exynos_ss_dump_sfr(void);
 #define exynos_ss_get_hardlockup()	do { } while(0)
 #define exynos_ss_get_item_size(a)	do { } while(0)
 #define exynos_ss_get_item_paddr(a)	do { } while(0)
-#define exynos_ss_check_crash_key(a,b)	do { } while(0);
+#define exynos_ss_check_crash_key(a, b)	do { } while (0)
+#define exynos_ss_i2c_clk(a, b)		do { } while (0)
 #endif /* CONFIG_EXYNOS_SNAPSHOT */
 
 /**

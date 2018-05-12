@@ -1,26 +1,34 @@
-config FMP_UFS
-	tristate "Samsung EXYNOS FMP Driver for UFS"
-	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
-	---help---
-	  This selects EXYNOS FMP UFS driver.
-
-	  If you have a controller with this interface, say Y here.
-
-	  If unsure, say N.
-
 config FMP_MMC
 	tristate "Samsung EXYNOS FMP Driver for MMC"
 	depends on MMC_DW
+	depends on MMC_DW_FMP_DM_CRYPT || MMC_DW_FMP_ECRYPT_FS
 	---help---
-	  This selects EXYNOS FMP MMC driver.
+	  This is EXYNOS FMP MMC driver.
 
-	  If you have a controller with this interface, say Y here.
+	  It is enabled automatically when any MMC FMP feature is enabled.
 
-	  If unsure, say N.
+config FMP_DM_CRYPT
+	tristate "Samsung EXYNOS FMP DM_CRYPT Driver"
+        depends on DM_CRYPT
+	depends on UFS_FMP_DM_CRYPT || MMC_DW_FMP_DM_CRYPT
+	---help---
+	  This is EXYNOS FMP DM_CRYPT driver.
+
+	  It is enabled automatically when any FMP DM_CRYPT feature is enabled.
+
+config FMP_ECRYPT_FS
+	tristate "Samsung EXYNOS FMP ECRYPT_FS Driver"
+        depends on ECRYPT_FS
+	depends on UFS_FMP_ECRYPT_FS || MMC_DW_FMP_ECRYPT_FS
+	---help---
+	  This is EXYNOS FMP ECRYPT_FS driver.
+
+	  It is enabled automatically when any FMP ECRYPT_FS feature is enabled.
 
 config FIPS_FMP
 	tristate "Samsung EXYNOS FMP Validation Driver for FIPS"
-	depends on FMP_UFS
+	depends on FMP_MMC
+	depends on !FUNCTION_TRACER
 	---help---
 	  This selects Samsung EXYNOS FMP Validation driver for FIPS.
 

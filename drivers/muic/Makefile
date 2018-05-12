@@ -24,6 +24,7 @@ obj-$(CONFIG_MUIC_SM5705_AFC)		+= sm5705-muic-afc.o
 obj-$(CONFIG_MUIC_SUPPORT_CCIC)		+= muic_ccic.o
 
 # MUIC_UNIVERSAL
+obj-$(CONFIG_MUIC_UNIVERSAL_CCIC)	+= universal/muic_ccic.o
 obj-$(CONFIG_MUIC_UNIVERSAL)		+= universal/muic_task.o
 obj-$(CONFIG_MUIC_UNIVERSAL)		+= universal/muic_state.o
 obj-$(CONFIG_MUIC_UNIVERSAL)		+= universal/muic_apis.o

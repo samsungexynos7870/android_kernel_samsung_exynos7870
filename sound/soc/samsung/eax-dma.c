@@ -237,9 +237,11 @@ static inline bool eax_mixer_any_buf_running(void)
 {
 	struct buf_info *bi;
 
-	list_for_each_entry(bi, &buf_list, node) {
-		if (bi->prtd && bi->prtd->running)
-			return true;
+	if (!list_empty(&buf_list)) {
+		list_for_each_entry(bi, &buf_list, node) {
+			if (bi->prtd && bi->prtd->running)
+				return true;
+		}
 	}
 
 	return false;
@@ -305,6 +307,8 @@ int eax_dma_dai_unregister(void)
 {
 	mutex_destroy(&di.mutex);
 
+	eax_adma_free_buf();
+
 	di.cpu_dai = NULL;
 	di.running = false;
 	di.params_init = false;
@@ -314,8 +318,6 @@ int eax_dma_dai_unregister(void)
 	mi.cpu_dai = NULL;
 	mi.running = false;
 	mi.thread_id = NULL;
-
-	eax_adma_free_buf();
 
 	return 0;
 }
@@ -352,7 +354,7 @@ static void eax_adma_buffdone(void *data)
 	dma_addr_t src, dst, pos;
 	int buf_idx;
 
-	if (!di.running)
+	if (!di.running || !di.params->ch)
 		return;
 
 	di.params->ops->getposition(di.params->ch, &src, &dst);
@@ -392,6 +394,11 @@ static void eax_adma_hw_params(unsigned long dma_period_bytes)
 		config.fifo = di.params->dma_addr;
 		di.params->ch = di.params->ops->request(di.params->channel,
 				&req, di.cpu_dai->dev, di.params->ch_name);
+		if (!di.params->ch) {
+			pr_err("EAXDMA: Failed to request DMA channel %s\n",
+			di.params->ch_name);
+			return;
+		}
 		di.params->ops->config(di.params->ch, &config);
 	}
 
@@ -425,9 +432,18 @@ static void eax_adma_hw_free(struct snd_pcm_substream *substream)
 			&& (hweight_long(di.set_params_bitmap) == 1)) {
 		pr_info("EAXADMA: release dma channel : %s\n", di.params->ch_name);
 		di.params_init = false;
-		di.params->ops->flush(di.params->ch);
-		di.params->ops->release(di.params->ch, di.params->client);
+		if (di.params->ch) {
+			di.params->ops->flush(di.params->ch);
+			di.params->ops->release(di.params->ch, di.params->client);
+		}
 	}
+
+	while (!waitqueue_active(&mixer_run_wq)) {
+			if (mi.running)
+				break;
+			usleep_range(50, 100);
+	}
+
 	di.params_done = false;
 	di.prepare_done = false;
 out:
@@ -463,7 +479,8 @@ static void eax_adma_prepare(unsigned long dma_period_bytes)
 		di.buf_fill[n] = true;
 
 	/* prepare */
-	di.params->ops->flush(di.params->ch);
+	if (di.params->ch)
+		di.params->ops->flush(di.params->ch);
 	di.dma_pos = di.dma_start;
 
 	/* enqueue */
@@ -476,13 +493,16 @@ static void eax_adma_prepare(unsigned long dma_period_bytes)
 
 	dma_info.buf = di.dma_pos;
 	dma_info.infiniteloop = DMA_PERIOD_CNT;
-	di.params->ops->prepare(di.params->ch, &dma_info);
+	if (di.params->ch)
+		di.params->ops->prepare(di.params->ch, &dma_info);
 out:
 	mutex_unlock(&di.mutex);
 }
 
 static void eax_adma_trigger(bool on)
 {
+	int ret;
+
 	spin_lock(&di.lock);
 
 	if (on) {
@@ -490,10 +510,11 @@ static void eax_adma_trigger(bool on)
 		lpass_dma_enable(true);
 		di.params->ops->trigger(di.params->ch);
 	} else {
-		di.params->ops->stop(di.params->ch);
+		ret = di.params->ops->stop(di.params->ch);
 		lpass_dma_enable(false);
 		di.prepare_done = false;
 		di.running = on;
+		pr_info("%s:DMA stop retrun value:%d\n", __func__, ret);
 	}
 
 	spin_unlock(&di.lock);
@@ -1005,7 +1026,7 @@ static void eax_mixer_write(void)
 	int ret;
 
 	spin_lock(&mi.lock);
-	if (!eax_mixer_any_buf_running()) {
+	if (!eax_mixer_any_buf_running() || !mi.running) {
 		spin_unlock(&mi.lock);
 		return;
 	}

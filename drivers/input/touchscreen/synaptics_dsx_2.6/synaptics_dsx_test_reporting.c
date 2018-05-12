@@ -6894,8 +6894,14 @@ static ssize_t cmd_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (strlen(buf) >= CMD_STR_LEN) {		
-		dev_err(rmi4_data->pdev->dev.parent, "%s: cmd length is over (%s,%d)!!\n",
+		dev_err(rmi4_data->pdev->dev.parent, "%s: cmd length(strlen(buf)) is over (%s,%d)!!\n",
 			__func__, buf, (int)strlen(buf));
+		return count;
+	}
+
+	if (count >= (unsigned int)CMD_STR_LEN) {		
+		dev_err(rmi4_data->pdev->dev.parent, "%s: cmd length(count) is over (%s,%d)!!\n",
+			__func__, buf, (unsigned int)count);
 		return count;
 	}
 

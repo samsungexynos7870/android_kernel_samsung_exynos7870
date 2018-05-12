@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-3000MB-WUXGA.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung Galaxy Tab A Note board based on Exynos7870";
@@ -1503,29 +1503,36 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&hx8279d>;
-		decon_board = <&decon_board_list>;
-		/* lcd reset, power */
-		/* gpios = <&gpd3 4 0x1>, <&gpd1 5 0x1>; */
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_buck_en = <&gpd3 4 0x1>;
+		gpio_lcd_rst = <&gpd4 1 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd3 4 0x1>;
-			regulator = "LCD_1P8";
-			delay = <10000 11000>, <15000 16000>;
+			type =
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000",
+			"gpio,high",	"gpio_buck_en",
+			"delay,usleep",	"15000 16000";
 		};
 		dsim_set_panel_power_disable {
-			type = "gpio,low", "gpio,low", "delay,usleep", "regulator,disable";
-			gpios = <&gpd4 1 0x1>, <&gpd3 4 0x1>;
-			regulator = "LCD_1P8";
-			delay = <10000 11000>;
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"gpio,low",	"gpio_buck_en",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_1P8";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd4 1 0x1>, <&gpd4 1 0x1>, <&gpd4 1 0x1>;
-			delay = <10000 11000>, <10000 11000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 

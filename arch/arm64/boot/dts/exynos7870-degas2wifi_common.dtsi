@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-1500MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung DEGAS2 WIFI board based on Exynos7870";
@@ -328,9 +328,22 @@
 		};
 	};
 
+	pinctrl@139B0000 {
+		boot_ldo: boot-ldo {
+			samsung,pins = "gpc0-0";
+			samsung,pin-pud = <1>;
+			samsung,pin-pud-pdn = <1>;
+		};
+	};
+
 	sd_fixed_vcc: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
+		/* gpc0-0 and gpc0-2 register is switched */
+		/* This is to make gpc0-2 pull-down enabled */
+		/* PUD, DRV, PUDPDN: See exynos7870 UM v0.3 for more details */
+		pinctrl-names = "default";
+		pinctrl-0 = <&boot_ldo>;
 		gpio = <&gpc0 0 1>;
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
@@ -959,29 +972,71 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&s6d7aa0_wxga>;
-		decon_board = <&decon_board_list>;
-		/* lcd reset, power */
-		/* gpios = <&gpd3 4 0x1>, <&gpd1 5 0x1>; */
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board_old: decon_board_old {
+		gpio_lcd_en = <&gpd3 4 0x1>;
+		gpio_blic_on = <&gpd4 3 0x1>;
+		gpio_lcd_rst = <&gpd1 1 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "gpio,high", "delay,usleep", "regulator,enable", "delay,usleep","gpio,high";
-			delay = <10000 11000>,<10000 11000>;
-			regulator = "LCD_1P8";
-			gpios = <&gpd3 4 0x1>, <&gpd4 3 0x1>;
+			type =
+			"gpio,high",	"gpio_lcd_en",
+			"delay,usleep",	"10000 11000",
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000",
+			"gpio,high",	"gpio_blic_on";
 		};
 		dsim_set_panel_power_disable {
-			type = "gpio,low", "delay,usleep", "gpio,low","delay,usleep","regulator,disable","delay,usleep","gpio,low";
-			delay = <10000 11000>,<10000 11000>,<10000 11000>;
-			regulator = "LCD_1P8";
-			gpios = <&gpd1 1 0x1>, <&gpd4 3 0x1>, <&gpd3 4 0x1>;
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_blic_on",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_en";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd1 1 0x1>, <&gpd1 1 0x1>, <&gpd1 1 0x1>;
-			delay = <10000 11000>, <20000 21000>, <100000 110000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,msleep",	"20",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,msleep",	"100";
+		};
+	};
+
+	decon_board: decon_board {
+		gpio_lcd_en = <&gpd3 4 0x1>;
+		gpio_lcd_rst = <&gpd1 1 0x1>;
+
+		dsim_set_panel_power_enable {
+			type =
+			"gpio,high",	"gpio_lcd_en",
+			"delay,usleep",	"10000 11000",
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000";
+		};
+		dsim_set_panel_power_disable {
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_en";
+		};
+		dsim_reset_panel {
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,msleep",	"20",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,msleep",	"100";
 		};
 	};
 

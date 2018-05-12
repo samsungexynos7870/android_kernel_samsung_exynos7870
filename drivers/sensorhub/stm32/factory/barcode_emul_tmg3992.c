@@ -46,7 +46,7 @@ void mobeam_write(struct ssp_data *data, int type, u8 *u_buf)
 
 	struct ssp_msg *msg;
 
-	if (!(data->uSensorState & (1 << SENSOR_TYPE_PROXIMITY))) {
+	if (!(data->uSensorState & (1ULL << SENSOR_TYPE_PROXIMITY))) {
 		pr_info("[SSP]: %s - Skip this function!!!"\
 			", proximity sensor is not connected(0x%llx)\n",
 			__func__, data->uSensorState);

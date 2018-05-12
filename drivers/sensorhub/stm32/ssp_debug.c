@@ -264,7 +264,7 @@ void sync_sensor_state(struct ssp_data *data)
 
 	for (uSensorCnt = 0; uSensorCnt < SENSOR_TYPE_MAX; uSensorCnt++) {
 		mutex_lock(&data->enable_mutex);
-		if (atomic64_read(&data->aSensorEnable) & (1 << uSensorCnt)) {
+		if (atomic64_read(&data->aSensorEnable) & (1ULL << uSensorCnt)) {
 			s32 dMsDelay
 				= get_msdelay(data->delay[uSensorCnt]);
 			memcpy(&buf[0], &dMsDelay, 4);
@@ -428,7 +428,7 @@ bool check_wait_event(struct ssp_data *data)
 		/* The sensor is registered
 		   And none batching mode
 		   And there is no sensor event over 5sec */
-		if ((atomic64_read(&data->aSensorEnable) & (1 << sensor))
+		if ((atomic64_read(&data->aSensorEnable) & (1ULL << sensor))
 			&& data->batch_max_latency[sensor] == 0
 			&& data->latest_timestamp[sensor] + 5000000000ULL < timestamp) {
 
@@ -461,11 +461,11 @@ static void debug_work_func(struct work_struct *work)
 	}
 
 	for (type = 0; type < SENSOR_TYPE_MAX; type++)
-		if ((atomic64_read(&data->aSensorEnable) & (1 << type))
+		if ((atomic64_read(&data->aSensorEnable) & (1ULL << type))
 			|| data->batch_max_latency[type])
 			print_sensordata(data, type);
 
-	if (((atomic64_read(&data->aSensorEnable) & (1 << SENSOR_TYPE_ACCELEROMETER))
+	if (((atomic64_read(&data->aSensorEnable) & (1ULL << SENSOR_TYPE_ACCELEROMETER))
 		&& (data->batch_max_latency[SENSOR_TYPE_ACCELEROMETER] == 0)
 		&& (data->cnt_irq == 0) && (data->cnt_timeout > 0))
 		|| (data->cnt_timeout > LIMIT_TIMEOUT_CNT))

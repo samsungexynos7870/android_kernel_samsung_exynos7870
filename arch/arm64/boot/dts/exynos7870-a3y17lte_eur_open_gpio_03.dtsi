@@ -159,7 +159,7 @@
 		PIN_SLP(gpd1-6, OUT1, UP);	/* VDD_TOUCH_2P8_EN */
 
 		PIN_SLP(gpd2-0, INPUT, DOWN);	/* NC */
-		PIN_SLP(gpd2-1, OUT1, UP);	/* VDD_NFC_EN */
+		PIN_SLP(gpd2-1, PREV, NONE);	/* VDD_NFC_EN */
 		PIN_SLP(gpd2-2, PREV, NONE);	/* MST_PWR_EN */
 		PIN_SLP(gpd2-3, PREV, NONE);	/* MCU_RST_N */
 		PIN_SLP(gpd2-4, INPUT, NONE);	/* HW_REV0 */

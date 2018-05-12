@@ -14,8 +14,9 @@
  */
 
 #include "ssp_sensorhub.h"
+#include "ssp_iio.h"
 
-static void ssp_sensorhub_log(const char *func_name,
+void ssp_sensorhub_log(const char *func_name,
 				const char *data, int length)
 {
 	char buf[6];
@@ -319,6 +320,7 @@ static void ssp_sensorhub_report_big_library(
 	wake_lock_timeout(&hub_data->sensorhub_wake_lock, WAKE_LOCK_TIMEOUT);
 }
 
+#if ANDROID_VERSION < 80000
 static int ssp_sensorhub_list(struct ssp_sensorhub_data *hub_data,
 				char *dataframe, int length)
 {
@@ -370,12 +372,18 @@ static int ssp_sensorhub_list(struct ssp_sensorhub_data *hub_data,
 
 	return kfifo_len(&hub_data->fifo) / sizeof(void *);
 }
+#endif
 
 int ssp_sensorhub_handle_data(struct ssp_data *ssp_data, char *dataframe,
 				int start, int end)
 {
-	struct ssp_sensorhub_data *hub_data = ssp_data->hub_data;
 	int ret = 0;
+
+#if ANDROID_VERSION >= 80000
+	ssp_infof("");
+	report_scontext_data(ssp_data, dataframe+start, end-start);
+#else
+	struct ssp_sensorhub_data *hub_data = ssp_data->hub_data;
 
 	/* add new sensorhub event into list */
 	spin_lock_bh(&hub_data->sensorhub_lock);
@@ -386,7 +394,7 @@ int ssp_sensorhub_handle_data(struct ssp_data *ssp_data, char *dataframe,
 		ssp_errf("sensorhub list err(%d)", ret);
 	else
 		wake_up(&hub_data->sensorhub_wq);
-
+#endif
 	return ret;
 }
 

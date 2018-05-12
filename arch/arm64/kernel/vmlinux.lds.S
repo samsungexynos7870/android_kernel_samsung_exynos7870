@@ -75,19 +75,14 @@ SECTIONS
 		. = ALIGN(16);
 		*(.got)			/* Global offset table		*/
 	}
-
-	RO_DATA(PAGE_SIZE)
-	EXCEPTION_TABLE(8)
-	NOTES
+	. = ALIGN(PAGE_SIZE);
 #ifdef CONFIG_TIMA_RKP
 	. = ALIGN(PAGE_SIZE);
 	.rkp.bitmap : {
 		rkp_pgt_bitmap = .;
-		. = rkp_pgt_bitmap + 0x18000;
 	}
 	.rkp.dblmap : {
 		rkp_map_bitmap = .;
-		. = rkp_map_bitmap + 0x18000;
 	}
 
 	.vmm : { *(.vmm*) }
@@ -99,7 +94,11 @@ SECTIONS
 	. += SWAPPER_DIR_SIZE;
 	. = ALIGN(PAGE_SIZE);
 #endif
-	_etext = .;			/* End of text and rodata section */
+	_etext = .;			/* End of text section */
+
+	RO_DATA(PAGE_SIZE)
+	EXCEPTION_TABLE(8)
+	NOTES
 
 	. = ALIGN(PAGE_SIZE);
 	__init_begin = .;

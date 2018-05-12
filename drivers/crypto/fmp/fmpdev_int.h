@@ -24,6 +24,8 @@
 #include <crypto/aead.h>
 
 #include "fmpdev_info.h"
+#include "sha256.h"
+#include "hmac-sha256.h"
 
 /* Used during FIPS Functional test with CMT Lab
  * FIPS_FMP_FUNC_TEST 0 - Normal operation
@@ -105,13 +107,17 @@ struct compat_session_op {
 	compat_uptr_t	dst;		/* pointer to output data */
 	compat_uptr_t	mac;/* pointer to output data for hash/MAC operations */
 	compat_uptr_t	iv;/* initialization vector for encryption operations */
+
+	__u32 data_unit_len;
+	__u32 data_unit_seqnumber;
+
 	compat_uptr_t secondLastEncodedData;
 	compat_uptr_t thirdLastEncodedData;
 };
 
-#define COMPAT_FMPGSESSION    _IOWR('c', 100, struct compat_session_op)
-#define COMPAT_FMPCRYPT       _IOWR('c', 101, struct compat_crypt_op)
-#define COMPAT_FMP_AES_CBC_MCT	_IOWR('c', 102, struct compat_crypt_op)
+#define COMPAT_FMPGSESSION    _IOWR('c', 200, struct compat_session_op)
+#define COMPAT_FMPCRYPT       _IOWR('c', 203, struct compat_crypt_op)
+#define COMPAT_FMP_AES_CBC_MCT	_IOWR('c', 204, struct compat_crypt_op)
 #endif
 
 /* the maximum of the above */
@@ -139,32 +145,17 @@ struct cipher_data {
 	int mode;
 };
 
-/* Hash */
-struct sha256_fmpfw_info {
-	uint32_t input;
-	size_t input_len;
-	uint32_t output;
-	uint32_t step;
-};
-
-struct hmac_sha256_fmpfw_info {
-	struct sha256_fmpfw_info s;
-	uint32_t key;
-	size_t key_len;
-	uint32_t hmac_mode;
-	uint32_t dummy;
-};
-
 struct hash_data {
 	int init; /* 0 uninitialized */
 	int digestsize;
 	int alignmask;
+	SHA256_CTX *sha;
+	HMAC_SHA256_CTX *hmac;
 	struct {
 		struct crypto_ahash *s;
 		struct fmpdev_result *result;
 		struct ahash_request *request;
 	} async;
-	struct hmac_sha256_fmpfw_info *fmpfw_info;
 };
 
 struct fmpdev_result {

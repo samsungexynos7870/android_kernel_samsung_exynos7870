@@ -7,8 +7,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-3000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung A3XPREMIUM board based on Exynos7870";
@@ -631,7 +631,7 @@
 			abov,boot-on-ldo = "true";
 			abov,light_version = <170309 3>;	/* light_version light_table_num */
 			abov,octa_id = <1 2 8>;	/* black, white, pink */
-			abov,light_reg = <0x05 0x05 0x05>;
+			abov,light_reg = <0x05 0x05 0x0F>;
 		};
 	};
 
@@ -1452,26 +1452,8 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&s6e3aa2>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
-	};
-
-	decon_board_list: decon_board_list {
-		dsim_set_panel_power_enable {
-			type = "regulator,enable", "regulator,enable", "delay,usleep";
-			regulator = "LCD_3P0", "LCD_1P8";
-			delay = <10000 11000>;
-		};
-		dsim_set_panel_power_disable {
-			type = "gpio,low", "regulator,disable", "regulator,disable";
-			regulator = "LCD_1P8", "LCD_3P0";
-			gpios = <&gpd3 4 0x1>;
-		};
-		dsim_reset_panel {
-			type = "delay,usleep", "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			delay = <1000 1100>, <5000 6000>, <5000 6000>, <10000 11000>;
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-		};
 	};
 
 	pinctrl@139B0000 {
@@ -1487,6 +1469,46 @@
 		};
 	};
 
+	decon_board: decon_board {
+		compatible = "simple-bus";
+		pinctrl-names = "off", "on";
+		pinctrl-0 = <&disp_pcd_off>;
+		pinctrl-1 = <&disp_pcd>;
+
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+
+		dsim_set_panel_power_enable {
+			type =
+			"regulator,enable",	"LCD_3P0",
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"10000 11000";
+		};
+		dsim_set_panel_power_disable {
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"regulator,disable",	"LCD_1P8",
+			"regulator,disable",	"LCD_3P0";
+		};
+		dsim_reset_panel {
+			type =
+			"delay,usleep",	"1000 1100",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
+		};
+		pinctrl_enable {
+			type =
+			"pinctrl",	"on";
+		};
+		pinctrl_disable {
+			type =
+			"pinctrl",	"off";
+		};
+	};
+
 	s6e3aa2: s6e3aa2_hd {
 		mode = <2>;	/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		resolution = <720 1280>;
@@ -1498,10 +1520,6 @@
 		timing,dsi-hs-clk = <489>;
 		timing,pms = <3 226 2>;
 		timing,dsi-escape-clk = <16>;
-
-		pinctrl-names = "off", "on";
-		pinctrl-0 = <&disp_pcd_off>;
-		pinctrl-1 = <&disp_pcd>;
 	};
 
 	sec_thermistor@0 {

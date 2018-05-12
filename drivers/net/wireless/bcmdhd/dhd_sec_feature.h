@@ -1,7 +1,7 @@
 /*
  * Customer HW 4 dependant file
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -80,6 +80,10 @@
 #define HW_OOB
 #endif /* CONFIG_MACH_SAMSUNG_ESPRESSO && CONFIG_MACH_SAMSUNG_ESPRESSO_10 */
 
+#if defined(CONFIG_ARCH_MDM9607) && defined(CONFIG_DOT)
+#undef SUPPORT_MULTIPLE_REVISION
+#endif /* CONFIG_ARCH_MDM9607 */
+
 #if defined(CONFIG_MACH_UNIVERSAL5430) && !defined(CONFIG_BCM43455)
 #undef CUSTOM_SET_CPUCORE
 #define PRIMARY_CPUCORE 0
@@ -124,7 +128,7 @@
 
 #ifdef CONFIG_MACH_A7LTE
 #undef HW_OOB
-#endif /*CONFIG_MACH_A7LTE*/
+#endif /* CONFIG_MACH_A7LTE */
 
 #if defined(CONFIG_MACH_GC1) || defined(CONFIG_MACH_U1_NA_SPR) || \
 	defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_LT03EUR) || \

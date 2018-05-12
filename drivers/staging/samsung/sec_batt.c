@@ -47,8 +47,12 @@ EXPORT_SYMBOL(factory_mode);
 
 static int sec_bat_get_factory_mode(char *val)
 {
-        factory_mode = strncmp(val, "1", 1) ? 0 : 1;
-        pr_info("%s, factory_mode : %d\n", __func__, factory_mode);
-        return 1;
+	int x;
+
+	sscanf(val, "%d\n", &x);
+	factory_mode = x; //strncmp(val, "1", 1) ? 0 : 1;
+
+	pr_info("%s, factory_mode : %d\n", __func__, factory_mode);
+	return 1;
 }
 __setup("factory_mode=", sec_bat_get_factory_mode);

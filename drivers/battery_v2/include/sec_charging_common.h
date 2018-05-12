@@ -43,12 +43,22 @@ enum power_supply_ext_property {
 	POWER_SUPPLY_EXT_PROP_WIRELESS_TX_VAL,
 	POWER_SUPPLY_EXT_PROP_AICL_CURRENT,
 	POWER_SUPPLY_EXT_PROP_CHECK_MULTI_CHARGE,
-	POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING,
+	POWER_SUPPLY_EXT_PROP_CHIP_ID,
 	POWER_SUPPLY_EXT_PROP_SYSOVLO,
 	POWER_SUPPLY_EXT_PROP_VBAT_OVP,
+	POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING,
+	POWER_SUPPLY_EXT_PROP_USB_CONFIGURE,
+	POWER_SUPPLY_EXT_PROP_WATER_DETECT,
+	POWER_SUPPLY_EXT_PROP_SURGE,
 	POWER_SUPPLY_EXT_PROP_FUELGAUGE_RESET,
 	POWER_SUPPLY_EXT_PROP_FACTORY_VOLTAGE_REGULATION,
+	POWER_SUPPLY_EXT_PROP_DISABLE_FACTORY_MODE,
 	POWER_SUPPLY_EXT_PROP_ANDIG_IVR_SWITCH,
+	POWER_SUPPLY_EXT_PROP_FUELGAUGE_FACTORY,
+	POWER_SUPPLY_EXT_PROP_CURRENT_MEASURE,
+#if defined(CONFIG_FUELGAUGE_S2MU004) || defined(CONFIG_FUELGAUGE_S2MU005)
+	POWER_SUPPLY_EXT_PROP_UPDATE_BATTERY_DATA,
+#endif
 };
 
 enum power_supply_ext_health {
@@ -179,8 +189,6 @@ enum sec_battery_adc_channel {
 	SEC_BAT_ADC_CHANNEL_VOLTAGE_NOW,
 	SEC_BAT_ADC_CHANNEL_CHG_TEMP,
 	SEC_BAT_ADC_CHANNEL_INBAT_VOLTAGE,
-	SEC_BAT_ADC_CHANNEL_DISCHARGING_CHECK,
-	SEC_BAT_ADC_CHANNEL_DISCHARGING_NTC,
 	SEC_BAT_ADC_CHANNEL_WPC_TEMP,
 	SEC_BAT_ADC_CHANNEL_SLAVE_CHG_TEMP,
 	SEC_BAT_ADC_CHANNEL_USB_TEMP,
@@ -250,14 +258,6 @@ enum sec_battery_full_charged {
 	SEC_BATTERY_FULLCHARGED_CHGINT,
 	/* charger power supply property, NO additional full condition */
 	SEC_BATTERY_FULLCHARGED_CHGPSY,
-};
-
-/* Self discharger type */
-enum sec_battery_discharger_type {
-	/* type ADC */
-	SEC_BAT_SELF_DISCHARGING_BY_ADC = 0,
-	/* type Fuel Gauge */
-	SEC_BAT_SELF_DISCHARGING_BY_FG,
 };
 
 /* BATT_INBAT_VOLTAGE */
@@ -520,12 +520,18 @@ struct sec_charging_current {
 
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 struct sec_age_data {
-	unsigned int cycle;
+	int cycle;
 	unsigned int float_voltage;
 	unsigned int recharge_condition_vcell;
 	unsigned int full_condition_vcell;
 	unsigned int full_condition_soc;
+#if defined(CONFIG_BATTERY_AGE_FORECAST_B2B)
+	unsigned int max_charging_current;
+#endif
 };
+
+#define sec_age_data_t \
+	struct sec_age_data
 
 #define sec_age_data_t \
 	struct sec_age_data
@@ -632,24 +638,6 @@ struct sec_battery_platform_data {
 	/* step charging */
 	unsigned int *step_charging_condition;
 	unsigned int *step_charging_current;
-#endif
-
-	/* self discharging */
-	bool self_discharging_en;
-	unsigned int discharging_adc_max;
-	unsigned int discharging_adc_min;
-	unsigned int self_discharging_voltage_limit;
-	unsigned int discharging_ntc_limit;
-	int force_discharging_limit;
-	int force_discharging_recov;
-	int factory_discharging;
-	unsigned int self_discharging_type;
-#if defined(CONFIG_SW_SELF_DISCHARGING)
-	/* sw self discharging */
-	int self_discharging_temp_block;
-	int self_discharging_volt_block;
-	int self_discharging_temp_recov;
-	int self_discharging_temp_pollingtime;
 #endif
 
 	/* Monitor setting */
@@ -817,15 +805,15 @@ struct sec_battery_platform_data {
 	int wpc_det;
 	int wpc_en;
 
+	int thm_mux;
+
 	int chg_gpio_en;
 	int chg_irq;
 	unsigned long chg_irq_attr;
 	/* float voltage (mV) */
-#ifdef CONFIG_OF
 	unsigned int chg_float_voltage;
-#else
-	int chg_float_voltage;
-#endif
+	unsigned int chg_float_voltage_conv;
+
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 	int num_age_step;
 	int age_step;
@@ -850,6 +838,9 @@ struct sec_battery_platform_data {
 	int max_input_voltage;
 	int max_input_current;
 	int pre_afc_work_delay;
+	
+	/* if siop level 0, set minimum fast charging current */
+	int minimum_charging_current_by_siop_0;
 
 	sec_charger_functions_t chg_functions_setting;
 
@@ -861,10 +852,15 @@ struct sec_battery_platform_data {
 	unsigned int cisd_cap_low_thr;
 	unsigned int cisd_cap_limit;
 	unsigned int max_voltage_thr;
+	char *cisd_data_efs_path;
 #endif
 
 	/* ADC setting */
 	unsigned int adc_check_count;
+	unsigned int expired_time;
+	unsigned int recharging_expired_time;
+	int standard_curr;
+
 	/* ADC type for each channel */
 	unsigned int adc_type[];
 };
@@ -889,6 +885,7 @@ struct sec_charger_platform_data {
 
 	/* otg_en setting */
 	int otg_en;
+	unsigned int slow_current_threshold;
 
 	/* OVP/UVLO check */
 	sec_battery_ovp_uvlo_t ovp_uvlo_check_type;

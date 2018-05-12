@@ -705,6 +705,12 @@ config KEYBOARD_ABOV_TOUCH_T316
 	help
 	  Say Y here if you want to use ABOV MC96T316AU chip as touchkey.
 
+config KEYBOARD_ABOV_TOUCH_3X6
+	tristate "Abov T316 T326 touchkey"
+	depends on I2C
+	help
+	  Say Y here if you want to use ABOV A96T3X6 chip as touchkey.
+
 config KEYBOARD_ABOV_TOUCH
 	tristate "Abov FT16XX touchkey"
 	depends on I2C

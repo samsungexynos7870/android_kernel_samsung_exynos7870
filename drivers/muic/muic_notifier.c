@@ -48,7 +48,7 @@ static void __set_noti_cxt(int attach, int type)
 {
 	if (type < 0) {
 		muic_notifier.cmd = attach;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 		muic_notifier.cxt.attach = attach;
 #endif
 		return;
@@ -58,7 +58,7 @@ static void __set_noti_cxt(int attach, int type)
 	muic_notifier.cmd = attach;
 	muic_notifier.attached_dev = type;
 
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	/* New Interface */
 	muic_notifier.cxt.src = NOTI_ADDR_SRC;
 	muic_notifier.cxt.dest = NOTI_ADDR_DST;
@@ -74,7 +74,7 @@ static void __set_ccic_noti_cxt(int attach, int type)
 {
 	if (type < 0) {
 		muic_ccic_notifier.cmd = attach;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 		muic_ccic_notifier.cxt.attach = attach;
 #endif
 		return;
@@ -84,7 +84,7 @@ static void __set_ccic_noti_cxt(int attach, int type)
 	muic_ccic_notifier.cmd = attach;
 	muic_ccic_notifier.attached_dev = type;
 
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	/* New Interface */
 	muic_ccic_notifier.cxt.src = NOTI_ADDR_SRC;
 	muic_ccic_notifier.cxt.dest = NOTI_ADDR_DST;
@@ -100,7 +100,7 @@ int muic_notifier_register(struct notifier_block *nb, notifier_fn_t notifier,
 			muic_notifier_device_t listener)
 {
 	int ret = 0;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	void *pcxt;;
 #endif
 
@@ -112,7 +112,7 @@ int muic_notifier_register(struct notifier_block *nb, notifier_fn_t notifier,
 		pr_err("%s: blocking_notifier_chain_register error(%d)\n",
 				__func__, ret);
 
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	pcxt = muic_uses_new_noti ? &(muic_notifier.cxt) : \
 			(void *)&(muic_notifier.attached_dev);
 
@@ -144,11 +144,18 @@ int muic_notifier_unregister(struct notifier_block *nb)
 static int muic_notifier_notify(void)
 {
 	int ret = 0;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	void *pcxt;
 
 	pr_info("%s: CMD=%d, DATA=%d\n", __func__, muic_notifier.cxt.attach,
 			muic_notifier.cxt.cable_type);
+
+#ifdef CONFIG_SEC_FACTORY
+	if(muic_notifier.cxt.attach != 0)
+		muic_send_attached_muic_cable_intent(muic_notifier.cxt.cable_type);
+	else
+		muic_send_attached_muic_cable_intent(0);
+#endif
 
 	pcxt = muic_uses_new_noti ? &(muic_notifier.cxt) : \
 			(void *)&(muic_notifier.attached_dev);
@@ -184,7 +191,7 @@ int muic_ccic_notifier_register(struct notifier_block *nb, notifier_fn_t notifie
 			muic_notifier_device_t listener)
 {
 	int ret = 0;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	void *pcxt;;
 #endif
 
@@ -196,7 +203,7 @@ int muic_ccic_notifier_register(struct notifier_block *nb, notifier_fn_t notifie
 		pr_err("%s: blocking_notifier_chain_register error(%d)\n",
 				__func__, ret);
 
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	pcxt = muic_ccic_uses_new_noti ? &(muic_ccic_notifier.cxt) : \
 			(void *)&(muic_ccic_notifier.attached_dev);
 
@@ -228,7 +235,7 @@ int muic_ccic_notifier_unregister(struct notifier_block *nb)
 static int muic_ccic_notifier_notify(void)
 {
 	int ret = 0;
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	void *pcxt;
 
 	pr_info("%s: CMD=%d, DATA=%d\n", __func__, muic_ccic_notifier.cxt.attach,
@@ -313,7 +320,7 @@ void muic_notifier_detach_attached_dev(muic_attached_dev_t cur_dev)
 
 	__set_noti_cxt(MUIC_NOTIFY_CMD_DETACH, -1);
 
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	if (muic_notifier.cxt.cable_type != cur_dev)
 		pr_warn("%s: attached_dev of muic_notifier(%d) != muic_data(%d)\n",
 				__func__, muic_notifier.cxt.cable_type, cur_dev);
@@ -363,7 +370,7 @@ static int __init muic_notifier_init(void)
 	int ret = 0;
 
 	pr_info("%s\n", __func__);
-#if defined(CONFIG_MUIC_SUPPORT_CCIC) && defined(CONFIG_CCIC_NOTIFIER)
+#if defined(CONFIG_CCIC_NOTIFIER)
 	muic_uses_new_noti = 1;
 #endif
 

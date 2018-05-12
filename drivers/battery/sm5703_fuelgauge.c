@@ -117,6 +117,8 @@ static void sm5703_fg_test_read(struct i2c_client *client)
 {
 	int ret, ret1, ret2, ret3, ret4;
 
+	ret = sm5703_fg_i2c_read_word(client, SM5703_REG_CNTL);
+	dev_info(&client->dev, "%s: sm5703 FG 0x01 = 0x%x \n", __func__, ret);
 	ret = sm5703_fg_i2c_read_word(client, 0x30);
 	dev_info(&client->dev, "%s: sm5703 FG 0x30 = 0x%x \n", __func__, ret);
 	ret = sm5703_fg_i2c_read_word(client, 0x31);
@@ -1052,13 +1054,22 @@ static bool sm5703_fg_init(struct sm5703_fuelgauge_data *fuelgauge)
 
 static bool sm5703_fg_reset(struct sm5703_fuelgauge_data *fuelgauge)
 {
+	int value;
+
 	dev_info(&fuelgauge->i2c->dev, "%s: sec_hal_fg_reset\n", __func__);
+
+	value = sm5703_fg_i2c_read_word(fuelgauge->i2c, SM5703_REG_CNTL);
+	value &= 0xF0;
 
 	/* SW reset code */
 	sm5703_fg_i2c_write_word(fuelgauge->i2c, 0x90, 0x0008);
 
-	/* delay 200ms */
-	msleep(200);
+	/* delay 400ms */
+	msleep(400);
+
+	/* Restore for SM5703_REG_CNTL[7:4] */
+	value |= sm5703_fg_i2c_read_word(fuelgauge->i2c, SM5703_REG_CNTL);
+	sm5703_fg_i2c_write_word(fuelgauge->i2c, SM5703_REG_CNTL, value);
 
 	/* init code */
 	if(sm5703_fg_check_reg_init_need(fuelgauge->i2c))

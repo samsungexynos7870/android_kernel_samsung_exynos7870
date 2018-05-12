@@ -3,7 +3,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2018, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_msgbuf.c 685101 2017-02-15 11:02:19Z $
+ * $Id: dhd_msgbuf.c 733632 2017-11-29 08:46:58Z $
  */
 
 
@@ -66,6 +66,10 @@
 
 #include <hnd_debug.h>
 #include <hnd_armtrap.h>
+
+#ifdef DHD_PKT_LOGGING
+#include <dhd_pktlog.h>
+#endif /* DHD_PKT_LOGGING */
 
 extern char dhd_version[];
 extern char fw_version[];
@@ -291,6 +295,7 @@ typedef struct dhd_dmaxfer {
 	bool          in_progress;
 	uint64        start_usec;
 	uint32	      d11_lpbk;
+	int           status;
 } dhd_dmaxfer_t;
 
 /**
@@ -642,6 +647,8 @@ static void BCMFASTPATH dhd_rxchain_commit(dhd_pub_t *dhd);
 #define DHD_PKT_CTF_MAX_CHAIN_LEN	64
 
 #endif /* DHD_RX_CHAINING */
+
+#define DHD_LPBKDTDUMP_ON()	(dhd_msg_level & DHD_LPBKDTDUMP_VAL)
 
 static void dhd_prot_h2d_sync_init(dhd_pub_t *dhd);
 
@@ -2794,6 +2801,16 @@ dhd_prot_reset(dhd_pub_t *dhd)
 #ifdef IOCTLRESP_USE_CONSTMEM
 	DHD_NATIVE_TO_PKTID_RESET_IOCTL(dhd, prot->pktid_map_handle_ioctl);
 #endif /* IOCTLRESP_USE_CONSTMEM */
+#ifdef DMAMAP_STATS
+	dhd->dma_stats.txdata = dhd->dma_stats.txdata_sz = 0;
+	dhd->dma_stats.rxdata = dhd->dma_stats.rxdata_sz = 0;
+#ifndef IOCTLRESP_USE_CONSTMEM
+	dhd->dma_stats.ioctl_rx = dhd->dma_stats.ioctl_rx_sz = 0;
+#endif /* IOCTLRESP_USE_CONSTMEM */
+	dhd->dma_stats.event_rx = dhd->dma_stats.event_rx_sz = 0;
+	dhd->dma_stats.info_rx = dhd->dma_stats.info_rx_sz = 0;
+	dhd->dma_stats.tsbuf_rx = dhd->dma_stats.tsbuf_rx_sz = 0;
+#endif /* DMAMAP_STATS */
 } /* dhd_prot_reset */
 
 #if defined(DHD_LB_RXP)
@@ -3252,6 +3269,28 @@ dhd_prot_packet_get(dhd_pub_t *dhd, uint32 pktid, uint8 pkttype, bool free_pktid
 					secdma, 0);
 			else
 				DMA_UNMAP(dhd->osh, pa, (uint) len, DMA_RX, 0, dmah);
+#ifdef DMAMAP_STATS
+			switch (pkttype) {
+#ifndef IOCTLRESP_USE_CONSTMEM
+				case PKTTYPE_IOCTL_RX:
+					dhd->dma_stats.ioctl_rx--;
+					dhd->dma_stats.ioctl_rx_sz -= len;
+					break;
+#endif /* IOCTLRESP_USE_CONSTMEM */
+				case PKTTYPE_EVENT_RX:
+					dhd->dma_stats.event_rx--;
+					dhd->dma_stats.event_rx_sz -= len;
+					break;
+				case PKTTYPE_INFO_RX:
+					dhd->dma_stats.info_rx--;
+					dhd->dma_stats.info_rx_sz -= len;
+					break;
+				case PKTTYPE_TSBUF_RX:
+					dhd->dma_stats.tsbuf_rx--;
+					dhd->dma_stats.tsbuf_rx_sz -= len;
+					break;
+			}
+#endif /* DMAMAP_STATS */
 		}
 	}
 
@@ -3406,6 +3445,10 @@ dhd_prot_rxbuf_post(dhd_pub_t *dhd, uint16 count, bool use_rsv_pktid)
 			ASSERT(0);
 			break;
 		}
+#ifdef DMAMAP_STATS
+		dhd->dma_stats.rxdata++;
+		dhd->dma_stats.rxdata_sz += pktlen[i];
+#endif /* DMAMAP_STATS */
 
 		PKTPULL(dhd->osh, p, prot->rx_metadata_offset);
 		pktlen[i] = PKTLEN(dhd->osh, p);
@@ -3645,7 +3688,10 @@ dhd_prot_infobufpost(dhd_pub_t *dhd)
 			ASSERT(0);
 			break;
 		}
-
+#ifdef DMAMAP_STATS
+		dhd->dma_stats.info_rx++;
+		dhd->dma_stats.info_rx_sz += pktlen;
+#endif /* DMAMAP_STATS */
 		pktlen = PKTLEN(dhd->osh, p);
 
 		/* Common msg header */
@@ -3859,6 +3905,27 @@ dhd_prot_rxbufpost_ctrl(dhd_pub_t *dhd, uint8 msg_type)
 			ASSERT(0);
 			goto free_pkt_return;
 		}
+
+#ifdef DMAMAP_STATS
+		switch (buf_type) {
+#ifndef IOCTLRESP_USE_CONSTMEM
+			case PKTTYPE_IOCTL_RX:
+				dhd->dma_stats.ioctl_rx++;
+				dhd->dma_stats.ioctl_rx_sz += pktlen;
+				break;
+#endif /* !IOCTLRESP_USE_CONSTMEM */
+			case PKTTYPE_EVENT_RX:
+				dhd->dma_stats.event_rx++;
+				dhd->dma_stats.event_rx_sz += pktlen;
+				break;
+			case PKTTYPE_TSBUF_RX:
+				dhd->dma_stats.tsbuf_rx++;
+				dhd->dma_stats.tsbuf_rx_sz += pktlen;
+				break;
+			default:
+				break;
+		}
+#endif /* DMAMAP_STATS */
 
 	}
 #ifdef PCIE_INB_DW
@@ -4154,10 +4221,6 @@ dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound)
 	int i;
 	uint8 sync;
 
-#ifdef DHD_WAKE_STATUS
-	int pkt_wake = bcmpcie_set_get_wake(dhd->bus, 0);
-#endif
-
 	while (1) {
 		if (dhd_is_device_removed(dhd))
 			break;
@@ -4222,6 +4285,10 @@ dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound)
 			else
 				DMA_UNMAP(dhd->osh, pa, (uint) len, DMA_RX, 0, dmah);
 
+#ifdef DMAMAP_STATS
+			dhd->dma_stats.rxdata--;
+			dhd->dma_stats.rxdata_sz -= len;
+#endif /* DMAMAP_STATS */
 			DHD_INFO(("id 0x%04x, offset %d, len %d, idx %d, phase 0x%02x, "
 				"pktdata %p, metalen %d\n",
 				ltoh32(msg->cmn_hdr.request_id),
@@ -4310,11 +4377,7 @@ dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound)
 #elif defined(DHD_RX_CHAINING)
 			dhd_rxchain_frame(dhd, pkt, ifidx);
 #else
-#ifdef DHD_WAKE_STATUS
-			dhd_bus_rx_frame(dhd->bus, pkt, ifidx, 1, pkt_wake);
-#else
 			dhd_bus_rx_frame(dhd->bus, pkt, ifidx, 1);
-#endif /* DHD_WAKE_STATUS */
 #endif /* DHD_LB_RXP */
 		}
 
@@ -4324,11 +4387,7 @@ dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound)
 #elif defined(DHD_RX_CHAINING)
 			dhd_rxchain_frame(dhd, pkt_newidx, if_newidx);
 #else
-#ifdef DHD_WAKE_STATUS
-			dhd_bus_rx_frame(dhd->bus, pkt_newidx, if_newidx, 1, pkt_wake);
-#else
 			dhd_bus_rx_frame(dhd->bus, pkt_newidx, if_newidx, 1);
-#endif /* DHD_WAKE_STATUS */
 #endif /* DHD_LB_RXP */
 		}
 
@@ -4942,7 +5001,11 @@ workq_ring_full:
 				secdma, offset);
 		} else
 			DMA_UNMAP(dhd->osh, pa, (uint) len, DMA_RX, 0, dmah);
-#ifdef DBG_PKT_MON
+#ifdef DMAMAP_STATS
+		dhd->dma_stats.txdata--;
+		dhd->dma_stats.txdata_sz -= len;
+#endif /* DMAMAP_STATS */
+#if defined(DBG_PKT_MON) || defined(DHD_PKT_LOGGING)
 		if (dhd->d11_tx_status) {
 			uint16 tx_status;
 
@@ -4951,9 +5014,11 @@ workq_ring_full:
 			pkt_fate = (tx_status == WLFC_CTL_PKTFLAG_DISCARD) ? TRUE : FALSE;
 
 			DHD_DBG_PKT_MON_TX_STATUS(dhd, pkt, pktid, tx_status);
+#ifdef DHD_PKT_LOGGING
+			DHD_PKTLOG_TXS(dhd, pkt, pktid, tx_status);
+#endif /* DHD_PKT_LOGGING */
 		}
-#endif /* DBG_PKT_MON */
-
+#endif /* DBG_PKT_MON || DHD_PKT_LOGGING */
 #if defined(BCMPCIE)
 		dhd_txcomplete(dhd, pkt, pkt_fate);
 #endif 
@@ -5005,10 +5070,6 @@ dhd_prot_event_process(dhd_pub_t *dhd, void *msg)
 	unsigned long flags;
 	dhd_prot_t *prot = dhd->prot;
 
-#ifdef DHD_WAKE_STATUS
-	int pkt_wake = bcmpcie_set_get_wake(dhd->bus, 0);
-#endif
-
 	/* Event complete header */
 	evnt = (wlevent_req_msg_t *)msg;
 	bufid = ltoh32(evnt->cmn_hdr.request_id);
@@ -5043,11 +5104,7 @@ dhd_prot_event_process(dhd_pub_t *dhd, void *msg)
 
 	PKTSETLEN(dhd->osh, pkt, buflen);
 
-#ifdef DHD_WAKE_STATUS
-	dhd_bus_rx_frame(dhd->bus, pkt, ifidx, 1, pkt_wake);
-#else
 	dhd_bus_rx_frame(dhd->bus, pkt, ifidx, 1);
-#endif /* DHD_WAKE_STATUS */
 }
 
 /** called on MSG_TYPE_INFO_BUF_CMPLT message received from dongle */
@@ -5060,9 +5117,6 @@ dhd_prot_process_infobuf_complete(dhd_pub_t *dhd, void* buf)
 	void * pkt;
 	unsigned long flags;
 
-#ifdef DHD_WAKE_STATUS
-	int pkt_wake = bcmpcie_set_get_wake(dhd->bus, 0);
-#endif
 	resp = (info_buf_resp_t *)buf;
 	pktid = ltoh32(resp->cmn_hdr.request_id);
 	buflen = ltoh16(resp->info_data_len);
@@ -5101,11 +5155,7 @@ dhd_prot_process_infobuf_complete(dhd_pub_t *dhd, void* buf)
 	 * special ifidx of -1.  This is just internal to dhd to get the data to
 	 * dhd_linux.c:dhd_rx_frame() from here (dhd_prot_infobuf_cmplt_process).
 	 */
-#ifdef DHD_WAKE_STATUS
-	dhd_bus_rx_frame(dhd->bus, pkt, DHD_EVENT_IF /* ifidx HACK */, 1, pkt_wake);
-#else
 	dhd_bus_rx_frame(dhd->bus, pkt, DHD_EVENT_IF /* ifidx HACK */, 1);
-#endif /* DHD_WAKE_STATUS */
 }
 
 /** Stop protocol: sync w/dongle state. */
@@ -5193,21 +5243,17 @@ dhd_prot_txdata(dhd_pub_t *dhd, void *PKTBUF, uint8 ifidx)
 	txdesc = (host_txbuf_post_t *)
 		dhd_prot_alloc_ring_space(dhd, ring, 1, &alloced, FALSE);
 	if (txdesc == NULL) {
-#if defined(DHD_PCIE_PKTID)
-		void *dmah;
-		void *secdma;
-		/* Free up the PKTID. physaddr and pktlen will be garbage. */
-		DHD_PKTID_TO_NATIVE(dhd, dhd->prot->pktid_tx_map, pktid,
-			pa, pktlen, dmah, secdma, PKTTYPE_NO_CHECK);
-#endif /* DHD_PCIE_PKTID */
 		DHD_INFO(("%s:%d: HTOD Msgbuf Not available TxCount = %d\n",
 			__FUNCTION__, __LINE__, prot->active_tx_count));
-		goto err_no_res_pktfree;
+		goto err_free_pktid;
 	}
 
 #ifdef DBG_PKT_MON
 	DHD_DBG_PKT_MON_TX(dhd, PKTBUF, pktid);
 #endif /* DBG_PKT_MON */
+#ifdef DHD_PKT_LOGGING
+	DHD_PKTLOG_TX(dhd, PKTBUF, pktid);
+#endif /* DHD_PKT_LOGGING */
 
 
 	/* Extract the data pointer and length information */
@@ -5238,10 +5284,16 @@ dhd_prot_txdata(dhd_pub_t *dhd, void *PKTBUF, uint8 ifidx)
 #endif /* #ifndef BCM_SECURE_DMA */
 
 	if (PHYSADDRISZERO(pa)) {
-		DHD_ERROR(("Something really bad, unless 0 is a valid phyaddr\n"));
+		DHD_ERROR(("%s: Something really bad, unless 0 is "
+			"a valid phyaddr for pa\n", __FUNCTION__));
 		ASSERT(0);
+		goto err_rollback_idx;
 	}
 
+#ifdef DMAMAP_STATS
+	dhd->dma_stats.txdata++;
+	dhd->dma_stats.txdata_sz += pktlen;
+#endif /* DMAMAP_STATS */
 	/* No need to lock. Save the rest of the packet's metadata */
 	DHD_NATIVE_TO_PKTID_SAVE(dhd, dhd->prot->pktid_tx_map, PKTBUF, pktid,
 	    pa, pktlen, DMA_TX, NULL, ring->dma_buf.secdma, PKTTYPE_DATA_TX);
@@ -5297,8 +5349,33 @@ dhd_prot_txdata(dhd_pub_t *dhd, void *PKTBUF, uint8 ifidx)
 #endif /* #ifndef BCM_SECURE_DMA */
 
 		if (PHYSADDRISZERO(meta_pa)) {
-			DHD_ERROR(("Something really bad, unless 0 is a valid phyaddr\n"));
+			/* Unmap the data pointer to a DMA-able address */
+			if (SECURE_DMA_ENAB(dhd->osh)) {
+
+				int offset = 0;
+				BCM_REFERENCE(offset);
+
+				if (prot->tx_metadata_offset) {
+					offset = prot->tx_metadata_offset + ETHER_HDR_LEN;
+				}
+
+				SECURE_DMA_UNMAP(dhd->osh, pa, pktlen,
+					DMA_TX, 0, DHD_DMAH_NULL, ring->dma_buf.secdma, offset);
+			}
+#ifndef BCM_SECURE_DMA
+			else {
+				DMA_UNMAP(dhd->osh, pa, pktlen, DMA_TX, 0, DHD_DMAH_NULL);
+			}
+#endif /* #ifndef BCM_SECURE_DMA */
+#ifdef TXP_FLUSH_NITEMS
+			/* update pend_items_count */
+			ring->pend_items_count--;
+#endif /* TXP_FLUSH_NITEMS */
+
+			DHD_ERROR(("%s: Something really bad, unless 0 is "
+				"a valid phyaddr for meta_pa\n", __FUNCTION__));
 			ASSERT(0);
+			goto err_rollback_idx;
 		}
 
 		/* Adjust the data pointer back to original value */
@@ -5352,7 +5429,31 @@ dhd_prot_txdata(dhd_pub_t *dhd, void *PKTBUF, uint8 ifidx)
 
 	return BCME_OK;
 
+err_rollback_idx:
+	/* roll back write pointer for unprocessed message */
+	if (ring->wr == 0) {
+		ring->wr = ring->max_items - 1;
+	} else {
+		ring->wr--;
+		if (ring->wr == 0) {
+			DHD_INFO(("%s: flipping the phase now\n", ring->name));
+			ring->current_phase = ring->current_phase ?
+				0 : BCMPCIE_CMNHDR_PHASE_BIT_INIT;
+		}
+	}
+
+err_free_pktid:
+#if defined(DHD_PCIE_PKTID)
+	{
+		void *dmah;
+		void *secdma;
+		/* Free up the PKTID. physaddr and pktlen will be garbage. */
+		DHD_PKTID_TO_NATIVE(dhd, dhd->prot->pktid_tx_map, pktid,
+			pa, pktlen, dmah, secdma, PKTTYPE_NO_CHECK);
+	}
+
 err_no_res_pktfree:
+#endif /* DHD_PCIE_PKTID */
 
 
 
@@ -5674,7 +5775,7 @@ dmaxfer_free_prev_dmaaddr(dhd_pub_t *dhdp, dmaxref_mem_map_t *dmmap)
 int dmaxfer_prepare_dmaaddr(dhd_pub_t *dhd, uint len,
 	uint srcdelay, uint destdelay, dhd_dmaxfer_t *dmaxfer)
 {
-	uint i;
+	uint i = 0, j = 0;
 	if (!dmaxfer)
 		return BCME_ERROR;
 
@@ -5692,10 +5793,24 @@ int dmaxfer_prepare_dmaaddr(dhd_pub_t *dhd, uint len,
 
 	dmaxfer->len = len;
 
-	/* Populate source with a pattern */
-	for (i = 0; i < dmaxfer->len; i++) {
-		((uint8*)dmaxfer->srcmem.va)[i] = i % 256;
+	/* Populate source with a pattern like below
+	 * 0x00000000
+	 * 0x01010101
+	 * 0x02020202
+	 * 0x03030303
+	 * 0x04040404
+	 * 0x05050505
+	 * ...
+	 * 0xFFFFFFFF
+	 */
+	while (i < dmaxfer->len) {
+		((uint8*)dmaxfer->srcmem.va)[i] = j % 256;
+		i++;
+		if (i % 4 == 0) {
+			j++;
+		}
 	}
+
 	OSL_CACHE_FLUSH(dmaxfer->srcmem.va, dmaxfer->len);
 
 	dmaxfer->srcdelay = srcdelay;
@@ -5712,32 +5827,67 @@ dhd_msgbuf_dmaxfer_process(dhd_pub_t *dhd, void *msg)
 	pcie_dmaxfer_cmplt_t *cmplt = (pcie_dmaxfer_cmplt_t *)msg;
 
 	BCM_REFERENCE(cmplt);
-	DHD_INFO(("DMA status: %d\n", cmplt->compl_hdr.status));
+	end_usec = OSL_SYSUPTIME_US();
+
+	DHD_ERROR(("DMA loopback status: %d\n", cmplt->compl_hdr.status));
+	prot->dmaxfer.status = cmplt->compl_hdr.status;
 	OSL_CACHE_INV(prot->dmaxfer.dstmem.va, prot->dmaxfer.len);
 	if (prot->dmaxfer.srcmem.va && prot->dmaxfer.dstmem.va) {
 		if (memcmp(prot->dmaxfer.srcmem.va,
-		        prot->dmaxfer.dstmem.va, prot->dmaxfer.len)) {
+			prot->dmaxfer.dstmem.va, prot->dmaxfer.len) ||
+			cmplt->compl_hdr.status != BCME_OK) {
+			DHD_ERROR(("DMA loopback failed\n"));
 			prhex("XFER SRC: ",
-			    prot->dmaxfer.srcmem.va, prot->dmaxfer.len);
+				prot->dmaxfer.srcmem.va, prot->dmaxfer.len);
 			prhex("XFER DST: ",
-			    prot->dmaxfer.dstmem.va, prot->dmaxfer.len);
-		        DHD_ERROR(("DMA failed\n"));
+				prot->dmaxfer.dstmem.va, prot->dmaxfer.len);
+			prot->dmaxfer.status = BCME_ERROR;
 		}
 		else {
-			if (prot->dmaxfer.d11_lpbk) {
+			switch (prot->dmaxfer.d11_lpbk) {
+			case M2M_DMA_LPBK: {
+				DHD_ERROR(("DMA successful pcie m2m DMA loopback\n"));
+				} break;
+			case D11_LPBK: {
 				DHD_ERROR(("DMA successful with d11 loopback\n"));
-			} else {
-				DHD_ERROR(("DMA successful without d11 loopback\n"));
+				} break;
+			case BMC_LPBK: {
+				DHD_ERROR(("DMA successful with bmc loopback\n"));
+				} break;
+			case M2M_NON_DMA_LPBK: {
+				DHD_ERROR(("DMA successful pcie m2m NON DMA loopback\n"));
+				} break;
+			case D11_HOST_MEM_LPBK: {
+				DHD_ERROR(("DMA successful d11 host mem loopback\n"));
+				} break;
+			case BMC_HOST_MEM_LPBK: {
+				DHD_ERROR(("DMA successful bmc host mem loopback\n"));
+				} break;
+			default: {
+				DHD_ERROR(("Invalid loopback option\n"));
+				} break;
+			}
+
+			if (DHD_LPBKDTDUMP_ON()) {
+				/* debug info print of the Tx and Rx buffers */
+				dhd_prhex("XFER SRC: ", prot->dmaxfer.srcmem.va,
+					prot->dmaxfer.len, DHD_INFO_VAL);
+				dhd_prhex("XFER DST: ", prot->dmaxfer.dstmem.va,
+					prot->dmaxfer.len, DHD_INFO_VAL);
 			}
 		}
 	}
-	end_usec = OSL_SYSUPTIME_US();
+
 	dhd_prepare_schedule_dmaxfer_free(dhd);
 	end_usec -= prot->dmaxfer.start_usec;
-	DHD_ERROR(("DMA loopback %d bytes in %llu usec, %u kBps\n",
-		prot->dmaxfer.len, end_usec,
-		(prot->dmaxfer.len * (1000 * 1000 / 1024) / (uint32)(end_usec + 1))));
+	if (end_usec)
+		DHD_ERROR(("DMA loopback %d bytes in %lu usec, %u kBps\n",
+			prot->dmaxfer.len, (unsigned long)end_usec,
+			(prot->dmaxfer.len * (1000 * 1000 / 1024) / (uint32)end_usec)));
 	dhd->prot->dmaxfer.in_progress = FALSE;
+
+	dhd->bus->dmaxfer_complete = TRUE;
+	dhd_os_dmaxfer_wake(dhd);
 }
 
 /** Test functionality.
@@ -5746,7 +5896,8 @@ dhd_msgbuf_dmaxfer_process(dhd_pub_t *dhd, void *msg)
  * by a spinlock.
  */
 int
-dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay, uint d11_lpbk)
+dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay,
+	uint d11_lpbk, uint core_num)
 {
 	unsigned long flags;
 	int ret = BCME_OK;
@@ -5758,22 +5909,24 @@ dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay, u
 
 	if (prot->dmaxfer.in_progress) {
 		DHD_ERROR(("DMA is in progress...\n"));
-		return ret;
+		return BCME_ERROR;
 	}
+
+	if (d11_lpbk >= MAX_LPBK) {
+		DHD_ERROR(("loopback mode should be either"
+			" 0-PCIE_M2M_DMA, 1-D11, 2-BMC or 3-PCIE_M2M_NonDMA\n"));
+		return BCME_ERROR;
+	}
+
+	DHD_GENERAL_LOCK(dhd, flags);
 
 	prot->dmaxfer.in_progress = TRUE;
 	if ((ret = dmaxfer_prepare_dmaaddr(dhd, xferlen, srcdelay, destdelay,
-	        &prot->dmaxfer)) != BCME_OK) {
+		&prot->dmaxfer)) != BCME_OK) {
 		prot->dmaxfer.in_progress = FALSE;
+		DHD_GENERAL_UNLOCK(dhd, flags);
 		return ret;
 	}
-
-#ifdef PCIE_INB_DW
-	if (dhd_prot_inc_hostactive_devwake_assert(dhd->bus) != BCME_OK)
-		return BCME_ERROR;
-#endif /* PCIE_INB_DW */
-
-	DHD_GENERAL_LOCK(dhd, flags);
 
 	dmap = (pcie_dma_xfer_params_t *)
 		dhd_prot_alloc_ring_space(dhd, ring, 1, &alloced, FALSE);
@@ -5782,9 +5935,6 @@ dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay, u
 		dmaxfer_free_dmaaddr(dhd, &prot->dmaxfer);
 		prot->dmaxfer.in_progress = FALSE;
 		DHD_GENERAL_UNLOCK(dhd, flags);
-#ifdef PCIE_INB_DW
-		dhd_prot_dec_hostactive_ack_pending_dsreq(dhd->bus);
-#endif
 		return BCME_NOMEM;
 	}
 
@@ -5802,22 +5952,35 @@ dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay, u
 	dmap->xfer_len = htol32(prot->dmaxfer.len);
 	dmap->srcdelay = htol32(prot->dmaxfer.srcdelay);
 	dmap->destdelay = htol32(prot->dmaxfer.destdelay);
-	prot->dmaxfer.d11_lpbk = d11_lpbk ? 1 : 0;
-	dmap->flags = (prot->dmaxfer.d11_lpbk << PCIE_DMA_XFER_FLG_D11_LPBK_SHIFT)
-			& PCIE_DMA_XFER_FLG_D11_LPBK_MASK;
+	prot->dmaxfer.d11_lpbk = d11_lpbk;
+	dmap->flags = (((core_num & PCIE_DMA_XFER_FLG_CORE_NUMBER_MASK)
+			<< PCIE_DMA_XFER_FLG_CORE_NUMBER_SHIFT) |
+			((prot->dmaxfer.d11_lpbk & PCIE_DMA_XFER_FLG_D11_LPBK_MASK)
+			<< PCIE_DMA_XFER_FLG_D11_LPBK_SHIFT));
+	prot->dmaxfer.start_usec = OSL_SYSUPTIME_US();
 
 	/* update ring's WR index and ring doorbell to dongle */
-	prot->dmaxfer.start_usec = OSL_SYSUPTIME_US();
 	dhd_prot_ring_write_complete(dhd, ring, dmap, 1);
-	DHD_GENERAL_UNLOCK(dhd, flags);
-#ifdef PCIE_INB_DW
-	dhd_prot_dec_hostactive_ack_pending_dsreq(dhd->bus);
-#endif
 
-	DHD_INFO(("DMA Started...\n"));
+	DHD_GENERAL_UNLOCK(dhd, flags);
+
+	DHD_ERROR(("DMA loopback Started...\n"));
 
 	return BCME_OK;
 } /* dhdmsgbuf_dmaxfer_req */
+
+dma_xfer_status_t
+dhdmsgbuf_dmaxfer_status(dhd_pub_t *dhd)
+{
+	dhd_prot_t *prot = dhd->prot;
+
+	if (prot->dmaxfer.in_progress)
+		return DMA_XFER_IN_PROGRESS;
+	else if (prot->dmaxfer.status == BCME_OK)
+		return DMA_XFER_SUCCESS;
+	else
+		return DMA_XFER_FAILED;
+}
 
 /** Called in the process of submitting an ioctl to the dongle */
 static int
@@ -8410,19 +8573,11 @@ dhd_rxchain_commit(dhd_pub_t *dhd)
 	dhd_prot_t *prot = dhd->prot;
 	rxchain_info_t *rxchain = &prot->rxchain;
 
-#ifdef DHD_WAKE_STATUS
-	int pkt_wake = bcmpcie_set_get_wake(dhd->bus, 0);
-#endif /* DHD_WAKE_STATUS */
-
 	if (rxchain->pkt_count == 0)
 		return;
 
 	/* Release the packets to dhd_linux */
-#ifdef DHD_WAKE_STATUS
-	dhd_bus_rx_frame(dhd->bus, rxchain->pkthead, rxchain->ifidx, rxchain->pkt_count, pkt_wake);
-#else
 	dhd_bus_rx_frame(dhd->bus, rxchain->pkthead, rxchain->ifidx, rxchain->pkt_count);
-#endif /* DHD_WAKE_STATUS */
 
 	/* Reset the chain */
 	dhd_rxchain_reset(rxchain);

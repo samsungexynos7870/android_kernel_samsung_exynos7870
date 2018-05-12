@@ -27,10 +27,16 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 #include <linux/regulator/consumer.h>
-
-/* for muic notifier */
+#if defined(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
+#ifdef CONFIG_CCIC_NOTIFIER
+#include <linux/ccic/ccic_notifier.h>
+#endif
+#endif
+#if defined(CONFIG_USB_TYPEC_MANAGER_NOTIFIER)
+#include <linux/usb/manager/usb_typec_manager_notifier.h>
+#endif
 
 #include <linux/sensor/sensors_core.h>
 #include "sx9306_reg.h"
@@ -56,8 +62,12 @@
 #define DIFF_READ_NUM            10
 #define GRIP_LOG_TIME            30 /* sec */
 
-#define IRQ_PROCESS_CONDITION   (SX9306_IRQSTAT_TOUCH_FLAG	\
+#define IRQ_PROCESS_CONDITION   (SX9306_IRQSTAT_TOUCH_FLAG \
 				| SX9306_IRQSTAT_RELEASE_FLAG)
+
+#ifdef CONFIG_SENSORS_GRIP_CHK_HALLIC
+#define HALLIC_PATH		"/sys/class/sec/sec_key/hall_detect"
+#endif
 
 struct sx9306_p {
 	struct i2c_client *client;
@@ -69,6 +79,7 @@ struct sx9306_p {
 	struct wake_lock grip_wake_lock;
 	struct mutex read_mutex;
 	struct notifier_block muic_nb;
+	struct notifier_block cpuidle_ccic_nb;
 
 	bool skip_data;
 	bool init_done;
@@ -76,6 +87,7 @@ struct sx9306_p {
 	u8 channel_sub1;
 	u8 enable_csx;
 	u8 normal_th;
+	u8 ta_th;
 	u8 normal_th_buf;
 	int irq;
 	int gpio_nirq;
@@ -91,6 +103,9 @@ struct sx9306_p {
 	u16 freq;
 	atomic_t enable;
 
+	int abnormal_mode;
+	int irq_count;
+	s32 max_diff;
 #ifdef CONFIG_SENSORS_GRIP_CHK_HALLIC
 	u8 hall_flag;
 	unsigned char hall_ic[5];
@@ -98,17 +113,35 @@ struct sx9306_p {
 };
 
 
-#ifdef CONFIG_SENSORS_GRIP_CHK_HALLIC
-#define HALLIC_PATH		"/sys/class/sec/sec_key/hall_detect"
+#ifdef CONFIG_SENSORS_GRIP_KEYSTRING_SKIPDATA
+static bool gsp_backoff = false; /* default off */
+static int __init set_gsp_backoff(char *str)
+{
+	int mode;
 
-static int sx9306_check_hallic_state(char *file_path, unsigned char hall_ic_status[])
+	get_option(&str, &mode);
+	mode &= 0x000000FF;
+
+	if (mode == '0') /* on */
+		gsp_backoff = true;
+
+	SENSOR_INFO("mode is %c gsp_backoff is %u\n",
+		mode, !gsp_backoff);
+	return 0;
+}
+early_param("gsp_backoff", set_gsp_backoff);
+#endif
+
+#ifdef CONFIG_SENSORS_GRIP_CHK_HALLIC
+static int sx9306_check_hallic_state(char *file_path,
+		unsigned char hall_ic_status[])
 {
 	int iRet = 0;
 	mm_segment_t old_fs;
 	struct file *filep;
 	u8 hall_sysfs[5];
 
-	memset(hall_sysfs,0, sizeof(hall_sysfs));
+	memset(hall_sysfs, 0, sizeof(hall_sysfs));
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -131,14 +164,13 @@ static int sx9306_check_hallic_state(char *file_path, unsigned char hall_ic_stat
 			iRet, (int)sizeof(hall_sysfs), hall_sysfs);
 
 		iRet = -EIO;
-	} else {
+	} else
 		strncpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
-	}
 
 	filp_close(filep, current->files);
 	set_fs(old_fs);
 
-	exit:
+exit:
 	return iRet;
 }
 #endif
@@ -229,7 +261,7 @@ static void sx9306_initialize_register(struct sx9306_p *data)
 	u8 val = 0;
 	int idx;
 
-	for (idx = 0; idx < (sizeof(setup_reg) >> 1); idx++) {
+	for (idx = 0; idx < (int)(sizeof(setup_reg) >> 1); idx++) {
 		sx9306_i2c_write(data, setup_reg[idx].reg, setup_reg[idx].val);
 		SENSOR_INFO("Write Reg: 0x%x Value: 0x%x\n",
 			setup_reg[idx].reg, setup_reg[idx].val);
@@ -266,7 +298,7 @@ static int sx9306_set_offset_calibration(struct sx9306_p *data)
 	return ret;
 }
 
-static void send_event(struct sx9306_p *data, u8 state)
+static void sx9306_send_event(struct sx9306_p *data, u8 state)
 {
 	SENSOR_INFO("THD = %d\n", data->normal_th);
 
@@ -367,9 +399,9 @@ static void sx9306_set_enable(struct sx9306_p *data, u8 enable)
 			input_report_rel(data->input, REL_MISC, 2);
 			input_sync(data->input);
 		} else if (status & (CSX_STATUS_REG << data->channel_main)) {
-			send_event(data, ACTIVE);
+			sx9306_send_event(data, ACTIVE);
 		} else {
-			send_event(data, IDLE);
+			sx9306_send_event(data, IDLE);
 		}
 
 		/* make sure no interrupts are pending since enabling irq
@@ -423,7 +455,7 @@ static ssize_t sx9306_set_offset_calibration_store(struct device *dev,
 
 	if (kstrtoint(buf, 10, &val)) {
 		SENSOR_ERR("Invalid Argument\n");
-		return -EINVAL;
+		return count;
 	}
 
 	if (val)
@@ -432,39 +464,49 @@ static ssize_t sx9306_set_offset_calibration_store(struct device *dev,
 	return count;
 }
 
-static ssize_t sx9306_register_write_store(struct device *dev,
+static ssize_t sx9306_register_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int regist = 0, val = 0;
+	int idx;
 	struct sx9306_p *data = dev_get_drvdata(dev);
 
-	if (sscanf(buf, "%d,%d", &regist, &val) != 2) {
-		SENSOR_ERR("The number of data are wrong\n");
-		return -EINVAL;
+	if (sscanf(buf, "%4x,%4x", &regist, &val) != 2) {
+		SENSOR_ERR("invalid value\n");
+		return count;
 	}
 
-	sx9306_i2c_write(data, (unsigned char)regist, (unsigned char)val);
-	SENSOR_INFO("Register(0x%2x) data(0x%2x)\n", regist, val);
+	for (idx = 0; idx < (int)(sizeof(setup_reg) >> 1); idx++) {
+		if (setup_reg[idx].reg == regist) {
+			sx9306_i2c_write(data, (unsigned char)regist, (unsigned char)val);
+			setup_reg[idx].val = val;
+
+			SENSOR_INFO("Register(0x%4x) data(0x%4x)\n", regist, val);
+			break;
+		}
+	}
 
 	return count;
 }
 
-static ssize_t sx9306_register_read_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t sx9306_register_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
-	int regist = 0;
 	unsigned char val = 0;
+	int offset = 0, idx = 0;
 	struct sx9306_p *data = dev_get_drvdata(dev);
 
-	if (sscanf(buf, "%d", &regist) != 1) {
-		SENSOR_ERR("The number of data are wrong\n");
-		return -EINVAL;
+	for (idx = 0; idx < (int)(sizeof(setup_reg) >> 1); idx++) {
+		sx9306_i2c_read(data, setup_reg[idx].reg, &val);
+
+		SENSOR_INFO("Register(0x%4x) data(0x%4x)\n",
+			setup_reg[idx].reg, val);
+
+		offset += snprintf(buf + offset, PAGE_SIZE - offset,
+			"Reg: 0x%4x Value: 0x%4x\n", setup_reg[idx].reg, val);
 	}
 
-	sx9306_i2c_read(data, (unsigned char)regist, &val);
-	SENSOR_INFO("Register(0x%2x) data(0x%2x)\n", regist, val);
-
-	return count;
+	return offset;
 }
 
 static ssize_t sx9306_read_data_show(struct device *dev,
@@ -618,11 +660,12 @@ static ssize_t sx9306_normal_threshold_store(struct device *dev,
 	/* It's for normal touch */
 	if (kstrtoul(buf, 10, &val)) {
 		SENSOR_ERR("Invalid Argument\n");
-		return -EINVAL;
+		return count;
 	}
 
 	SENSOR_INFO("normal threshold %lu\n", val);
 	data->normal_th_buf = data->normal_th = (u8)val;
+	data->ta_th = data->normal_th;
 
 	return count;
 }
@@ -645,7 +688,7 @@ static ssize_t sx9306_onoff_store(struct device *dev,
 	ret = kstrtou8(buf, 2, &val);
 	if (ret) {
 		SENSOR_ERR("Invalid Argument\n");
-		return ret;
+		return count;
 	}
 
 	if (val == 0) {
@@ -729,13 +772,60 @@ static ssize_t sx9306_diff_avg_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", data->diff_avg);
 }
 
+static ssize_t sx9306_irq_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct sx9306_p *data = dev_get_drvdata(dev);
+
+	int result = 0;
+
+	if (data->irq_count)
+		result = -1;
+
+	SENSOR_INFO("called\n");
+
+	return snprintf(buf, PAGE_SIZE, "%d,%d,%d\n",
+		result, data->irq_count, data->max_diff);
+}
+
+static ssize_t sx9306_irq_count_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sx9306_p *data = dev_get_drvdata(dev);
+
+	u8 onoff;
+	int ret;
+
+	ret = kstrtou8(buf, 10, &onoff);
+	if (ret < 0) {
+		SENSOR_ERR("kstrtou8 failed.(%d)\n", ret);
+		return count;
+	}
+
+	mutex_lock(&data->read_mutex);
+
+	if (onoff == 0) {
+		data->abnormal_mode = OFF;
+	} else if (onoff == 1) {
+		data->abnormal_mode = ON;
+		data->irq_count = 0;
+		data->max_diff = 0;
+	} else {
+		SENSOR_ERR("unknown value %d\n", onoff);
+	}
+
+	mutex_unlock(&data->read_mutex);
+
+	SENSOR_INFO("%d\n", onoff);
+
+	return count;
+}
+
 static DEVICE_ATTR(menual_calibrate, S_IRUGO | S_IWUSR | S_IWGRP,
 			sx9306_get_offset_calibration_show,
 			sx9306_set_offset_calibration_store);
-static DEVICE_ATTR(register_write, S_IWUSR | S_IWGRP,
-			NULL, sx9306_register_write_store);
-static DEVICE_ATTR(register_read, S_IWUSR | S_IWGRP,
-			NULL, sx9306_register_read_store);
+static DEVICE_ATTR(reg, S_IRUGO | S_IWUSR | S_IWGRP,
+			sx9306_register_show, sx9306_register_store);
 static DEVICE_ATTR(readback, S_IRUGO, sx9306_read_data_show, NULL);
 static DEVICE_ATTR(reset, S_IRUGO, sx9306_sw_reset_show, NULL);
 
@@ -750,8 +840,7 @@ static DEVICE_ATTR(calibration, S_IRUGO | S_IWUSR | S_IWGRP,
 			sx9306_calibration_show,
 			sx9306_calibration_store);
 static DEVICE_ATTR(onoff, S_IRUGO | S_IWUSR | S_IWGRP,
-			sx9306_onoff_show,
-			sx9306_onoff_store);
+			sx9306_onoff_show, sx9306_onoff_store);
 static DEVICE_ATTR(threshold, S_IRUGO | S_IWUSR | S_IWGRP,
 			sx9306_threshold_show,
 			sx9306_threshold_store);
@@ -759,13 +848,13 @@ static DEVICE_ATTR(normal_threshold, S_IRUGO | S_IWUSR | S_IWGRP,
 			sx9306_normal_threshold_show,
 			sx9306_normal_threshold_store);
 static DEVICE_ATTR(freq, S_IRUGO | S_IWUSR | S_IWGRP,
-			sx9306_freq_show,
-			sx9306_freq_store);
+			sx9306_freq_show, sx9306_freq_store);
+static DEVICE_ATTR(irq_count, S_IRUGO | S_IWUSR | S_IWGRP,
+			sx9306_irq_count_show, sx9306_irq_count_store);
 
 static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_menual_calibrate,
-	&dev_attr_register_write,
-	&dev_attr_register_read,
+	&dev_attr_reg,
 	&dev_attr_readback,
 	&dev_attr_reset,
 	&dev_attr_name,
@@ -780,6 +869,7 @@ static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_onoff,
 	&dev_attr_calibration,
 	&dev_attr_freq,
+	&dev_attr_irq_count,
 	NULL,
 };
 
@@ -795,7 +885,7 @@ static ssize_t sx9306_enable_store(struct device *dev,
 	ret = kstrtou8(buf, 2, &enable);
 	if (ret) {
 		SENSOR_ERR("Invalid Argument\n");
-		return ret;
+		return size;
 	}
 
 	SENSOR_INFO("new_value = %u old_value = %d\n", enable, pre_enable);
@@ -827,7 +917,7 @@ static ssize_t sx9306_flush_store(struct device *dev,
 	ret = kstrtou8(buf, 2, &enable);
 	if (ret) {
 		SENSOR_ERR("Invalid Argument\n");
-		return ret;
+		return size;
 	}
 
 	if (enable == 1) {
@@ -861,14 +951,22 @@ static void sx9306_touch_process(struct sx9306_p *data, u8 flag)
 	SENSOR_INFO("(0x%x)\n", status);
 	sx9306_get_data(data);
 
+	if (data->abnormal_mode) {
+		if (status) {
+			if (data->max_diff < data->diff)
+				data->max_diff = data->diff;
+			data->irq_count++;
+		}
+	}
+
 	if (data->state == IDLE) {
 		if (status & (CSX_STATUS_REG << data->channel_main))
-			send_event(data, ACTIVE);
+			sx9306_send_event(data, ACTIVE);
 		else
 			SENSOR_INFO("already released.\n");
 	} else {
 		if (!(status & (CSX_STATUS_REG << data->channel_main)))
-			send_event(data, IDLE);
+			sx9306_send_event(data, IDLE);
 		else
 			SENSOR_INFO("still touched\n");
 	}
@@ -884,6 +982,102 @@ static void sx9306_process_interrupt(struct sx9306_p *data)
 	if (flag & IRQ_PROCESS_CONDITION)
 		sx9306_touch_process(data, flag);
 }
+#if defined(CONFIG_CCIC_NOTIFIER) && defined(CONFIG_USB_TYPEC_MANAGER_NOTIFIER)
+static int sx9306_ccic_handle_notification(struct notifier_block *nb,
+		unsigned long action, void *data)
+{
+	CC_NOTI_USB_STATUS_TYPEDEF usb_status =
+		*(CC_NOTI_USB_STATUS_TYPEDEF *)data;
+
+	struct sx9306_p *pdata =
+		container_of(nb, struct sx9306_p, cpuidle_ccic_nb);
+	static int pre_attach;
+	u8 tmp;
+
+	if (pre_attach == usb_status.attach)
+		return 0;
+	/*
+	 * USB_STATUS_NOTIFY_DETACH = 0,
+	 * USB_STATUS_NOTIFY_ATTACH_DFP = 1, // Host
+	 * USB_STATUS_NOTIFY_ATTACH_UFP = 2, // Device
+	 * USB_STATUS_NOTIFY_ATTACH_DRP = 3, // Dual role
+	 */
+
+	if (pdata->init_done == ON) {
+		switch (usb_status.drp) {
+		case USB_STATUS_NOTIFY_ATTACH_UFP:
+		case USB_STATUS_NOTIFY_ATTACH_DFP:
+		case USB_STATUS_NOTIFY_DETACH:
+			if (usb_status.attach) {
+				SENSOR_INFO("drp = %d attat = %d\n",
+					usb_status.drp, usb_status.attach);
+				tmp = pdata->normal_th;
+				pdata->normal_th = pdata->ta_th;
+				pdata->ta_th = tmp;
+			} else {
+				SENSOR_INFO("drp = %d attat = %d\n",
+					usb_status.drp, usb_status.attach);
+				tmp = pdata->ta_th;
+				pdata->ta_th = pdata->normal_th;
+				pdata->normal_th = tmp;
+			}
+
+			sx9306_i2c_write(pdata, SX9306_CPS_CTRL6_REG,
+				pdata->normal_th);
+			sx9306_set_offset_calibration(pdata);
+			break;
+		default:
+			SENSOR_INFO("DRP type : %d\n", usb_status.drp);
+			break;
+		}
+	}
+
+	pre_attach = usb_status.attach;
+
+	return 0;
+}
+#elif defined(CONFIG_MUIC_NOTIFIER)
+static int sx9306_muic_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct sx9306_p *pdata = container_of(nb, struct sx9306_p, muic_nb);
+	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
+	u8 tmp;
+
+	switch (attached_dev) {
+	case ATTACHED_DEV_OTG_MUIC:
+	case ATTACHED_DEV_USB_MUIC:
+	case ATTACHED_DEV_TA_MUIC:
+	case ATTACHED_DEV_AFC_CHARGER_PREPARE_MUIC:
+	case ATTACHED_DEV_AFC_CHARGER_9V_MUIC:
+		if (action == MUIC_NOTIFY_CMD_ATTACH) {
+			SENSOR_INFO("TA/USB is inserted\n");
+			tmp = pdata->normal_th;
+			pdata->normal_th = pdata->ta_th;
+			pdata->ta_th = tmp;
+		} else {
+			SENSOR_INFO("TA/USB is removed\n");
+			tmp = pdata->ta_th;
+			pdata->ta_th = pdata->normal_th;
+			pdata->normal_th = tmp;
+		}
+		if (pdata->init_done == ON)
+			sx9306_set_offset_calibration(pdata);
+		else
+			SENSOR_INFO("not initialized\n");
+		break;
+	default:
+		break;
+	}
+
+	sx9306_i2c_write(pdata, SX9306_CPS_CTRL6_REG, pdata->normal_th);
+
+	SENSOR_INFO("dev=%d, action=%lu, thd=%d\n", attached_dev, action,
+		pdata->normal_th);
+
+	return NOTIFY_DONE;
+}
+#endif
 
 static void sx9306_init_work_func(struct work_struct *work)
 {
@@ -900,6 +1094,15 @@ static void sx9306_init_work_func(struct work_struct *work)
 
 	/* disabling IRQ */
 	sx9306_i2c_write(data, SX9306_IRQ_ENABLE_REG, 0x00);
+
+#if defined(CONFIG_CCIC_NOTIFIER) && defined(CONFIG_USB_TYPEC_MANAGER_NOTIFIER)
+	manager_notifier_register(&data->cpuidle_ccic_nb,
+					sx9306_ccic_handle_notification,
+					MANAGER_NOTIFY_CCIC_USB);
+#elif defined(CONFIG_MUIC_NOTIFIER)
+	muic_notifier_register(&data->muic_nb, sx9306_muic_notifier,
+		MUIC_NOTIFY_DEV_CPUIDLE);
+#endif
 
 	sx9306_set_debug_work(data, ON);
 }
@@ -935,9 +1138,9 @@ static void sx9306_debug_work_func(struct work_struct *work)
 			sx9306_set_offset_calibration(data);
 			data->hall_flag = 1;
 		}
-	}
-	else
+	} else {
 		data->hall_flag = 0;
+	}
 #endif
 
 	schedule_delayed_work(&data->debug_work, msecs_to_jiffies(1000));
@@ -947,9 +1150,9 @@ static irqreturn_t sx9306_interrupt_thread(int irq, void *pdata)
 {
 	struct sx9306_p *data = pdata;
 
-	if (sx9306_get_nirq_state(data) == 1) {
+	if (sx9306_get_nirq_state(data) == 1)
 		SENSOR_ERR("nirq read high\n");
-	} else {
+	else {
 		wake_lock_timeout(&data->grip_wake_lock, 3 * HZ);
 		schedule_delayed_work(&data->irq_work, msecs_to_jiffies(100));
 	}
@@ -1036,6 +1239,7 @@ static void sx9306_read_setupreg(struct device_node *dnode, char *str, u8 *val)
 {
 	u32 temp_val;
 	int ret;
+
 	ret = of_property_read_u32(dnode, str, &temp_val);
 	if (!ret) {
 		*val = (u8)temp_val;
@@ -1060,42 +1264,58 @@ static int sx9306_parse_dt(struct sx9306_p *data, struct device *dev)
 		return -ENODEV;
 	}
 
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl0", &setup_reg[SX9306_CTRL0_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl1", &setup_reg[SX9306_CTRL1_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl2", &setup_reg[SX9306_CTRL2_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl3", &setup_reg[SX9306_CTRL3_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl4", &setup_reg[SX9306_CTRL4_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl5", &setup_reg[SX9306_CTRL5_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl6", &setup_reg[SX9306_CTRL6_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl7", &setup_reg[SX9306_CTRL7_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl8", &setup_reg[SX9306_CTRL8_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl9", &setup_reg[SX9306_CTRL9_IDX].val);
-	sx9306_read_setupreg(node, "sx9306-i2c,ctrl10", &setup_reg[SX9306_CTRL10_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl0",
+			&setup_reg[SX9306_CTRL0_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl1",
+			&setup_reg[SX9306_CTRL1_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl2",
+			&setup_reg[SX9306_CTRL2_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl3",
+			&setup_reg[SX9306_CTRL3_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl4",
+			&setup_reg[SX9306_CTRL4_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl5",
+			&setup_reg[SX9306_CTRL5_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl6",
+			&setup_reg[SX9306_CTRL6_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl7",
+			&setup_reg[SX9306_CTRL7_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl8",
+			&setup_reg[SX9306_CTRL8_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl9",
+			&setup_reg[SX9306_CTRL9_IDX].val);
+	sx9306_read_setupreg(node, "sx9306-i2c,ctrl10",
+			&setup_reg[SX9306_CTRL10_IDX].val);
 
-	ret = of_property_read_u32(node, "sx9306-i2c,normal-thd",
-					&temp_val);
-	if (!ret) {
+	ret = of_property_read_u32(node, "sx9306-i2c,normal-thd", &temp_val);
+	if (!ret)
 		data->normal_th = (u8)temp_val;
-	} else {
+	else {
 		SENSOR_ERR("failed to get thd from dt. set as default.\n");
 		data->normal_th = DEFAULT_NORMAL_TH;
 	}
 
-	ret = of_property_read_u32(node, "sx9306-i2c,ch-main",
-						&temp_val);
-	if (!ret) {
+	ret = of_property_read_u32(node, "sx9306-i2c,ta-thd", &temp_val);
+	if (!ret)
+		data->ta_th = (u8)temp_val;
+	else {
+		SENSOR_ERR("failed to get ta thd from dt. set as default.\n");
+		data->ta_th = data->normal_th;
+	}
+
+	ret = of_property_read_u32(node, "sx9306-i2c,ch-main", &temp_val);
+	if (!ret)
 		data->channel_main = (u8)temp_val;
-	} else {
+	else {
 		SENSOR_ERR("failed to get main channel. set as default.\n");
 		data->channel_main = 0;
 	}
 	data->enable_csx = (1 << data->channel_main);
 
-	ret = of_property_read_u32(node, "sx9306-i2c,ch-sub1",
-						&temp_val);
-	if (!ret) {
+	ret = of_property_read_u32(node, "sx9306-i2c,ch-sub1", &temp_val);
+	if (!ret)
 		data->channel_sub1 = (u8)temp_val;
-	} else {
+	else {
 		SENSOR_INFO("failed to get sub channel. set as no sub.\n");
 		data->channel_sub1 = 0xff;
 	}
@@ -1104,92 +1324,6 @@ static int sx9306_parse_dt(struct sx9306_p *data, struct device *dev)
 
 	return 0;
 }
-
-static int sx9306_muic_notifier(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	struct sx9306_p *pdata = container_of(nb, struct sx9306_p, muic_nb);
-	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
-
-	switch (attached_dev) {
-		case ATTACHED_DEV_OTG_MUIC:
-		case ATTACHED_DEV_USB_MUIC:
-		case ATTACHED_DEV_TA_MUIC:
-		case ATTACHED_DEV_AFC_CHARGER_PREPARE_MUIC:
-		case ATTACHED_DEV_AFC_CHARGER_9V_MUIC:
-			if (action == MUIC_NOTIFY_CMD_ATTACH)
-				SENSOR_INFO("TA/USB is inserted\n");
-			else
-				SENSOR_INFO("TA/USB is removed\n");
-
-			if (pdata->init_done == ON)
-				sx9306_set_offset_calibration(pdata);
-			else
-				SENSOR_INFO("not initialized\n");
-			break;
-		default:
-			break;
-		}
-
-	SENSOR_INFO("dev=%d, action=%lu\n", attached_dev, action);
-
-	return NOTIFY_DONE;
-}
-
-#if defined(CONFIG_SENSORS_SX9306_REGULATOR_ONOFF)
-int sx9306_regulator_on(struct sx9306_p *data, bool onoff)
-{
-	struct regulator *reg_vdd, reg_ldo;
-	int ret = 0;
-
-	reg_vdd = devm_regulator_get(&data->client->dev, "vdd");
-	if (!reg_vdd) {
-		SENSOR_ERR("regulator pointer null vdd, rc=%d\n", ret);
-		return ret;
-	}
-	ret = regulator_set_voltage(reg_vdd, 2850000, 2850000);
-	if (ret) {
-		SENSOR_ERR("set voltage failed on vdd, rc=%d\n", ret);
-		return ret;
-	}
-
-	reg_ldo = devm_regulator_get(&data->client->dev, "vdd_ldo");
-	if (!reg_ldo) {
-		SENSOR_ERR("devm_regulator_get for vdd_ldo failed\n");
-		return 0;
-	}
-
-	if (onoff) {
-		ret = regulator_enable(reg_vdd);
-		if (ret) {
-			SENSOR_ERR("Failed to enable regulator vdd.\n");
-			return ret;
-		}
-
-		ret = regulator_enable(reg_ldo);
-		if (ret) {
-			SENSOR_ERR("Failed to enable regulator ldo.\n");
-			return ret;
-		}
-	} else {
-		ret = regulator_disable(reg_vdd);
-		if (ret) {
-			SENSOR_ERR("Failed to disable regulator vdd.\n");
-			return ret;
-		}
-
-		ret = regulator_disable(reg_ldo);
-		if (ret) {
-			SENSOR_ERR("Failed to disable regulator ldo.\n");
-			return ret;
-		}
-
-	}
-
-	msleep(30);
-	return 0;
-}
-#endif
 
 static int sx9306_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -1229,10 +1363,6 @@ static int sx9306_probe(struct i2c_client *client,
 		goto exit_setup_pin;
 	}
 
-#if defined(CONFIG_SENSORS_SX9306_REGULATOR_ONOFF)
-	sx9306_regulator_on(data, true);
-#endif
-
 	/* read chip id */
 	ret = sx9306_i2c_write(data, SX9306_SOFTRESET_REG, SX9306_SOFTRESET);
 	if (ret < 0) {
@@ -1247,8 +1377,9 @@ static int sx9306_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&data->debug_work, sx9306_debug_work_func);
 
 	data->irq = gpio_to_irq(data->gpio_nirq);
+	/* add IRQF_NO_SUSPEND option in case of Spreadtrum AP */
 	ret = request_threaded_irq(data->irq, NULL, sx9306_interrupt_thread,
-			IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_NO_SUSPEND,
+			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"sx9306_irq", data);
 	if (ret < 0) {
 		SENSOR_ERR("failed to set request_threaded_irq %d (%d)\n",
@@ -1268,10 +1399,7 @@ static int sx9306_probe(struct i2c_client *client,
 		goto exit_grip_sensor_register;
 	}
 
-	muic_notifier_register(&data->muic_nb, sx9306_muic_notifier, MUIC_NOTIFY_DEV_CPUIDLE);
-
 	schedule_delayed_work(&data->init_work, msecs_to_jiffies(300));
-
 	SENSOR_INFO("done\n");
 
 	return 0;
@@ -1283,11 +1411,8 @@ exit_grip_sensor_register:
 exit_input_init:
 	free_irq(data->irq, data);
 exit_request_threaded_irq:
-	gpio_free(data->gpio_nirq);
 exit_chip_reset:
-#if defined(CONFIG_SENSORS_SX9306_REGULATOR_ONOFF)
-	sx9306_regulator_on(data, false);
-#endif
+	gpio_free(data->gpio_nirq);
 exit_setup_pin:
 exit_of_node:
 	mutex_destroy(&data->read_mutex);
@@ -1300,29 +1425,7 @@ exit:
 
 static int sx9306_remove(struct i2c_client *client)
 {
-	struct sx9306_p *data = (struct sx9306_p *)i2c_get_clientdata(client);
-
-	if (atomic_read(&data->enable) == ON)
-		sx9306_set_enable(data, OFF);
-
-	sx9306_set_mode(data, SX9306_MODE_SLEEP);
-
-	cancel_delayed_work_sync(&data->init_work);
-	cancel_delayed_work_sync(&data->irq_work);
-	cancel_delayed_work_sync(&data->debug_work);
-	free_irq(data->irq, data);
-	gpio_free(data->gpio_nirq);
-
-	wake_lock_destroy(&data->grip_wake_lock);
-	sensors_unregister(data->factory_device, sensor_attrs);
-	sensors_remove_symlink(&data->input->dev.kobj, data->input->name);
-
-	sysfs_remove_group(&data->input->dev.kobj, &sx9306_attribute_group);
-	input_unregister_device(data->input);
-	mutex_destroy(&data->read_mutex);
-
-	kfree(data);
-
+	SENSOR_INFO("\n");
 	return 0;
 }
 

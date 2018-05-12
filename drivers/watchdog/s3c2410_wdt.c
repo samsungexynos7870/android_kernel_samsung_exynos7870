@@ -133,6 +133,7 @@ struct s3c2410_wdt {
 	spinlock_t		lock;
 	unsigned long		wtcon_save;
 	unsigned long		wtdat_save;
+	unsigned long		freq;
 	struct watchdog_device	wdt_device;
 	struct notifier_block	freq_transition;
 	struct notifier_block	restart_handler;
@@ -353,7 +354,7 @@ static inline int s3c2410wdt_is_running(struct s3c2410_wdt *wdt)
 static int s3c2410wdt_set_min_max_timeout(struct watchdog_device *wdd)
 {
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
-	unsigned long freq = clk_get_rate(wdt->rate_clock);
+	unsigned long freq = wdt->freq;
 
 	if(freq == 0) {
 		dev_err(wdd->dev, "failed to get platdata\n");
@@ -370,7 +371,7 @@ static int s3c2410wdt_set_min_max_timeout(struct watchdog_device *wdd)
 static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeout)
 {
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
-	unsigned long freq = clk_get_rate(wdt->rate_clock);
+	unsigned long freq = wdt->freq;
 	unsigned int count;
 	unsigned int divisor = 1;
 	unsigned long wtcon;
@@ -577,12 +578,24 @@ get_wdt_drv_data(struct platform_device *pdev)
 int s3c2410wdt_set_emergency_stop(void)
 {
 	struct s3c2410_wdt *wdt = s3c_wdt;
-	if (!s3c_wdt)
+	if (!wdt)
 		return -ENODEV;
 
 	/* stop watchdog */
 	pr_emerg("%s: watchdog is stopped\n", __func__);
 	s3c2410wdt_stop(&wdt->wdt_device);
+	return 0;
+}
+
+int s3c2410wdt_keepalive_emergency(void)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+
+	if (!wdt)
+		return -ENODEV;
+
+	/* This Function must be called during panic sequence only */
+	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
 	return 0;
 }
 
@@ -592,7 +605,7 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 {
 	struct s3c2410_wdt *wdt = s3c_wdt;
 
-	if (!s3c_wdt)
+	if (!wdt)
 		return -ENODEV;
 
 	/* We assumed that num_online_cpus() > 1 status is abnormal */
@@ -601,14 +614,39 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 		pr_emerg("%s: watchdog reset is started on panic after 5secs\n", __func__);
 
 		/* set watchdog timer is started and  set by 5 seconds*/
-		s3c2410wdt_start(&wdt->wdt_device);
 		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 5);
+		s3c2410wdt_start(&wdt->wdt_device);
+	} else {
+		/*
+		 * kick watchdog to prevent unexpected reset during panic sequence
+		 * and it prevents the hang during panic sequence by watchedog
+		 */
 		s3c2410wdt_keepalive(&wdt->wdt_device);
 	}
 
 	return 0;
 }
 
+int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
+{
+	struct s3c2410_wdt *wdt = s3c_wdt;
+	unsigned int wtdat = 0x100;
+	unsigned int wtcnt = wtdat + timeout_cnt;
+	unsigned long wtcon;
+
+	if (!wdt)
+		return -ENODEV;
+
+	/* emergency reset with wdt reset */
+	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
+	wtcon |= S3C2410_WTCON_RSTEN | S3C2410_WTCON_ENABLE;
+
+	writel(wtdat, wdt->reg_base + S3C2410_WTDAT);
+	writel(wtcnt, wdt->reg_base + S3C2410_WTCNT);
+	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
+
+	return 0;
+}
 static struct notifier_block nb_panic_block = {
 	.notifier_call = s3c2410wdt_panic_handler,
 };
@@ -683,6 +721,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to enable rate clock\n");
 		return ret;
 	}
+	wdt->freq = clk_get_rate(wdt->rate_clock);
 
 	ret = s3c2410wdt_cpufreq_register(wdt);
 	if (ret < 0) {

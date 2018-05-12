@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-2000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung J7VELTE board based on Exynos7870";
@@ -96,9 +96,38 @@
 		pinctrl-0 = <&i2s_pmic_bus
 				&i2s_bt_bus>;
 		pinctrl-1 = <&i2s_pmic_bus_idle
-				&i2s_bt_bus_idle> ;
+				&i2s_bt_bus_idle>;
 		bck-mcko-mode;
+		bt-fm-combo;
 		status = "okay";
+	};
+
+	hsi2c@10510000 {
+		status = "okay";
+		audio_codec_cod3026x: cod3026x@04 {
+			compatible = "codec,cod3026x";
+			reg = <0x04>;
+			ten-bit-address;
+			vdd-supply = <&ldo25_reg>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&cod3026_irq>;
+			interrupt-parent = <&gpa0>;
+			gpios = <&gpa0 4 0xf>;
+			mic-bias1-voltage = <1>;
+			mic-bias2-voltage = <1>;
+			mic-bias-ldo-voltage = <3>;
+			use-det-adc-mode;
+			io-channels = <&exynos_adc 2>;
+			io-channel-names = "adc-jack";
+			#io-channel-cells = <1>;
+			io-channel-ranges;
+			but-zones-list = <&but_zones 226 0 271>, /* send/end */
+					<&but_zones 582 272 347>, /* google */
+					<&but_zones 115 348 542>, /* vol up */
+					<&but_zones 114 543 1000>; /* vol down */
+			mic-adc-range = <1371>;
+			btn-press-delay = <10>;
+		};
 	};
 
 	i2s0: i2s@148A0000 {
@@ -347,6 +376,14 @@
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
+
+		i2c3_bus: i2c3-bus {
+			samsung,pins = "gpc3-1", "gpc3-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
 	};
 
 	i2c@13840000 {
@@ -368,8 +405,7 @@
 			melfas,sda-gpio = <&gpc3 0 2>;
 			melfas,max_x = <720>;
 			melfas,max_y = <1280>;
-			melfas,fw-skip = <1>;
-			melfas,fw_name = "tsp_melfas/mms438_j7x.fw";
+			melfas,fw_name = "tsp_melfas/mms438_j7ve.fw";
 		};
 	};
 
@@ -420,13 +456,20 @@
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
+
+		touch_3p3_en: touch-3p3-en {
+			samsung,pins = "gpd1-6";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+		};
+		
 	};
 
 	i2c@13850000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <100000>;
 		pinctrl-names = "default","on_i2c","off_i2c";
-		pinctrl-0 = <&i2c7_bus>;
+		pinctrl-0 = <&i2c7_bus &sub_det &touch_3p3_en>;
 		pinctrl-1 = <&i2c7_bus>;
 		pinctrl-2 = <&cfg_gpio>;
 		status = "okay";
@@ -459,6 +502,14 @@
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
 		};
+
+		sub_det: sub-det {
+			samsung,pins = "gpa0-6";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+
 		dwmmc2_cd_ext_irq: dwmmc2_cd_ext_irq {
 			samsung,pins = "gpa0-1";
 			samsung,pin-function = <0xf>;
@@ -583,6 +634,7 @@
 			&audio_codec_cod3026x>;
 		mic-bias-mode = <1 1 2 0>;
 		samsung,auxdev = <&s1402x>;
+		fm-slave-i2s;
 		status = "okay";
 	};
 
@@ -760,6 +812,9 @@
 	mif_pdata {
 		reg = <0 0x10000 0x14>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&ds_det>;
+
+		mif,gpio_ds_det = <&gpd2 3 0x0>;
 
 		/* To do: will be remove, for system revision */
 		gpios = <&gpd2 4 0x0>,
@@ -802,6 +857,16 @@
 			200000
 			134000
 			>;
+	};
+
+	pinctrl@139B0000 {
+		ds_det: ds_det {
+			samsung,pins = "gpd2-3";
+			samsung,pin-function = <0>;	/* INPUT */
+			samsung,pin-pud = <0>;
+			samsung,pin-con-pdn = <3>;	/* PREV STATE */
+			samsung,pin-pud-pdn = <0>;
+		};
 	};
 
 	fimc_is@14400000 {
@@ -1019,7 +1084,7 @@
 				video_high_speed_240fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_240fps_i2c = <0>;
 
-				max_int = <0>;
+				max_int = <DVFS_INT_L0>;
 				max_cam = <DVFS_CAM_L0>;
 				max_mif = <DVFS_MIF_L0>;
 				max_i2c = <0>;
@@ -1033,7 +1098,7 @@
 				default_mif = <DVFS_MIF_L0>;
 				default_i2c = <0>;
 
-				front_preview_int = <0>;
+				front_preview_int = <DVFS_INT_L1>;
 				front_preview_cam = <DVFS_CAM_L1>;
 				front_preview_mif = <DVFS_MIF_L0>;
 				front_preview_i2c = <0>;
@@ -1103,7 +1168,7 @@
 				front_companion_video_whd_capture_mif = <DVFS_MIF_L0>;
 				front_companion_video_whd_capture_i2c = <0>;
 
-				rear_preview_fhd_int = <0>;
+				rear_preview_fhd_int = <DVFS_INT_L1>;
 				rear_preview_fhd_cam = <DVFS_CAM_L0>;
 				rear_preview_fhd_mif = <DVFS_MIF_L0>;
 				rear_preview_fhd_i2c = <0>;
@@ -1193,7 +1258,7 @@
 				video_high_speed_240fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_240fps_i2c = <0>;
 
-				max_int = <0>;
+				max_int = <DVFS_INT_L0>;
 				max_cam = <DVFS_CAM_L0>;
 				max_mif = <DVFS_MIF_L0>;
 				max_i2c = <0>;
@@ -1214,8 +1279,8 @@
 		compatible = "samsung,sensor-module-3l2";
 
 		pinctrl-names = "pin0", "pin1";
-		pinctrl-0 = <&fimc_is_mclk0_in &fimc_is_flash>;
-		pinctrl-1 = <&fimc_is_mclk0_fn &fimc_is_flash>;
+		pinctrl-0 = <&fimc_is_mclk0_in>;
+		pinctrl-1 = <&fimc_is_mclk0_fn>;
 
 		position = <0>; /* Rear:0. Front:1 */
 		id = <0>; /* sensor node id */
@@ -1227,6 +1292,7 @@
 		gpio_camio_1p8_en = <&gpf3 2 0x1>; /* CAM_IO_1P8 enable pin */
 		gpio_camaf_2p8_en = <&gpd1 1 0x1>; /* CAM_AF_2P8 enable pin */
 		gpio_cam_1p2_en = <&gpd4 4 0x1>; /* CAM_1P2 enable pin */
+		setfile = "setB"; /* If changed cis setfile should be changed */
 		status = "okay";
 
 		af {
@@ -1289,7 +1355,7 @@
 			reg = <0x2D>;
 			id = <0>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
-			setfile = "default";
+			setfile = "setB"; /* If changed module setfile should be changed */
 		};
 	};
 
@@ -1367,26 +1433,35 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&ea8061s>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "regulator,enable", "delay,msleep";
-			delay = <25>;
-			regulator = "LCD_1P8", "LCD_3P0";
+			type =
+			"regulator,enable",	"LCD_1P8",
+			"regulator,enable",	"LCD_3P0",
+			"delay,msleep",	"25";
 		};
 		dsim_set_panel_power_disable {
-			type = "delay,usleep", "gpio,low", "delay,usleep", "regulator,disable", "regulator,disable";
-			gpios = <&gpd3 4 0x1>;
-			delay = <5000 6000>, <10000 11000>;
-			regulator = "LCD_3P0", "LCD_1P8";
+			type =
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_3P0",
+			"regulator,disable",	"LCD_1P8";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <5000 6000>, <5000 6000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 

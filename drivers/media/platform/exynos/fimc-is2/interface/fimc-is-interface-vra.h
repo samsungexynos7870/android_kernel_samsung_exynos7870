@@ -14,6 +14,7 @@
 #include "fimc-is-interface-library.h"
 #include "fimc-is-metadata.h"
 #include "fimc-is-param.h"
+#include "fimc-is-config.h"
 #if defined(CONFIG_FIMC_IS_V4_0_0)
 #include "fimc-is-lib-vra_v1_1.h"
 #elif defined(CONFIG_FIMC_IS_V3_11_0) || defined(CONFIG_FIMC_IS_V5_10_0)
@@ -215,4 +216,21 @@ int fimc_is_lib_vra_test_image_load(struct fimc_is_lib_vra *lib_vra);
 #else
 #define lib_vra_check_size(desc, param, fcount)
 #endif
+
+#ifdef ENABLE_FPSIMD_FOR_USER
+#define CALL_VRAOP(lib, op, args...)					\
+	({								\
+		int ret_call_libop;					\
+									\
+		fpsimd_get();						\
+		ret_call_libop = ((lib)->itf_func.op ?			\
+				(lib)->itf_func.op(args) : -EINVAL);	\
+		fpsimd_put();						\
+									\
+	ret_call_libop;})
+#else
+#define CALL_VRAOP(lib, op, args...)					\
+	((lib)->itf_func.op ? (lib)->itf_func.op(args) : -EINVAL)
+#endif
+
 #endif

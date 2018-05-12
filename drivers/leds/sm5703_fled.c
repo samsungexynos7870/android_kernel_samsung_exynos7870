@@ -53,6 +53,7 @@ struct device *flash_dev;
 bool assistive_light = false;
 bool recording_mode = false;
 struct device *sm5703_dev;
+bool flash_config_camera = false;
 
 static struct i2c_client * sm5703_fled_client = NULL;
 
@@ -80,8 +81,8 @@ int led_irq_gpio1 = -1;
 int led_irq_gpio2 = -1;
 bool flash_control_ready = false;
 
-static int sm5703_fled_set_movie_current_sel(struct sm_fled_info *fled_info,
-		int selector);
+static int sm5703_fled_set_movie_current_sel(struct sm_fled_info *fled_info, int selector);
+static int sm5703_fled_set_flash_current_sel(struct sm_fled_info *fled_info, int selector);
 static int sm5703_fled_flash(struct sm_fled_info *fled_info, int turn_way);
 
 static int sm5703_fled_set_mode(struct sm_fled_info *fled_info,
@@ -160,7 +161,7 @@ static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
 
 	switch(nValue) {
 		case 0:
-			pr_info("Torch Off\n");
+			pr_info("LED Off\n");
 			assistive_light = false;
 			sm5703_fled_set_mode(fled_info, FLASHLIGHT_MODE_OFF);
 			sm5703_fled_flash(fled_info, TURN_WAY_GPIO);
@@ -189,6 +190,25 @@ static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
 			}
 
 			sm5703_fled_set_mode(fled_info, FLASHLIGHT_MODE_TORCH);
+			sm5703_fled_notification(fled_info);
+			sm5703_fled_flash(fled_info, TURN_WAY_GPIO);
+			break;
+
+		case 200:
+			pr_info("Flash On : Factory\n");
+			if(sel < 0){
+				pr_err("SM5703 fled current set fail \n");
+			}
+
+			/* Flash Current set 300mA for continous flash on mode */
+			sm5703_assign_bits(info->i2c_client, SM5703_FLEDCNTL3, SM5703_IFLED_MASK, SM5703_FLASH_CURRENT(300));
+			/* ENABSTMR:Disable | ABSTMR:Don't care | FLEDEN:Enable */
+			sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL1,0x03);
+			/* nENSAFET:Disable | SAFET:Don't care | nONESHOT:Disable | ONETIMER:Don't care */
+			sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL2,0x90);
+			flash_config_camera = false;
+
+			sm5703_fled_set_mode(fled_info, FLASHLIGHT_MODE_FLASH);
 			sm5703_fled_notification(fled_info);
 			sm5703_fled_flash(fled_info, TURN_WAY_GPIO);
 			break;
@@ -294,6 +314,7 @@ static int sm5703_fled_init(struct sm_fled_info *fled_info)
 	sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL1,0x1C);
 	/* nENSAFET:Disable | SAFET:400us | nONESHOT:Disable | ONETIMER:500ms */
 	sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL2,0x94);
+	flash_config_camera = true;
 	/*
 	sm5703_assign_bits(info->i2c_client,SM5703_FLEDCNTL1,
 			SM5703_FLEDEN_MASK,SM5703_FLEDEN_EXTERNAL);
@@ -557,6 +578,16 @@ static int sm5703_fled_set_mode(struct sm_fled_info *fled_info,
 			SM5703_FLED_INFO("FLASHLIGHT_MODE_OFF\n");
 			/*sm5703_assign_bits(info->i2c_client, SM5703_FLEDCNTL1,
 							SM5703_FLEDEN_MASK, SM5703_FLEDEN_DISABLE); */
+
+			if (flash_config_camera == false) {
+				/* Set flash configuration */
+				sm5703_fled_set_flash_current_sel(fled_info, info->pdata->fled_flash_current);
+				/* ENABSTMR:Enable | ABSTMR:1.6sec | FLEDEN:Disable */
+				sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL1,0x1C);
+				/* nENSAFET:Disable | SAFET:400us | nONESHOT:Disable | ONETIMER:500ms */
+				sm5703_reg_write(info->i2c_client, SM5703_FLEDCNTL2,0x94);
+				flash_config_camera = true;
+			}
 			break;
 		case FLASHLIGHT_MODE_TORCH:
 			SM5703_FLED_INFO("FLASHLIGHT_MODE_TORCH\n");

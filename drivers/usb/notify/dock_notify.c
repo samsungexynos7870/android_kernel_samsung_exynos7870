@@ -1,12 +1,13 @@
 /*
- * Copyright (C) 2014 Samsung Electronics Co. Ltd.
+ * Copyright (C) 2015-2017 Samsung Electronics Co. Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
- /* usb notify layer v2.0 */
+
+ /* usb notify layer v3.0 */
 
 #define pr_fmt(fmt) "usb_notify: " fmt
 
@@ -49,7 +50,7 @@ static struct dev_table essential_device_table[] = {
 	}, /* TI USB Audio DAC 2 */
 	{ .dev = { USB_DEVICE(0x0424, 0xec00), },
 	   .index = MMDOCK_INDEX,
-	}, /* SMSC LAN Driver */
+	}, /* Knox Desktop */
 	{}
 };
 
@@ -89,12 +90,12 @@ static int check_gamepad_device(struct usb_device *dev)
 {
 	int ret = 0;
 
-	pr_info("%s : product=%s\n", __func__, dev->product);
+ 	pr_info("%s : product=%s\n", __func__, dev->product);
 
 	if (!dev->product)
 		return ret;
 
-	if (!strnicmp(dev->product , "Gamepad for SAMSUNG", 19))
+	if (!strncmp(dev->product , "Gamepad for SAMSUNG", 19))
 		ret = 1;
 
 	return ret;
@@ -109,7 +110,7 @@ static int check_lanhub_device(struct usb_device *dev)
 	if (!dev->product)
 		return ret;
 
-	if (!strnicmp(dev->product , "LAN9512", 8))
+	if (!strncmp(dev->product , "LAN9512", 8))
 		ret = 1;
 
 	return ret;
@@ -219,61 +220,12 @@ skip:
 static int call_device_notify(struct usb_device *dev)
 {
 	struct otg_notify *o_notify = get_otg_notify();
-	int bInterfaceClass = 0, speed = 0;
 
-	if (o_notify == NULL || dev->config->interface[0] == NULL)
-		return -EFAULT;
 	if (dev->bus->root_hub != dev) {
-		bInterfaceClass =
-			dev->config->interface[0]->cur_altsetting->desc.bInterfaceClass;
-		speed = dev->speed;
 
-		pr_info("%s USB device connected - Class : 0x%x, speed : 0x%x\n",
-			__func__, bInterfaceClass, speed);
+		pr_info("%s device\n", __func__);
 
-		if (bInterfaceClass == USB_CLASS_AUDIO) {
-			o_notify->hw_param[USB_HOST_CLASS_AUDIO_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_COMM) {
-			o_notify->hw_param[USB_HOST_CLASS_COMM_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_HID) {
-			o_notify->hw_param[USB_HOST_CLASS_HID_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_PHYSICAL) {
-			o_notify->hw_param[USB_HOST_CLASS_PHYSICAL_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_STILL_IMAGE) {
-			o_notify->hw_param[USB_HOST_CLASS_IMAGE_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_PRINTER) {
-			o_notify->hw_param[USB_HOST_CLASS_PRINTER_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_MASS_STORAGE) {
-			o_notify->hw_param[USB_HOST_CLASS_STORAGE_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_HUB) {
-			o_notify->hw_param[USB_HOST_CLASS_HUB_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_CDC_DATA) {
-			o_notify->hw_param[USB_HOST_CLASS_CDC_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_CSCID) {
-			o_notify->hw_param[USB_HOST_CLASS_CSCID_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_CONTENT_SEC) {
-			o_notify->hw_param[USB_HOST_CLASS_CONTENT_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_VIDEO) {
-			o_notify->hw_param[USB_HOST_CLASS_VIDEO_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER) {
-			o_notify->hw_param[USB_HOST_CLASS_WIRELESS_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_MISC) {
-			o_notify->hw_param[USB_HOST_CLASS_MISC_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_APP_SPEC) {
-			o_notify->hw_param[USB_HOST_CLASS_APP_COUNT]++;
-		} else if (bInterfaceClass == USB_CLASS_VENDOR_SPEC) {
-			o_notify->hw_param[USB_HOST_CLASS_VENDOR_COUNT]++;
-		}
 
-		if (speed == USB_SPEED_SUPER) {
-			o_notify->hw_param[USB_HOST_SUPER_SPEED_COUNT]++;
-		} else if (speed == USB_SPEED_HIGH) {
-			o_notify->hw_param[USB_HOST_HIGH_SPEED_COUNT]++;
-		} else if (speed == USB_SPEED_FULL) {
-			o_notify->hw_param[USB_HOST_FULL_SPEED_COUNT]++;
-		} else if (speed == USB_SPEED_LOW) {
-			o_notify->hw_param[USB_HOST_LOW_SPEED_COUNT]++;
-		}
 
 		send_otg_notify(o_notify, NOTIFY_EVENT_DEVICE_CONNECT, 1);
 
@@ -285,7 +237,9 @@ static int call_device_notify(struct usb_device *dev)
 				NOTIFY_EVENT_LANHUB_CONNECT, 1);
 		else
 			;
-	}
+	} else
+		pr_info("%s root hub\n", __func__);
+
 	return 0;
 }
 
@@ -333,25 +287,86 @@ static void check_device_speed(struct usb_device *dev, bool on)
 	o_notify->speed = speed;
 
 	switch (speed) {
-	case USB_SPEED_SUPER:
-		pr_info("%s : %s superspeed device\n",
-			__func__, (on ? "attached" : "detached"));
-	break;
-	case USB_SPEED_HIGH:
-		pr_info("%s : %s highspeed device\n",
-			__func__, (on ? "attached" : "detached"));
-	break;
-	case USB_SPEED_FULL:
-		pr_info("%s : %s fullspeed device\n",
-			__func__, (on ? "attached" : "detached"));
-	break;
-	case USB_SPEED_LOW:
-		pr_info("%s : %s lowspeed device\n",
-			__func__, (on ? "attached" : "detached"));
-	break;
+		case USB_SPEED_SUPER:
+			pr_info("%s : %s superspeed device\n",
+				__func__, (on ? "attached" : "detached"));
+		break;
+		case USB_SPEED_HIGH:
+			pr_info("%s : %s highspeed device\n",
+				__func__, (on ? "attached" : "detached"));
+		break;
+		case USB_SPEED_FULL:
+			pr_info("%s : %s fullspeed device\n",
+				__func__, (on ? "attached" : "detached"));
+		break;
+		case USB_SPEED_LOW:
+			pr_info("%s : %s lowspeed device\n",
+				__func__, (on ? "attached" : "detached"));
+		break;
 	}
 }
 
+#if defined(CONFIG_USB_HW_PARAM)
+static int set_hw_param(struct usb_device *dev)
+{
+	struct otg_notify *o_notify = get_otg_notify();
+	int ret = 0;
+	int bInterfaceClass = 0, speed = 0;
+	if (o_notify == NULL || dev->config->interface[0] == NULL) {
+		ret =  -EFAULT;
+		goto err;
+	}
+	if (dev->bus->root_hub != dev) {
+		bInterfaceClass = dev->config->interface[0]->
+					cur_altsetting->desc.bInterfaceClass;
+		speed = dev->speed;
+		pr_info("%s USB device connected - Class : 0x%x, speed : 0x%x\n",
+			__func__, bInterfaceClass, speed);
+		if (bInterfaceClass == USB_CLASS_AUDIO)
+			inc_hw_param(o_notify, USB_HOST_CLASS_AUDIO_COUNT);
+		else if (bInterfaceClass == USB_CLASS_COMM)
+			inc_hw_param(o_notify, USB_HOST_CLASS_COMM_COUNT);
+		else if (bInterfaceClass == USB_CLASS_HID)
+			inc_hw_param(o_notify, USB_HOST_CLASS_HID_COUNT);
+		else if (bInterfaceClass == USB_CLASS_PHYSICAL)
+			inc_hw_param(o_notify, USB_HOST_CLASS_PHYSICAL_COUNT);
+		else if (bInterfaceClass == USB_CLASS_STILL_IMAGE)
+			inc_hw_param(o_notify, USB_HOST_CLASS_IMAGE_COUNT);
+		else if (bInterfaceClass == USB_CLASS_PRINTER)
+			inc_hw_param(o_notify, USB_HOST_CLASS_PRINTER_COUNT);
+		else if (bInterfaceClass == USB_CLASS_MASS_STORAGE)
+			inc_hw_param(o_notify, USB_HOST_CLASS_STORAGE_COUNT);
+		else if (bInterfaceClass == USB_CLASS_HUB)
+			inc_hw_param(o_notify, USB_HOST_CLASS_HUB_COUNT);
+		else if (bInterfaceClass == USB_CLASS_CDC_DATA)
+			inc_hw_param(o_notify, USB_HOST_CLASS_CDC_COUNT);
+		else if (bInterfaceClass == USB_CLASS_CSCID)
+			inc_hw_param(o_notify, USB_HOST_CLASS_CSCID_COUNT);
+		else if (bInterfaceClass == USB_CLASS_CONTENT_SEC)
+			inc_hw_param(o_notify, USB_HOST_CLASS_CONTENT_COUNT);
+		else if (bInterfaceClass == USB_CLASS_VIDEO)
+			inc_hw_param(o_notify, USB_HOST_CLASS_VIDEO_COUNT);
+		else if (bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER)
+			inc_hw_param(o_notify, USB_HOST_CLASS_WIRELESS_COUNT);
+		else if (bInterfaceClass == USB_CLASS_MISC)
+			inc_hw_param(o_notify, USB_HOST_CLASS_MISC_COUNT);
+		else if (bInterfaceClass == USB_CLASS_APP_SPEC)
+			inc_hw_param(o_notify, USB_HOST_CLASS_APP_COUNT);
+		else if (bInterfaceClass == USB_CLASS_VENDOR_SPEC)
+			inc_hw_param(o_notify, USB_HOST_CLASS_VENDOR_COUNT);
+		if (speed == USB_SPEED_SUPER)
+			inc_hw_param(o_notify, USB_HOST_SUPER_SPEED_COUNT);
+		else if (speed == USB_SPEED_HIGH)
+			inc_hw_param(o_notify, USB_HOST_HIGH_SPEED_COUNT);
+		else if (speed == USB_SPEED_FULL)
+			inc_hw_param(o_notify, USB_HOST_FULL_SPEED_COUNT);
+		else if (speed == USB_SPEED_LOW)
+			inc_hw_param(o_notify, USB_HOST_LOW_SPEED_COUNT);
+	}
+err:
+	return ret;
+}
+#endif
 static int dev_notify(struct notifier_block *self,
 			       unsigned long action, void *dev)
 {
@@ -361,6 +376,9 @@ static int dev_notify(struct notifier_block *self,
 		call_battery_notify(dev, 1);
 		check_device_speed(dev, 1);
 		update_hub_autosuspend_timer(dev);
+#if defined(CONFIG_USB_HW_PARAM)
+		set_hw_param(dev);
+#endif
 		break;
 	case USB_DEVICE_REMOVE:
 		call_battery_notify(dev, 0);

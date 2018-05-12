@@ -103,17 +103,19 @@ struct cod3026x_priv {
 	int mic_adc_range;
 	int mic_det_delay;
 	int btn_release_value;
+	int btn_press_delay;
 	int water_threshold_adc_min1;
 	int water_threshold_adc_min2;
+	int water_threshold_adc_max;
 	struct jack_buttons_zone jack_buttons_zones[4];
 	struct delayed_work buttons_work;
 	struct workqueue_struct *buttons_wq;
 	struct iio_channel *jack_adc;
 	unsigned int use_det_adc_mode;
 	unsigned int use_det_gdet_adc_mode;
-	struct delayed_work jack_det_work;
+	struct work_struct jack_det_work;
 	struct workqueue_struct *jack_det_wq;
-	struct delayed_work jack_det_adc_work;
+	struct work_struct jack_det_adc_work;
 	struct workqueue_struct *jack_det_adc_wq;
 	struct delayed_work water_det_adc_work;
 	struct workqueue_struct *water_det_adc_wq;
@@ -123,6 +125,7 @@ struct cod3026x_priv {
 	struct mutex adc_mute_lock;
 	struct workqueue_struct *adc_mute_wq;
 	int adc_pin;
+	struct wake_lock jack_wake_lock;
 };
 
 /*

@@ -61,8 +61,13 @@ obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
 obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 
 obj-$(CONFIG_VBUS_NOTIFIER)	+= staging/samsung/sec_notifier/
+# added by khoonk on 2018.01.02
+ifndef CONFIG_IFPMIC_SUPPORT
 obj-$(CONFIG_USE_MUIC)		+= muic/
-obj-$(CONFIG_USE_CCIC)      += ccic/
+obj-y				+= ccic/
+else
+obj-y				+= ifpmic/
+endif
 
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-y				+= base/ block/ misc/ mfd/
@@ -157,10 +162,13 @@ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
 obj-$(CONFIG_HYPERV)		+= hv/
 
 obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
+# added by khoonk on 2018.01.06
+ifndef CONFIG_IFPMIC_SUPPORT
 ifeq ($(CONFIG_BATTERY_SAMSUNG_V2), y)
   obj-$(CONFIG_BATTERY_SAMSUNG)   += battery_v2/
 else
   obj-$(CONFIG_BATTERY_SAMSUNG)   += battery/
+endif
 endif
 obj-$(CONFIG_EXTCON)		+= extcon/
 obj-$(CONFIG_MEMORY)		+= memory/
@@ -180,6 +188,9 @@ obj-$(CONFIG_EXYNOS_BTS)	+= bts/
 obj-$(CONFIG_MARVELL_DRIVERS)	+= marvell/
 # Mobicore driver
 obj-$(CONFIG_TRUSTONIC_TEE)	+= gud/
+
+# FIVE TEE driver
+obj-$(CONFIG_FIVE_TEE_DRIVER)	+= five/
 
 #haptic driver
 obj-$(CONFIG_ANDROID_TIMED_OUTPUT)	+= motor/

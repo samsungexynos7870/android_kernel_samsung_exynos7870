@@ -20,7 +20,7 @@
 		PIN_IN(gpa1-2, DOWN, LV1);	/* NC */
 		PIN_IN(gpa1-3, NONE, LV1);	/* COVER_INT */
 		PIN_IN(gpa1-5, DOWN, LV1);	/* NC */
-		PIN_IN(gpa2-5, DOWN, LV1);	/* NC */
+		PIN_IN(gpa2-5, NONE, LV1);	/* GRIP_INT */
 
 		PIN_IN(gpq0-1, DOWN, LV1);	/* NC */
 	};
@@ -29,7 +29,7 @@
 		PIN_SLP(gpa1-2, PREV, NONE);	/* BT_WAKE */
 		PIN_SLP(gpa1-3, INPUT, NONE);	/* COVER_INT */
 		PIN_SLP(gpa1-5, INPUT, DOWN);	/* VTCAM_RST_N */
-		PIN_SLP(gpa2-5, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpa2-5, INPUT, NONE);	/* GRIP_INT */
 	};
 
 	/*
@@ -92,8 +92,8 @@
 	pinctrl-names = "sleep";
 	pinctrl-0 = <&sleep4>;
 	sleep4: sleep-state {
-		PIN_SLP(gpm0-0, INPUT, NONE);	/* PMIC_SDA_1P8 */
-		PIN_SLP(gpm0-1, INPUT, NONE);	/* PMIC_SCL_1P8 */
+		PIN_SLP(gpm0-0, PREV, UP);	/* PMIC_SDA_1P8 */
+		PIN_SLP(gpm0-1, PREV, UP);	/* PMIC_SCL_1P8 */
 	};
 };
 
@@ -142,10 +142,10 @@
 
 		PIN_IN(gpd2-0, NONE, LV1);	/* REG0_DET */
 		PIN_IN(gpd4-4, NONE, LV1);	/* REG1_DET */
-		
-		PIN_IN(gpf3-0, DOWN, LV1);	/* NC */
-		PIN_IN(gpf3-1, DOWN, LV1);	/* NC */
-		
+
+		PIN_IN(gpf3-0, NONE, LV1);	/* GRIP_SCL_1P8 */
+		PIN_IN(gpf3-1, NONE, LV1);	/* GRIP_SDA_1P8 */
+
 		PIN_IN(gpf4-0, DOWN, LV1);	/* NC */
 	};
 	sleep6: sleep-state {
@@ -190,7 +190,7 @@
 		PIN_SLP(gpd1-6, INPUT, DOWN);	/* NC */
 
 		PIN_SLP(gpd2-0, INPUT, NONE);	/* REG0_DET */
-		PIN_SLP(gpd2-1, OUT1, UP);	/* VDD_NFC_EN */
+		PIN_SLP(gpd2-1, PREV, NONE);	/* VDD_NFC_EN */
 		PIN_SLP(gpd2-2, PREV, DOWN);	/* MST_PWR_EN */
 		PIN_SLP(gpd2-3, PREV, NONE);	/* RGB_PROXY_EN */
 		PIN_SLP(gpd2-4, INPUT, NONE);	/* HW_REV0 */
@@ -228,8 +228,8 @@
 		PIN_SLP(gpf2-0, INPUT, NONE);	/* NFC_SDA_1P8 */
 		PIN_SLP(gpf2-1, INPUT, NONE);	/* NFC_SCL_1P8 */
 
-		PIN_SLP(gpf3-0, INPUT, DOWN);	/* NC */
-		PIN_SLP(gpf3-1, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpf3-0, INPUT, NONE);	/* GRIP_SCL_1P8 */
+		PIN_SLP(gpf3-1, INPUT, NONE);	/* GRIP_SDA_1P8 */
 
 		PIN_SLP(gpf3-2, INPUT, DOWN);	/* VTCAM_EEP_SDA_1P8 */
 		PIN_SLP(gpf3-3, INPUT, DOWN);	/* VTCAM_EEP_SCL_1P8 */

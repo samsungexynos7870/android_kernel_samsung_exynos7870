@@ -76,6 +76,10 @@ struct bcm_bt_gpio {
 #ifdef CONFIG_FM_LNA
 	int lna_en;
 #endif
+#ifdef CONFIG_FM_DTV_CTRL
+	int fm_dtv_ctrl_1;
+	int fm_dtv_ctrl_2;
+#endif
 } bt_gpio;
 
 int idle_ip_index;
@@ -84,27 +88,75 @@ int idle_ip_index;
 static ssize_t lna_state_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-    int lna_en = 0;
-
-	lna_en = gpio_get_value(bt_gpio.lna_en);
-	return sprintf(buf, "%d\n", lna_en);
+	return sprintf(buf, "%d\n", gpio_get_value(bt_gpio.lna_en));
 }
 
 static ssize_t lna_state_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-    int state = 0;
+	int state;
 
 	if (kstrtoint(buf, 10, &state)){
 		pr_err("[BT] fm_lna_state_store buf error\n");
-    	return count;
+		return count;
 	}
 
 	pr_info("[BT] fm_lna_state_store value = %d\n", state);
 	gpio_set_value(bt_gpio.lna_en, state);
+
 	return count;
 }
 static DEVICE_ATTR(lna_en, 0664, lna_state_show, lna_state_store);
+#endif
+
+#ifdef CONFIG_FM_DTV_CTRL
+static ssize_t dtv_ctrl_state_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int fm_dtv_ctrl_1, fm_dtv_ctrl_2;
+
+	fm_dtv_ctrl_1 = gpio_get_value(bt_gpio.fm_dtv_ctrl_1);
+	fm_dtv_ctrl_2 = gpio_get_value(bt_gpio.fm_dtv_ctrl_2);
+
+	return sprintf(buf, "%d\n", (fm_dtv_ctrl_1 << 1) + fm_dtv_ctrl_2);
+}
+
+static ssize_t dtv_ctrl_state_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int state;
+
+	if (kstrtoint(buf, 10, &state)){
+		pr_err("[BT] dtv_ctrl_state_store buf error\n");
+		return count;
+	}
+
+	pr_info("[BT] dtv_ctrl_state_store value = %d\n", state);
+	switch(state){
+	case 0:
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_1, 0);
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_2, 0);
+		break;
+	case 1:
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_1, 0);
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_2, 1);
+		break;
+	case 2:
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_1, 1);
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_2, 0);
+		break;
+	case 3:
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_1, 1);
+		gpio_set_value(bt_gpio.fm_dtv_ctrl_2, 1);
+		break;
+	default:
+		pr_err("[BT] value not supported = %d\n", state);
+		break;
+	};
+
+	return count;
+}
+static DEVICE_ATTR(fm_dtv_ctrl, 0660, dtv_ctrl_state_show, dtv_ctrl_state_store);
 #endif
 
 static int bcm43xx_bt_rfkill_set_power(void *data, bool blocked)
@@ -350,15 +402,40 @@ static int bcm43xx_bluetooth_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-
 	bt_gpio.lna_en = of_get_named_gpio(pdev->dev.of_node, "fm-lna-en", 0);
 
-	rc = gpio_request(bt_gpio.lna_en,"fmlnaen_gpio");
-	if (rc < 0) {
+	rc = gpio_request(bt_gpio.lna_en, "fmlnaen_gpio");
+	if (rc < 0)
 		pr_err("[BT] can not find the fm-lna-en in the dt\n");
-	} else
-		pr_info("[BT] fm-lna-en =%d\n",bt_gpio.lna_en);
+	else
+		pr_info("[BT] fm-lna-en = %d\n", bt_gpio.lna_en);
+
 	gpio_direction_output(bt_gpio.lna_en, 0);
+#endif
+#ifdef CONFIG_FM_DTV_CTRL
+	ret = device_create_file(&pdev->dev, &dev_attr_fm_dtv_ctrl);
+	if (ret != 0) {
+		pr_err("[BT] Failed to create dtv_ctrl sysfs files: %d\n", ret);
+		return ret;
+	}
+
+	bt_gpio.fm_dtv_ctrl_1 = of_get_named_gpio(pdev->dev.of_node, "fm-dtv-ctrl-1", 0);
+	bt_gpio.fm_dtv_ctrl_2 = of_get_named_gpio(pdev->dev.of_node, "fm-dtv-ctrl-2", 0);
+
+	rc = gpio_request(bt_gpio.fm_dtv_ctrl_1, "fmdtvctrl_1_gpio");
+	if (rc < 0)
+		pr_err("[BT] can not find the fm-dtv-ctrl in the dt\n");
+	else
+		pr_info("[BT] fm-dtv-ctrl = %d\n", bt_gpio.fm_dtv_ctrl_1);
+
+	rc = gpio_request(bt_gpio.fm_dtv_ctrl_2, "fmdtvctrl_2_gpio");
+	if (rc < 0)
+		pr_err("[BT] can not find the fm-dtv-ctrl in the dt\n");
+	else
+		pr_info("[BT] fm-dtv-ctrl = %d\n", bt_gpio.fm_dtv_ctrl_2);
+
+	gpio_direction_output(bt_gpio.fm_dtv_ctrl_1, 0);
+	gpio_direction_output(bt_gpio.fm_dtv_ctrl_2, 0);
 #endif
 	gpio_direction_input(bt_gpio.bt_hostwake);
 	gpio_direction_output(bt_gpio.bt_wake, 0);

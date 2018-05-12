@@ -34,6 +34,21 @@
 
 #include "ion.h"
 
+struct exynos_ion_platform_heap {
+	struct ion_platform_heap heap_data;
+	struct reserved_mem *rmem;
+	unsigned int id;
+	unsigned int compat_ids;
+	bool secure;
+	bool reusable;
+	bool protected;
+	bool noprot;
+	bool should_isolate;
+	atomic_t secure_ref;
+	struct device dev;
+	struct ion_heap *heap;
+};
+
 struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 
 struct ion_iovm_map {
@@ -390,6 +405,7 @@ void ion_system_contig_heap_destroy(struct ion_heap *);
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
 void ion_carveout_heap_destroy(struct ion_heap *);
 
+void ion_debug_heap_usage_show(struct ion_heap *heap);
 struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
 void ion_chunk_heap_destroy(struct ion_heap *);
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);

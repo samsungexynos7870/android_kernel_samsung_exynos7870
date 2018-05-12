@@ -25,6 +25,11 @@
 
 #define MUIC_DEV_NAME   "muic-universal"
 
+enum muic_op_mode {
+	OPMODE_MUIC = 0<<0,
+	OPMODE_CCIC = 1<<0,
+};
+
 /* Slave addr = 0x4A: MUIC */
 enum ioctl_cmd {
 	GET_COM_VAL = 0x01,
@@ -117,6 +122,7 @@ typedef struct _muic_data_t {
 	struct device *dev;
 	struct i2c_client *i2c; /* i2c addr: 0x4A; MUIC */
 	struct mutex muic_mutex;
+	struct mutex lock;
 
 	/* model dependant muic platform data */
 	struct muic_platform_data *pdata;
@@ -135,6 +141,8 @@ typedef struct _muic_data_t {
 	char *chip_name;
 
 	int gpio_uart_sel;
+	int usb_id_ctr;
+	int mux_sel;
 
 	/* muic Device ID */
 	u8 muic_vendor;			/* Vendor ID */
@@ -147,11 +155,41 @@ typedef struct _muic_data_t {
 	struct delayed_work	init_work;
 	struct delayed_work	usb_work;
 
-	int is_flash_on;
+	bool			undefined_range;
+	bool			is_dcdtmr_intr;
+	bool			is_rescanned;
+
+#if defined(CONFIG_USB_EXTERNAL_NOTIFY)
+	/* USB Notifier */
+	struct notifier_block   usb_nb;
+#endif
+
+#if defined(CONFIG_MUIC_UNIVERSAL_CCIC)
+	/* legacy TA or USB for CCIC */
+	muic_attached_dev_t	legacy_dev;
+
+	/* CCIC Notifier */
+#ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
+	struct notifier_block	manager_nb;
+#else
+	struct notifier_block	ccic_nb;
+#endif
+
+	struct delayed_work	ccic_work;
+
+	/* Operation Mode */
+	enum muic_op_mode	opmode;
+	bool			afc_water_disable;
+
+	int			rid;
+
+	bool			rprd;
+#endif
+	int is_afc_5v;
+	bool is_camera_on;
+	bool check_charger_lcd_on;
 	int irq_n;
 	int is_afc_device;
 	struct delayed_work	afc_retry_work;
-	struct delayed_work	afc_restart_work;
 }muic_data_t;
-
 #endif /* __MUIC_INTERNAL_H__ */

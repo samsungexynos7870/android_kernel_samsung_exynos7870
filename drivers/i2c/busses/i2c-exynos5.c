@@ -556,6 +556,8 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, int mode)
 
 	if (mode == HSI2C_HIGH_SPD)
 		t_scl_h = ((clk_cycle + 10) / 3) - 5;
+	else if (i2c->scl_extended_low)
+		t_scl_h = clk_cycle / 3;
 	else
 		t_scl_h = clk_cycle / 2;
 
@@ -1598,6 +1600,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "SDA trigger timing not needed.\n");
 
+	if (of_get_property(np, "samsung,scl-extended-low-period", NULL))
+		i2c->scl_extended_low = 1;
+	else
+		i2c->scl_extended_low = 0;
+
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
@@ -1870,6 +1877,7 @@ static struct platform_driver exynos5_i2c_driver = {
 		.name	= "exynos5-hsi2c",
 		.pm	= &exynos5_i2c_pm,
 		.of_match_table = exynos5_i2c_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

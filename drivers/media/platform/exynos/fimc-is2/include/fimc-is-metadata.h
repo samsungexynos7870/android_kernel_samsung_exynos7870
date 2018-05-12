@@ -825,6 +825,12 @@ enum aa_aemode {
 	UNKNOWN_AA_AE_MODE
 };
 
+enum aa_ae_frontflash_brightness {
+    AA_FRONTFLASH_BRIGHTNESS_25MA = 1,
+    AA_FRONTFLASH_BRIGHTNESS_50MA,
+    AA_FRONTFLASH_BRIGHTNESS_100MA,
+};	/*For control brightness of front flash led*/
+
 enum aa_ae_flashmode {
 	/*all flash control stop*/
 	AA_FLASHMODE_OFF = 1,
@@ -1019,7 +1025,9 @@ struct camera2_aa_ctl {
 	uint32_t			vendor_touchBvChange;
 	uint32_t			vendor_captureCount;
 	uint32_t			vendor_captureExposureTime;
-	uint32_t			vendor_reserved[10];
+	/*For control brightness of front flash led*/
+	enum aa_ae_frontflash_brightness vendor_aeFrontFlashBrightness;
+	uint32_t			vendor_reserved[9];
 };
 
 struct camera2_aa_dm {
@@ -1547,6 +1555,9 @@ enum camera_op_mode {
 	CAMERA_OP_MODE_GED = 0,   // default
 	CAMERA_OP_MODE_TW,
 	CAMERA_OP_MODE_HAL3_GED,
+	CAMERA_OP_MODE_HAL3_TW,
+	CAMERA_OP_MODE_FAC,
+	CAMERA_OP_MODE_HAL3_FAC,
 };
 
 struct camera2_companion_uctl {

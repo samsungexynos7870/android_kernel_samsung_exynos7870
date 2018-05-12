@@ -43,6 +43,8 @@
 #include <soc/samsung/exynos-pm.h>
 static LIST_HEAD(drvdata_list);
 #endif
+#include <linux/exynos-ss.h>
+#include <linux/clk-private.h>
 
 /* see s3c2410x user guide, v1.1, section 9 (p447) for more info */
 
@@ -139,6 +141,7 @@ struct s3c24xx_i2c {
 	struct s3c2410_platform_i2c	*pdata;
 	int			gpios[2];
 	struct pinctrl          *pctrl;
+	int			bus_id;
 };
 
 static struct platform_device_id s3c24xx_driver_ids[] = {
@@ -844,7 +847,9 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int ret;
 
 	pm_runtime_get_sync(&adap->dev);
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x1);
 	clk_prepare_enable(i2c->clk);
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x3);
 
 	for (retry = 0; retry < adap->retries; retry++) {
 
@@ -854,7 +859,9 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 		ret = s3c24xx_i2c_doxfer(i2c, msgs, num);
 
 		if (ret != -EAGAIN) {
+			exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x11);
 			clk_disable_unprepare(i2c->clk);
+			exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x13);
 			pm_runtime_put(&adap->dev);
 			return ret;
 		}
@@ -864,7 +871,9 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 		udelay(100);
 	}
 
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x11);
 	clk_disable_unprepare(i2c->clk);
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x13);
 	pm_runtime_put(&adap->dev);
 	return -EREMOTEIO;
 }
@@ -1269,6 +1278,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
 		return ret;
 	}
+	i2c->bus_id = of_alias_get_id(i2c->adap.dev.of_node, "ni2c");
 
 	platform_set_drvdata(pdev, i2c);
 
@@ -1297,7 +1307,9 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&i2c->adap);
 
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x11);
 	clk_disable_unprepare(i2c->clk);
+	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x13);
 
 	if (pdev->dev.of_node && IS_ERR(i2c->pctrl))
 		s3c24xx_i2c_dt_gpio_free(i2c);

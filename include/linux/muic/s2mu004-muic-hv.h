@@ -22,6 +22,10 @@
  *
  */
 
+#if defined(CONFIG_IFPMIC_SUPPORT)
+#include <linux/ifpmic/muic/s2mu004-muic-hv.h>
+#endif
+
 #ifndef __S2MU004_MUIC_HV_H__
 #define __S2MU004_MUIC_HV_H__
 

@@ -71,5 +71,5 @@ int ssp_sensorhub_handle_data(struct ssp_data *ssp_data, char *dataframe,
 int ssp_sensorhub_initialize(struct ssp_data *ssp_data);
 void ssp_sensorhub_remove(struct ssp_data *ssp_data);
 void ssp_read_big_library_task(struct work_struct *work);
-
+void ssp_sensorhub_log(const char *func_name, const char *data, int length);
 #endif

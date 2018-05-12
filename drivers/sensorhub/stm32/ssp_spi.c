@@ -306,7 +306,7 @@ int send_instruction(struct ssp_data *data, u8 uInst,
 	if (data->fw_dl_state == FW_DL_STATE_DOWNLOADING) {
 		ssp_errf("Skip Inst! DL state = %d", data->fw_dl_state);
 		return SUCCESS;
-	} else if ((!(data->uSensorState & (1 << uSensorType)))
+	} else if ((!(data->uSensorState & (1ULL << uSensorType)))
 		&& (uInst <= CHANGE_DELAY)) {
 		ssp_errf("Bypass Inst Skip! - %u", uSensorType);
 		return FAIL;
@@ -378,7 +378,7 @@ int send_instruction_sync(struct ssp_data *data, u8 uInst,
 	if (data->fw_dl_state == FW_DL_STATE_DOWNLOADING) {
 		ssp_errf("Skip Inst! DL state = %d", data->fw_dl_state);
 		return SUCCESS;
-	} else if ((!(data->uSensorState & (1 << uSensorType)))
+	} else if ((!(data->uSensorState & (1ULL << uSensorType)))
 		&& (uInst <= CHANGE_DELAY)) {
 		ssp_errf("Bypass Inst Skip! - %u", uSensorType);
 		return FAIL;
@@ -643,7 +643,7 @@ void set_proximity_threshold(struct ssp_data *data)
 
 	struct ssp_msg *msg;
 
-	if (!(data->uSensorState & (1 << SENSOR_TYPE_PROXIMITY))) {
+	if (!(data->uSensorState & (1ULL << SENSOR_TYPE_PROXIMITY))) {
 		ssp_infof("Skip this function!, proximity sensor is not connected(0x%llx)",
 			data->uSensorState);
 		return;
@@ -697,7 +697,7 @@ void set_light_coef(struct ssp_data *data)
 	int iRet = 0;
 	struct ssp_msg *msg;
 
-	if (!(data->uSensorState & (1 << SENSOR_TYPE_LIGHT))) {
+	if (!(data->uSensorState & (1ULL << SENSOR_TYPE_LIGHT))) {
 		pr_info("[SSP]: %s - Skip this function!!!,"\
 			"light sensor is not connected(0x%llx)\n",
 			__func__, data->uSensorState);
@@ -808,7 +808,7 @@ uint64_t get_sensor_scanning_info(struct ssp_data *data)
 	sensor_scanning_state[SENSOR_TYPE_MAX] = '\0';
 	for (z = 0; z < SENSOR_TYPE_MAX; z++)
 		sensor_scanning_state[SENSOR_TYPE_MAX - 1 - z]
-			= (result & (1 << z)) ? '1' : '0';
+			= (result & (1ULL << z)) ? '1' : '0';
 
 	ssp_info("state: %s", sensor_scanning_state);
 

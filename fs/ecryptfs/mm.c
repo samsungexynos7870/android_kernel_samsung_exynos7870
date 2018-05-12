@@ -69,41 +69,6 @@ retry:
 	return ret;
 }
 
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-static unsigned long invalidate_lower_mapping_pages_retry(struct file *lower_file, int retries) {
-
-	unsigned long ret, invalidated = 0;
-	struct address_space *mapping;
-
-	mapping = lower_file->f_mapping;
-
-	if(ecryptfs_mm_debug)
-		printk("%s:freeing [%s] sensitive inode[mapped pagenum = %lu]\n",__func__,
-				mapping->host->i_sb->s_type->name,mapping->nrpages);
-
-	for (; retries > 0; retries--) {
-
-		// !! TODO !!
-		//if (lower_file && lower_file->f_op && lower_file->f_op->unlocked_ioctl)
-		//	ret = lower_file->f_op->unlocked_ioctl(lower_file, FS_IOC_INVAL_MAPPING, 0);
-		ret = do_vfs_ioctl(lower_file,0, FS_IOC_INVAL_MAPPING, 0); // lower_file is sdcardfs file
-		invalidated += ret;
-
-		if(ecryptfs_mm_debug)
-			printk("invalidate_mapping_pages ret = %lu, [%lu] remained\n",
-					ret, mapping->nrpages);
-
-		if (mapping->nrpages == 0)
-			break;
-
-		printk("[%lu] mapped pages remained in sensitive inode, retry..\n",
-				mapping->nrpages);
-		msleep(100);
-	} 
-	return invalidated;
-}
-#endif
-
 void ecryptfs_mm_do_sdp_cleanup(struct inode *inode) {
 	struct ecryptfs_crypt_stat *crypt_stat;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
@@ -130,12 +95,6 @@ void ecryptfs_mm_do_sdp_cleanup(struct inode *inode) {
 			        __func__, inode->i_ino, crypt_stat->engine_id);
 			invalidate_mapping_pages_retry(inode->i_mapping, 0, -1, 3);
 		}
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-		if (mount_crypt_stat->flags & ECRYPTFS_USE_FMP) {
-			DEK_LOGD("%s inode: %p calling invalidate_lower_mapping_pages_retry\n",__func__, inode);
-			invalidate_lower_mapping_pages_retry(inode_info->lower_file, 3);
-		}
-#endif
 		if(ecryptfs_is_sdp_locked(crypt_stat->engine_id)) {
 			ecryptfs_clean_sdp_dek(crypt_stat);
 		}

@@ -1,7 +1,7 @@
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 640304 2016-05-27 02:06:06Z $
+ * $Id: wl_cfgp2p.h 692448 2017-03-28 06:06:19Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -158,9 +158,9 @@ enum wl_cfgp2p_status {
 		if (wl_dbg_level & WL_DBG_ERR) {				\
 			printk(KERN_INFO CFGP2P_ERROR_TEXT "%s : ", __func__);	\
 			printk args;						\
-			dhd_log_dump_print("[%s] %s: ",	\
+			DHD_LOG_DUMP_WRITE("[%s] %s: ",	\
 			dhd_log_dump_get_timestamp(), __func__);	\
-			dhd_log_dump_print args;	\
+			DHD_LOG_DUMP_WRITE args;	\
 		}									\
 	} while (0)
 #else

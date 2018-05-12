@@ -1,7 +1,7 @@
 /*
  * Fundamental types and constants relating to WFA P2P (aka WiFi Direct)
  *
- * Copyright (C) 1999-2017, Broadcom Corporation
+ * Copyright (C) 1999-2018, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: p2p.h 676796 2016-12-24 18:16:02Z $
+ * $Id: p2p.h 700076 2017-05-17 14:42:22Z $
  */
 
 #ifndef _P2P_H_

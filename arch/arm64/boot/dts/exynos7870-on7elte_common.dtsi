@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-1500MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung ON7ELTE board based on Exynos7870";
@@ -1275,45 +1275,64 @@
 		status = "okay";
 	};
 
-	i2c@35 {
-		compatible = "i2c-gpio";
-		gpios = <&gpc2 0 0
-			&gpc2 1 0>;
-		i2c-gpio,delay-us = <5>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
+	pinctrl@139C0000 {
+		i2c2_bus: i2c2-bus {
+			samsung,pins = "gpc2-1", "gpc2-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
 
-		lm3632@35 {
-			compatible = "lm3632,i2c";
+	i2c_2: i2c@13890000 {
+		status = "okay";
+		samsung,i2c-max-bus-freq = <400000>;
+
+		lm3632@11 {
+			compatible = "i2c,lm3632";
 			reg = <0x11>;
-			pinctrl-names = "default";
 			gpios = <&gpd1 4 0>, <&gpd4 2 0>, <&gpd4 3 0>;
 		};
 	};
-	
+
 	dsim_0: dsim@14800000 {
 		lcd_info = <&s6d7aa0_hd>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+		gpio_panel_enn = <&gpd4 3 0x1>;
+		gpio_panel_enp = <&gpd4 2 0x1>;
+		gpio_blic_on = <&gpd1 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "delay,usleep";
-			delay = <5000 6000>;
-			regulator = "LCD_1P8";
+			type =
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"5000 6000";
 		};
 		dsim_set_panel_power_disable {
-			type = "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "gpio,low", "delay,usleep", "regulator,disable";
-			gpios =  <&gpd3 4 0x1>, <&gpd4 3 0>, <&gpd4 2 0>, <&gpd1 4 0>;
-			delay = <5000 6000>, <5000 6000>, <5000 6000>, <10000 11000>;
-			regulator = "LCD_1P8";
+			type =
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_panel_enn",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_panel_enp",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_blic_on",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_1P8";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,msleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <20000 21000>, <10000 11000>, <30>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,msleep",	"20",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,msleep",	"30";
 		};
 	};
 
@@ -1476,7 +1495,7 @@
 			samsung,pin-pud-pdn = <0>;
 		};
 	};
-	
+
 	/* modem_interface */
 	mif_pdata {
 		reg = <0 0x10000 0x14>;

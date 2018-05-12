@@ -28,6 +28,8 @@
 #define MIPI_PHY_MxSx_SHARED 	(1 << 1)
 #define MIPI_PHY_MxSx_INIT_DONE (2 << 1)
 
+#define INVALID_OPT_BIT	256
+
 /* reference count for phy-m4s4 */
 static int phy_m4s4_count;
 
@@ -52,6 +54,7 @@ struct exynos_mipi_phy {
 		enum exynos_mipi_phy_type type;
 		unsigned int iso_offset;
 		unsigned int rst_bit;
+		unsigned int opt_bit;
 		u8 flags;
 	} phys[EXYNOS_MIPI_PHYS_NUM];
 };
@@ -72,6 +75,31 @@ static int __set_phy_isolation(struct regmap *reg_pmu,
 	return ret;
 }
 
+static int __set_phy_option(struct exynos_mipi_phy *state,
+		unsigned int bit, int val)
+{
+	void __iomem *addr = state->regs;
+	unsigned int cfg;
+
+	if (!addr)
+		return 0;
+
+	if (IS_ERR(addr)) {
+		dev_err(state->dev, "%s Invalid address\n", __func__);
+		return -EINVAL;
+	}
+
+	cfg = readl(addr);
+	if (val)
+		cfg |= (1 << bit);
+	else
+		cfg &= ~(1 << bit);
+	writel(cfg, addr);
+
+	pr_debug("%s bit=%d, val=0x%x\n", __func__, bit, cfg);
+	return 0;
+}
+
 /* 1: Enable reset -> release reset, 0: Enable reset */
 static int __set_phy_reset(struct exynos_mipi_phy *state,
 		unsigned int bit, unsigned int on)
@@ -79,7 +107,10 @@ static int __set_phy_reset(struct exynos_mipi_phy *state,
 	void __iomem *addr = state->regs;
 	unsigned int cfg;
 
-	if (IS_ERR_OR_NULL(addr)) {
+	if (!addr)
+		return 0;
+
+	if (IS_ERR(addr)) {
 		dev_err(state->dev, "%s Invalid address\n", __func__);
 		return -EINVAL;
 	}
@@ -256,6 +287,7 @@ static const struct of_device_id exynos_mipi_phy_of_table[] = {
 		.compatible = "samsung,mipi-phy-s1",
 		.data = &mipi_phy_m0sx,
 	},
+	{ },
 };
 MODULE_DEVICE_TABLE(of, exynos_mipi_phy_of_table);
 
@@ -270,6 +302,16 @@ static int exynos_mipi_phy_init(struct phy *phy)
 	return __set_phy_init(state, phy_desc, 1);
 }
 
+static int exynos_mipi_phy_set(struct phy *phy, int option, void *info)
+{
+	struct mipi_phy_desc *phy_desc = phy_get_drvdata(phy);
+	struct exynos_mipi_phy *state = to_mipi_video_phy(phy_desc);
+
+	if (phy_desc->opt_bit != INVALID_OPT_BIT)
+		return __set_phy_option(state, phy_desc->opt_bit, option);
+
+	return 0;
+}
 
 static int exynos_mipi_phy_power_on(struct phy *phy)
 {
@@ -300,6 +342,7 @@ static struct phy *exynos_mipi_phy_of_xlate(struct device *dev,
 
 static struct phy_ops exynos_mipi_phy_ops = {
 	.init		= exynos_mipi_phy_init,
+	.set		= exynos_mipi_phy_set,
 	.power_on	= exynos_mipi_phy_power_on,
 	.power_off	= exynos_mipi_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -316,6 +359,7 @@ static int exynos_mipi_phy_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	unsigned int iso[EXYNOS_MIPI_PHYS_NUM];
 	unsigned int rst[EXYNOS_MIPI_PHYS_NUM];
+	unsigned int opt[EXYNOS_MIPI_PHYS_NUM];
 	unsigned int i, elements;
 	int ret = 0;
 
@@ -367,11 +411,21 @@ static int exynos_mipi_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	for (i = 0; i < EXYNOS_MIPI_PHYS_NUM; ++i)
+		opt[i] = INVALID_OPT_BIT;
+	/* it's optional */
+	if (!of_property_read_u32_array(node, "option", opt,
+				elements))
+		dev_info(dev, "use mipi-phy option!!!\n");
+
 	for (i = 0; i < elements; i++) {
 		state->phys[i].iso_offset = iso[i];
 		state->phys[i].rst_bit    = rst[i];
-		dev_dbg(dev, "%s: iso 0x%x, reset %d\n", __func__,
-			state->phys[i].iso_offset, state->phys[i].rst_bit);
+		state->phys[i].opt_bit    = opt[i];
+		dev_dbg(dev, "%s: iso 0x%x, reset %d, option %d\n",
+			__func__, state->phys[i].iso_offset,
+			state->phys[i].rst_bit,
+			state->phys[i].opt_bit);
 	}
 
 	for (i = 0; i < elements; i++) {

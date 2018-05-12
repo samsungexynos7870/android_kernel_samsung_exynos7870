@@ -12,6 +12,8 @@
 #ifndef __LEDS_SM5705_H__
 #define __LEDS_SM5705_H__
 
+#define TORCH_STEP 5
+
 enum {
 	SM5705_FLED_0 = 0,
 	SM5705_FLED_1,
@@ -37,6 +39,7 @@ struct sm5705_fled_platform_data {
 		bool used_gpio;
 		int flash_en_pin;
 		int torch_en_pin;
+		int torch_table[TORCH_STEP];
 	}led[SM5705_FLED_MAX];
 
 	struct pinctrl *fled_pinctrl;

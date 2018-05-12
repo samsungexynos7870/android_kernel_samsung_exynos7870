@@ -62,7 +62,7 @@ int ist30xx_key_code[] = IST30XX_KEY_CODES;
 struct ist30xx_data *ts_data;
 
 #ifdef CONFIG_TRUSTONIC_TRUSTED_UI
-struct ist30xx_data *tui_tsp_info;
+struct ist30xx_data *tui_tsp_ist_info;
 extern int tui_force_close(uint32_t arg);
 #endif
 
@@ -1064,7 +1064,7 @@ static int ist30xx_resume(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	mutex_lock(&data->lock);
 	data->suspend = false;
-	if (data->spay || data->aod) {
+	if (data->status.power && (data->spay || data->aod)) {
 		ist30xx_cmd_gesture(data, IST30XX_DISABLE);
 		mod_timer(&data->event_timer,
 			get_jiffies_64() + EVENT_TIMER_INTERVAL * 2);
@@ -1617,33 +1617,35 @@ static void ist30xx_free_gpio(struct ist30xx_data *data)
 #endif
 
 #ifdef CONFIG_TRUSTONIC_TRUSTED_UI
-void trustedui_mode_on(void) {
+void trustedui_mode_ist_on(void) {
 	tsp_info("%s, release all finger..", __func__);
-	clear_input_data(tui_tsp_info);
+	clear_input_data(tui_tsp_ist_info);
 
-	del_timer(&tui_tsp_info->event_timer);
+	del_timer(&tui_tsp_ist_info->event_timer);
 
-	cancel_delayed_work_sync(&tui_tsp_info->work_reset_check);
+	cancel_delayed_work_sync(&tui_tsp_ist_info->work_reset_check);
 #ifdef IST30XX_NOISE_MODE
-	cancel_delayed_work_sync(&tui_tsp_info->work_noise_protect);
+	cancel_delayed_work_sync(&tui_tsp_ist_info->work_noise_protect);
 #else
 #ifdef IST30XX_FORCE_RELEASE
-	cancel_delayed_work_sync(&tui_tsp_info->work_force_release);
+	cancel_delayed_work_sync(&tui_tsp_ist_info->work_force_release);
 #endif
 #endif
-	cancel_delayed_work_sync(&tui_tsp_info->work_debug_algorithm);
-	tui_tsp_info->status.noise_mode = false;
+	cancel_delayed_work_sync(&tui_tsp_ist_info->work_debug_algorithm);
+	tui_tsp_ist_info->status.noise_mode = false;
 }
+EXPORT_SYMBOL(trustedui_mode_ist_on);
 
-void trustedui_mode_off(void) {
+void trustedui_mode_ist_off(void) {
 	tsp_info("%s ", __func__);
 
-	//ist30xx_start(tui_tsp_info);
-	tui_tsp_info->status.noise_mode = true;
+	//ist30xx_start(tui_tsp_ist_info);
+	tui_tsp_ist_info->status.noise_mode = true;
 
-	mod_timer(&tui_tsp_info->event_timer, get_jiffies_64() +
-				(HZ * tui_tsp_info->timer_period_ms / 1000));	//EVENT_TIMER_INTERVAL
+	mod_timer(&tui_tsp_ist_info->event_timer, get_jiffies_64() +
+				(HZ * tui_tsp_ist_info->timer_period_ms / 1000));	//EVENT_TIMER_INTERVAL
 } 
+EXPORT_SYMBOL(trustedui_mode_ist_off);
 #endif
 
 static int ist30xx_probe(struct i2c_client *client,
@@ -1878,7 +1880,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	data->initialized = true;
 
 #ifdef CONFIG_TRUSTONIC_TRUSTED_UI
-	tui_tsp_info = data;
+	tui_tsp_ist_info = data;
 #endif
 
 	tsp_info("### IMAGIS probe success ###\n");

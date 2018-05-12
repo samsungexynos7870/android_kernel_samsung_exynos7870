@@ -81,20 +81,15 @@
 	pinctrl-names = "sleep";
 	pinctrl-0 = <&sleep4>;
 	sleep4: sleep-state {
-		PIN_SLP(gpm0-0, INPUT, NONE);	/* PMIC_SDA_1P8 */
-		PIN_SLP(gpm0-1, INPUT, NONE);	/* PMIC_SCL_1P8 */
+		PIN_SLP(gpm0-0, PREV, UP);	/* PMIC_SDA_1P8 */
+		PIN_SLP(gpm0-1, PREV, UP);	/* PMIC_SCL_1P8 */
 	};
 };
 
 /* 0x139C_0000(NFC): gpc2 */
 &pinctrl_5 {
-	pinctrl-names = "default","sleep";
-	pinctrl-0 = <&initial5>;
-	pinctrl-1 = <&sleep5>;
-	initial5: initial-state {
-		PIN_IN(gpc2-0, NONE, LV1);	/* LCD_BL_SDA_1P8 */
-		PIN_IN(gpc2-1, NONE, LV1);	/* LCD_BL_SCL_1P8 */
-	};
+	pinctrl-names = "sleep";
+	pinctrl-0 = <&sleep5>;
 	sleep5: sleep-state {
 		PIN_SLP(gpc2-0, INPUT, NONE);	/* LCD_BL_SDA_1P8 */
 		PIN_SLP(gpc2-1, INPUT, NONE);	/* LCD_BL_SCL_1P8 */

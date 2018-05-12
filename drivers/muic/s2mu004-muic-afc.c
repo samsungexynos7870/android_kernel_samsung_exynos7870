@@ -508,10 +508,21 @@ void s2mu004_muic_afc_after_prepare(struct work_struct *work)
 {
 	struct s2mu004_muic_data *muic_data =
 		container_of(work, struct s2mu004_muic_data, afc_after_prepare.work);
+	u8 vbvolt = 0;
+
 	pr_err("[DEBUG] %s(%d) \n " , __func__, __LINE__);
-	mutex_lock(&muic_data->afc_mutex);
-	s2mu004_hv_muic_set_afc_after_prepare(muic_data);
-	mutex_unlock(&muic_data->afc_mutex);
+	
+	msleep(100);
+	s2mu004_read_reg(muic_data->i2c, S2MU004_REG_MUIC_DEVICE_APPLE, &vbvolt);
+	vbvolt = !!(vbvolt & DEV_TYPE_APPLE_VBUS_WAKEUP);
+
+	pr_info("[DEBUG] %s vbvolt=%d\n " , __func__, vbvolt);
+
+	if(vbvolt) {
+		mutex_lock(&muic_data->afc_mutex);
+		s2mu004_hv_muic_set_afc_after_prepare(muic_data);
+		mutex_unlock(&muic_data->afc_mutex);
+	}
 }
 
 #define RETRY_QC_CNT 3

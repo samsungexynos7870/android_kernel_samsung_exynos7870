@@ -202,30 +202,25 @@ static unsigned int get_boot_volt(int cluster)
 static void exynos_qos_nop(void *info)
 {
 }
-#endif
 
-static int exynos_change_freq_nocpd(struct cpufreq_policy *policy, int cpu,
-					unsigned int freq)
+static int exynos_enable_cpd(int cpu)
 {
-	int ret;
+	release_cpd();
 
-#ifdef CONFIG_CPU_IDLE
-	if (cpu >= NR_CLUST0_CPUS)
-		block_cpd();
+	return 1;
+}
+
+static int exynos_disable_cpd(int cpu)
+{
+	block_cpd();
 
 	if (check_cluster_idle_state(cpu))
 		smp_call_function_single(cpu, exynos_qos_nop, NULL, 0);
-#endif
 
-	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_H);
-
-#ifdef CONFIG_CPU_IDLE
-	if (cpu >= NR_CLUST0_CPUS)
-		release_cpd();
-#endif
-
-	return ret;
+	return 1;
 }
+#endif
+
 
 /********************************************************************************
  *                         Scaling frequency and voltage                        *
@@ -582,6 +577,12 @@ static int exynos_target(struct cpufreq_policy *policy,
 
 	target_freq = freq_table[index].frequency;
 
+#ifdef CONFIG_CPU_IDLE
+	/* disable cluster power down during scale */
+	if (cur == CL_ONE)
+		exynos_disable_cpd(policy->cpu);
+#endif
+
 	pr_debug("%s[%d]: new_freq[%d], index[%d]\n",
 				__func__, cur, target_freq, index);
 
@@ -589,6 +590,13 @@ static int exynos_target(struct cpufreq_policy *policy,
 	/* frequency and volt scaling */
 	ret = exynos_cpufreq_scale(target_freq, policy->cpu);
 	exynos_ss_freq(cur, freqs[cur]->old, target_freq, ESS_FLAG_OUT);
+
+#ifdef CONFIG_CPU_IDLE
+	/* enable cluster power down  */
+	if (cur == CL_ONE)
+		exynos_enable_cpd(policy->cpu);
+#endif
+
 	if (ret < 0)
 		goto out;
 
@@ -799,7 +807,7 @@ void ipa_set_clamp(int cpu, unsigned int clamp_freq, unsigned int gov_target)
 		     __PRETTY_FUNCTION__, __LINE__, cpu, clamp_freq, freq);
 #endif
 
-	exynos_change_freq_nocpd(policy, cpu, new_freq);
+	__cpufreq_driver_target(policy, new_freq, CPUFREQ_RELATION_H);
 	cpufreq_cpu_put(policy);
 }
 
@@ -1756,7 +1764,7 @@ static int exynos_cluster0_min_qos_handler(struct notifier_block *b,
 	}
 #endif
 
-	ret = exynos_change_freq_nocpd(policy, cpu, val);
+	ret = __cpufreq_driver_target(policy, val, CPUFREQ_RELATION_H);
 	cpufreq_cpu_put(policy);
 
 	if (ret < 0)
@@ -1810,7 +1818,7 @@ static int exynos_cluster1_min_qos_handler(struct notifier_block *b,
 	}
 #endif
 
-	ret = exynos_change_freq_nocpd(policy, cpu, val);
+	ret = __cpufreq_driver_target(policy, val, CPUFREQ_RELATION_H);
 	cpufreq_cpu_put(policy);
 
 	if (ret < 0)
@@ -1857,7 +1865,7 @@ static int exynos_cluster0_max_qos_handler(struct notifier_block *b,
 	}
 #endif
 
-	ret = exynos_change_freq_nocpd(policy, cpu, val);
+	ret = __cpufreq_driver_target(policy, val, CPUFREQ_RELATION_H);
 	cpufreq_cpu_put(policy);
 
 	if (ret < 0)
@@ -1904,7 +1912,7 @@ static int exynos_cluster1_max_qos_handler(struct notifier_block *b,
 	}
 #endif
 
-	ret = exynos_change_freq_nocpd(policy, cpu, val);
+	ret = __cpufreq_driver_target(policy, val, CPUFREQ_RELATION_H);
 	cpufreq_cpu_put(policy);
 
 	if (ret < 0)
@@ -2342,7 +2350,7 @@ static int exynos_mp_cpufreq_driver_init(void)
 	}
 
 #if !defined(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) && !defined(CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE)
-	exynos_change_freq_nocpd(policy, NR_CLUST0_CPUS, policy->min);
+	__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_H);
 #endif
 	cpufreq_cpu_put(policy);
 

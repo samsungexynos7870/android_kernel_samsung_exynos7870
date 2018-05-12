@@ -45,7 +45,27 @@ config BATTERY_AGE_FORECAST
 	default n
 	depends on BATTERY_SWELLING
 	help
-	Say Y to use calc time to full function.
+	Say Y to use battery age forecast
+
+config BATTERY_AGE_FORECAST_DETACHABLE
+	tristate "battery age forecast for detachable"
+	default n
+	select BATTERY_AGE_FORECAST
+	help
+	Say Y to use battery age forecast for detachable
+
+config BATTERY_AGE_FORECAST_B2B
+	tristate "battery age forecast for B2B"
+	default n
+	select BATTERY_AGE_FORECAST
+	help
+	Say Y to use battery age forecast for B2B
+
+config DCM_JPN_CONCEPT_FG_CYCLE_CHECK
+	bool "enable fg_cycle_check_value for dcm jpn"
+	default n
+	help
+	 Say Y to use fg_cycle_check_value.
 
 config MULTI_CHARGING
 	bool "support for multi charger ICs"
@@ -240,8 +260,16 @@ config FUELGAUGE_SM5703
 	 help
 	  Say Y to include support SM5703 FUELGAUGE.
 	  Using coulomb counting.
-
-
+ 
+config FUELGAUGE_SM5705
+	tristate "Siliconmitus SM5705 Fuel Gauge"
+	default n
+	depends on BATTERY_SAMSUNG
+	help
+	  SM5705 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The SM5705 is configured
+	  to operate with a single lithium cell
+ 
 # Charger
 
 config CHARGER_DUMMY
@@ -384,6 +412,11 @@ config CHARGER_SM5703
 	  SM5703 incluse led, flash driver.
 	  You have to define MFD_SM5703
 
+config CHARGER_SM5705
+	tristate "SM5705 battery charger support"
+	depends on MFD_SM5705 && I2C
+	help
+	  Say Y here to enable support for the SM5705 charger
 
 config CHARGER_SM5703_SOFT_START_CHARGING
 	bool "SM5703 soft step charging"
@@ -423,6 +456,14 @@ config CHARGER_S2MU005
 	help
 	  Say Y here to enable support for the S2MU005 charger
 	  S2MU005 incluse pmic, led driver.
+	  You have to define MFD_S2MU005
+
+config S2MU005_INNER_BATTERY
+	tristate "S2MU005 inner battery type"
+	depends on (MFD_S2MU005) && I2C
+	help
+	  Say Y here to enable support marking project using S2MU005
+	  which use internal battery type
 	  You have to define MFD_S2MU005
 
 config CHARGER_SMA7P10
@@ -496,6 +537,12 @@ config EN_OOPS
 	help
 	  Say Y to enable oops filter
 
+config USE_POGO
+       bool "enable pogo charging"
+       default n
+       help
+	 Say Y to enable CONFIG_USE_POGO
+
 config STORE_MODE
        bool "enable store mode"
        default n
@@ -514,9 +561,22 @@ config XADC_SHARE_BATT_WITH_USB_THM
 	help
 	  Say Y to enable use xadc mux for BAT_THM with USB_THM
 
-config NON_WATERPROOF_MODEL
-	bool "enable non_waterproof_model"
+config THM_MUX_SHARE
+	bool "To use xadc mux for BAT_THM with AP_THM"
 	default n
 	help
-	  Say Y here to enable non_waterproof_model
+	  Say Y to enable use xadc mux for BAT_THM with AP_THM
+	  
+config S2MU005_EVT4_DISABLE_BUCK_MODE
+	bool "Disable buck only mode in S2MU005X03"
+	default n
+	depends on CHARGER_S2MU005
+	help
+	  Say Y to enable use all-off mode in S2MU005X03
+
+config TYPEB_WATERPROOF_MODEL
+	bool "enable typeb_waterproof_model"
+	default n
+	help
+	  Say Y here to enable typeb_waterproof_model
 

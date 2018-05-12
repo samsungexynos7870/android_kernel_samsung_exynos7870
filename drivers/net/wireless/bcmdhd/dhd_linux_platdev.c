@@ -1,7 +1,7 @@
 /*
  * Linux platform device for DHD WLAN adapter
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -85,6 +85,10 @@ extern int bcm_bt_lock(int cookie);
 extern void bcm_bt_unlock(int cookie);
 static int lock_cookie_wifi = 'W' | 'i'<<8 | 'F'<<16 | 'i'<<24;	/* cookie is "WiFi" */
 #endif /* ENABLE_4335BT_WAR */
+
+#ifdef BCM4335_XTAL_WAR
+extern bool check_bcm4335_rev(void);
+#endif /* BCM4335_XTAL_WAR */
 
 wifi_adapter_info_t* dhd_wifi_platform_get_adapter(uint32 bus_type, uint32 bus_num, uint32 slot_num)
 {
@@ -170,7 +174,11 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 		}
 #endif /* ENABLE_4335BT_WAR */
 
+#ifdef BCM4335_XTAL_WAR
+		err = plat_data->set_power(on, check_bcm4335_rev());
+#else /* BCM4335_XTAL_WAR */
 		err = plat_data->set_power(on);
+#endif /* BCM4335_XTAL_WAR */
 	}
 
 	if (msec && !err)

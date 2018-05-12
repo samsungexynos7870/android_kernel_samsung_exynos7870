@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-2000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung J7XELTE board based on Exynos7870";
@@ -96,7 +96,8 @@
 		pinctrl-0 = <&i2s_pmic_bus
 				&i2s_bt_bus>;
 		pinctrl-1 = <&i2s_pmic_bus_idle
-				&i2s_bt_bus_idle> ;
+				&i2s_bt_bus_idle>;
+		bt-fm-combo;
 		bck-mcko-mode;
 		status = "okay";
 	};
@@ -582,6 +583,7 @@
 			&audio_codec_cod3026x>;
 		mic-bias-mode = <1 1 2 0>;
 		samsung,auxdev = <&s1402x>;
+		fm-slave-i2s;
 		status = "okay";
 	};
 
@@ -1018,7 +1020,7 @@
 				video_high_speed_240fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_240fps_i2c = <0>;
 
-				max_int = <0>;
+				max_int = <DVFS_INT_L3>;
 				max_cam = <DVFS_CAM_L0>;
 				max_mif = <DVFS_MIF_L0>;
 				max_i2c = <0>;
@@ -1027,172 +1029,172 @@
 			table1 {
 				desc = "HAL3 version";
 
-				default_int = <0>;
+				default_int = <DVFS_INT_L0>;
 				default_cam = <DVFS_CAM_L0>;
 				default_mif = <DVFS_MIF_L0>;
 				default_i2c = <0>;
 
-				front_preview_int = <0>;
+				front_preview_int = <DVFS_INT_L0>;
 				front_preview_cam = <DVFS_CAM_L1>;
 				front_preview_mif = <DVFS_MIF_L0>;
 				front_preview_i2c = <0>;
 
-				front_capture_int = <0>;
+				front_capture_int = <DVFS_INT_L0>;
 				front_capture_cam = <DVFS_CAM_L1>;
 				front_capture_mif = <DVFS_MIF_L0>;
 				front_capture_i2c = <0>;
 
-				front_video_int = <0>;
+				front_video_int = <DVFS_INT_L0>;
 				front_video_cam = <DVFS_CAM_L1>;
 				front_video_mif = <DVFS_MIF_L0>;
 				front_video_i2c = <0>;
 
-				front_video_whd_int = <0>;
+				front_video_whd_int = <DVFS_INT_L0>;
 				front_video_whd_cam = <DVFS_CAM_L1>;
 				front_video_whd_mif = <DVFS_MIF_L0>;
 				front_video_whd_i2c = <0>;
 
-				front_video_capture_int = <0>;
+				front_video_capture_int = <DVFS_INT_L0>;
 				front_video_capture_cam = <DVFS_CAM_L1>;
 				front_video_capture_mif = <DVFS_MIF_L0>;
 				front_video_capture_i2c = <0>;
 
-				front_video_whd_capture_int = <0>;
+				front_video_whd_capture_int = <DVFS_INT_L0>;
 				front_video_whd_capture_cam = <DVFS_CAM_L1>;
 				front_video_whd_capture_mif = <DVFS_MIF_L0>;
 				front_video_whd_capture_i2c = <0>;
 
-				front_vt1_int = <0>;
+				front_vt1_int = <DVFS_INT_L0>;
 				front_vt1_cam = <DVFS_CAM_L1>;
 				front_vt1_mif = <DVFS_MIF_L0>;
 				front_vt1_i2c = <0>;
 
-				front_vt2_int = <0>;
+				front_vt2_int = <DVFS_INT_L0>;
 				front_vt2_cam = <DVFS_CAM_L1>;
 				front_vt2_mif = <DVFS_MIF_L0>;
 				front_vt2_i2c = <0>;
 
-				front_companion_preview_int = <0>;
+				front_companion_preview_int = <DVFS_INT_L0>;
 				front_companion_preview_cam = <DVFS_CAM_L1>;
 				front_companion_preview_mif = <DVFS_MIF_L0>;
 				front_companion_preview_i2c = <0>;
 
-				front_companion_capture_int = <0>;
+				front_companion_capture_int = <DVFS_INT_L0>;
 				front_companion_capture_cam = <DVFS_CAM_L1>;
 				front_companion_capture_mif = <DVFS_MIF_L0>;
 				front_companion_capture_i2c = <0>;
 
-				front_companion_video_int = <0>;
+				front_companion_video_int = <DVFS_INT_L0>;
 				front_companion_video_cam = <DVFS_CAM_L1>;
 				front_companion_video_mif = <DVFS_MIF_L0>;
 				front_companion_video_i2c = <0>;
 
-				front_companion_video_whd_int = <0>;
+				front_companion_video_whd_int = <DVFS_INT_L0>;
 				front_companion_video_whd_cam = <DVFS_CAM_L1>;
 				front_companion_video_whd_mif = <DVFS_MIF_L0>;
 				front_companion_video_whd_i2c = <0>;
 
-				front_companion_video_capture_int = <0>;
+				front_companion_video_capture_int = <DVFS_INT_L0>;
 				front_companion_video_capture_cam = <DVFS_CAM_L1>;
 				front_companion_video_capture_mif = <DVFS_MIF_L0>;
 				front_companion_video_capture_i2c = <0>;
 
-				front_companion_video_whd_capture_int = <0>;
+				front_companion_video_whd_capture_int = <DVFS_INT_L0>;
 				front_companion_video_whd_capture_cam = <DVFS_CAM_L1>;
 				front_companion_video_whd_capture_mif = <DVFS_MIF_L0>;
 				front_companion_video_whd_capture_i2c = <0>;
 
-				rear_preview_fhd_int = <0>;
+				rear_preview_fhd_int = <DVFS_INT_L0>;
 				rear_preview_fhd_cam = <DVFS_CAM_L0>;
 				rear_preview_fhd_mif = <DVFS_MIF_L0>;
 				rear_preview_fhd_i2c = <0>;
 
-				rear_preview_whd_int = <0>;
+				rear_preview_whd_int = <DVFS_INT_L0>;
 				rear_preview_whd_cam = <DVFS_CAM_L0>;
 				rear_preview_whd_mif = <DVFS_MIF_L0>;
 				rear_preview_whd_i2c = <0>;
 
-				rear_preview_uhd_int = <0>;
+				rear_preview_uhd_int = <DVFS_INT_L0>;
 				rear_preview_uhd_cam = <DVFS_CAM_L0>;
 				rear_preview_uhd_mif = <DVFS_MIF_L0>;
 				rear_preview_uhd_i2c = <0>;
 
-				rear_capture_int = <0>;
+				rear_capture_int = <DVFS_INT_L0>;
 				rear_capture_cam = <DVFS_CAM_L0>;
 				rear_capture_mif = <DVFS_MIF_L0>;
 				rear_capture_i2c = <0>;
 
-				rear_video_fhd_int = <0>;
+				rear_video_fhd_int = <DVFS_INT_L0>;
 				rear_video_fhd_cam = <DVFS_CAM_L0>;
 				rear_video_fhd_mif = <DVFS_MIF_L0>;
 				rear_video_fhd_i2c = <0>;
 
-				rear_video_whd_int = <0>;
+				rear_video_whd_int = <DVFS_INT_L0>;
 				rear_video_whd_cam = <DVFS_CAM_L0>;
 				rear_video_whd_mif = <DVFS_MIF_L0>;
 				rear_video_whd_i2c = <0>;
 
-				rear_video_uhd_int = <0>;
+				rear_video_uhd_int = <DVFS_INT_L0>;
 				rear_video_uhd_cam = <DVFS_CAM_L0>;
 				rear_video_uhd_mif = <DVFS_MIF_L0>;
 				rear_video_uhd_i2c = <0>;
 
-				rear_video_fhd_capture_int = <0>;
+				rear_video_fhd_capture_int = <DVFS_INT_L0>;
 				rear_video_fhd_capture_cam = <DVFS_CAM_L0>;
 				rear_video_fhd_capture_mif = <DVFS_MIF_L0>;
 				rear_video_fhd_capture_i2c = <0>;
 
-				rear_video_whd_capture_int = <0>;
+				rear_video_whd_capture_int = <DVFS_INT_L0>;
 				rear_video_whd_capture_cam = <DVFS_CAM_L0>;
 				rear_video_whd_capture_mif = <DVFS_MIF_L0>;
 				rear_video_whd_capture_i2c = <0>;
 
-				rear_video_uhd_capture_int = <0>;
+				rear_video_uhd_capture_int = <DVFS_INT_L0>;
 				rear_video_uhd_capture_cam = <DVFS_CAM_L0>;
 				rear_video_uhd_capture_mif = <DVFS_MIF_L0>;
 				rear_video_uhd_capture_i2c = <0>;
 
-				dual_preview_int = <0>;
+				dual_preview_int = <DVFS_INT_L0>;
 				dual_preview_cam = <DVFS_CAM_L0>;
 				dual_preview_mif = <DVFS_MIF_L0>;
 				dual_preview_i2c = <0>;
 
-				dual_capture_int = <0>;
+				dual_capture_int = <DVFS_INT_L0>;
 				dual_capture_cam = <DVFS_CAM_L0>;
 				dual_capture_mif = <DVFS_MIF_L0>;
 				dual_capture_i2c = <0>;
 
-				dual_video_int = <0>;
+				dual_video_int = <DVFS_INT_L0>;
 				dual_video_cam = <DVFS_CAM_L0>;
 				dual_video_mif = <DVFS_MIF_L0>;
 				dual_video_i2c = <0>;
 
-				dual_video_capture_int = <0>;
+				dual_video_capture_int = <DVFS_INT_L0>;
 				dual_video_capture_cam = <DVFS_CAM_L0>;
 				dual_video_capture_mif = <DVFS_MIF_L0>;
 				dual_video_capture_i2c = <0>;
 
-				preview_high_speed_fps_int = <0>;
+				preview_high_speed_fps_int = <DVFS_INT_L0>;
 				preview_high_speed_fps_cam = <DVFS_CAM_L2>;
 				preview_high_speed_fps_mif = <DVFS_MIF_L0>;
 				preview_high_speed_fps_i2c = <0>;
 
-				video_high_speed_60fps_int = <0>;
+				video_high_speed_60fps_int = <DVFS_INT_L0>;
 				video_high_speed_60fps_cam = <DVFS_CAM_L1>;
 				video_high_speed_60fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_60fps_i2c = <0>;
 
-				video_high_speed_120fps_int = <0>;
+				video_high_speed_120fps_int = <DVFS_INT_L0>;
 				video_high_speed_120fps_cam = <DVFS_CAM_L1>;
 				video_high_speed_120fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_120fps_i2c = <0>;
 
-				video_high_speed_240fps_int = <0>;
+				video_high_speed_240fps_int = <DVFS_INT_L0>;
 				video_high_speed_240fps_cam = <DVFS_CAM_L0>;
 				video_high_speed_240fps_mif = <DVFS_MIF_L0>;
 				video_high_speed_240fps_i2c = <0>;
 
-				max_int = <0>;
+				max_int = <DVFS_INT_L0>;
 				max_cam = <DVFS_CAM_L0>;
 				max_mif = <DVFS_MIF_L0>;
 				max_i2c = <0>;
@@ -1371,26 +1373,35 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&ea8061s>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "regulator,enable", "delay,msleep";
-			delay = <25>;
-			regulator = "LCD_1P8", "LCD_3P0";
+			type =
+			"regulator,enable",	"LCD_1P8",
+			"regulator,enable",	"LCD_3P0",
+			"delay,msleep",	"25";
 		};
 		dsim_set_panel_power_disable {
-			type = "delay,usleep", "gpio,low", "delay,usleep", "regulator,disable", "regulator,disable";
-			gpios = <&gpd3 4 0x1>;
-			delay = <5000 6000>, <10000 11000>;
-			regulator = "LCD_3P0", "LCD_1P8";
+			type =
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_3P0",
+			"regulator,disable",	"LCD_1P8";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <5000 6000>, <5000 6000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 

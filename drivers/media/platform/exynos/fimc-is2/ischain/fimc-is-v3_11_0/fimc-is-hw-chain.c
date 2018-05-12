@@ -45,7 +45,7 @@ const struct fimc_is_subdev_ops fimc_is_subdev_mcsp_ops;
 
 void fimc_is_enter_lib_isr(void)
 {
-	kernel_neon_begin_partial(32);
+	kernel_neon_begin();
 }
 
 void fimc_is_exit_lib_isr(void)
@@ -238,10 +238,15 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		val |= (1 << 3);
 		writel(val, isp_mipiphy_con);
 		break;
+	case 2:
+		set_bit(FLITE_DUMMY, &flite->state);
+		break;
 	default:
 		merr("sensor id is invalid(%d)", sensor, sensor->instance);
 		break;
 	}
+
+	iounmap(isp_mipiphy_con);
 
 	return ret;
 }
@@ -268,6 +273,10 @@ int fimc_is_hw_camif_open(void *sensor_data)
 		set_bit(CSIS_DMA_ENABLE, &csi->state);
 		clear_bit(FLITE_DMA_ENABLE, &flite->state);
 		break;
+	case 2:
+		set_bit(CSIS_DMA_ENABLE, &csi->state);
+		clear_bit(FLITE_DMA_ENABLE, &flite->state);
+		break;
 	default:
 		merr("sensor id is invalid(%d)", sensor, sensor->instance);
 		break;
@@ -280,6 +289,7 @@ int fimc_is_hw_ischain_cfg(void *ischain_data)
 {
 	void __iomem *isp_user_con;
 	struct fimc_is_device_ischain *device;
+	struct fimc_is_device_csi *csi;
 	u32 val;
 
 	BUG_ON(!ischain_data);
@@ -288,22 +298,23 @@ int fimc_is_hw_ischain_cfg(void *ischain_data)
 	if (test_bit(FIMC_IS_ISCHAIN_REPROCESSING, &device->state))
 		return 0;
 
+	csi = (struct fimc_is_device_csi *)v4l2_get_subdevdata(
+			device->sensor->subdev_csi);
+
 	isp_user_con = ioremap(SYSREG_ISP_USER_CON, SZ_4K);
 
 	val = readl(isp_user_con);
-	/* RT setting */
-	val |= (1 << 0)| /* VRA set to RT */
-		(1 << 1); /* ISP & Scaler set to RT */
 
-	/* BNS Input Select
-	 * CSIS0 : 0 (BACK)
-	 * CSIS1 : 1 (FRONT)
-	 */
-	if (device->sensor->instance == 0) {
+	/* NRT: 0, RT: 1 */
+	/* ISP & Scaler: RT, VRA: RT */
+	val |= (1 << 1) | (1 << 0);
+
+	/* BNS Input Select */
+	/* CSIS0: 0, CSIS1: 1 */
+	if (csi->instance == 0)
 		val &= ~(1 << 3);
-	} else {
+	else
 		val |= (1 << 3);
-	}
 
 	writel(val, isp_user_con);
 
@@ -766,4 +777,3 @@ bool fimc_is_hw_frame_done_with_dma(void)
 	/* HACK: 3AA DMA interrupt callback is skipped because preventing interrupt loss. */
 	return true; /* true after FIMC-IS V4.x */
 }
-

@@ -2303,8 +2303,13 @@ static ssize_t cmd_store(struct device *dev, struct device_attribute *attr,
 	struct factory_data *data = f54->factory_data;
 	struct synaptics_rmi4_data *rmi4_data = f54->rmi4_data;
 
-	if (strlen(buf) >= CMD_STR_LEN) {		
-		tsp_debug_err(true, &rmi4_data->i2c_client->dev, "%s: cmd length is over (%s,%d)!!\n", __func__, buf, (int)strlen(buf));
+	if (strlen(buf) >= CMD_STR_LEN) {
+		tsp_debug_err(true, &rmi4_data->i2c_client->dev, "%s: cmd length(strlen(buf)) is over (%s,%d)!!\n", __func__, buf, (int)strlen(buf));
+		return -EINVAL;
+	}
+
+	if (count >= (unsigned int)CMD_STR_LEN) {
+		tsp_debug_err(true, &rmi4_data->i2c_client->dev, "%s: cmd length(count) is over (%s,%d)!!\n", __func__, buf, (unsigned int)count);
 		return -EINVAL;
 	}
 

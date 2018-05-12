@@ -22,6 +22,10 @@
  *
  */
 
+#if defined(CONFIG_IFPMIC_SUPPORT)
+#include <linux/ifpmic/muic/muic.h>
+#endif
+
 #ifndef __MUIC_H__
 #define __MUIC_H__
 
@@ -42,9 +46,10 @@ enum {
 	MUIC_DOCK_DETACHED	= 0,
 	MUIC_DOCK_DESKDOCK	= 1,
 	MUIC_DOCK_CARDOCK	= 2,
-	MUIC_DOCK_AUDIODOCK	= 7,
-	MUIC_DOCK_SMARTDOCK	= 8,
-	MUIC_DOCK_HMT		= 11,
+	MUIC_DOCK_AUDIODOCK	= 101,
+	MUIC_DOCK_SMARTDOCK	= 102,
+	MUIC_DOCK_HMT		= 105,
+	MUIC_DOCK_ABNORMAL	= 106,
 };
 
 /* MUIC Path */
@@ -83,6 +88,7 @@ typedef enum {
 	ADC_SMARTDOCK		= 0x10, /* 0x10000 40.2K ohm */
 	ADC_RDU_TA		= 0x10, /* 0x10000 40.2K ohm */
 	ADC_HMT			= 0x11, /* 0x10001 49.9K ohm */
+	ADC_POGO		= 0x11, /* 0x10001 49.9K ohm */
 	ADC_AUDIODOCK		= 0x12, /* 0x10010 64.9K ohm */
 	ADC_USB_LANHUB		= 0x13, /* 0x10011 80.07K ohm */
 	ADC_CHARGING_CABLE	= 0x14,	/* 0x10100 102K ohm */
@@ -174,14 +180,18 @@ typedef enum {
 	ATTACHED_DEV_UNSUPPORTED_ID_VB_MUIC,
 	ATTACHED_DEV_TIMEOUT_OPEN_MUIC,
 	ATTACHED_DEV_WIRELESS_PAD_MUIC,
+
 	ATTACHED_DEV_POWERPACK_MUIC,
 	ATTACHED_DEV_UNDEFINED_RANGE_MUIC,
 	ATTACHED_DEV_WATER_MUIC,
-
+	ATTACHED_DEV_CHK_WATER_REQ,
+	ATTACHED_DEV_CHK_WATER_DRY_REQ,
 	ATTACHED_DEV_RDU_TA_MUIC,
 #if defined(CONFIG_SEC_FACTORY)
 	ATTACHED_DEV_CARKIT_MUIC,
 #endif
+	ATTACHED_DEV_POGO_MUIC,
+	ATTACHED_DEV_CHARGING_POGO_VB_MUIC,
 	ATTACHED_DEV_CHECK_OCP,
 	ATTACHED_DEV_UNKNOWN_MUIC,
 	ATTACHED_DEV_NUM,
@@ -214,6 +224,7 @@ struct muic_platform_data {
 
 	bool rustproof_on;
 	bool afc_disable;
+	bool is_new_factory;
 
 #ifdef CONFIG_MUIC_HV_FORCE_LIMIT
 	int hv_sel;
@@ -226,6 +237,7 @@ struct muic_platform_data {
 
 	/* muic GPIO control function */
 	int (*init_gpio_cb) (int switch_sel);
+	void (*jig_uart_cb)(int jig_state);
 	int (*set_gpio_usb_sel) (int usb_path);
 	int (*set_gpio_uart_sel) (int uart_path);
 	int (*set_safeout) (int safeout_path);
@@ -238,5 +250,7 @@ struct muic_platform_data {
 extern int get_switch_sel(void);
 extern void muic_disable_otg_detect(void);
 extern struct device *switch_device;
-
+#ifdef CONFIG_SEC_FACTORY
+extern void muic_send_attached_muic_cable_intent(int type);
+#endif
 #endif /* __MUIC_H__ */

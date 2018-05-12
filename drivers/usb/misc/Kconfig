@@ -200,7 +200,9 @@ config USB_TEST
 	  including sample test device firmware and "how to use it".
 
 config USB_EHSET_TEST_FIXTURE
-        tristate "USB EHSET Test Fixture driver"
+        bool "USB EHSET Test Fixture driver"
+	depends on HOST_COMPLIANT_TEST
+	default y
         help
 	  Say Y here if you want to support the special test fixture device
 	  used for the USB-IF Embedded Host High-Speed Electrical Test procedure.

@@ -24,14 +24,17 @@ int s5p_mfc_set_slice_mode(struct s5p_mfc_ctx *ctx)
 		MFC_WRITEL((enc->slice_mode + 0x4), S5P_FIMV_E_MSLICE_MODE);
 	else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)
 		MFC_WRITEL((enc->slice_mode - 0x2), S5P_FIMV_E_MSLICE_MODE);
+	else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)
+		MFC_WRITEL((enc->slice_mode + 0x3), S5P_FIMV_E_MSLICE_MODE);
 	else
 		MFC_WRITEL(enc->slice_mode, S5P_FIMV_E_MSLICE_MODE);
 
 	/* multi-slice MB number or bit size */
-	if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB || \
-			enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW) {
+	if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) ||
+			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)) {
 		MFC_WRITEL(enc->slice_size.mb, S5P_FIMV_E_MSLICE_SIZE_MB);
-	} else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) ||
+			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)) {
 		MFC_WRITEL(enc->slice_size.bits, S5P_FIMV_E_MSLICE_SIZE_BITS);
 	} else {
 		MFC_WRITEL(0x0, S5P_FIMV_E_MSLICE_SIZE_MB);
@@ -158,7 +161,8 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 
 	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
 		enc->slice_size.mb = p->slice_mb;
-	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if ((p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) ||
+			(p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_FIXED_BYTES)) {
 		enc->slice_size.bits = p->slice_bit;
 	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW) {
 		enc->slice_size.mb = p->slice_mb_row * ((ctx->img_width + 15) / 16);
@@ -783,6 +787,13 @@ int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 	reg = MFC_READL(S5P_FIMV_E_VP8_OPTION);
 	reg &= ~(0x1);
 	reg |= (p_vp8->num_refs_for_p - 1) & 0x1;
+	/* vp8 partition is possible as below value: 1/2/4/8 */
+	if (p_vp8->vp8_numberofpartitions & 0x1) {
+		if (p_vp8->vp8_numberofpartitions > 1)
+			mfc_err_ctx("partition should be even num (%d)\n",
+					p_vp8->vp8_numberofpartitions);
+		p_vp8->vp8_numberofpartitions = (p_vp8->vp8_numberofpartitions & ~0x1);
+	}
 	reg &= ~(0xF << 3);
 	reg |= (p_vp8->vp8_numberofpartitions & 0xF) << 3;
 	reg &= ~(0x1 << 10);

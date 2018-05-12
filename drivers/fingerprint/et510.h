@@ -19,16 +19,12 @@
 #ifndef _ET510_LINUX_DIRVER_H_
 #define _ET510_LINUX_DIRVER_H_
 
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
-#define FEATURE_SPI_WAKELOCK
-#endif /* CONFIG_SEC_FACTORY */
-
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
 #include <linux/wakelock.h>
+#ifdef ENABLE_SENSORS_FPRINT_SECURE
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spidev.h>
@@ -221,15 +217,12 @@ struct etspi_data {
 	struct workqueue_struct *wq_dbg;
 	struct timer_list dbg_timer;
 	int sensortype;
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 	struct device *fp_device;
-#endif
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 	bool enabled_clk;
-#ifdef FEATURE_SPI_WAKELOCK
 	struct wake_lock fp_spi_lock;
 #endif
-#endif
+	struct wake_lock fp_signal_lock;
 	bool tz_mode;
 	int detect_period;
 	int detect_threshold;
@@ -257,11 +250,9 @@ int etspi_io_vdm_read(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
 int etspi_io_vdm_write(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
 int etspi_io_get_frame(struct etspi_data *etspi, u8 *frame, u32 size);
 
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 extern int fingerprint_register(struct device *dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 extern void fingerprint_unregister(struct device *dev,
 	struct device_attribute *attributes[]);
-#endif
 
 #endif

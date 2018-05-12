@@ -71,6 +71,7 @@
 		/* tdmb_fm_ant_sel = <&gpa1 3 0>; */
 		tdmb_use_irq;
 		tdmb_xtal_freq = <24000>;
+		tdmb_1p2_en = <&gpd1 6 0>;
 	};
 
 };

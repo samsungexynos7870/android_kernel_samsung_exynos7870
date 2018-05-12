@@ -1050,16 +1050,12 @@ static int enc_pre_seq_start(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *dst_mb;
-	dma_addr_t dst_addr;
-	unsigned int dst_size;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
-	dst_addr = s5p_mfc_mem_plane_addr(ctx, &dst_mb->vb, 0);
-	dst_size = (unsigned int)vb2_plane_size(&dst_mb->vb, 0);
-	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
+	s5p_mfc_set_enc_stream_buffer(ctx, dst_mb);
 
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
@@ -1133,8 +1129,7 @@ static int enc_pre_frame_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_raw_info *raw;
 	unsigned long flags;
 	dma_addr_t src_addr[3] = { 0, 0, 0 };
-	dma_addr_t dst_addr;
-	unsigned int dst_size, i;
+	unsigned int i;
 
 	raw = &ctx->raw_buf;
 	spin_lock_irqsave(&dev->irqlock, flags);
@@ -1153,13 +1148,9 @@ static int enc_pre_frame_start(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_enc_frame_buffer(ctx, &src_addr[0], raw->num_planes);
 
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
-	dst_addr = s5p_mfc_mem_plane_addr(ctx, &dst_mb->vb, 0);
-	dst_size = (unsigned int)vb2_plane_size(&dst_mb->vb, 0);
-	s5p_mfc_set_enc_stream_buffer(ctx, dst_addr, dst_size);
+	s5p_mfc_set_enc_stream_buffer(ctx, dst_mb);
 
 	spin_unlock_irqrestore(&dev->irqlock, flags);
-
-	mfc_debug(2, "enc dst addr: 0x%08lx", (unsigned long)dst_addr);
 
 	return 0;
 }
@@ -2099,6 +2090,9 @@ static int enc_ext_info(struct s5p_mfc_ctx *ctx)
 
 	if (FW_HAS_ROI_CONTROL(dev))
 		val |= ENC_SET_ROI_CONTROL;
+
+	if (FW_HAS_FIXED_SLICE(dev))
+		val |= ENC_SET_FIXED_SLICE;
 
 	val |= ENC_SET_QP_BOUND_PB;
 

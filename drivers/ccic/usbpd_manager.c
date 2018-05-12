@@ -77,13 +77,49 @@ static void init_source_cap_data(struct usbpd_manager_data *_data)
 
 }
 
+static void init_sink_cap_data(struct usbpd_manager_data *_data)
+{
+/*	struct usbpd_data *pd_data = manager_to_usbpd(_data);
+	int val;						*/
+	msg_header_type *msg_header = &_data->pd_data->sink_msg_header;
+	data_obj_type *data_obj = _data->pd_data->sink_data_obj;
+
+	msg_header->msg_type = USBPD_Sink_Capabilities;
+/*	pd_data->phy_ops.get_power_role(pd_data, &val);		*/
+	msg_header->port_data_role = USBPD_UFP;
+	msg_header->spec_revision = 1;
+	msg_header->port_power_role = USBPD_SINK;
+	msg_header->num_data_objs = 2;
+
+	data_obj->power_data_obj_sink.supply_type = POWER_TYPE_FIXED;
+	data_obj->power_data_obj_sink.dual_role_power = 1;
+	data_obj->power_data_obj_sink.higher_capability = 1;
+	data_obj->power_data_obj_sink.externally_powered = 0;
+	data_obj->power_data_obj_sink.usb_comm_capable = 1;
+	data_obj->power_data_obj_sink.data_role_swap = 1;
+	data_obj->power_data_obj_sink.voltage = 5000/50;
+	data_obj->power_data_obj_sink.op_current = 500/10;
+
+	(data_obj + 1)->power_data_obj_variable.supply_type = POWER_TYPE_VARIABLE;
+	(data_obj + 1)->power_data_obj_variable.max_voltage = _data->sink_cap_max_volt / 50;
+	(data_obj + 1)->power_data_obj_variable.min_voltage = 5000 / 50;
+	(data_obj + 1)->power_data_obj_variable.max_current = 500 / 10;
+}
+
 void usbpd_manager_plug_attach(struct device *dev, muic_attached_dev_t new_dev)
 {
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
+	struct usbpd_data *pd_data = dev_get_drvdata(dev);
+	struct policy_data *policy = &pd_data->policy;
+
 	CC_NOTI_ATTACH_TYPEDEF pd_notifier;
 
 	if (new_dev == ATTACHED_DEV_TYPE3_CHARGER_MUIC) {
-		pd_noti.event = PDIC_NOTIFY_EVENT_PD_SINK;
+		if (policy->send_sink_cap) {
+			pd_noti.event = PDIC_NOTIFY_EVENT_PD_SINK_CAP;
+			policy->send_sink_cap = 0;
+		} else
+			pd_noti.event = PDIC_NOTIFY_EVENT_PD_SINK;
 		pd_notifier.src = CCIC_NOTIFY_DEV_CCIC;
 		pd_notifier.dest = CCIC_NOTIFY_DEV_BATTERY;
 		pd_notifier.id = CCIC_NOTIFY_ID_POWER_STATUS;
@@ -462,6 +498,15 @@ static int of_usbpd_manager_dt(struct usbpd_manager_data *_data)
 				&_data->source_min_volt);
 		ret = of_property_read_u32(np, "source,max_power",
 				&_data->source_max_power);
+
+		/* sink capability */
+		ret = of_property_read_u32(np, "sink,capable_max_voltage",
+				&_data->sink_cap_max_volt);
+		if (ret < 0) {
+			_data->sink_cap_max_volt = 5000;
+			pr_err("%s error reading sink_cap_max_volt %d\n",
+					__func__, _data->sink_cap_max_volt);
+		}
 	}
 
 	return ret;
@@ -495,6 +540,7 @@ int usbpd_init_manager(struct usbpd_data *pd_data)
 	manager->test_cnt = 0;
 
 	init_source_cap_data(manager);
+	init_sink_cap_data(manager);
 
 	return ret;
 }

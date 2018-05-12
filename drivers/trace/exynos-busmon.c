@@ -22,6 +22,10 @@
 #include <linux/exynos-busmon.h>
 #include <linux/exynos-modem-ctrl.h>
 
+#ifdef CONFIG_SEC_DEBUG
+#include <linux/sec_debug.h>
+#endif
+
 #define BUSMON_REG_FAULTEN		(0x08)
 #define BUSMON_REG_ERRVLD		(0x0C)
 #define BUSMON_REG_ERRCLR		(0x10)
@@ -192,6 +196,10 @@ static void busmon_logging_dump_raw(struct busmon_dev *busmon)
 	unsigned int axcache, axdomain, axuser, axprot, axqos, axsnoop;
 	char *init_desc, *target_desc, *user_desc;
 
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	char temp_buf[SZ_128];
+#endif
+
 	errlog0 = __raw_readl(busmon->regs + BUSMON_REG_ERRLOG0);
 	errlog1 = __raw_readl(busmon->regs + BUSMON_REG_ERRLOG1);
 	errlog2 = __raw_readl(busmon->regs + BUSMON_REG_ERRLOG2);
@@ -228,9 +236,10 @@ static void busmon_logging_dump_raw(struct busmon_dev *busmon)
 	if (ARRAY_SIZE(busmon_errcode) <= errcode)
 		errcode = ARRAY_SIZE(busmon_errcode) - 1;
 
-	dev_err(busmon->dev, "Error detected by BUS Monitor\n"
+	pr_auto(ASL3, 
+		"Error detected by BUS Monitor\n"
 		"=======================================================\n");
-	dev_err(busmon->dev,
+	pr_auto(ASL3, 
 		"\nDebugging Information (1)\n"
 		"\tPath       : %s -> %s\n"
 		"\topcode     : %s\n"
@@ -252,7 +261,24 @@ static void busmon_logging_dump_raw(struct busmon_dev *busmon)
 				pdata->errlog0_format_bits[START],
 		pdata->init_flow, pdata->target_flow, pdata->subrange);
 
-	dev_err(busmon->dev,
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+
+	snprintf(temp_buf, SZ_128, "%s -> %s / op : %d / err : %d / 0x%x / 0x%llx / 0x%x / 0x%x / 0x%x / 0x%x",
+		IS_ERR_OR_NULL(init_desc) ? BUSMON_UNSUPPORTED_STRING : init_desc,
+		IS_ERR_OR_NULL(target_desc) ? BUSMON_UNSUPPORTED_STRING : target_desc,
+		opcode,	errcode,
+		(busmon_get_bits(pdata->errlog0_len1_bits, errlog0) >>
+				pdata->errlog0_len1_bits[START]) + 1,
+		pdata->target_addr,
+		busmon_get_bits(pdata->errlog0_format_bits, errlog0) >>
+				pdata->errlog0_format_bits[START],
+		pdata->init_flow, pdata->target_flow, pdata->subrange);
+
+	sec_debug_set_extra_info_busmon(temp_buf);
+
+#endif
+
+	pr_auto(ASL3, 
 		"\nDebugging information (2)\n"
 		"\tAXUSER     : 0x%x, Master IP: %s\n"
 		"\tAXCACHE    : 0x%x\n"
@@ -284,6 +310,8 @@ static void busmon_logging_dump_raw(struct busmon_dev *busmon)
 	pdata->notifier_info.masterip_desc = user_desc;
 	pdata->notifier_info.masterip_idx = axuser;
 	pdata->notifier_info.target_addr = pdata->target_addr;
+
+	pr_auto_disable(3);
 }
 
 static void busmon_logging_parse_route(struct busmon_dev *busmon)

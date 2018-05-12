@@ -43,6 +43,15 @@
 #define NAD_ACAT_FLAG           5001
 
 #define NAD_RETRY_COUNT         30
+#define MAGIC_NAD_API_SUCCESS	6057
+#if defined(CONFIG_SEC_NAD_API)
+static char nad_api_result_string[20*30] = {0,}; 
+
+typedef struct {
+    char name[20];
+    unsigned int result;
+} nad_api_results;
+#endif
 
 struct nad_env {
     char nad_factory[10];
@@ -66,6 +75,12 @@ struct nad_env {
     unsigned int nad_support;
     unsigned int max_temperature;
     unsigned int nad_acat_max_temperature;
+#if defined(CONFIG_SEC_NAD_API)
+    int nad_api_status;
+    int nad_api_magic;
+    int nad_api_total_count;
+    nad_api_results nad_api_info[30];
+#endif
 };
 
 struct sec_nad_param {

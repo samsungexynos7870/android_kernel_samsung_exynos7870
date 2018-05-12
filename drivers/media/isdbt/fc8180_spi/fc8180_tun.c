@@ -312,8 +312,8 @@ s32 fc8180_tuner_init(HANDLE handle, enum BAND_TYPE band)
 	fc8180_write(handle, 0xbe, 0x53);
 	fc8180_write(handle, 0xc2, 0xb9);
 	fc8180_write(handle, 0xc3, 0xd7);
-	fc8180_write(handle, 0xf3, 0x27);
-	fc8180_write(handle, 0xf5, 0x80);
+	fc8180_write(handle, 0xf3, 0x0f);
+	fc8180_write(handle, 0xf5, 0x7a);
 #endif
 
 	return BBM_OK;

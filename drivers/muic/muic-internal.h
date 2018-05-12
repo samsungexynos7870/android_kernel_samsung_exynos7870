@@ -182,6 +182,7 @@ typedef struct _muic_data_t {
 	bool			undefined_range;
 	bool			discard_interrupt;
 	bool			is_dcdtmr_intr;
+	bool			is_afc_pdic_ready;	
 
 	struct hv_data		*phv;
 
@@ -216,7 +217,9 @@ typedef struct _muic_data_t {
 	void (*set_jig_state)(void *, bool val);
 	void (*set_cable_state)(void *, muic_attached_dev_t new_dev);
 	void (*dcd_rescan)(void *);
-
+#if defined(CONFIG_CCIC_S2MU004)
+	void (*set_water_detect)(void *, bool val);
+#endif
 }muic_data_t;
 
 extern struct device *switch_device;

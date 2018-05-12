@@ -285,7 +285,6 @@ config FHANDLE
 
 config USELIB
 	bool "uselib syscall"
-	default y
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
@@ -799,6 +798,7 @@ config BUILD_BIN2C
 
 config IKCONFIG
 	tristate "Kernel .config support"
+	default y if ANDROID_MAJOR_VERSION = "o"
 	select BUILD_BIN2C
 	---help---
 	  This option enables the complete Linux kernel ".config" file
@@ -813,6 +813,7 @@ config IKCONFIG
 config IKCONFIG_PROC
 	bool "Enable access to .config through /proc/config.gz"
 	depends on IKCONFIG && PROC_FS
+	default y
 	---help---
 	  This option enables access to the kernel configuration file
 	  through /proc/config.gz.
@@ -1677,6 +1678,7 @@ choice
 
 config SLAB
 	bool "SLAB"
+	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
@@ -1684,6 +1686,7 @@ config SLAB
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
+	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
 	   instead of managing queues of cached objects (SLAB approach).

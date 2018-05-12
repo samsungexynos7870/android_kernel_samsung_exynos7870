@@ -31,6 +31,10 @@
 
 #include "exynos-iommu.h"
 
+#ifdef CONFIG_SEC_DEBUG
+#include <linux/sec_debug.h>
+#endif
+
 #define CFG_MASK	0x01101FBC /* Selecting bit 24, 20, 12-7, 5-2 */
 
 #define PB_INFO_NUM(reg)	((reg) & 0xFF)
@@ -564,11 +568,12 @@ void dump_sysmmu_tlb_pb(void __iomem *sfrbase)
 	lmm = MMU_RAW_VER(__raw_readl(sfrbase + REG_MMU_VERSION));
 
 	phys = pte_pfn(*pte) << PAGE_SHIFT;
-	pr_crit("ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+
+	pr_auto(ASL4, "ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		&phys, sfrbase,
 		__raw_readl(sfrbase + REG_MMU_CTRL),
 		__raw_readl(sfrbase + REG_PT_BASE_PPN));
-	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+	pr_auto(ASL4, "VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(lmm), MMU_MIN_VER(lmm), MMU_REV_VER(lmm),
 		__raw_readl(sfrbase + REG_MMU_CFG),
 		__raw_readl(sfrbase + REG_MMU_STATUS));
@@ -648,51 +653,69 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int info;
 	phys_addr_t pgtable;
 	int fault_id = SYSMMU_FAULT_ID(flags);
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	char temp_buf[SZ_128];
+#endif
 
 	pgtable = __raw_readl(drvdata->sfrbase + REG_PT_BASE_PPN);
 	pgtable <<= PAGE_SHIFT;
 
-	pr_crit("----------------------------------------------------------\n");
-	pr_crit("%s %s %s at %#010lx (page table @ %pa)\n",
+	pr_auto_once(4);
+	pr_auto(ASL4, "----------------------------------------------------------\n");
+	pr_auto(ASL4, "%s %s %s at %#010lx (page table @ %pa)\n",
 		dev_name(drvdata->sysmmu),
 		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
 		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
 
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	snprintf(temp_buf, SZ_128, "%s %s %s at %#010lx (%pa)",
+		dev_name(drvdata->sysmmu),
+		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
+		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
+	sec_debug_set_extra_info_sysmmu(temp_buf);
+#endif
+
 	if (fault_id == SYSMMU_FAULT_UNKNOWN) {
-		pr_crit("The fault is not caused by this System MMU.\n");
-		pr_crit("Please check IRQ and SFR base address.\n");
+		pr_auto(ASL4, "The fault is not caused by this System MMU.\n");
+		pr_auto(ASL4, "Please check IRQ and SFR base address.\n");
 		goto finish;
 	}
 
 	info = __raw_readl(drvdata->sfrbase +
 			((flags & IOMMU_FAULT_WRITE) ?
 			REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
-	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
 
-	if (pgtable != drvdata->pgtable)
-		pr_crit("Page table base of driver: %pa\n",
+	pr_auto(ASL4, "AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+
+	if (pgtable != drvdata->pgtable) {
+		pr_auto(ASL4, "Page table base of driver: %pa\n",
 			&drvdata->pgtable);
+	}
 
-	if (fault_id == SYSMMU_FAULT_PTW_ACCESS)
-		pr_crit("System MMU has failed to access page table\n");
+	if (fault_id == SYSMMU_FAULT_PTW_ACCESS){
+		pr_auto(ASL4, "System MMU has failed to access page table\n");
+	}
 
 	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
-		pr_crit("Page table base is not in a valid memory region\n");
+		pr_auto(ASL4, "Page table base is not in a valid memory region\n");
 	} else {
 		sysmmu_pte_t *ent;
+
 		ent = section_entry(phys_to_virt(pgtable), fault_addr);
-		pr_crit("Lv1 entry: %#010x\n", *ent);
+		pr_auto(ASL4, "Lv1 entry: %#010x\n", *ent);
 
 		if (lv1ent_page(ent)) {
 			ent = page_entry(ent, fault_addr);
-			pr_crit("Lv2 entry: %#010x\n", *ent);
+			pr_auto(ASL4, "Lv2 entry: %#010x\n", *ent);
 		}
 	}
 
 	dump_sysmmu_tlb_pb(drvdata->sfrbase);
 
 finish:
-	pr_crit("----------------------------------------------------------\n");
+
+	pr_auto(ASL4, "----------------------------------------------------------\n");
+	pr_auto_disable(4);
 }
 
 #define REG_INT_STATUS_WRITE_BIT 16
@@ -1755,6 +1778,9 @@ static int exynos_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	if (size >= SECT_SIZE) {
 		ret = lv1set_section(priv, entry, paddr, size,
 				&priv->lv2entcnt[lv1ent_offset(iova)]);
+
+		SYSMMU_EVENT_LOG_IOMMU_MAP(IOMMU_PRIV_TO_LOG(priv),
+				iova, iova + size, paddr / SPAGE_SIZE);
 	} else {
 		sysmmu_pte_t *pent;
 		pent = alloc_lv2entry(priv, entry, iova,
@@ -1889,6 +1915,8 @@ unmap_flpd:
 	}
 
 done:
+	SYSMMU_EVENT_LOG_IOMMU_UNMAP(IOMMU_PRIV_TO_LOG(priv),
+						iova, iova + size);
 	exynos_iommu_tlb_invalidate_entry(priv, iova);
 
 	/* TLB invalidation is performed by IOVMM */

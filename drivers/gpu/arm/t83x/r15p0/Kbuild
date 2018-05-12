@@ -22,6 +22,8 @@ KBASE_PATH = $(src)
 KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
 UMP_PATH = $(src)/../../../base
 
+THERMAL_PATH = $(srctree)/drivers/thermal/samsung/
+
 ifeq ($(CONFIG_MALI_ERROR_INJECTION),y)
 MALI_ERROR_INJECT_ON = 1
 endif
@@ -77,6 +79,9 @@ DEFINES += -I$(srctree)/drivers/staging/android
 # Use our defines when compiling
 ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
 subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(OSK_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+
+ccflags-$(CONFIG_MALI_DEBUG_KERNEL_SYSFS) += -I$(THERMAL_PATH)
+subdir-ccflags-$(CONFIG_MALI_DEBUG_KERNEL_SYSFS) += -I$(THERMAL_PATH)
 
 SRC := \
 	mali_kbase_device.c \

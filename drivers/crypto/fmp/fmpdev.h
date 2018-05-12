@@ -12,7 +12,7 @@
 #ifndef _FIPS_FMP_H_
 #define _FIPS_FMP_H_
 
-#define FMP_DRV_VERSION "1.1"
+#define FMP_DRV_VERSION "1.3.1"
 
 int fips_fmp_cipher_init(struct device *dev, uint8_t *enckey, uint8_t *twkey, uint32_t key_len, uint32_t mode);
 int fips_fmp_cipher_set_iv(struct device *dev, uint8_t *iv, uint32_t mode);

@@ -14,6 +14,7 @@
  */
 
 #include "ssp_iio.h"
+#include "ssp_sensorhub.h"
 
 static void init_sensorlist(struct ssp_data *data)
 {
@@ -45,11 +46,16 @@ static void init_sensorlist(struct ssp_data *data)
 		SENSOR_INFO_UNKNOWN,
 		SENSOR_INFO_PICK_UP_GESTURE,
 		SENSOR_INFO_UNKNOWN,
-		SENSOR_INFO_META,
+		SENSOR_INFO_UNKNOWN,
 		SENSOR_INFO_UNKNOWN,
 		SENSOR_INFO_PROXIMITY_RAW,
 		SENSOR_INFO_GEOMAGNETIC_POWER,
 		SENSOR_INFO_INTERRUPT_GYRO,
+#if ANDROID_VERSION >= 80000
+		SENSOR_INFO_SCONTEXT,
+		SENSOR_INFO_UNKNOWN,
+		SENSOR_INFO_LIGHT_CCT,
+#endif
 };	
 
 	memcpy(&data->info, sensorinfo, sizeof(data->info));
@@ -143,14 +149,29 @@ void report_sensor_data(struct ssp_data *data, int type,
 
 	} else if (type == SENSOR_TYPE_LIGHT) {
 		event->a_gain &= 0x03;
-		if(data->light_log_cnt < 3)
-		{
-			ssp_info("Light Sensor : r=%d g=%d b=%d c=%d atime=%d again=%d",
-			data->buf[SENSOR_TYPE_LIGHT].r,data->buf[SENSOR_TYPE_LIGHT].g,data->buf[SENSOR_TYPE_LIGHT].b,
-			data->buf[SENSOR_TYPE_LIGHT].w,data->buf[SENSOR_TYPE_LIGHT].a_time,data->buf[SENSOR_TYPE_LIGHT].a_gain);	
+		if (data->light_log_cnt < 3) {
+			ssp_info("Light Sensor : lux=%d r=%d g=%d b=%d c=%d atime=%d again=%d",
+			data->buf[SENSOR_TYPE_LIGHT].lux,
+			data->buf[SENSOR_TYPE_LIGHT].r, data->buf[SENSOR_TYPE_LIGHT].g,
+			data->buf[SENSOR_TYPE_LIGHT].b, data->buf[SENSOR_TYPE_LIGHT].w,
+			data->buf[SENSOR_TYPE_LIGHT].a_time, data->buf[SENSOR_TYPE_LIGHT].a_gain);
 			data->light_log_cnt++;
 		}
-	} else if (type == SENSOR_TYPE_STEP_COUNTER) {
+	}
+#if ANDROID_VERSION >= 80000
+	else if (type == SENSOR_TYPE_LIGHT_CCT) {
+		event->a_gain &= 0x03;
+		if (data->light_log_cnt < 3) {
+			ssp_info("Light cct Sensor : lux=%d r=%d g=%d b=%d c=%d atime=%d again=%d",
+			data->buf[SENSOR_TYPE_LIGHT_CCT].lux,
+			data->buf[SENSOR_TYPE_LIGHT_CCT].r, data->buf[SENSOR_TYPE_LIGHT_CCT].g,
+			data->buf[SENSOR_TYPE_LIGHT_CCT].b, data->buf[SENSOR_TYPE_LIGHT_CCT].w,
+			data->buf[SENSOR_TYPE_LIGHT_CCT].a_time, data->buf[SENSOR_TYPE_LIGHT_CCT].a_gain);
+			data->light_log_cnt++;
+		}
+	}
+#endif
+	else if (type == SENSOR_TYPE_STEP_COUNTER) {
 		data->buf[type].step_total += event->step_diff;
 	}
 
@@ -165,40 +186,102 @@ void report_sensor_data(struct ssp_data *data, int type,
 	}
 }
 
-void report_meta_data(struct ssp_data *data, int type, struct sensor_value *s)
+void report_meta_data(struct ssp_data *data, struct sensor_value *s)
 {
-	ssp_infof("what: %d, sensor: %d",
-		s->meta_data.what, s->meta_data.sensor);
+	char *meta_event
+		= kzalloc(data->info[s->meta_data.sensor].report_data_len,
+				GFP_KERNEL);
 
-	if ((s->meta_data.sensor == SENSOR_TYPE_ACCELEROMETER)
-		|| (s->meta_data.sensor == SENSOR_TYPE_GEOMAGNETIC_FIELD)
-		|| (s->meta_data.sensor == SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED)
-		|| (s->meta_data.sensor == SENSOR_TYPE_GYROSCOPE)
-		|| (s->meta_data.sensor == SENSOR_TYPE_PRESSURE)
-		|| (s->meta_data.sensor == SENSOR_TYPE_ROTATION_VECTOR)
-		|| (s->meta_data.sensor == SENSOR_TYPE_GAME_ROTATION_VECTOR)
-		|| (s->meta_data.sensor == SENSOR_TYPE_STEP_DETECTOR)
-		|| (s->meta_data.sensor == SENSOR_TYPE_INTERRUPT_GYRO)) {
-		char *meta_event
-			= kzalloc(data->info[s->meta_data.sensor].report_data_len,
-					GFP_KERNEL);
-		if (!meta_event) {
-			ssp_errf("fail to allocate memory for meta event");
-			return;
+	ssp_infof("what: %d, sensor: %d",
+	s->meta_data.what, s->meta_data.sensor);
+
+	if (!meta_event) {
+		ssp_errf("fail to allocate memory for meta event");
+		return;
+	}
+
+	memset(meta_event, META_EVENT,
+		data->info[s->meta_data.sensor].report_data_len);
+	ssp_iio_push_buffers(data->indio_devs[s->meta_data.sensor],
+			META_TIMESTAMP, meta_event,
+			data->info[s->meta_data.sensor].report_data_len);
+	kfree(meta_event);
+}
+#if ANDROID_VERSION >= 80000
+void report_scontext_data(struct ssp_data *data, char *data_buf, u32 length)
+{
+	char buf[SCONTEXT_HEADER_LEN + SCONTEXT_DATA_LEN] = {0, };
+	u16 start, end;
+	u64 timestamp;
+
+	ssp_sensorhub_log(__func__, data_buf, length);
+
+	start = 0;
+	memcpy(buf, &length, sizeof(u32));
+	timestamp = get_current_timestamp();
+
+	while (start < length) {
+		if (start + SCONTEXT_DATA_LEN < length) {
+			end = start + SCONTEXT_DATA_LEN - 1;
+		} else {
+			memset(buf + SCONTEXT_HEADER_LEN, 0, SCONTEXT_DATA_LEN);
+			end = length - 1;
 		}
 
-		memset(meta_event, META_EVENT,
-			data->info[s->meta_data.sensor].report_data_len);
-		ssp_iio_push_buffers(data->indio_devs[s->meta_data.sensor],
-				META_TIMESTAMP, meta_event,
-				data->info[s->meta_data.sensor].report_data_len);
-		kfree(meta_event);
-	} else {
-		ssp_iio_push_buffers(data->indio_devs[type],
-				META_TIMESTAMP, (char *)&s->meta_data,
-				sizeof(s->meta_data));
+		memcpy(buf + sizeof(length), &start, sizeof(u16));
+		memcpy(buf + sizeof(length) + sizeof(start), &end, sizeof(u16));
+		memcpy(buf + SCONTEXT_HEADER_LEN, data_buf + start, end - start + 1);
+/*
+		ssp_infof("[%d, %d, %d] 0x%x 0x%x 0x%x 0x%x// 0x%x 0x%x// 0x%x 0x%x",
+			length, start, end,
+			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+
+
+		ssp_infof("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+			buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+
+
+		ssp_infof("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x, //0x%llx",
+			buf[16], buf[17], buf[18], buf[19], buf[20], buf[21], buf[22], buf[23], timestamp);
+*/
+		ssp_iio_push_buffers(data->indio_devs[SENSOR_TYPE_SCONTEXT], timestamp,
+			buf, data->info[SENSOR_TYPE_SCONTEXT].report_data_len);
+
+		start = end + 1;
 	}
 }
+
+void report_scontext_notice_data(struct ssp_data *data, char notice)
+{
+	char notice_buf[4] = {0x02, 0x01, 0x00, 0x00};
+	int len = 3;
+
+	notice_buf[2] = notice;
+	if (notice == MSG2SSP_AP_STATUS_RESET) {
+		len = 4;
+		if (data->is_reset_from_sysfs == true) {
+			notice_buf[3] = RESET_REASON_SYSFS_REQUEST;
+			data->is_reset_from_sysfs = false;
+		} else if (data->is_reset_from_kernel == true) {
+			notice_buf[3] = RESET_REASON_KERNEL_RESET;
+			data->is_reset_from_kernel = false;
+		} else {
+			notice_buf[3] = RESET_REASON_MCU_CRASHED;
+		}
+	}
+
+	if (notice == MSG2SSP_AP_STATUS_WAKEUP)
+		ssp_infof("wake up");
+	else if (notice == MSG2SSP_AP_STATUS_SLEEP)
+		ssp_infof("sleep");
+	else if (notice == MSG2SSP_AP_STATUS_RESET)
+		ssp_infof("reset");
+	else
+		ssp_errf("invalid notice(0x%x)", notice);
+
+	report_scontext_data(data, notice_buf, len);
+}
+#endif
 
 static void *init_indio_device(struct ssp_data *data,
 			const struct iio_info *info,
@@ -257,6 +340,8 @@ int initialize_indio_dev(struct ssp_data *data)
 {
 	int timestamp_len = 0;
 	int type;
+	int realbits_size = 0;
+	int repeat_size = 0;
 
 	init_sensorlist(data);
 
@@ -266,15 +351,22 @@ int initialize_indio_dev(struct ssp_data *data)
 
 		timestamp_len = sizeof(data->buf[type].timestamp);
 
+		realbits_size = (data->info[type].report_data_len+timestamp_len) * BITS_PER_BYTE;
+		repeat_size = 1;
+
+		while ((realbits_size / repeat_size > 255) && (realbits_size % repeat_size == 0))
+			repeat_size++;
+
+		realbits_size /= repeat_size;
+
 		data->indio_channels[type].type = IIO_TIMESTAMP;
 		data->indio_channels[type].channel = IIO_CHANNEL;
 		data->indio_channels[type].scan_index = IIO_SCAN_INDEX;
 		data->indio_channels[type].scan_type.sign = IIO_SIGN;
-		data->indio_channels[type].scan_type.realbits =
-			(data->info[type].report_data_len+timestamp_len)*BITS_PER_BYTE;
-		data->indio_channels[type].scan_type.storagebits =
-			(data->info[type].report_data_len+timestamp_len)*BITS_PER_BYTE;
+		data->indio_channels[type].scan_type.realbits = realbits_size;
+		data->indio_channels[type].scan_type.storagebits = realbits_size;
 		data->indio_channels[type].scan_type.shift = IIO_SHIFT;
+		data->indio_channels[type].scan_type.repeat = repeat_size;
 
 		data->indio_devs[type]
 			= (struct iio_dev *)init_indio_device(data,

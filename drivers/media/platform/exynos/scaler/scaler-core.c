@@ -793,6 +793,22 @@ static int sc_v4l2_s_fmt_mplane(struct file *file, void *fh,
 	for (i = 0; i < frame->sc_fmt->num_planes; i++)
 		frame->bytesused[i] = pixm->plane_fmt[i].sizeimage;
 
+	if (V4L2_TYPE_IS_OUTPUT(f->type) && ctx->bl_op &&
+		ctx->sc_dev->variant->blending) {
+		struct sc_src_blend_cfg *cfg = &ctx->src_blend_cfg;
+
+		if (cfg->blend_src_h_pos + cfg->blend_src_width >
+				cfg->blend_src_stride) {
+			v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
+				"Invalid stride of blending image: %d\n",
+				cfg->blend_src_stride);
+			v4l2_err(&ctx->sc_dev->m2m.v4l2_dev,
+				"which is smaller than X-pos(%d) + width(%d)\n",
+				cfg->blend_src_h_pos, cfg->blend_src_width);
+			return -EINVAL;
+		}
+	}
+	
 	if (V4L2_TYPE_IS_OUTPUT(f->type) &&
 		((pixm->width > limitout->max_w) ||
 			 (pixm->height > limitout->max_h))) {
@@ -1513,10 +1529,11 @@ static int sc_prepare_2nd_scaling(struct sc_ctx *ctx,
 	return 0;
 }
 
-static struct sc_dnoise_filter sc_filter_tab[4] = {
+static struct sc_dnoise_filter sc_filter_tab[5] = {
 	{SC_FT_240,   426,  240},
 	{SC_FT_480,   854,  480},
 	{SC_FT_720,  1280,  720},
+	{SC_FT_960,  1920,  960},
 	{SC_FT_1080, 1920, 1080},
 };
 

@@ -590,6 +590,5 @@
 		timing,dsi-hs-clk = <936>;
 		timing,dsi-escape-clk = <16>;
 		timing,pms = <1 72 1>;
-		clklane_onoff = <0>;
 	};
 };

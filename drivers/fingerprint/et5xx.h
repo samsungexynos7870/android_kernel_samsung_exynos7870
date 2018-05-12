@@ -9,11 +9,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef _ET5XX_LINUX_DIRVER_H_
@@ -27,8 +22,8 @@
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
-#ifdef ENABLE_SENSORS_FPRINT_SECURE
 #include <linux/wakelock.h>
+#ifdef ENABLE_SENSORS_FPRINT_SECURE
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spidev.h>
@@ -39,7 +34,8 @@
 #include <linux/amba/pl330.h>
 #if defined(CONFIG_SECURE_OS_BOOSTER_API)
 #if defined(CONFIG_SOC_EXYNOS8890) || defined(CONFIG_SOC_EXYNOS7870) \
-	|| defined(CONFIG_SOC_EXYNOS7880) || defined(CONFIG_SOC_EXYNOS7570)
+	|| defined(CONFIG_SOC_EXYNOS7880) || defined(CONFIG_SOC_EXYNOS7570) \
+	|| defined(CONFIG_SOC_EXYNOS7885) || defined(CONFIG_SOC_EXYNOS9810)
 #include <soc/samsung/secos_booster.h>
 #else
 #include <mach/secos_booster.h>
@@ -51,6 +47,15 @@ struct sec_spi_info {
 	unsigned long	speed;
 };
 #endif
+
+/*
+ * This feature is temporary for exynos AP only.
+ * It's for control GPIO config on enabled TZ before enable GPIO protection.
+ * If it's still defined this feature after enable GPIO protection,
+ * it will be happened kernel panic
+ * So it should be un-defined after enable GPIO protection
+ */
+#define DISABLED_GPIO_PROTECTION
 
 /*#define ET5XX_SPI_DEBUG*/
 
@@ -113,15 +118,16 @@ struct sec_spi_info {
 #define FP_NVM_WRITEEX					0x43
 
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
-#define FP_DIABLE_SPI_CLOCK				0x10
+#define FP_DISABLE_SPI_CLOCK			0x10
 #define FP_CPU_SPEEDUP					0x11
 #define FP_SET_SENSOR_TYPE				0x14
 /* Do not use ioctl number 0x15 */
 #define FP_SET_LOCKSCREEN				0x16
-#define FP_SET_WAKE_UP_SIGNAL				0x17
+#define FP_SET_WAKE_UP_SIGNAL			0x17
 #endif
-#define FP_POWER_CONTROL_ET5XX				0x18
-#define FP_IOCTL_RESERVED_01				0x19
+#define FP_POWER_CONTROL_ET5XX			0x18
+#define FP_SENSOR_ORIENT				0x19
+#define FP_IOCTL_RESERVED_01			0x12
 
 /* trigger signal initial routine */
 #define INT_TRIGGER_INIT				0xa4
@@ -142,20 +148,22 @@ struct sec_spi_info {
 #define SHIFT_BYTE_OF_IMAGE 0
 #define DIVISION_OF_IMAGE 4
 #define LARGE_SPI_TRANSFER_BUFFER	64
-#define MAX_NVM_LEN 32 * 2 /* NVM length in bytes (32 * 16 bits internally)*/
+#define MAX_NVM_LEN (32 * 2) /* NVM length in bytes (32 * 16 bits internally) */
 #define NVM_WRITE_LENGTH 4096
 #define DETECT_ADM 1
 
 struct egis_ioc_transfer {
 	u8 *tx_buf;
 	u8 *rx_buf;
-	u32 len;
-	u32 speed_hz;
-	u16 delay_usecs;
-	u8 bits_per_word;
-	u8 cs_change;
-	u8 opcode;
-	u8 pad[3];
+
+	__u32 len;
+	__u32 speed_hz;
+
+	__u16 delay_usecs;
+	__u8 bits_per_word;
+	__u8 cs_change;
+	__u8 opcode;
+	__u8 pad[3];
 };
 
 /*
@@ -166,15 +174,15 @@ struct egis_ioc_transfer {
  */
 #ifdef CONFIG_SENSORS_FINGERPRINT_32BITS_PLATFORM_ONLY
 struct egis_ioc_transfer_32 {
-	u32 tx_buf;
-	u32 rx_buf;
-	u32 len;
-	u32 speed_hz;
-	u16 delay_usecs;
-	u8 bits_per_word;
-	u8 cs_change;
-	u8 opcode;
-	u8 pad[3];
+	__u32 tx_buf;
+	__u32 rx_buf;
+	__u32 len;
+	__u32 speed_hz;
+	__u16 delay_usecs;
+	__u8 bits_per_word;
+	__u8 cs_change;
+	__u8 opcode;
+	__u8 pad[3];
 };
 #endif
 
@@ -192,9 +200,9 @@ struct etspi_data {
 
 	/* buffer is NULL unless this device is open (users > 0) */
 	struct mutex buf_lock;
-	unsigned users;
+	unsigned int users;
 	u8 *buf;/* tx buffer for sensor register read/write */
-	unsigned bufsiz; /* MAX size of tx and rx buffer */
+	unsigned int bufsiz; /* MAX size of tx and rx buffer */
 	unsigned int drdyPin;	/* DRDY GPIO pin number */
 	unsigned int sleepPin;	/* Sleep GPIO pin number */
 	unsigned int ldo_pin;	/* Ldo GPIO pin number */
@@ -204,11 +212,12 @@ struct etspi_data {
 	/* for use auto cs mode with dualization fp sensor */
 	unsigned int cs_gpio;
 #endif
+#endif
 	struct pinctrl *p;
 	struct pinctrl_state *pins_poweron;
 	struct pinctrl_state *pins_poweroff;
 	unsigned int ldocontrol;
-#endif
+
 	unsigned int spi_cs;	/* spi cs pin <temporary gpio setting> */
 
 	unsigned int drdy_irq_flag;	/* irq flag */
@@ -221,15 +230,15 @@ struct etspi_data {
 	struct workqueue_struct *wq_dbg;
 	struct timer_list dbg_timer;
 	int sensortype;
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 	struct device *fp_device;
-#endif
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 	bool enabled_clk;
 #ifdef FEATURE_SPI_WAKELOCK
 	struct wake_lock fp_spi_lock;
 #endif
 #endif
+	unsigned int orient;
+	struct wake_lock fp_signal_lock;
 	bool tz_mode;
 	int detect_period;
 	int detect_threshold;
@@ -241,28 +250,37 @@ int etspi_io_burst_read_register(struct etspi_data *etspi,
 		struct egis_ioc_transfer *ioc);
 int etspi_io_burst_read_register_backward(struct etspi_data *etspi,
 		struct egis_ioc_transfer *ioc);
-int etspi_io_burst_write_register(struct etspi_data *etspi, 
+int etspi_io_burst_write_register(struct etspi_data *etspi,
 		struct egis_ioc_transfer *ioc);
 int etspi_io_burst_write_register_backward(struct etspi_data *etspi,
 		struct egis_ioc_transfer *ioc);
-int etspi_io_read_register(struct etspi_data *etspi, u8 *addr, u8 *buf);
-int etspi_io_read_registerex(struct etspi_data *etspi, u8 *addr, u8 *buf, u32 len);
-int etspi_io_write_register(struct etspi_data *etspi, u8 *buf);
-int etspi_read_register(struct etspi_data *etspi, u8 addr, u8 *buf);
-int etspi_write_register(struct etspi_data *etspi, u8 addr, u8 buf);
-int etspi_io_nvm_read(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
-int etspi_io_nvm_write(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
-int etspi_io_nvm_writeex(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
-int etspi_io_nvm_off(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
-int etspi_io_vdm_read(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
-int etspi_io_vdm_write(struct etspi_data *etspi, struct egis_ioc_transfer *ioc);
+int etspi_io_read_register(struct etspi_data *etspi,
+		u8 *addr, u8 *buf);
+int etspi_io_read_registerex(struct etspi_data *etspi,
+		u8 *addr, u8 *buf, u32 len);
+int etspi_io_write_register(struct etspi_data *etspi,
+		u8 *buf);
+int etspi_read_register(struct etspi_data *etspi,
+		u8 addr, u8 *buf);
+int etspi_write_register(struct etspi_data *etspi,
+		u8 addr, u8 buf);
+int etspi_io_nvm_read(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
+int etspi_io_nvm_write(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
+int etspi_io_nvm_writeex(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
+int etspi_io_nvm_off(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
+int etspi_io_vdm_read(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
+int etspi_io_vdm_write(struct etspi_data *etspi,
+		struct egis_ioc_transfer *ioc);
 int etspi_io_get_frame(struct etspi_data *etspi, u8 *frame, u32 size);
 
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 extern int fingerprint_register(struct device *dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 extern void fingerprint_unregister(struct device *dev,
 	struct device_attribute *attributes[]);
-#endif
 
 #endif

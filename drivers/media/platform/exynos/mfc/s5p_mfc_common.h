@@ -40,9 +40,9 @@
 
 #define MFC_MAX_DRM_CTX		2
 /* Interrupt timeout */
-#define MFC_INT_TIMEOUT		2000
+#define MFC_INT_TIMEOUT		5000
 /* Interrupt short timeout */
-#define MFC_INT_SHORT_TIMEOUT	800
+#define MFC_INT_SHORT_TIMEOUT	3000
 /* Busy wait timeout */
 #define MFC_BW_TIMEOUT		500
 /* Watchdog interval */
@@ -65,6 +65,7 @@
 
 #define FLAG_LAST_FRAME		0x80000000
 #define FLAG_EMPTY_DATA		0x40000000
+#define FLAG_CSD		0x20000000
 #define MFC_MAX_INTERVAL	(2 * USEC_PER_SEC)
 
 /* MFC conceal color is black */
@@ -169,6 +170,8 @@
 #define FW_SUPPORT_SKYPE(dev)		IS_MFCv101(dev) &&		\
 					(dev->fw.date >= 0x150901)
 #define FW_HAS_ROI_CONTROL(dev)		IS_MFCv10X(dev)
+#define FW_HAS_FIXED_SLICE(dev)		(IS_MFCv10X(dev) &&		\
+					(dev->fw.date >= 0x160202))
 
 #define HW_LOCK_CLEAR_MASK		(0xFFFFFFFF)
 
@@ -195,7 +198,14 @@
 #define need_to_continue(ctx)			\
 	((ctx->state == MFCINST_DPB_FLUSHING) ||\
 	(ctx->state == MFCINST_ABORT_INST) ||	\
-	(ctx->state == MFCINST_RETURN_INST))
+	(ctx->state == MFCINST_RETURN_INST) ||	\
+	(ctx->state == MFCINST_SPECIAL_PARSING) ||	\
+	(ctx->state == MFCINST_SPECIAL_PARSING_NAL))
+#define need_to_special_parsing(ctx)		\
+	((ctx->state == MFCINST_GOT_INST) ||	\
+	 (ctx->state == MFCINST_HEAD_PARSED))
+#define need_to_special_parsing_nal(ctx)	\
+	(ctx->state == MFCINST_RUNNING)
 
 /* Extra information for Decoder */
 #define	DEC_SET_DUAL_DPB		(1 << 0)
@@ -209,6 +219,7 @@
 #define	ENC_SET_SKYPE_FLAG		(1 << 3)
 #define	ENC_SET_ROI_CONTROL		(1 << 4)
 #define	ENC_SET_QP_BOUND_PB		(1 << 5)
+#define	ENC_SET_FIXED_SLICE		(1 << 6)
 
 #define MFC_QOS_FLAG_NODATA		0xFFFFFFFF
 

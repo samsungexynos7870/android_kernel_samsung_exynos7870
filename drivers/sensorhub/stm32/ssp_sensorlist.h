@@ -51,6 +51,7 @@
 #define SENSOR_INFO_PROXIMITY_RAW		{"", true, REPORT_MODE_ON_CHANGE, 1, 0}
 #define SENSOR_INFO_GEOMAGNETIC_POWER	{"geomagnetic_power", true, REPORT_MODE_CONTINUOUS, 6, 6}
 #define SENSOR_INFO_INTERRUPT_GYRO		{"interrupt_gyro_sensor", true, REPORT_MODE_ON_CHANGE, 6, 6}
-#define SENSOR_INFO_META				{"meta_event", true, REPORT_MODE_CONTINUOUS, 8, 8}
+#define SENSOR_INFO_SCONTEXT			{"scontext_iio", true, REPORT_MODE_CONTINUOUS, 0, 64}
+#define SENSOR_INFO_LIGHT_CCT			{"light_cct_sensor", true, REPORT_MODE_ON_CHANGE, 18, 18}
 
 #endif

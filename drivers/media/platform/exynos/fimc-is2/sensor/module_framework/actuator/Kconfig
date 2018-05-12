@@ -52,6 +52,14 @@ config CAMERA_ACT_ZC533_OBJ
         help
           Use to build ZC533 driver.
 
+config CAMERA_ACT_ZC535_OBJ
+        bool "Use actuator ZC535"
+	depends on USE_DIRECT_IS_CONTROL
+	depends on CAMERA_ACT_SELECT
+        default n
+        help
+          Use to build ZC535 driver.
+
 config CAMERA_ACT_AK7371_OBJ
         bool "Use actuator AK7371"
 	depends on USE_DIRECT_IS_CONTROL

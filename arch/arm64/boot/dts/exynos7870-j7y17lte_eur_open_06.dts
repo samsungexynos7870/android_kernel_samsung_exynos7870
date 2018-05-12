@@ -18,12 +18,12 @@
 #include "exynos7870-j5y17lte_mst_00.dtsi"
 
 / {
-	model = "Samsung J7Y17 LTE OPEN rev05 board based on Exynos7870";
+	model = "Samsung J7Y17 LTE OPEN rev06 board based on Exynos7870";
         model_info-chip = <7870>;
         model_info-platform = "android";
         model_info-subtype = "samsung";
         model_info-hw_rev = <6>;
-        model_info-hw_rev_end = <255>;
+        model_info-hw_rev_end = <6>;
 	compatible = "samsung, J7Y17 LTE EUR OPEN 06", "samsung,exynos7870";
 
 	i2c@13870000 {

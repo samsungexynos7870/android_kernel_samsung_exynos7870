@@ -27,8 +27,6 @@ static struct adc_list batt_adc_list[] = {
 	{.name = "adc-volt"},
 	{.name = "adc-chg-temp"},
 	{.name = "adc-in-bat"},
-	{.name = "adc-dischg"},
-	{.name = "adc-dischg-ntc"},
 	{.name = "adc-wpc-temp"},
 	{.name = "adc-slave-chg-temp"},
 	{.name = "adc-usb-temp"},
@@ -95,13 +93,6 @@ static void sec_bat_adc_ic_exit(void)
 static int adc_read_type(struct sec_battery_info *battery, int channel)
 {
 	int adc = 0;
-
-	if ((!battery->pdata->self_discharging_en) &&
-	    ((channel == SEC_BAT_ADC_CHANNEL_DISCHARGING_CHECK) ||
-	     (channel == SEC_BAT_ADC_CHANNEL_DISCHARGING_NTC))) {
-		pr_info("%s : Doesn't enable Self Discharging Algorithm\n", __func__);
-		return 0;
-	}
 
 	switch (battery->pdata->temp_adc_type)
 	{

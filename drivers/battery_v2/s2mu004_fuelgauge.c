@@ -151,6 +151,20 @@ static void WA_0_issue_at_init(struct s2mu004_fuelgauge_data *fuelgauge)
 	int FG_volt, UI_volt, offset;
 	u8 v_40 = 0;
 	u8 temp_REG26 = 0, temp_REG27 = 0, temp = 0;
+	u8 data[2], r_data[2];
+
+	mutex_lock(&fuelgauge->fg_lock);
+
+	s2mu004_read_reg(fuelgauge->i2c, S2MU004_REG_IRQ, data);
+	pr_info("%s: irq_reg data (%02x%02x)  \n",__func__, data[1], data[0]);
+
+	/* store data for interrupt mask */
+	r_data[0] = data[0];
+	r_data[1] = data[1];
+
+	/* disable irq for unwanted interrupt */
+	data[1] |= 0x0f;
+	s2mu004_write_reg(fuelgauge->i2c, S2MU004_REG_IRQ, data);
 
 	/* Step 1: [Surge test]  get UI voltage (0.1mV)*/
 	UI_volt = s2mu004_get_ocv(fuelgauge);
@@ -240,6 +254,12 @@ static void WA_0_issue_at_init(struct s2mu004_fuelgauge_data *fuelgauge)
 
 	/* restore monout avgvbat factor value */
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x40, v_40);
+
+	/* enable irq after reset */
+	s2mu004_write_reg(fuelgauge->i2c, S2MU004_REG_IRQ, r_data);
+	pr_info("%s: re-store irq_reg data (%02x%02x) \n",__func__, r_data[1], r_data[0]);
+
+	mutex_unlock(&fuelgauge->fg_lock);
 }
 
 static int s2mu004_get_soc_from_ocv(struct s2mu004_fuelgauge_data *fuelgauge, int target_ocv)
@@ -255,8 +275,13 @@ static int s2mu004_get_soc_from_ocv(struct s2mu004_fuelgauge_data *fuelgauge, in
 	int low_index = 0;
 	int mid_index = 0;
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	soc_arr = fuelgauge->age_data_info[fuelgauge->fg_age_step].soc_arr_val;
+	ocv_arr = fuelgauge->age_data_info[fuelgauge->fg_age_step].ocv_arr_val;
+#else
 	soc_arr = fuelgauge->info.soc_arr_val;
 	ocv_arr = fuelgauge->info.ocv_arr_val;
+#endif
 
 	pr_err("%s: soc_arr(%d) ocv_arr(%d)\n", __func__,*soc_arr, *ocv_arr);
 
@@ -295,6 +320,8 @@ static void WA_0_issue_at_init1(struct s2mu004_fuelgauge_data *fuelgauge, int ta
 	int FG_volt, UI_volt, offset;
 	u8 v_40 = 0;
 	u8 temp_REG26 = 0, temp_REG27 = 0, temp = 0;
+
+	mutex_lock(&fuelgauge->fg_lock);
 
 	/* Step 1: [Surge test]  get UI voltage (0.1mV)*/
 	UI_volt = target_ocv * 10;
@@ -386,6 +413,8 @@ static void WA_0_issue_at_init1(struct s2mu004_fuelgauge_data *fuelgauge, int ta
 
 	/* restore monout avgvbat factor value */
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x40, v_40);
+
+	mutex_unlock(&fuelgauge->fg_lock);
 }
 
 
@@ -394,7 +423,23 @@ static void s2mu004_reset_fg(struct s2mu004_fuelgauge_data *fuelgauge)
 	int i;
 	u8 temp = 0;
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	mutex_lock(&fuelgauge->fg_lock);
+#endif
 	/* step 0: [Surge test] initialize register of FG */
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x0E, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[0]);
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x0F, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[1]);
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x10, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[2]);
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x11, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[3]);
+
+	for(i = 0x92; i <= 0xe9; i++) {
+		s2mu004_write_reg_byte(fuelgauge->i2c, i, fuelgauge->age_data_info[fuelgauge->fg_age_step].battery_table3[i - 0x92]);
+	}
+	for(i = 0xea; i <= 0xff; i++) {
+		s2mu004_write_reg_byte(fuelgauge->i2c, i, fuelgauge->age_data_info[fuelgauge->fg_age_step].battery_table4[i - 0xea]);
+	}
+#else
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x0E, fuelgauge->info.batcap[0]);
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x0F, fuelgauge->info.batcap[1]);
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x10, fuelgauge->info.batcap[2]);
@@ -406,15 +451,24 @@ static void s2mu004_reset_fg(struct s2mu004_fuelgauge_data *fuelgauge)
 	for(i = 0xea; i <= 0xff; i++) {
 		s2mu004_write_reg_byte(fuelgauge->i2c, i, fuelgauge->info.battery_table4[i - 0xea]);
 	}
+#endif
 
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x21, 0x13);
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x14, 0x40);
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	s2mu004_read_reg_byte(fuelgauge->i2c, 0x45, &temp);
+	temp &= 0xF0;
+	temp |= fuelgauge->age_data_info[fuelgauge->fg_age_step].accum[0];
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x45, temp);
+	s2mu004_write_reg_byte(fuelgauge->i2c, 0x44, fuelgauge->age_data_info[fuelgauge->fg_age_step].accum[1]);
+#else
 	s2mu004_read_reg_byte(fuelgauge->i2c, 0x45, &temp);
 	temp &= 0xF0;
 	temp |= fuelgauge->info.accum[0];
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x45, temp);
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x44, fuelgauge->info.accum[1]);
+#endif
 
 	s2mu004_read_reg_byte(fuelgauge->i2c, 0x27, &temp);
 	temp |= 0x10;
@@ -440,7 +494,12 @@ static void s2mu004_reset_fg(struct s2mu004_fuelgauge_data *fuelgauge)
 
 	s2mu004_write_reg_byte(fuelgauge->i2c, 0x40, 0x08);
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	mutex_unlock(&fuelgauge->fg_lock);
+#endif
+
 	WA_0_issue_at_init(fuelgauge);
+
 	pr_err("%s: Reset FG completed\n", __func__);
 }
 
@@ -450,6 +509,8 @@ static void s2mu004_restart_gauging(struct s2mu004_fuelgauge_data *fuelgauge)
 	u8 data[2], r_data[2];
 	u8 v_40;
 	pr_err("%s: Re-calculate SOC and voltage\n", __func__);
+
+	mutex_lock(&fuelgauge->fg_lock);
 
 	s2mu004_read_reg(fuelgauge->i2c, S2MU004_REG_IRQ, data);
 	pr_info("%s: irq_reg data (%02x%02x)  \n",__func__, data[1], data[0]);
@@ -495,6 +556,8 @@ static void s2mu004_restart_gauging(struct s2mu004_fuelgauge_data *fuelgauge)
 	/* enable irq after reset */
 	s2mu004_write_reg(fuelgauge->i2c, S2MU004_REG_IRQ, r_data);
 	pr_info("%s: re-store irq_reg data (%02x%02x) \n",__func__, r_data[1], r_data[0]);
+
+	mutex_unlock(&fuelgauge->fg_lock);
 }
 
 static void s2mu004_init_regs(struct s2mu004_fuelgauge_data *fuelgauge)
@@ -623,7 +686,11 @@ static int s2mu004_get_rawsoc(struct s2mu004_fuelgauge_data *fuelgauge)
 	dev_err(&fuelgauge->i2c->dev, "%s: OTP 4E(%02x) 4F(%02x) current 4E(%02x) 4F(%02x) \n",
 			__func__, fuelgauge->reg_OTP_4E, fuelgauge->reg_OTP_4F, reg_OTP_4E, reg_OTP_4F);
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	if( ((por_state & 0x10) && (fuelgauge->age_reset_status == 0)) ||
+#else
 	if((por_state & 0x10) ||
+#endif
 	   (fuelgauge->probe_done == true &&
 		(fuelgauge->reg_OTP_4E != reg_OTP_4E || fuelgauge->reg_OTP_4F != reg_OTP_4F))) {
 		
@@ -868,9 +935,13 @@ static int s2mu004_get_ocv(struct s2mu004_fuelgauge_data *fuelgauge)
 	int high_index = TABLE_SIZE - 1;
 	int low_index = 0;
 	int mid_index = 0;
-
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	soc_arr = fuelgauge->age_data_info[fuelgauge->fg_age_step].soc_arr_val;
+	ocv_arr = fuelgauge->age_data_info[fuelgauge->fg_age_step].ocv_arr_val;
+#else
 	soc_arr = fuelgauge->info.soc_arr_val;
 	ocv_arr = fuelgauge->info.ocv_arr_val;
+#endif
 
 	dev_err(&fuelgauge->i2c->dev,
 		"%s: soc (%d) soc_arr[TABLE_SIZE-1] (%d) ocv_arr[TABLE_SIZE-1) (%d)\n",
@@ -1186,6 +1257,73 @@ static void s2mu004_fg_reset_capacity_by_jig_connection(struct s2mu004_fuelgauge
 	pr_info("%s: set Model data version (0x%x)\n", __func__, data & 0x0F);
 }
 
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+static int s2mu004_fg_aging_check(
+		struct s2mu004_fuelgauge_data *fuelgauge, int step)
+{
+	u8 batcap0, batcap1, batcap2, batcap3;
+	u8 por_state = 0;
+	union power_supply_propval value;
+	int charging_enabled = false;
+
+	fuelgauge->fg_age_step = step;
+
+	s2mu004_read_reg_byte(fuelgauge->i2c, 0x0E, &batcap0);
+	s2mu004_read_reg_byte(fuelgauge->i2c, 0x0F, &batcap1);
+	s2mu004_read_reg_byte(fuelgauge->i2c, 0x10, &batcap2);
+	s2mu004_read_reg_byte(fuelgauge->i2c, 0x11, &batcap3);
+
+	pr_info("%s: [Long life] orig. batcap : %02x, %02x, %02x, %02x , fg_age_step data : %02x, %02x, %02x, %02x \n",
+		__func__, batcap0, batcap1, batcap2, batcap3,
+		fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[0],
+		fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[1],
+		fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[2],
+		fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[3] );
+
+	if ( (batcap0 != fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[0]) ||
+	     (batcap1 != fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[1]) ||
+	     (batcap2 != fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[2]) ||
+	     (batcap3 != fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[3]) ) {
+
+		pr_info("%s: [Long life] reset gauge for age forecast , step[%d] \n", __func__, fuelgauge->fg_age_step);
+
+		fuelgauge->age_reset_status = 1;
+		por_state |= 0x10;
+		s2mu004_write_reg_byte(fuelgauge->i2c, 0x1F, por_state);
+
+		/* check charging enable */
+		psy_do_property("s2mu004-charger", get, POWER_SUPPLY_PROP_CHARGING_ENABLED, value);
+		charging_enabled = value.intval;
+
+		if(charging_enabled == true) {
+			pr_info("%s: [Long life] disable charger for reset gauge age forecast \n", __func__);
+			value.intval = SEC_BAT_CHG_MODE_CHARGING_OFF;
+			psy_do_property("s2mu004-charger", set, POWER_SUPPLY_PROP_CHARGING_ENABLED, value);
+		}
+
+		s2mu004_reset_fg(fuelgauge);
+
+		if(charging_enabled == true ) {
+			psy_do_property("battery", get, POWER_SUPPLY_PROP_STATUS, value);
+			charging_enabled = value.intval;
+		
+			if(charging_enabled == 1 ) { /* POWER_SUPPLY_STATUS_CHARGING 1 */
+				pr_info("%s: [Long life] enable charger for reset gauge age forecast \n", __func__);
+				value.intval = SEC_BAT_CHG_MODE_CHARGING;
+				psy_do_property("s2mu004-charger", set, POWER_SUPPLY_PROP_CHARGING_ENABLED, value);
+			}
+		}
+
+		por_state &= ~0x10;
+		s2mu004_write_reg_byte(fuelgauge->i2c, 0x1F, por_state);
+		fuelgauge->age_reset_status = 0;
+
+		return 1;
+	}
+	return 0;
+}
+#endif
+
 static int s2mu004_fg_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
@@ -1418,6 +1556,11 @@ static int s2mu004_fg_set_property(struct power_supply *psy,
 				s2mu004_read_reg_byte(fuelgauge->i2c, S2MU004_REG_CTRL0, &temp);
 				pr_info("%s: [%d] Internal switch 0x%X\n", __func__, val->intval, (temp & 0x30) >> 4);
 				break;
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+			case POWER_SUPPLY_EXT_PROP_UPDATE_BATTERY_DATA:
+				s2mu004_fg_aging_check(fuelgauge, val->intval);
+				break;
+#endif
 			default:
 				return -EINVAL;
 			}
@@ -1482,6 +1625,9 @@ static int s2mu004_fuelgauge_parse_dt(struct s2mu004_fuelgauge_data *fuelgauge)
 {
 	struct device_node *np = of_find_node_by_name(NULL, "s2mu004-fuelgauge");
 	int ret;
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	int len, i;
+#endif
 
 	/* reset, irq gpio info */
 	if (np == NULL) {
@@ -1544,6 +1690,7 @@ static int s2mu004_fuelgauge_parse_dt(struct s2mu004_fuelgauge_data *fuelgauge)
 		if (!np) {
 			pr_err("%s battery_params node NULL\n", __func__);
 		} else {
+#if !defined(CONFIG_BATTERY_AGE_FORECAST)
 			/* get battery_table */
 			ret = of_property_read_u32_array(np, "battery,battery_table3", fuelgauge->info.battery_table3, 88);
 			if (ret < 0) {
@@ -1574,6 +1721,26 @@ static int s2mu004_fuelgauge_parse_dt(struct s2mu004_fuelgauge_data *fuelgauge)
 			if (ret < 0) {
 				pr_err("%s error reading battery,ocv_arr_val\n", __func__);
 			}
+#else
+			of_get_property(np, "battery,battery_data", &len);
+			fuelgauge->fg_num_age_step = len / sizeof(fg_age_data_info_t);
+			fuelgauge->age_data_info = kzalloc(len, GFP_KERNEL);
+			ret = of_property_read_u32_array(np, "battery,battery_data",
+					(int *)fuelgauge->age_data_info, len/sizeof(int));
+
+			pr_err("%s: [Long life] fuelgauge->fg_num_age_step %d \n", __func__,fuelgauge->fg_num_age_step);
+
+			for(i=0 ; i < fuelgauge->fg_num_age_step ; i++){
+				pr_err("%s: [Long life] age_step = %d, table3[0] %d, table4[0] %d, batcap[0] %02x, accum[0] %02x, soc_arr[0] %d, ocv_arr[0] %d \n",
+					__func__, i,
+					fuelgauge->age_data_info[i].battery_table3[0],
+					fuelgauge->age_data_info[i].battery_table4[0],
+					fuelgauge->age_data_info[i].batcap[0],
+					fuelgauge->age_data_info[i].accum[0],
+					fuelgauge->age_data_info[i].soc_arr_val[0],
+					fuelgauge->age_data_info[i].ocv_arr_val[0]);
+			}
+#endif
 		}
 	}
 

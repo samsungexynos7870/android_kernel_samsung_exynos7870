@@ -452,11 +452,13 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_find_property(np, "supports-hs400-enhanced-strobe", NULL))
 		host->caps2 |= MMC_CAP2_STROBE_ENHANCED;
 #if defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE)
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
 	if (of_find_property(np, "use-broken-voltage", NULL))
 		host->caps2 |= MMC_CAP2_BROKEN_VOLTAGE;
 #endif /*(CONFIG_BCM43454) || (CONFIG_BCM43454_MODULE) || \
-	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE)*/
+	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE) || \
+	(CONFIG_BCM43456) || (CONFIG_BCM43456_MODULE)*/
 	if (of_find_property(np, "skip-init-mmc-scan", NULL))
 		host->caps2 |= MMC_CAP2_SKIP_INIT_SCAN;
 

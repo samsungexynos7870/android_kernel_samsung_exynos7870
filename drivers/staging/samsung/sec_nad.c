@@ -201,6 +201,9 @@ static ssize_t store_nad_erase(struct device *dev,
 
     if (!strncmp(buf, "erase", 5)) {
         strncpy(sec_nad_env.nad_factory, "GAP",3);
+#if defined(CONFIG_SEC_NAD_API)
+        sec_nad_env.nad_api_status = 0;
+#endif
         ret = sec_set_nad_param(NAD_PARAM_WRITE);
         if (ret < 0)
             pr_err("%s: write error! %d\n", __func__, ret);
@@ -384,6 +387,49 @@ static ssize_t show_nad_support(struct device *dev,
         return sprintf(buf, "NOT_SUPPORT\n");
 }
 static DEVICE_ATTR(nad_support, S_IRUGO, show_nad_support, NULL);
+
+
+#if defined(CONFIG_SEC_NAD_API)
+static void make_result_data_to_string(void)
+{
+    int i = 0;
+
+    NAD_PRINT("%s : api total count(%d)\n", __func__, sec_nad_env.nad_api_total_count);
+
+    /* Make result string if array is empty */
+    if(!strlen(nad_api_result_string)) {
+        for(i = 0; i < sec_nad_env.nad_api_total_count; i++) {
+            NAD_PRINT("%s : name(%s) result(%d)\n", __func__, 
+                    sec_nad_env.nad_api_info[i].name, sec_nad_env.nad_api_info[i].result);
+            /* Failed gpio test */
+            if(sec_nad_env.nad_api_info[i].result) {
+                strcat(nad_api_result_string, sec_nad_env.nad_api_info[i].name);
+                strcat(nad_api_result_string, ",");
+            }
+        }
+        nad_api_result_string[strlen(nad_api_result_string)-1] = '\0';
+    }
+}
+
+static ssize_t show_nad_api(struct device *dev,
+        struct device_attribute *attr,
+        char *buf)
+{
+    NAD_PRINT("%s\n", __func__);
+
+    /* Check nad api running status */
+    if(sec_nad_env.nad_api_status == MAGIC_NAD_API_SUCCESS) {
+        if(sec_nad_env.nad_api_magic == MAGIC_NAD_API_SUCCESS)
+            return sprintf(buf, "OK_%d\n", sec_nad_env.nad_api_total_count);
+        else {
+            make_result_data_to_string();
+            return sprintf(buf, "NG_%d,%s\n", sec_nad_env.nad_api_total_count, nad_api_result_string);
+        }
+    } else
+        return sprintf(buf, "NONE\n");
+}
+static DEVICE_ATTR(nad_api, S_IRUGO, show_nad_api, NULL);
+#endif
 #endif
 
 static int __init sec_nad_init(void)
@@ -440,7 +486,13 @@ static int __init sec_nad_init(void)
         pr_err("%s: Failed to create device file\n", __func__);
         goto err_create_nad_sysfs;
     }
-
+#if defined(CONFIG_SEC_NAD_API)
+    ret = device_create_file(sec_nad, &dev_attr_nad_api); 
+    if(ret) {
+        pr_err("%s: Failed to create device file\n", __func__);
+        goto err_create_nad_sysfs;
+    }
+#endif
     /* Initialize nad param struct */
     sec_nad_param_data.offset = NAD_ENV_OFFSET;
     sec_nad_param_data.state = NAD_PARAM_EMPTY;

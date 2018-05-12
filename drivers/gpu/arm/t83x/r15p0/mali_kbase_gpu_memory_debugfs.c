@@ -60,6 +60,7 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 	kbase_dev_list_put(kbdev_list);
 	return 0;
 }
+#endif
 
 /*
  *  File operations related to debugfs entry for gpu_memory
@@ -96,5 +97,4 @@ void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev)
 {
 	return;
 }
-#endif
 #endif

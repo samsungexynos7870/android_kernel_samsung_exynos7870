@@ -188,15 +188,8 @@ static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",dlp_enabled");
 	}
 #endif
-	
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	if (mount_crypt_stat->cipher_code == RFC2440_CIPHER_AES_XTS_256)
-		seq_printf(m, ",ecryptfs_cipher=%s",
-			"aesxts");
-	else
-#endif
-		seq_printf(m, ",ecryptfs_cipher=%s",
-			mount_crypt_stat->global_default_cipher_name);
+	seq_printf(m, ",ecryptfs_cipher=%s",
+		mount_crypt_stat->global_default_cipher_name);
 
 	if (mount_crypt_stat->global_default_cipher_key_size)
 		seq_printf(m, ",ecryptfs_key_bytes=%zd",
@@ -219,10 +212,6 @@ static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",ecryptfs_unlink_sigs");
 	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY)
 		seq_printf(m, ",ecryptfs_mount_auth_tok_only");
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
-	if (mount_crypt_stat->flags & ECRYPTFS_USE_FMP)
-		seq_printf(m, ",ecryptfs_use_fmp");
-#endif
 
 	seq_printf(m, ",base=%s", propagate_stat->base_path);
 	if (propagate_stat->propagate_type == TYPE_E_DEFAULT)

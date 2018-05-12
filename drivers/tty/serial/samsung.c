@@ -32,6 +32,7 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
@@ -62,6 +63,8 @@
 #ifdef CONFIG_PM_DEVFREQ
 #include <linux/pm_qos.h>
 #endif
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #if	defined(CONFIG_SERIAL_SAMSUNG_DEBUG) &&	\
 	defined(CONFIG_DEBUG_LL) &&		\
@@ -92,6 +95,12 @@ static void dbg(const char *fmt, ...)
 #define S3C24XX_SERIAL_MAJOR	204
 #define S3C24XX_SERIAL_MINOR	64
 
+#ifndef CONFIG_SAMSUNG_PRODUCT_SHIP
+#define SERIAL_UART_TRACE 1
+#define PROC_SERIAL_DIR	"serial/uart"
+#define SERIAL_UART_PORT_LINE 2
+#endif
+
 /* Baudrate definition*/
 #define MAX_BAUD	3000000
 #define MIN_BAUD	0
@@ -110,6 +119,9 @@ EXPORT_SYMBOL_GPL(s3c2410_serial_wake_peer);
 
 #define UART_LOOPBACK_MODE	(0x1 << 0)
 #define UART_DBG_MODE		(0x1 << 1)
+
+/* Allocate 800KB of buffer for UART logging */
+#define LOG_BUFFER_SIZE		(0xC8000)
 
 static void print_uart_mode(struct uart_port *port,
 		struct ktermios *termios, unsigned int baud)
@@ -206,6 +218,46 @@ uart_dbg_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(uart_dbg, 0640, uart_dbg_show, uart_dbg_store);
+
+
+struct proc_dir_entry *serial_dir, *serial_log_dir;
+
+static void uart_copy_to_local_buf(int dir, struct uart_local_buf* local_buf,
+				unsigned char* trace_buf, int len)
+{
+	unsigned long long time;
+	unsigned long rem_nsec;
+	int i;
+	int cpu = raw_smp_processor_id();
+
+	time = cpu_clock(cpu);
+	rem_nsec = do_div(time, NSEC_PER_SEC);
+
+	if (local_buf->index + (len * 3 + 30) >= local_buf->size) {
+		local_buf->index = 0;
+	}
+
+	local_buf->index += scnprintf(local_buf->buffer + local_buf->index,
+				 local_buf->size - local_buf->index,
+				"[%5lu.%06lu] ",
+				(unsigned long)time, rem_nsec / NSEC_PER_USEC);
+
+	if (dir == 1)
+		local_buf->index += scnprintf(local_buf->buffer + local_buf->index,
+					local_buf->size - local_buf->index, "[RX] ");
+	else
+		local_buf->index += scnprintf(local_buf->buffer + local_buf->index,
+					local_buf->size - local_buf->index, "[TX] ");
+
+	for (i = 0; i < len; i++) {
+		local_buf->index += scnprintf(local_buf->buffer + local_buf->index,
+					local_buf->size - local_buf->index,
+					"%02X ", trace_buf[i]);
+	}
+
+	local_buf->index += scnprintf(local_buf->buffer + local_buf->index,
+					local_buf->size - local_buf->index, "\n");
+}
 
 static ssize_t
 uart_error_cnt_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -416,16 +468,25 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	struct uart_port *port = &ourport->port;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
-	int max_count = 64;
+	int fifocnt = 0;
+	int max_count = port->fifosize;
+	unsigned char trace_buf[256] = {0, };
+	int trace_cnt = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (max_count-- > 0) {
-		ufcon = rd_regl(port, S3C2410_UFCON);
-		ufstat = rd_regl(port, S3C2410_UFSTAT);
-
-		if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
-			break;
+		/*
+		 * Receive all characters known to be in FIFO
+		 * before reading FIFO level again
+		 */
+		if (fifocnt == 0) {
+			ufstat = rd_regl(port, S3C2410_UFSTAT);
+			fifocnt = s3c24xx_serial_rx_fifocnt(ourport, ufstat);
+			if (fifocnt == 0)
+				break;
+		}
+		fifocnt--;
 
 		uerstat = rd_regl(port, S3C2410_UERSTAT);
 		ch = rd_regb(port, S3C2410_URXH);
@@ -440,6 +501,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 				}
 			} else {
 				if (txe) {
+					ufcon = rd_regl(port, S3C2410_UFCON);
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
 					rx_enabled(port) = 1;
@@ -491,12 +553,18 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
+		if (ourport->uart_logging)
+			trace_buf[trace_cnt++] = ch;
+
 		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN,
 				 ch, flag);
 
  ignore_char:
 		continue;
 	}
+
+	if (ourport->uart_logging && trace_cnt)
+		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf, trace_cnt);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	tty_flip_buffer_push(&port->state->port);
@@ -511,12 +579,16 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned long flags;
-	int count = 256;
+	int count = port->fifosize;
+	unsigned char trace_buf[256] = {0, };
+	int trace_cnt = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
 
 	if (port->x_char) {
 		wr_regb(port, S3C2410_UTXH, port->x_char);
+		if (ourport->uart_logging)
+			trace_buf[trace_cnt++] = port->x_char;
 		port->icount.tx++;
 		port->x_char = 0;
 		goto out;
@@ -538,6 +610,8 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 			break;
 
 		wr_regb(port, S3C2410_UTXH, xmit->buf[xmit->tail]);
+		if (ourport->uart_logging)
+			trace_buf[trace_cnt++] = (unsigned char)xmit->buf[xmit->tail];
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
@@ -551,7 +625,10 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	if (uart_circ_empty(xmit))
 		s3c24xx_serial_stop_tx(port);
 
- out:
+out:
+	if (ourport->uart_logging && trace_cnt)
+		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf, trace_cnt);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
 }
@@ -1578,6 +1655,83 @@ void s3c24xx_serial_fifo_wait(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_serial_fifo_wait);
 
+
+#if defined(BT_UART_TRACE) || defined(SERIAL_UART_TRACE)
+static void s3c24xx_print_reg_status(struct s3c24xx_uart_port *ourport)
+{
+		struct uart_port *port = &ourport->port;
+
+		unsigned int ulcon = rd_regl(port, S3C2410_ULCON);
+		unsigned int ucon = rd_regl(port, S3C2410_UCON);
+		unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
+		unsigned int umcon = rd_regl(port, S3C2410_UMCON);
+		unsigned int utrstat = rd_regl(port, S3C2410_UTRSTAT);
+		unsigned int ufstat = rd_regl(port, S3C2410_UFSTAT);
+		unsigned int umstat = rd_regl(port, S3C2410_UMSTAT);
+		unsigned int uerstat = rd_regl(port, S3C2410_UERSTAT);
+
+		int tx_fifo_full = ufstat & S5PV210_UFSTAT_TXFULL;
+		int tx_fifo_count = s3c24xx_serial_tx_fifocnt(ourport, ufstat);
+
+		int rx_fifo_full = ufstat & S5PV210_UFSTAT_RXFULL;
+		int rx_fifo_count = s3c24xx_serial_rx_fifocnt(ourport, ufstat);
+
+		pr_err("[BT]: ulcon = 0x%08x, ucon = 0x%08x, ufcon = 0x%08x\n, umcon = 0x%08x\n", ulcon, ucon, ufcon, umcon);
+		pr_err("[BT]: utrstat = 0x%08x, ufstat = 0x%08x, umstat = 0x%08x\n", utrstat, ufstat, umstat);
+		pr_err("[BT]: uerstat = 0x%08x\n", uerstat);
+		pr_err("[BT]: tx_fifo_full = %d, tx_fifo_count = %d\n", tx_fifo_full, tx_fifo_count);
+		pr_err("[BT]: rx_fifo_full = %d, rx_fifo_count = %d\n", rx_fifo_full, rx_fifo_count);
+}
+#endif
+
+#ifdef SERIAL_UART_TRACE
+static ssize_t s3c24xx_serial_log(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
+{
+	int ret;
+	struct s3c24xx_uart_port *ourport = &s3c24xx_serial_ports[SERIAL_UART_PORT_LINE];
+	static int copied_bytes;
+
+	if (copied_bytes >= LOG_BUFFER_SIZE) {
+		struct uart_port *port;
+
+		port = &ourport->port;
+
+		copied_bytes = 0;
+
+		if (port && port->state->pm_state == UART_PM_STATE_ON)
+			s3c24xx_print_reg_status(ourport);
+		return 0;
+	}
+
+	if (copied_bytes + bytes < LOG_BUFFER_SIZE) {
+		ret = copy_to_user(userbuf, ourport->uart_local_buf.buffer+copied_bytes, bytes);
+		if (ret) {
+			pr_err("Failed to s3c24xx_serial_serial_log : %d\n", (int)ret);
+			return ret;
+		}
+		copied_bytes += bytes;
+		return bytes;
+	} else {
+		int byte_to_read = LOG_BUFFER_SIZE-copied_bytes;
+
+		ret = copy_to_user(userbuf, ourport->uart_local_buf.buffer+copied_bytes, byte_to_read);
+		if (ret) {
+			pr_err("Failed to s3c24xx_serial_log : %d\n", (int)ret);
+			return ret;
+		}
+		copied_bytes += byte_to_read;
+		return byte_to_read;
+	}
+
+	return 0;
+}
+static const struct file_operations proc_fops_serial_log = {
+	.owner = THIS_MODULE,
+	.read = s3c24xx_serial_log,
+};
+#endif
+
+
 #ifdef CONFIG_CPU_IDLE
 static int s3c24xx_serial_notifier(struct notifier_block *self,
 				unsigned long cmd, void *v)
@@ -1747,9 +1901,51 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	else
 		ourport->use_alive_io = 0;
 
+#ifdef SERIAL_UART_TRACE
+        if (of_get_property(pdev->dev.of_node, "samsung,uart-logging", NULL))
+            ourport->uart_logging = 1;
+        else
+            ourport->uart_logging = 0;
+#endif
+            pr_err("uart logging %d, index %d\n",ourport->uart_logging,port_index);
+
 	ret = s3c24xx_serial_init_port(ourport, pdev);
 	if (ret < 0)
 		return ret;
+
+        if (ourport->uart_logging == 1) {
+            /* Allocate memory for UART logging */
+            ourport->uart_local_buf.buffer = kzalloc(LOG_BUFFER_SIZE, GFP_KERNEL);
+    
+            if (!ourport->uart_local_buf.buffer)
+                dev_err(&pdev->dev, "could not allocate buffer for UART logging\n");
+    
+            ourport->uart_local_buf.size = LOG_BUFFER_SIZE;
+            ourport->uart_local_buf.index = 0;
+#ifdef SERIAL_UART_TRACE
+                    if (port_index == SERIAL_UART_PORT_LINE) {
+                        struct proc_dir_entry *ent;
+            
+                        serial_dir = proc_mkdir("serial", NULL);
+                        if (serial_dir == NULL) {
+                            pr_err("Unable to create /proc/serial directory\n");
+                            return -ENOMEM;
+                        }
+            
+                        serial_log_dir = proc_mkdir("uart", serial_dir);
+                        if (serial_log_dir == NULL) {
+                            pr_err("Unable to create /proc/serial/uart directory\n");
+                            return -ENOMEM;
+                        }
+                    
+                        ent = proc_create("log", 0444, serial_log_dir, &proc_fops_serial_log);
+                        if (ent == NULL) {
+                            pr_err("Unable to create /proc/%s/log entry\n", PROC_SERIAL_DIR);
+                            return -ENOMEM;
+                        }
+                    }
+#endif
+        }
 
 	/* Registering notifier for audio uart */
 	if (ourport->domain == DOMAIN_AUD) {
@@ -1830,6 +2026,9 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 #ifdef CONFIG_SAMSUNG_CLOCK
 		device_remove_file(&dev->dev, &dev_attr_clock_source);
 #endif
+
+		if (ourport->uart_logging == 1)
+			kfree(ourport->uart_local_buf.buffer);
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
 

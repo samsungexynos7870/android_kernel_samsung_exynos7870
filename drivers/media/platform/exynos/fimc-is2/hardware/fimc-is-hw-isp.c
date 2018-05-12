@@ -97,7 +97,13 @@ int fimc_is_hw_isp_init(struct fimc_is_hw_ip *hw_ip, struct fimc_is_group *group
 	hw_ip->group[instance] = group;
 
 	if (hw_isp->lib_func == NULL) {
+#ifdef ENABLE_FPSIMD_FOR_USER
+		fpsimd_get();
 		ret = get_lib_func(LIB_FUNC_ISP, (void **)&hw_isp->lib_func);
+		fpsimd_put();
+#else
+		ret = get_lib_func(LIB_FUNC_ISP, (void **)&hw_isp->lib_func);
+#endif
 		info_hw("[%d][ID:%d]get_lib_func is set\n", instance, hw_ip->id);
 	}
 

@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#include "exynos7870.dtsi"
 #include "exynos7870-rmem-2000MB.dtsi"
+#include "exynos7870.dtsi"
 
 / {
 	model = "Samsung J5Y17LTE board based on Exynos7870";
@@ -1455,8 +1455,8 @@
 	decon_fb@14830000 {
 		psr_mode = <0>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
 		trig_mode = <1>;	/* 0: hw trigger, 1: sw trigger */
-		disp-pll-clk = <75000000>;
-		disp-vclk = <75000000>;
+		disp-pll-clk = <73000000>;
+		disp-vclk = <73000000>;
 		disp-eclk = <200000000>;
 		disp-dvfs = <200000>;
 		status = "okay";
@@ -1464,26 +1464,34 @@
 
 	dsim_0: dsim@14800000 {
 		lcd_info = <&s6e8aa5x01>;
-		decon_board = <&decon_board_list>;
+		decon_board = <&decon_board>;
 		status = "okay";
 	};
 
-	decon_board_list: decon_board_list {
+	decon_board: decon_board {
+		gpio_lcd_rst = <&gpd3 4 0x1>;
+
 		dsim_set_panel_power_enable {
-			type = "regulator,enable", "regulator,enable", "delay,usleep";
-			regulator = "LCD_3P0", "LCD_1P8";
-			delay = <5000 6000>;
+			type =
+			"regulator,enable",	"LCD_3P0",
+			"regulator,enable",	"LCD_1P8",
+			"delay,usleep",	"5000 6000";
 		};
 		dsim_set_panel_power_disable {
-			type = "gpio,low", "delay,usleep", "regulator,disable", "regulator,disable";
-			gpios = <&gpd3 4 0x1>;
-			regulator = "LCD_1P8", "LCD_3P0";
-			delay = <10000 11000>;
+			type =
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000",
+			"regulator,disable",	"LCD_1P8",
+			"regulator,disable",	"LCD_3P0";
 		};
 		dsim_reset_panel {
-			type = "gpio,high", "delay,usleep", "gpio,low", "delay,usleep", "gpio,high", "delay,usleep";
-			gpios = <&gpd3 4 0x1>, <&gpd3 4 0x1>, <&gpd3 4 0x1>;
-			delay = <5000 6000>, <5000 6000>, <10000 11000>;
+			type =
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,low",	"gpio_lcd_rst",
+			"delay,usleep",	"5000 6000",
+			"gpio,high",	"gpio_lcd_rst",
+			"delay,usleep",	"10000 11000";
 		};
 	};
 
@@ -1492,17 +1500,16 @@
 		/* HD(720 x 1280) */
 		panel_name = "s6e8aa5x01";
 		resolution = <720 1280>;
-		size = <62 106>;
+		size = <65 115>;	/* 64.62 114.88*/
 		ddi_type = <0>;
 		timing,refresh = <60>;
 		/* HBP HFP HSW */
-		timing,h-porch = <60 160 20>;
+		timing,h-porch = <60 130 20>;
 		/* VBP VFP VSW */
 		timing,v-porch = <8 14 2>;
 		timing,dsi-hs-clk = <500>;
 		timing,dsi-escape-clk = <16>;
 		timing,pms = <1 77 2>;
-		clklane_onoff = <0>;
 	};
 
 	sec_thermistor@0 {

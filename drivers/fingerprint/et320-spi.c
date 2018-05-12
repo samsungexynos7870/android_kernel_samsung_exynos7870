@@ -105,7 +105,7 @@ int etspi_Interrupt_Init(
 		}
 	}
 done:
-	return 0;
+	return status;
 }
 
 int etspi_Interrupt_Free(struct etspi_data *etspi)
@@ -565,9 +565,7 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				if (retval < 0)
 					pr_err("%s: couldn't disable spi dma\n", __func__);
 #endif
-#ifdef FEATURE_SPI_WAKELOCK
 				wake_unlock(&etspi->fp_spi_lock);
-#endif
 				etspi->enabled_clk = false;
 			}
 		}
@@ -587,9 +585,7 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				pr_err("%s: Unable to enable spi dma\n", __func__);
 #endif
 			kfree(spi_info);
-#ifdef FEATURE_SPI_WAKELOCK
 			wake_lock(&etspi->fp_spi_lock);
-#endif
 			etspi->enabled_clk = true;
 		} else
 			retval = -ENOMEM;
@@ -681,9 +677,7 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (retval < 0)
 				pr_err("%s: couldn't disable spi dma\n", __func__);
 #endif
-#ifdef FEATURE_SPI_WAKELOCK
 			wake_unlock(&etspi->fp_spi_lock);
-#endif
 			etspi->enabled_clk = false;
 		}
 		break;
@@ -913,10 +907,8 @@ int etspi_platformInit(struct etspi_data *etspi)
 	}
 
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
-#ifdef FEATURE_SPI_WAKELOCK
 	wake_lock_init(&etspi->fp_spi_lock,
 		WAKE_LOCK_SUSPEND, "etspi_wake_lock");
-#endif
 #endif
 
 	pr_info("%s successful status=%d\n", __func__, status);
@@ -960,9 +952,7 @@ void etspi_platformUninit(struct etspi_data *etspi)
 #endif
 #endif
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
-#ifdef FEATURE_SPI_WAKELOCK
 		wake_lock_destroy(&etspi->fp_spi_lock);
-#endif
 #endif
 	}
 }
@@ -1096,7 +1086,8 @@ static int etspi_type_check(struct etspi_data *etspi)
 	}
 }
 #endif
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
+
+
 static ssize_t etspi_type_check_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -1130,7 +1121,6 @@ static struct device_attribute *fp_attrs[] = {
 	&dev_attr_name,
 	NULL,
 };
-#endif
 
 static void etspi_work_func_debug(struct work_struct *work)
 {
@@ -1358,14 +1348,14 @@ static int etspi_probe(struct spi_device *spi)
 		spi_set_drvdata(spi, etspi);
 	else
 		goto etspi_probe_failed;
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
+
+
 	status = fingerprint_register(etspi->fp_device,
 		etspi, fp_attrs, "fingerprint");
 	if (status) {
 		pr_err("%s sysfs register failed\n", __func__);
 		goto etspi_probe_failed;
 	}
-#endif
 
 	status = etspi_set_timer(etspi);
 	if (status)
@@ -1376,9 +1366,7 @@ static int etspi_probe(struct spi_device *spi)
 	return status;
 
 etspi_sysfs_failed:
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 		fingerprint_unregister(etspi->fp_device, fp_attrs);
-#endif
 etspi_probe_failed:
 	device_destroy(etspi_class, etspi->devt);
 	class_destroy(etspi_class);
@@ -1409,9 +1397,7 @@ static int etspi_remove(struct spi_device *spi)
 
 		/* prevent new opens */
 		mutex_lock(&device_list_lock);
-#ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
 		fingerprint_unregister(etspi->fp_device, fp_attrs);
-#endif
 		list_del(&etspi->device_entry);
 		device_destroy(etspi_class, etspi->devt);
 		clear_bit(MINOR(etspi->devt), minors);

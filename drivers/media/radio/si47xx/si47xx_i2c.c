@@ -137,6 +137,20 @@ static long si47xx_ioctl(struct file *filp, unsigned int ioctl_cmd,
 		}
 		break;
 
+	case SI47XX_IOC_CHAN_CHECK_VALID:
+		{
+			bool valid = 0;
+
+			ret = (long)si47xx_dev_chan_check_valid(&valid);
+			if (ret < 0)
+				pr_err("%s(): SI47XX_IOC_CHAN_GET failed\n",
+				__func__);
+			else if (copy_to_user
+				 (argp, (void *)&valid, sizeof(bool)))
+				ret = -EFAULT;
+		}
+		break;
+
 	case SI47XX_IOC_SEEK_FULL:
 		{
 			u32 frequency = 0;

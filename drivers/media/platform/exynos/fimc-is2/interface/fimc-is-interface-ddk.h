@@ -14,6 +14,7 @@
 #include "fimc-is-core.h"
 #include "fimc-is-interface-library.h"
 #include "fimc-is-param.h"
+#include "fimc-is-config.h"
 
 #define CHAIN_ID_MASK		(0x0000000F)
 #define CHAIN_ID_SHIFT		(0)
@@ -196,4 +197,21 @@ int fimc_is_lib_isp_convert_face_map(struct fimc_is_hardware *hardware,
 	struct taa_param_set *param_set, struct fimc_is_frame *frame);
 void fimc_is_lib_isp_configure_algorithm(void);
 void fimc_is_isp_get_bcrop1_size(void __iomem *base_addr, u32 *width, u32 *height);
+
+#ifdef ENABLE_FPSIMD_FOR_USER
+#define CALL_LIBOP(lib, op, args...)					\
+	({								\
+		int ret_call_libop;					\
+									\
+		fpsimd_get();						\
+		ret_call_libop = ((lib)->func->op ?			\
+				(lib)->func->op(args) : -EINVAL);	\
+		fpsimd_put();						\
+									\
+	ret_call_libop;})
+#else
+#define CALL_LIBOP(lib, op, args...)				\
+	((lib)->func->op ? (lib)->func->op(args) : -EINVAL)
+#endif
+
 #endif

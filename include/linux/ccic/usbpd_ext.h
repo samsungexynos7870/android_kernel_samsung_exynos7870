@@ -1,3 +1,6 @@
+#if defined(CONFIG_IFPMIC_SUPPORT)
+#include <linux/ifpmic/ccic/usbpd_ext.h>
+#else
 #if defined(CONFIG_CCIC_NOTIFIER)
 #include <linux/ccic/ccic_notifier.h>
 #endif
@@ -7,6 +10,7 @@
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 #include <linux/battery/battery_notifier.h>
 #endif
+#endif /* CONFIG_IFPMIC_SUPPORT */
 
 #ifndef __USBPD_EXT_H__
 #define __USBPD_EXT_H__

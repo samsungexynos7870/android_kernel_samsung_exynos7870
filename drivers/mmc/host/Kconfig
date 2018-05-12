@@ -588,14 +588,18 @@ config MMC_DW
 
 config MMC_DW_FMP_DM_CRYPT
 	bool "FMP acceleration for DM_CRYPT"
-	depends on DM_CRYPT && FMP_MMC
+	depends on DM_CRYPT
+	select FMP_MMC
+	select FMP_DM_CRYPT
 	help
 	  This option accelerates dm-crypt by using the flash
 	  memory protector feature of the eMMC controller.
 
 config MMC_DW_FMP_ECRYPT_FS
 	bool "FMP acceleration for eCrypt filesystem"
-	depends on ECRYPT_FS && FMP_MMC
+	depends on ECRYPT_FS
+	select FMP_MMC
+	select FMP_ECRYPT_FS
 	help
 	  This option activates flash memory protector of the eMMC controller to
 	  accelerate eCryptfs.

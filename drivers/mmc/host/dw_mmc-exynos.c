@@ -1326,6 +1326,74 @@ static ssize_t sd_detection_curmode_show(struct device *dev,
 	return  sprintf(buf, "%s\n", uhs_bus_speed_mode);
 }
 
+static ssize_t sdcard_summary_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	struct mmc_card *card;
+	const char *uhs_bus_speed_mode = "";
+	static const char *const uhs_speeds[] = {
+		[UHS_SDR12_BUS_SPEED]	= "SDR12",
+		[UHS_SDR25_BUS_SPEED]	= "SDR25",
+		[UHS_SDR50_BUS_SPEED]	= "SDR50",
+		[UHS_SDR104_BUS_SPEED]	= "SDR104",
+		[UHS_DDR50_BUS_SPEED]	= "DDR50",
+	};
+	static const char *const unit[] = {"KB", "MB", "GB", "TB"};
+	unsigned int size, serial;
+	int	digit = 1;
+	char ret_size[6];
+
+	if (host->cur_slot && host->cur_slot->mmc && host->cur_slot->mmc->card) {
+		card = host->cur_slot->mmc->card;
+
+		/* MANID */
+		/* SERIAL */
+		serial = card->cid.serial & (0x0000FFFF);
+
+		/*SIZE*/
+		if (card->csd.read_blkbits == 9)		/* 1 Sector = 512 Bytes */
+			size = (card->csd.capacity) >> 1;
+		else if (card->csd.read_blkbits == 11)	/* 1 Sector = 2048 Bytes */
+			size = (card->csd.capacity) << 1;
+		else									/* 1 Sector = 1024 Bytes */
+			size = card->csd.capacity;
+
+		if (size >= 380000000 && size <= 410000000) {	/* QUIRK 400GB SD Card */
+			sprintf(ret_size, "400GB");
+		} else if (size >= 190000000 && size <= 210000000) {	/* QUIRK 200GB SD Card */
+			sprintf(ret_size, "200GB");
+		} else {
+			while ((size >> 1) > 0) {
+				size = size >> 1;
+				digit++;
+			}
+			sprintf(ret_size, "%d%s", 1 << (digit%10), unit[digit/10]);
+		}
+
+		/* SPEEDMODE */
+		if (mmc_card_uhs(card))
+			uhs_bus_speed_mode = uhs_speeds[card->sd_bus_speed];
+		else if (mmc_card_hs(card))
+			uhs_bus_speed_mode = "HS";
+		else
+			uhs_bus_speed_mode = "DS";
+
+		/* SUMMARY */
+		dev_info(host->dev, "MANID : 0x%02X, SERIAL : %04X, SIZE : %s, SPEEDMODE : %s\n",
+				card->cid.manfid, serial, ret_size, uhs_bus_speed_mode);
+		return sprintf(buf, "\"MANID\":\"0x%02X\",\"SERIAL\":\"%04X\""\
+				",\"SIZE\":\"%s\",\"SPEEDMODE\":\"%s\",\"NOTI\":\"%d\"\n",
+				card->cid.manfid, serial, ret_size, uhs_bus_speed_mode,
+				card->err_log[0].noti_cnt);
+	} else {
+		/* SUMMARY : No SD Card Case */
+		dev_info(host->dev, "%s : No SD Card\n", __func__);
+		return sprintf(buf, "\"MANID\":\"NoCard\",\"SERIAL\":\"NoCard\""\
+				",\"SIZE\":\"NoCard\",\"SPEEDMODE\":\"NoCard\",\"NOTI\":\"NoCard\"\n");
+	}
+}
+
 static struct device *sd_info_cmd_dev;
 static ssize_t sd_count_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1399,54 +1467,51 @@ static DEVICE_ATTR(status, 0444, sd_detection_cmd_show, NULL);
 static DEVICE_ATTR(cd_cnt, 0444, sd_detection_cnt_show, NULL);
 static DEVICE_ATTR(max_mode, 0444, sd_detection_maxmode_show, NULL);
 static DEVICE_ATTR(current_mode, 0444, sd_detection_curmode_show, NULL);
+static DEVICE_ATTR(sdcard_summary, 0444, sdcard_summary_show, NULL);
 static DEVICE_ATTR(sd_count, 0444, sd_count_show, NULL);
 static DEVICE_ATTR(sd_data, 0444, sd_data_show, NULL);
+
+/* Callback function for SD Card IO Error */
+static int sdcard_uevent(struct mmc_card *card)
+{
+	pr_info("%s: Send Notification about SD Card IO Error\n", mmc_hostname(card->host));
+	return kobject_uevent(&sd_detection_cmd_dev->kobj, KOBJ_CHANGE);
+}
+
+static int dw_mci_sdcard_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	struct mmc_card *card;
+	int retval;
+	bool card_exist;
+
+	add_uevent_var(env, "DEVNAME=%s", dev->kobj.name);
+
+	if (host->cur_slot && host->cur_slot->mmc && host->cur_slot->mmc->card) {
+		card_exist = true;
+		card = host->cur_slot->mmc->card;
+	} else
+		card_exist = false;
+
+	retval = add_uevent_var(env, "IOERROR=%s", card_exist ? (
+				((card->err_log[0].ge_cnt && !(card->err_log[0].ge_cnt % 1000)) ||
+				 (card->err_log[0].ecc_cnt && !(card->err_log[0].ecc_cnt % 1000)) ||
+				 (card->err_log[0].wp_cnt && !(card->err_log[0].wp_cnt % 100)) ||
+				 (card->err_log[0].oor_cnt && !(card->err_log[0].oor_cnt % 100)))
+				? "YES" : "NO")	: "NoCard");
+
+	return retval;
+}
+
+static struct device_type sdcard_type = {
+	.uevent = dw_mci_sdcard_uevent,
+};
 
 static int dw_mci_exynos_request_ext_irq(struct dw_mci *host,
 		irq_handler_t func)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 	int ext_cd_irq = 0;
-
-	if ((priv->sec_sd_slot_type) >= 0) {
-		if (!sd_detection_cmd_dev) {
-			sd_detection_cmd_dev = sec_device_create(host, "sdcard");
-			if (IS_ERR(sd_detection_cmd_dev))
-				pr_err("Fail to create sysfs dev\n");
-			if (device_create_file(sd_detection_cmd_dev,
-						&dev_attr_status) < 0)
-				pr_err("Fail to create status sysfs file\n");
-
-			if (device_create_file(sd_detection_cmd_dev,
-						&dev_attr_cd_cnt) < 0)
-				pr_err("Fail to create cd_cnt sysfs file\n");
-
-			if (device_create_file(sd_detection_cmd_dev,
-						&dev_attr_max_mode) < 0)
-				pr_err("Fail to create max_mode sysfs file\n");
-
-			if (device_create_file(sd_detection_cmd_dev,
-						&dev_attr_current_mode) < 0)
-				pr_err("Fail to create current_mode sysfs file\n");
-		}
-
-		if (!sd_info_cmd_dev) {
-			sd_info_cmd_dev = sec_device_create(host, "sdinfo");
-			if (IS_ERR(sd_info_cmd_dev))
-				pr_err("Fail to create sysfs dev\n");
-			if (device_create_file(sd_info_cmd_dev,
-						&dev_attr_sd_count) < 0)
-				pr_err("Fail to create status sysfs file\n");
-		}
-		if (!sd_data_cmd_dev) {
-			sd_data_cmd_dev = sec_device_create(host, "sddata");
-			if (IS_ERR(sd_data_cmd_dev))
-				pr_err("Fail to create sysfs dev\n");
-			if (device_create_file(sd_data_cmd_dev,
-						&dev_attr_sd_data) < 0)
-				pr_err("Fail to create status sysfs file\n");
-		}
-	}
 
 	if (gpio_is_valid(priv->cd_gpio) &&
 			!gpio_request(priv->cd_gpio, "DWMCI_EXT_CD")) {
@@ -1502,6 +1567,59 @@ static void dw_mci_exynos_set_etc_gpio(struct dw_mci *host)
 	return;
 }
 
+static void dw_mci_exynos_add_sysfs(struct dw_mci *host)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if ((priv->sec_sd_slot_type) >= 0) {
+		if (!sd_detection_cmd_dev) {
+			sd_detection_cmd_dev = sec_device_create(host, "sdcard");
+			if (IS_ERR(sd_detection_cmd_dev))
+				pr_err("Fail to create sysfs dev\n");
+
+			sd_detection_cmd_dev->type = &sdcard_type;
+			host->slot[0]->mmc->sdcard_uevent = sdcard_uevent;
+
+			if (device_create_file(sd_detection_cmd_dev,
+						&dev_attr_status) < 0)
+				pr_err("Fail to create status sysfs file\n");
+
+			if (device_create_file(sd_detection_cmd_dev,
+						&dev_attr_cd_cnt) < 0)
+				pr_err("Fail to create cd_cnt sysfs file\n");
+
+			if (device_create_file(sd_detection_cmd_dev,
+						&dev_attr_max_mode) < 0)
+				pr_err("Fail to create max_mode sysfs file\n");
+
+			if (device_create_file(sd_detection_cmd_dev,
+						&dev_attr_current_mode) < 0)
+				pr_err("Fail to create current_mode sysfs file\n");
+
+			if (device_create_file(sd_detection_cmd_dev,
+						&dev_attr_sdcard_summary) < 0)
+				pr_err("Fail to create sdcard_summary sysfs file\n");
+		}
+
+		if (!sd_info_cmd_dev) {
+			sd_info_cmd_dev = sec_device_create(host, "sdinfo");
+			if (IS_ERR(sd_info_cmd_dev))
+				pr_err("Fail to create sysfs dev\n");
+			if (device_create_file(sd_info_cmd_dev,
+						&dev_attr_sd_count) < 0)
+				pr_err("Fail to create status sysfs file\n");
+		}
+		if (!sd_data_cmd_dev) {
+			sd_data_cmd_dev = sec_device_create(host, "sddata");
+			if (IS_ERR(sd_data_cmd_dev))
+				pr_err("Fail to create sysfs dev\n");
+			if (device_create_file(sd_data_cmd_dev,
+						&dev_attr_sd_data) < 0)
+				pr_err("Fail to create status sysfs file\n");
+		}
+	}
+}
+
 static int dw_mci_exynos_misc_control(struct dw_mci *host,
 		enum dw_mci_misc_control control, void *priv)
 {
@@ -1520,6 +1638,9 @@ static int dw_mci_exynos_misc_control(struct dw_mci *host,
 			break;
 		case CTRL_SET_ETC_GPIO:
 			dw_mci_exynos_set_etc_gpio(host);
+			break;
+		case CTRL_ADD_SYSFS:
+			dw_mci_exynos_add_sysfs(host);
 			break;
 		default:
 			dev_err(host->dev, "dw_mmc exynos: wrong case\n");
@@ -1570,6 +1691,7 @@ static struct platform_driver dw_mci_exynos_pltfm_driver = {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,
 		.pm		= &dw_mci_exynos_pmops,
+		.suppress_bind_attrs = true,
 	},
 };
 

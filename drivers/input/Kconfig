@@ -189,6 +189,22 @@ config GLOVE_TOUCH
 	help
 	  Say Y here if you want glove touch.
 
+config INPUT_TOUCHSCREEN_TCLM
+	bool "touchscreen tclm"
+	depends on I2C
+	help
+	  Say Y here if you need to use tclm.
+
+	  If unsure, say N.
+
+config INPUT_TOUCHSCREEN_TCLMV2
+	bool "touchscreen tclmv2"
+	depends on I2C
+	help
+	  Say Y here if you need to use tclm.
+
+	  If unsure, say N.
+
 config INPUT_KEYCOMBO
 	tristate "Key combo"
 	depends on INPUT
@@ -204,6 +220,14 @@ config HALL
 	help
 	  Enable Hall Feature
 
+config HALL_NOTIFIER
+	bool "HALL notifier support"
+	depends on HALL
+	default n
+	help
+	  If you say yes here you will get support for
+	  the HALL status change notification.
+	  
 config SEC_FLIP_WORK_DOUBLE_CHECK
 	tristate "Enable flip work is checked twice"
 	default n

@@ -38,8 +38,6 @@
 /*** TODO: We need to export this so it is hard coded
      at one place*/
 
-#define RKP_PGT_BITMAP_LEN 0x18000
-
 #define   TIMA_VMM_START        0x4dd00000
 #define   TIMA_VMM_SIZE         1<<20
 
@@ -49,8 +47,16 @@
 #define   TIMA_SEC_LOG          0x52400000
 #define   TIMA_SEC_LOG_SIZE     0x7000
 
+#ifdef CONFIG_TIMA_RKP_4G
+#define   TIMA_PHYS_MAP         0x4d900000
+#define   TIMA_PHYS_MAP_SIZE    (4<<20)
+#define	  RKP_PGT_BITMAP_LEN	0x20000
+#else
+//Support 3G
 #define   TIMA_PHYS_MAP         0x4da00000
 #define   TIMA_PHYS_MAP_SIZE    3<<20
+#define	  RKP_PGT_BITMAP_LEN	0x18000
+#endif
 
 #define   TIMA_DASHBOARD_START  0x52407000
 #define   TIMA_DASHBOARD_SIZE    0x1000

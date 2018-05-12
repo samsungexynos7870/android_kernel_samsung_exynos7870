@@ -92,8 +92,8 @@
 	pinctrl-names = "sleep";
 	pinctrl-0 = <&sleep4>;
 	sleep4: sleep-state {
-		PIN_SLP(gpm0-0, INPUT, NONE);	/* PMIC_SDA_1P8 */
-		PIN_SLP(gpm0-1, INPUT, NONE);	/* PMIC_SCL_1P8 */
+		PIN_SLP(gpm0-0, PREV, UP);	/* PMIC_SDA_1P8 */
+		PIN_SLP(gpm0-1, PREV, UP);	/* PMIC_SCL_1P8 */
 	};
 };
 
@@ -130,11 +130,7 @@
 		PIN_IN(gpd3-1, DOWN, LV1);	/* OCTA_ID(TP) */
 		PIN_OUT_SET_PULL(gpd3-2, 0, LV1, DOWN);	/* CAM_FLASH_EN */
 		PIN_OUT_SET_PULL(gpd3-3, 0, LV1, DOWN);	/* CAM_TORCH_EN */
-
-		PIN_IN(gpd3-7, DOWN, LV1);	/* NC  */
-		PIN_IN(gpc6-0, DOWN, LV1);	/* NC  */
-		PIN_IN(gpc6-2, DOWN, LV1);	/* NC  */
-		PIN_IN(gpc6-3, DOWN, LV1);	/* NC  */
+		PIN_OUT_SET_PULL(gpd3-7, 0, LV1, DOWN);	/* ESE_1P8_EN */
 
 		PIN_IN(gpd2-0, NONE, LV1);	/* REG0_DET */
 		PIN_IN(gpd4-4, NONE, LV1);	/* REG1_DET */
@@ -181,7 +177,7 @@
 		PIN_SLP(gpd1-6, INPUT, DOWN);	/* NC */
 
 		PIN_SLP(gpd2-0, INPUT, NONE);	/* REG0_DET */
-		PIN_SLP(gpd2-1, OUT1, UP);	/* VDD_NFC_EN */
+		PIN_SLP(gpd2-1, PREV, NONE);	/* VDD_NFC_EN */
 		PIN_SLP(gpd2-2, PREV, DOWN);	/* MST_PWR_EN */
 		PIN_SLP(gpd2-3, PREV, NONE);	/* RGB_PROXY_EN */
 		PIN_SLP(gpd2-4, INPUT, NONE);	/* HW_REV0 */
@@ -194,7 +190,7 @@
 		PIN_SLP(gpd3-4, PREV, NONE);	/* MLCD_RST */
 		PIN_SLP(gpd3-5, OUT0, DOWN);	/* CAM_A2P8_EN */
 		PIN_SLP(gpd3-6, PREV, NONE);	/* WLAN_EN */
-		PIN_SLP(gpd3-7, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpd3-7, OUT0, DOWN);	/* ESE_1P8_EN */
 
 		PIN_SLP(gpd4-0, PREV, NONE);	/* BT_EN */
 		PIN_SLP(gpd4-1, PREV, DOWN);	/* NFC_FIRM */

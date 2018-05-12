@@ -575,6 +575,7 @@ int fimc_is_resource_dump(void)
 		/* ddk log dump */
 		fimc_is_lib_logdump();
 		fimc_is_hardware_dump(&core->hardware);
+		fimc_is_hardware_sfr_dump(&core->hardware);
 #endif
 		break;
 	}
