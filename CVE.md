@@ -59,12 +59,14 @@
 | CVE-2017-18261   | not affected                             |
 | CVE-2017-18270   | open                                     |
 | CVE-2017-5972    | not affected                             |
+| CVE-2018-1000204 | a45b599ad808c3c982fdcdc12b0b8611c2f92824 |
 | CVE-2018-10021   | 318aaf34f1179b39fa9c30fa0f3288b645beee39 |
 | CVE-2018-10074   | dd83c161fbcc5d8be637ab159c0de015cbff5ba4 |
 | CVE-2018-10087   | not affected                             |
 | CVE-2018-10124   | 4ea77014af0d6205b05503d1c7aac6eace11d473 |
 | CVE-2018-10675   | 73223e4e2e3867ebf033a5a8eb2e5df0158ccc99 |
 | CVE-2018-10940   | not affected                             |
+| CVE-2018-1120    | 7f7ccc2ccc2e70c6054685f5e3522efa81556830 |
 | CVE-2018-11232   | not affected                             |
 | CVE-2018-1130    | 67f93df79aeefc3add4e4b31a752600f834236e2 |
 | CVE-2018-11508   | not affected                             |
