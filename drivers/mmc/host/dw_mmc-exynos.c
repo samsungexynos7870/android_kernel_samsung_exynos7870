@@ -967,10 +967,10 @@ static void exynos_dwmci_tuning_drv_st(struct dw_mci *host)
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
 	dev_info(host->dev, "Clock GPIO Drive Strength Value: x%d\n",
-			(priv->clk_drive_tuning + 1));
+			(priv->clk_drive_tuning));
 
-	if (priv->pinctrl && priv->clk_drive_str[priv->clk_drive_tuning])
-		pinctrl_select_state(priv->pinctrl, priv->clk_drive_str[priv->clk_drive_tuning]);
+	if (priv->pinctrl && priv->clk_drive_str[priv->clk_drive_tuning - 1])
+		pinctrl_select_state(priv->pinctrl, priv->clk_drive_str[priv->clk_drive_tuning - 1]);
 }
 
 /*
@@ -1044,7 +1044,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 
 	dev_info(host->dev, "Tuning Abnormal_result 0x%08x.\n", abnormal_result);
 
-	priv->clk_drive_tuning = priv->clk_drive_number - 1;
+	priv->clk_drive_tuning = priv->clk_drive_number;
 	drv_str_retries = priv->clk_drive_number;
 
 	do {
@@ -1147,7 +1147,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 				all_pass_count++;
 
 			if (priv->ctrl_flag & DW_MMC_EXYNOS_BYPASS_FOR_ALL_PASS)
-				bypass = (all_pass_count >= priv->clk_drive_number) ? true : false;
+				bypass = (all_pass_count > priv->clk_drive_number) ? true : false;
 
 			if (bypass) {
 				dev_info(host->dev, "Bypassed for all pass at %d times\n", priv->clk_drive_number);
@@ -1170,7 +1170,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 					sample_good, best_sample);
 
 			if (best_sample >= 0) {
-				if (sample_good != abnormal_result) {
+				if (sample_good != abnormal_result || bypass) {
 					tuned = true;
 					break;
 				}
@@ -1182,8 +1182,6 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 					exynos_dwmci_tuning_drv_st(host);
 					if (priv->clk_drive_tuning > 0)
 						priv->clk_drive_tuning--;
-					else
-						break;
 				}
 				sample_good = 0;
 			} else

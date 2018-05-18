@@ -13,6 +13,7 @@
 #include <linux/lcd.h>
 #include <linux/backlight.h>
 #include <linux/of_device.h>
+#include <linux/ctype.h>
 #include <video/mipi_display.h>
 #include "../dsim.h"
 #include "dsim_panel.h"
@@ -29,6 +30,13 @@
 
 #define IS_ALPM_SUPPORTED(lcd_id) (lcd_id >= 0x02) ? 1:0
 
+#ifdef CONFIG_DISPLAY_USE_INFO
+#include "dpui.h"
+
+#define	DPUI_VENDOR_NAME	"SDC"
+#define DPUI_MODEL_NAME		"AMS474MM01"
+#endif
+
 #define DSI_WRITE(cmd, size)		do {				\
 	ret = dsim_write_hl_data(lcd, cmd, size);			\
 	if (ret < 0)							\
@@ -41,7 +49,7 @@
 #define smtd_dbg(format, arg...)
 #endif
 
-#define get_bit(value, shift, size)	((value >> shift) & (0xffffffff >> (32 - size)))
+#define get_bit(value, shift, width)	((value >> shift) & (GENMASK(width - 1, 0)))
 
 union aor_info {
 	u32 value;
@@ -131,6 +139,10 @@ struct lcd_info {
 	struct hbm_interpolation_t	hitp;
 
 	struct notifier_block		fb_notifier;
+
+#ifdef CONFIG_DISPLAY_USE_INFO
+	struct notifier_block		dpui_notif;
+#endif
 
 #ifdef CONFIG_LCD_DOZE_MODE
 	unsigned int			alpm;
@@ -997,6 +1009,74 @@ static int s6e3aa2_init(struct lcd_info *lcd)
 	return ret;
 }
 
+#ifdef CONFIG_DISPLAY_USE_INFO
+static int panel_dpui_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct lcd_info *lcd = NULL;
+	struct dpui_info *dpui = data;
+	char tbuf[MAX_DPUI_VAL_LEN];
+	int size;
+	unsigned int site, rework, poc, i, invalid = 0;
+	unsigned char *m_info;
+
+	struct seq_file m = {
+		.buf = tbuf,
+		.size = sizeof(tbuf) - 1,
+	};
+
+	if (dpui == NULL) {
+		pr_err("%s: dpui is null\n", __func__);
+		return NOTIFY_DONE;
+	}
+
+	lcd = container_of(self, struct lcd_info, dpui_notif);
+
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%04d%02d%02d %02d%02d%02d",
+			((lcd->date[0] & 0xF0) >> 4) + 2011, lcd->date[0] & 0xF, lcd->date[1] & 0x1F,
+			lcd->date[2] & 0x1F, lcd->date[3] & 0x3F, lcd->date[4] & 0x3F);
+	set_dpui_field(DPUI_KEY_MAID_DATE, tbuf, size);
+
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[0]);
+	set_dpui_field(DPUI_KEY_LCDID1, tbuf, size);
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[1]);
+	set_dpui_field(DPUI_KEY_LCDID2, tbuf, size);
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[2]);
+	set_dpui_field(DPUI_KEY_LCDID3, tbuf, size);
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%s_%s", DPUI_VENDOR_NAME, DPUI_MODEL_NAME);
+	set_dpui_field(DPUI_KEY_DISP_MODEL, tbuf, size);
+
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "0x%02X%02X%02X%02X%02X",
+			lcd->code[0], lcd->code[1], lcd->code[2], lcd->code[3], lcd->code[4]);
+	set_dpui_field(DPUI_KEY_CHIPID, tbuf, size);
+
+	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+		lcd->date[0], lcd->date[1], lcd->date[2], lcd->date[3], lcd->date[4],
+		lcd->date[5], lcd->date[6], (lcd->coordinate[0] & 0xFF00) >> 8, lcd->coordinate[0] & 0x00FF,
+		(lcd->coordinate[1] & 0xFF00) >> 8, lcd->coordinate[1] & 0x00FF);
+	set_dpui_field(DPUI_KEY_CELLID, tbuf, size);
+
+	m_info = lcd->manufacture_info;
+	site = get_bit(m_info[1], 4, 4);
+	rework = get_bit(m_info[1], 0, 4);
+	poc = get_bit(m_info[2], 0, 4);
+	seq_printf(&m, "%d%d%d%02x%02x", site, rework, poc, m_info[3], m_info[4]);
+
+	for (i = 5; i < LDI_LEN_MANUFACTURE_INFO; i++) {
+		if (!isdigit(m_info[i]) && !isupper(m_info[i])) {
+			invalid = 1;
+			break;
+		}
+	}
+	for (i = 5; !invalid && i < LDI_LEN_MANUFACTURE_INFO; i++)
+		seq_printf(&m, "%c", m_info[i]);
+
+	set_dpui_field(DPUI_KEY_OCTAID, tbuf, m.count);
+
+	return NOTIFY_DONE;
+}
+#endif /* CONFIG_DISPLAY_USE_INFO */
+
 static int fb_notifier_callback(struct notifier_block *self,
 			unsigned long event, void *data)
 {
@@ -1033,6 +1113,12 @@ static int s6e3aa2_register_notifier(struct lcd_info *lcd)
 {
 	lcd->fb_notifier.notifier_call = fb_notifier_callback;
 	decon_register_notifier(&lcd->fb_notifier);
+
+#ifdef CONFIG_DISPLAY_USE_INFO
+	lcd->dpui_notif.notifier_call = panel_dpui_notifier_callback;
+	if (lcd->connected)
+		dpui_logging_register(&lcd->dpui_notif, DPUI_TYPE_PANEL);
+#endif
 
 	dev_info(&lcd->ld->dev, "%s\n", __func__);
 
@@ -1461,25 +1547,67 @@ static ssize_t octa_id_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct lcd_info *lcd = dev_get_drvdata(dev);
-	int site, rework, poc;
+	unsigned int site, rework, poc, i, invalid = 0;
 	unsigned char *m_info;
 
+	struct seq_file m = {
+		.buf = buf,
+		.size = PAGE_SIZE - 1,
+	};
+
 	m_info = lcd->manufacture_info;
+	site = get_bit(m_info[1], 4, 4);
+	rework = get_bit(m_info[1], 0, 4);
+	poc = get_bit(m_info[2], 0, 4);
+	seq_printf(&m, "%d%d%d%02x%02x", site, rework, poc, m_info[3], m_info[4]);
 
-	site = m_info[1] & 0xf0;
-	site >>= 4;
-	rework = m_info[1] & 0x0f;
-	poc = m_info[2] & 0x0f;
+	for (i = 5; i < LDI_LEN_MANUFACTURE_INFO; i++) {
+		if (!isdigit(m_info[i]) && !isupper(m_info[i])) {
+			invalid = 1;
+			break;
+		}
+	}
+	for (i = 5; !invalid && i < LDI_LEN_MANUFACTURE_INFO; i++)
+		seq_printf(&m, "%c", m_info[i]);
 
-	sprintf(buf, "%d%d%d%02x%02x%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c\n",
-		site, rework, poc, m_info[3], m_info[4],
-		m_info[5], m_info[6], m_info[7], m_info[8],
-		m_info[9], m_info[10], m_info[11], m_info[12],
-		m_info[13], m_info[14], m_info[15], m_info[16],
-		m_info[17], m_info[18], m_info[19], m_info[20]);
+	seq_puts(&m, "\n");
 
 	return strlen(buf);
 }
+
+#ifdef CONFIG_DISPLAY_USE_INFO
+/*
+ * HW PARAM LOGGING SYSFS NODE
+ */
+static ssize_t dpui_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	update_dpui_log(DPUI_LOG_LEVEL_INFO);
+	get_dpui_log(buf, DPUI_LOG_LEVEL_INFO);
+
+	dev_info(dev, "%s: %s\n", __func__, buf);
+
+	return strlen(buf);
+}
+
+/*
+ * [DEV ONLY]
+ * HW PARAM LOGGING SYSFS NODE
+ */
+static ssize_t dpui_dbg_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	update_dpui_log(DPUI_LOG_LEVEL_DEBUG);
+	get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG);
+
+	dev_info(dev, "%s: %s\n", __func__, buf);
+
+	return strlen(buf);
+}
+
+static DEVICE_ATTR(dpui, 0440, dpui_show, NULL);
+static DEVICE_ATTR(dpui_dbg, 0440, dpui_dbg_show, NULL);
+#endif
 
 #ifdef CONFIG_LCD_DOZE_MODE
 #if defined(CONFIG_SEC_FACTORY)
@@ -1624,6 +1752,10 @@ static struct attribute *lcd_sysfs_attributes[] = {
 	&dev_attr_octa_id.attr,
 #ifdef CONFIG_LCD_DOZE_MODE
 	&dev_attr_alpm.attr,
+#endif
+#ifdef CONFIG_DISPLAY_USE_INFO
+	&dev_attr_dpui.attr,
+	&dev_attr_dpui_dbg.attr,
 #endif
 	NULL,
 };

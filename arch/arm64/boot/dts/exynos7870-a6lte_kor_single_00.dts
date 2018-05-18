@@ -416,6 +416,7 @@
 			&gpa1 6 0xF	/*BT_HOST_WAKE*/ >;
 		pinctrl-names = "default";
 		pinctrl-0=<&bt_hostwake_bcm &bt_btwake_bcm &bt_en_bcm>;
+		fm-lna-en = <&gpc0 1 1>;
 		status = "okay";
 	};
 
@@ -449,18 +450,6 @@
 			samsung,pin-con-pdn = <2>;
 			samsung,pin-pud-pdn = <0>;
 		};
-
-		grip_int: grip_int {
-			samsung,pins = "gpa2-5";
-			samsung,pin-function = <0xf>;
-			samsung,pin-pud = <0>;
-		};
-
-		grip_input: grip_input {
-			samsung,pins = "gpa2-5";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <0>;
-		};
 	};
 
 	pinctrl@139B0000 {
@@ -476,20 +465,6 @@
 			samsung,pins = "gpf4-3", "gpf4-2";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
-		};
-
-		grip_i2c: grip_i2c {
-			samsung,pins = "gpf3-0", "gpf3-1";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		grip_gpio: grip_gpio {
-			samsung,pins = "gpf3-0", "gpf3-1";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
 		};
 
 		bt_en_bcm: bt-en {
@@ -569,36 +544,6 @@
 			taos,dgf = <842>;
 			taos,cct_coef = <3521>;
 			taos,cct_offset = <2095>;
-		};
-	};
-
-	i2c@18 {
-		compatible = "i2c-gpio";
-		gpios = <&gpf3 1 0 /* sda */
-			&gpf3 0 0 /* scl */>;
-		i2c-gpio,delay-us = <2>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-		pinctrl-names = "default","on_i2c","off_i2c";
-		pinctrl-0 = <&grip_i2c>;
-		pinctrl-1 = <&grip_i2c>;
-		pinctrl-2 = <&grip_gpio>;
-
-		a96t3x6@20 {
-			status = "okay";
-			compatible = "a96t3x6";
-			pinctrl-names = "default";
-			pinctrl-0 = <&grip_int>;
-			#pinctrl-names = "on_irq", "off_irq";
-			#pinctrl-0 = <&grip_int>;
-			#pinctrl-1 = <&grip_input>;
-			reg = <0x20>;
-			interrupt-parent = <&gpa2>;
-			interrupts = <5 0 0>;
-			a96t3x6,irq_gpio = <&gpa2 5 0>;
-			a96t3x6,fw_path = "abov/a96t346_a6lte.fw";
-			a96t3x6,firmup_cmd = <0x38>;
 		};
 	};
 

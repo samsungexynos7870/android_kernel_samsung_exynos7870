@@ -693,6 +693,8 @@ struct fts_ts_info {
 	char *cmoffset_sub_proc;
 	char *cmoffset_main_proc;
 
+	int prox_power_off;
+
 	int (*stop_device)(struct fts_ts_info *info, bool lpmode);
 	int (*start_device)(struct fts_ts_info *info);
 

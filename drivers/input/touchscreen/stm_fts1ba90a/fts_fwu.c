@@ -368,9 +368,11 @@ int fts_fw_wait_for_echo_event(struct fts_ts_info *info, u8 *cmd, u8 cmd_cnt)
 	regAdd = FTS_READ_ONE_EVENT;
 	rc = -1;
 	while (info->fts_read_reg(info, &regAdd, 1, (u8 *)data, FTS_EVENT_SIZE)) {
-		input_info(true, &info->client->dev,
-				"%s: event %02X, %02X, %02X, %02X, %02X, %02X, %02X, %02X\n",
-				__func__, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+		if (data[0] != 0x00)
+			input_info(true, &info->client->dev,
+					"%s: event %02X, %02X, %02X, %02X, %02X, %02X, %02X, %02X\n",
+					__func__, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+
 		if ((data[0] == FTS_EVENT_STATUS_REPORT) && (data[1] == 0x01)) {  // Check command ECHO
 			for (i = 0; i < cmd_cnt; i++) {
 				if (data[i + 2] != cmd[i]) {
@@ -428,7 +430,7 @@ static void fts_set_factory_history_data(struct fts_ts_info *info, u8 level)
 	regaddr[2] = wlevel;
 
 	ret = info->fts_write_reg(info, regaddr, 3);
-	if (ret <= 0) {
+	if (ret < 0) {
 		input_err(true, &info->client->dev,
 				"%s: failed to write factory level %d\n", __func__, wlevel);
 		return;
@@ -438,7 +440,7 @@ static void fts_set_factory_history_data(struct fts_ts_info *info, u8 level)
 	regaddr[1] = 0x05;
 	regaddr[2] = 0x04; /* panel configuration area */
 	ret = info->fts_write_reg(info, regaddr, 3);
-	if (ret <= 0) {
+	if (ret < 0) {
 		input_err(true, &info->client->dev,
 				"%s: failed to save flash (level=%d)\n", __func__, wlevel);
 		return;
@@ -447,7 +449,7 @@ static void fts_set_factory_history_data(struct fts_ts_info *info, u8 level)
 	fts_delay(200);
 
 	ret = fts_fw_wait_for_echo_event(info, regaddr, 3);
-	if (ret <= 0)
+	if (ret < 0)
 		return;
 
 	input_info(true, &info->client->dev, "%s: save to flash area, level=%d\n", __func__, wlevel);
@@ -501,8 +503,8 @@ int fts_execute_autotune(struct fts_ts_info *info, bool IsSaving)
 		}
 	}
 
+	fts_set_factory_history_data(info, info->factory_position);
 	if (IsSaving == true) {
-		fts_set_factory_history_data(info, info->factory_position);
 		/* Reset FTS */
 		info->fts_systemreset(info);
 		fts_delay(20);

@@ -29,7 +29,7 @@
 		PIN_SLP(gpa1-3, INPUT, NONE);	/* COVER_INT */
 		PIN_SLP(gpa1-4, INPUT, DOWN);   /* NC */
 		PIN_SLP(gpa1-5, INPUT, DOWN);	/* VTCAM_RST_N */
-		PIN_SLP(gpa2-5, INPUT, NONE);	/* GRIP_INT */
+		PIN_SLP(gpa2-5, INPUT, DOWN);	/* GRIP_INT */
 	};
 
 	/*
@@ -114,7 +114,7 @@
 	pinctrl-0 = <&initial6>;
 	pinctrl-1 = <&sleep6>;
 	initial6: initial-state {
-		PIN_IN(gpc0-1, DOWN, LV1);	/* NC */
+		PIN_OUT_SET_PULL(gpc0-1, 0, LV1, DOWN);	/* FM_LNA_EN */
 		PIN_IN(gpc0-2, NONE, LV1);	/* NFC_DET */
 		PIN_OUT_SET_PULL(gpd1-2, 0, LV1, DOWN);	/* VTCAM_A2P8_EN */
 
@@ -146,7 +146,7 @@
 		PIN_SLP(gpb0-2, INPUT, UP);	/* BT_UART_CTS */
 		PIN_SLP(gpb0-3, OUT1, UP);	/* BT_UART_RTS */
 
-		PIN_SLP(gpc0-1, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpc0-1, PREV, NONE);	/* FM_LNA_EN */
 		PIN_SLP(gpc0-2, PREV, NONE);	/* NFC_DET */
 
 		PIN_SLP(gpc1-0, PREV, UP);	/* IF_PMIC_SDA_1P8 */
@@ -220,8 +220,8 @@
 		PIN_SLP(gpf2-0, INPUT, NONE);	/* NFC_SDA_1P8 */
 		PIN_SLP(gpf2-1, INPUT, NONE);	/* NFC_SCL_1P8 */
 
-		PIN_SLP(gpf3-0, INPUT, NONE);	/* GRIP_SCL_1P8 */
-		PIN_SLP(gpf3-1, INPUT, NONE);	/* GRIP_SDA_1P8 */
+		PIN_SLP(gpf3-0, INPUT, DOWN);	/* GRIP_SCL_1P8 */
+		PIN_SLP(gpf3-1, INPUT, DOWN);	/* GRIP_SDA_1P8 */
 
 		PIN_SLP(gpf3-2, INPUT, DOWN);	/* VTCAM_EEP_SDA_1P8 */
 		PIN_SLP(gpf3-3, INPUT, DOWN);	/* VTCAM_EEP_SCL_1P8 */

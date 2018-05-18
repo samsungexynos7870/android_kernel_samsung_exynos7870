@@ -8272,6 +8272,9 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	defined(APSTA_RESTRICTED_CHANNEL))
 	dhd_pub_t *dhd =  (dhd_pub_t *)(cfg->pub);
 #endif /* CUSTOM_SET_CPUCORE || (WL_VIRTUAL_APSTA && APSTA_RESTRICTED_CHANNEL) */
+#if defined(WL_VIRTUAL_APSTA) && defined(APSTA_RESTRICTED_CHANNEL)
+	struct net_device *prmry_ndev = bcmcfg_to_prmry_ndev(cfg);
+#endif /* WL_VIRTUAL_APSTA && APSTA_RESTRICTED_CHANNEL */
 
 	dev = ndev_to_wlc_ndev(dev, cfg);
 	_chan = ieee80211_frequency_to_channel(chan->center_freq);
@@ -8300,11 +8303,29 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 #define DEFAULT_5G_SOFTAP_CHANNEL	149
 	if (wl_get_mode_by_netdev(cfg, dev) == WL_MODE_AP &&
 		DHD_OPMODE_STA_SOFTAP_CONCURR(dhd) &&
-		wl_get_drv_status(cfg, CONNECTED, bcmcfg_to_prmry_ndev(cfg))) {
+		wl_get_drv_status(cfg, CONNECTED, prmry_ndev)) {
 		u32 *sta_chan = (u32 *)wl_read_prof(cfg,
-			bcmcfg_to_prmry_ndev(cfg), WL_PROF_CHAN);
+			prmry_ndev, WL_PROF_CHAN);
+
 #ifdef WL_RESTRICTED_APSTA_SCC
 		_chan = *sta_chan;
+
+		/* Check if current channel is restricted */
+		if (wl_cfg80211_check_indoor_channels(prmry_ndev, _chan)) {
+			scb_val_t scbval;
+
+			bzero(&scbval, sizeof(scb_val_t));
+			err = wldev_ioctl_set(prmry_ndev, WLC_DISASSOC, &scbval,
+				sizeof(scb_val_t));
+			if (err < 0) {
+				WL_ERR(("Failed to disassoc, err=%d\n", err));
+			}
+			WL_ERR(("Force to disconnect existing AP as "
+				"channel %d is indoor channel\n", _chan));
+
+			/* Set channel to default 2.4GHz channel */
+			_chan = DEFAULT_2G_SOFTAP_CHANNEL;
+		}
 #else
 		u32 sta_band = (*sta_chan > CH_MAX_2G_CHANNEL) ?
 			IEEE80211_BAND_5GHZ : IEEE80211_BAND_2GHZ;
@@ -22560,6 +22581,104 @@ static void wl_irq_set_work_handler(struct work_struct * work)
 #define BAND5G_CHANNELS_BLOCK_OP1	999
 #define BAND5G_CHANNELS_BLOCK_OP2	-1
 
+bool
+wl_cfg80211_check_indoor_channels(struct net_device *ndev, int channel)
+{
+	uint i = 0;
+	struct bcm_cfg80211 *cfg = wl_get_cfg(ndev);
+	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
+	wl_block_ch_t *block_ch = NULL;
+	int data_len = WLC_IOCTL_SMLEN;
+	bool ret = FALSE;
+
+	/* Get operation */
+	block_ch = (wl_block_ch_t *)MALLOCZ(dhdp->osh, data_len);
+	if (block_ch == NULL) {
+		WL_ERR(("Fail to allocate memory\n"));
+		goto exit;
+	}
+
+	if (wl_cfg80211_read_indoor_channels(ndev, block_ch, data_len) < 0) {
+		WL_ERR(("Failed to read indoor channels\n"));
+		goto exit;
+	}
+
+	if (block_ch->channel_num) {
+		for (i = 0; i < block_ch->channel_num; i++) {
+			if (channel == block_ch->channel[i]) {
+				WL_ERR(("channel %d is in the indoor "
+					"channel list\n", channel));
+				ret = TRUE;
+				break;
+			}
+		}
+	}
+
+exit:
+	if (block_ch) {
+		MFREE(dhdp->osh, block_ch, data_len);
+	}
+
+	return ret;
+}
+
+s32
+wl_cfg80211_read_indoor_channels(struct net_device *ndev, void *buf, int buflen)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(ndev);
+	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
+	wl_block_ch_t *iov_buf = NULL;
+	wl_block_ch_t *block_ch = NULL;
+	int data_len = 0;
+	int err = BCME_OK;
+
+	if (!dhdp) {
+		WL_ERR(("dhdp is NULL\n"));
+		return BCME_ERROR;
+	}
+
+	if (buflen < WLC_IOCTL_SMLEN) {
+		WL_ERR(("Buf is too short, buflen=%d\n", buflen));
+		return BCME_BUFTOOSHORT;
+	}
+
+	data_len = OFFSETOF(wl_block_ch_t, channel);
+	iov_buf = (wl_block_ch_t *)MALLOCZ(dhdp->osh, data_len);
+	if (iov_buf == NULL) {
+		WL_ERR(("Fail to allocate memory\n"));
+		err = BCME_NOMEM;
+		goto exit;
+	}
+
+	iov_buf->version = WL_BLOCK_CHANNEL_VER_1;
+	iov_buf->len = data_len;
+	iov_buf->band = WF_CHAN_FACTOR_5_G;
+	iov_buf->channel_num = 0;
+
+	err = wldev_iovar_getbuf(ndev, CMD_BLOCK_CH, iov_buf, data_len,
+		cfg->ioctl_buf, WLC_IOCTL_SMLEN, &cfg->ioctl_buf_sync);
+	if (err < 0) {
+		WL_ERR(("Setting block_ch failed with err=%d \n", err));
+		goto exit;
+	}
+
+	block_ch = (wl_block_ch_t *)(cfg->ioctl_buf);
+	if (block_ch->version != WL_BLOCK_CHANNEL_VER_1) {
+		WL_ERR(("Version mismatched! actual %d expected: %d\n",
+			block_ch->version, WL_BLOCK_CHANNEL_VER_1));
+		err = BCME_ERROR;
+	} else {
+		memcpy(buf, cfg->ioctl_buf, WLC_IOCTL_SMLEN);
+	}
+
+exit:
+	if (iov_buf) {
+		MFREE(dhdp->osh, iov_buf, data_len);
+	}
+
+	return err;
+}
+
 s32
 wl_cfg80211_set_indoor_channels(struct net_device *ndev, char *command, int total_len)
 {
@@ -22698,42 +22817,27 @@ wl_cfg80211_get_indoor_channels(struct net_device *ndev, char *command, int tota
 	uint i = 0;
 	struct bcm_cfg80211 *cfg = wl_get_cfg(ndev);
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
-	wl_block_ch_t *iov_buf = NULL;
 	wl_block_ch_t *block_ch = NULL;
-	int data_len = 0;
+	int data_len = WLC_IOCTL_SMLEN;
 	int err = BCME_OK;
 	char *pos;
 
 	pos = command;
-	/* Get operation */
 
-	data_len = OFFSETOF(wl_block_ch_t, channel);
-	iov_buf = (wl_block_ch_t *)MALLOCZ(dhdp->osh, data_len);
-	if (iov_buf == NULL) {
+	/* Get operation */
+	block_ch = (wl_block_ch_t *)MALLOCZ(dhdp->osh, data_len);
+	if (block_ch == NULL) {
 		WL_ERR(("Fail to allocate memory\n"));
 		err = BCME_NOMEM;
 		goto exit;
 	}
-	memset(iov_buf, 0, data_len);
 
-	iov_buf->version = WL_BLOCK_CHANNEL_VER_1;
-	iov_buf->len = data_len;
-	iov_buf->band = WF_CHAN_FACTOR_5_G;
-	iov_buf->channel_num = 0;
-
-	if ((err = wldev_iovar_getbuf(ndev, CMD_BLOCK_CH, iov_buf, data_len,
-		cfg->ioctl_buf, WLC_IOCTL_SMLEN,  &cfg->ioctl_buf_sync)) < 0) {
-		WL_ERR(("Setting block_ch failed with err=%d \n", err));
+	err = wl_cfg80211_read_indoor_channels(ndev, block_ch, data_len);
+	if (err < 0) {
+		WL_ERR(("Failed to read indoor channels, err=%d\n", err));
 		goto exit;
 	}
-	block_ch = (wl_block_ch_t *)cfg->ioctl_buf;
 
-	if (block_ch->version != WL_BLOCK_CHANNEL_VER_1) {
-		WL_ERR(("Version mismatched! actual %d expected: %d\n",
-			block_ch->version, WL_BLOCK_CHANNEL_VER_1));
-		err = BCME_ERROR;
-		goto exit;
-	}
 	if (block_ch->channel_num) {
 		pos += snprintf(pos, total_len, "%d ", block_ch->channel_num);
 		for (i = 0; i < block_ch->channel_num; i++) {
@@ -22741,11 +22845,12 @@ wl_cfg80211_get_indoor_channels(struct net_device *ndev, char *command, int tota
 		}
 		err = (pos - command);
 	}
+
 exit:
-	if (iov_buf) {
-		MFREE(dhdp->osh, iov_buf, data_len);
+	if (block_ch) {
+		MFREE(dhdp->osh, block_ch, data_len);
 	}
+
 	return err;
 }
-
 #endif /* APSTA_RESTRICTED_CHANNEL */

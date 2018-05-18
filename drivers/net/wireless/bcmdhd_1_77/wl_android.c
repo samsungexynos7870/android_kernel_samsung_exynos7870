@@ -636,11 +636,6 @@ extern int set_roamscan_channel_list(struct net_device *dev, unsigned char n,
 extern void wl_update_roamscan_cache_by_band(struct net_device *dev, int band);
 #endif /* ROAM_CHANNEL_CACHE */
 
-#ifdef APSTA_RESTRICTED_CHANNEL
-extern s32 wl_cfg80211_set_indoor_channels(struct net_device *ndev, char *command, int total_len);
-extern s32 wl_cfg80211_get_indoor_channels(struct net_device *ndev, char *command, int total_len);
-#endif /* APSTA_RESTRICTED_CHANNEL */
-
 #ifdef ENABLE_4335BT_WAR
 extern int bcm_bt_lock(int cookie);
 extern void bcm_bt_unlock(int cookie);

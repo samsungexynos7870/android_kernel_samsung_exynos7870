@@ -2914,7 +2914,11 @@ static void fts_input_close(struct input_dev *dev)
 	if (info->board->use_pressure)
 		info->lowpower_flag |= FTS_MODE_PRESSURE;
 #endif
-	fts_stop_device(info, info->lowpower_flag);
+	if (info->prox_power_off)
+		fts_stop_device(info, 0);
+	else
+		fts_stop_device(info, info->lowpower_flag);
+	info->prox_power_off = 0;
 
 }
 #endif

@@ -3478,6 +3478,7 @@ static void sec_bat_calculate_safety_time(struct sec_battery_info *battery)
 	int input_power = battery->current_max * battery->input_voltage * 1000;
 	int charging_power = battery->charging_current * (battery->pdata->chg_float_voltage / battery->pdata->chg_float_voltage_conv);
 	static int discharging_cnt = 0;
+	int standard_curr = battery->pdata->standard_curr;
 
 	if (battery->current_avg < 0) {
 		discharging_cnt++;
@@ -3520,13 +3521,18 @@ static void sec_bat_calculate_safety_time(struct sec_battery_info *battery)
 		battery->stop_timer = false;
 	}
 
+	standard_curr = (battery->current_event &
+			(SEC_BAT_CURRENT_EVENT_LOW_TEMP_SWELLING | SEC_BAT_CURRENT_EVENT_LOW_TEMP)) ?
+			battery->pdata->swelling_standard_curr :
+			battery->pdata->standard_curr;
+
 	pr_info("%s : EXPIRED_TIME(%llu), IP(%d), CP(%d), CURR(%d), STANDARD(%d)\n",
-		__func__, expired_time, input_power, charging_power, curr, battery->pdata->standard_curr);
+		__func__, expired_time, input_power, charging_power, curr, standard_curr);
 
 	if (curr == 0)
 		return;
 
-	expired_time = (expired_time * battery->pdata->standard_curr) / curr;
+	expired_time = (expired_time * standard_curr) / curr;
 
 	pr_info("%s : CAL_EXPIRED_TIME(%llu) TIME NOW(%ld) TIME PREV(%ld)\n",
 		__func__, expired_time, ts.tv_sec, battery->prev_safety_time);
@@ -3537,7 +3543,7 @@ static void sec_bat_calculate_safety_time(struct sec_battery_info *battery)
 		expired_time -= ((ts.tv_sec - battery->prev_safety_time) * 1000);
 
 	battery->cal_safety_time = expired_time;
-	expired_time = (expired_time * curr) / battery->pdata->standard_curr;
+	expired_time = (expired_time * curr) / standard_curr;
 
 	battery->expired_time = expired_time;
 	battery->prev_safety_time = ts.tv_sec;
@@ -3553,6 +3559,7 @@ static void sec_bat_calculate_safety_time_by_single(struct sec_battery_info *bat
 	int curr = 0;
 	int input_power = battery->current_max * battery->input_voltage * 1000;
 	int charging_power = battery->charging_current * battery->pdata->swelling_normal_float_voltage;
+	int standard_curr = battery->pdata->standard_curr;
 
 	if (battery->lcd_status && battery->stop_timer) {
 		battery->prev_safety_time = 0;
@@ -3573,13 +3580,18 @@ static void sec_bat_calculate_safety_time_by_single(struct sec_battery_info *bat
 		battery->stop_timer = false;
 	}
 
+	standard_curr = (battery->current_event &
+			(SEC_BAT_CURRENT_EVENT_LOW_TEMP_SWELLING | SEC_BAT_CURRENT_EVENT_LOW_TEMP)) ?
+			battery->pdata->swelling_standard_curr :
+			battery->pdata->standard_curr;
+
 	pr_info("%s : EXPIRED_TIME(%ld), IP(%d), CP(%d), CURR(%d), STANDARD(%d)\n",
-		__func__, expired_time, input_power, charging_power, curr, battery->pdata->standard_curr);
+		__func__, expired_time, input_power, charging_power, curr, standard_curr);
 
 	if (curr == 0)
 		return;
 
-	expired_time = (expired_time * battery->pdata->standard_curr) / curr;
+	expired_time = (expired_time * standard_curr) / curr;
 
 	pr_info("%s : CAL_EXPIRED_TIME(%ld) SLEEP_CHARGING_TIME(%ld)\n", __func__, expired_time, battery->sleep_passed_time);
 
@@ -3590,7 +3602,7 @@ static void sec_bat_calculate_safety_time_by_single(struct sec_battery_info *bat
 
 	battery->cal_safety_time = expired_time;
         battery->sleep_passed_time = 0;
-	expired_time = (expired_time * curr) / battery->pdata->standard_curr;
+	expired_time = (expired_time * curr) / standard_curr;
 
 	battery->expired_time = expired_time;
 	pr_info("%s : REMAIN_TIME(%ld) CAL_REMAIN_TIME(%ld)\n", __func__, battery->expired_time, battery->cal_safety_time);
@@ -8253,6 +8265,13 @@ static int sec_bat_parse_dt(struct device *dev,
 	if (ret) {
 		pr_info("standard_curr is empty\n");
 		pdata->standard_curr = 2150;
+	}
+
+	ret = of_property_read_u32(np,
+			"battery,swelling_standard_curr", &pdata->swelling_standard_curr);
+	if (ret) {
+		pr_info("low temp swelling standard_curr is empty\n");
+		pdata->swelling_standard_curr = pdata->standard_curr;
 	}
 
 	ret = of_property_read_string(np,

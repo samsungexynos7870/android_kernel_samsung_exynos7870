@@ -4,8 +4,6 @@ dtb-$(CONFIG_ARCH_XGENE) += apm-mustang.dtb
 dtb-$(CONFIG_SOC_EXYNOS8890) += exynos8890-espresso8890.dtb exynos8890-espresso8890_rev01.dtb exynos8890-universal8890.dtb exynos8890-smdk8890.dtb
 dtb-$(CONFIG_SOC_EXYNOS8890) += exynos8890-evt1-smdk8890.dtb
 dtb-$(CONFIG_SOC_EXYNOS7870) += exynos7870-smdk7870.dtb exynos7870-universal7870.dtb exynos7870-universal7870_rev01.dtb
-dtb-$(CONFIG_SOC_EXYNOS7870) += exynos7870-gtaxllte_eur_open_00.dtb exynos7870-gtaxllte_eur_open_01.dtb exynos7870-gtaxllte_eur_open_04.dtb exynos7870-gtaxllte_eur_open_05.dtb
-dtb-$(CONFIG_SOC_EXYNOS7870) += exynos7870-gtaxlwifi_eur_open_00.dtb exynos7870-gtaxlwifi_eur_open_04.dtb exynos7870-gtaxlwifi_eur_open_05.dtb
 
 targets += dtbs
 

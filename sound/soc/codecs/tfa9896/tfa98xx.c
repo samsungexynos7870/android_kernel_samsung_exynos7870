@@ -59,6 +59,10 @@
 
 #define TFA98XX_VERSION	TFA98XX_API_REV_STR
 
+#if defined(TFA_NO_SND_FORMAT_CHECK)
+#define TFA_FULL_RATE_SUPPORT_WITH_POST_CONVERSION
+#endif
+
 /* Change volume selection behavior:
  * Uncomment following line to generate a profile change when updating
  * a volume control (also changes to the profile of the modified  volume
@@ -67,7 +71,11 @@
 /* #define TFA98XX_ALSA_CTRL_PROF_CHG_ON_VOL	1 */
 
 /* Supported rates and data formats */
+#if !defined(TFA_FULL_RATE_SUPPORT_WITH_POST_CONVERSION)
 #define TFA98XX_RATES SNDRV_PCM_RATE_8000_48000
+#else
+#define TFA98XX_RATES SNDRV_PCM_RATE_8000_192000
+#endif
 #define TFA98XX_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -76,7 +84,6 @@ SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 #define TFA_FORCE_TO_WAIT_UNTIL_CALIBRATE
 #define TFA_CHECK_CALIBRATE_DONE
 #define TFA_DBGFS_CHECK_MTPEX
-#define TFA_FULL_RATE_SUPPORT_WITH_POST_CONVERSION
 
 #define XMEM_TAP_ACK  0x0122
 #define XMEM_TAP_READ 0x010f
@@ -146,7 +153,11 @@ static int pcm_sample_format;
 module_param(pcm_sample_format, int, 0444);
 MODULE_PARM_DESC(pcm_sample_format, "PCM sample format: 0=S16_LE, 1=S24_LE, 2=S32_LE\n");
 
+#if defined(TFA_NO_SND_FORMAT_CHECK)
+static int pcm_no_constraint = 1;
+#else
 static int pcm_no_constraint;
+#endif
 module_param(pcm_no_constraint, int, 0444);
 MODULE_PARM_DESC(pcm_no_constraint, "do not use constraints for PCM parameters\n");
 
@@ -180,6 +191,14 @@ static struct tfa98xx_rate rate_to_fssel[] = {
 	{ 32000, 6 },
 	{ 44100, 7 },
 	{ 48000, 8 },
+#if defined(TFA_NO_SND_FORMAT_CHECK)
+/* out of range */
+	{ 64000, 9 },
+	{ 88200, 10 },
+	{ 96000, 11 },
+	{ 176400, 12 },
+	{ 192000, 13 },
+#endif
 };
 
 /* Wrapper for tfa start */
@@ -3624,23 +3643,26 @@ static int tfa98xx_startup(struct snd_pcm_substream *substream,
 			}
 		}
 	}
+
+#if !defined(TFADSP_DSP_BUFFER_POOL)
+	kfree(basename);
+#endif
+
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_RATE,
+				   &tfa98xx->rate_constraint);
 #else
 	pr_info("%s: add all the rates in the list\n", __func__);
 	for (idx = 0; idx < ARRAY_SIZE(rate_to_fssel); idx++) {
 		tfa98xx->rate_constraint_list[idx] = rate_to_fssel[idx].rate;
 		tfa98xx->rate_constraint.count += 1;
 	}
+
+	pr_info("%s: skip setting constraint, assuming fixed format\n",
+		__func__);
+
+	return 0;
 #endif /* TFA_FULL_RATE_SUPPORT_WITH_POST_CONVERSION */
-
-#if !defined(TFA_FULL_RATE_SUPPORT_WITH_POST_CONVERSION)
-#if !defined(TFADSP_DSP_BUFFER_POOL)
-	kfree(basename);
-#endif
-#endif
-
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_RATE,
-				   &tfa98xx->rate_constraint);
 }
 
 static int tfa98xx_set_dai_sysclk(struct snd_soc_dai *codec_dai,

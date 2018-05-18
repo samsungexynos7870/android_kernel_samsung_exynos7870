@@ -953,7 +953,7 @@ static ssize_t bin_fw_ver(struct device *dev,
 {
 	struct a96t3x6_data *data = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", data->fw_ver_bin);
+	return snprintf(buf, PAGE_SIZE, "0x%02x%02x\n", data->md_ver_bin, data->fw_ver_bin);
 }
 
 static int a96t3x6_get_fw_version(struct a96t3x6_data *data, bool bootmode)
@@ -1014,7 +1014,7 @@ static ssize_t read_fw_ver(struct device *dev,
 		data->fw_ver = 0;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", data->fw_ver);
+	return snprintf(buf, PAGE_SIZE, "0x%02x%02x\n", data->md_ver, data->fw_ver);
 }
 
 static int a96t3x6_load_fw_kernel(struct a96t3x6_data *data)

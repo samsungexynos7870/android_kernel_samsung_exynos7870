@@ -693,6 +693,7 @@ struct bt532_ts_info {
 	unsigned int comm_err_count;
 	u16 pressed_x[MAX_SUPPORTED_FINGER_NUM];
 	u16 pressed_y[MAX_SUPPORTED_FINGER_NUM];
+	long prox_power_off;
 
 	struct sec_tclm_data *tdata;
 };
@@ -2087,7 +2088,6 @@ static int fw_update_work(struct bt532_ts_info *info, bool force_update)
 		ret = info->tdata->tclm_read(info->tdata->client, SEC_TCLM_NVM_ALL_DATA);
 		if (ret < 0) {
 			input_info(true, &info->client->dev, "%s: SEC_TCLM_NVM_ALL_DATA i2c read fail", __func__);
-			goto fw_request_fail;
 		}
 		input_info(true, &info->client->dev, "%s: tune_fix_ver [%04X] afe_base [%04X]\n",
 			__func__, info->tdata->nvdata.tune_fix_ver, info->tdata->afe_base);
@@ -2846,7 +2846,8 @@ static void bt532_ts_close(struct input_dev *dev)
 		return;
 	}
 
-	input_info(true, &misc_info->client->dev, "%s, %d \n", __func__, __LINE__);
+	input_info(true, &misc_info->client->dev, "%s, spay:%d aod:%d prox:%d\n",
+				__func__, info->spay_enable, info->aod_enable, info->prox_power_off);
 
 #ifdef TCLM_CONCEPT
 	sec_tclm_debug_info(info->tdata);
@@ -2856,7 +2857,7 @@ static void bt532_ts_close(struct input_dev *dev)
 	flush_work(&info->tmr_work);
 #endif
 
-	if((info->pdata->support_lpm_mode)&&(info->spay_enable||info->aod_enable)){
+	if((info->pdata->support_lpm_mode) && (info->spay_enable || info->aod_enable) && (!info->prox_power_off)){
 		down(&info->work_lock);
 		prev_work_state = info->work_state;
 		info->work_state = SLEEP_MODE_IN;
@@ -2908,6 +2909,8 @@ static void bt532_ts_close(struct input_dev *dev)
 
 		bt532_power_control(info, POWER_OFF);
 	}
+
+	info->prox_power_off = 0;
 
 	zinitix_debug_msg("bt532_ts_close--\n");
 	up(&info->work_lock);
@@ -6994,9 +6997,10 @@ static ssize_t read_module_id_show(struct device *dev,
 
 	input_info(true, &info->client->dev, "%s\n", __func__);
 
-	return snprintf(buf, SEC_CMD_BUF_SIZE, "ZI%02X%02x%02X%04X\n",
-					info->cap_info.reg_data_version, info->test_result.data[0],
-					info->tdata->nvdata.cal_count, info->tdata->nvdata.tune_fix_ver);
+	return snprintf(buf, SEC_CMD_BUF_SIZE, "ZI%02X%02x%c%01X%04X\n",
+			info->cap_info.reg_data_version, info->test_result.data[0],
+			info->tdata->tclm_string[info->tdata->nvdata.cal_position].s_name,
+			info->tdata->nvdata.cal_count & 0xF, info->tdata->nvdata.tune_fix_ver);
 }
 
 static ssize_t set_ta_mode_store(struct device *dev,
@@ -7033,6 +7037,37 @@ static ssize_t set_ta_mode_store(struct device *dev,
 	return count;
 }
 
+static ssize_t prox_power_off_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct sec_cmd_data *sec = dev_get_drvdata(dev);
+	struct bt532_ts_info *info = container_of(sec, struct bt532_ts_info, sec);
+
+	input_info(true, &info->client->dev, "%s: %d\n", __func__,
+			info->prox_power_off);
+
+	return snprintf(buf, SEC_CMD_BUF_SIZE, "%ld", info->prox_power_off);
+}
+
+static ssize_t prox_power_off_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct sec_cmd_data *sec = dev_get_drvdata(dev);
+	struct bt532_ts_info *info = container_of(sec, struct bt532_ts_info, sec);
+	int ret;
+	unsigned long value = 0;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret != 0)
+		return ret;
+
+	input_info(true, &info->client->dev, "%s: enable:%d\n", __func__, value);
+	info->prox_power_off = value;
+
+	return count;
+}
+
 static DEVICE_ATTR(scrub_pos, S_IRUGO, scrub_position_show, NULL);
 static DEVICE_ATTR(sensitivity_mode, S_IRUGO | S_IWUSR | S_IWGRP, sensitivity_mode_show, sensitivity_mode_store);
 static DEVICE_ATTR(wet_mode, S_IRUGO | S_IWUSR | S_IWGRP, read_wet_mode_show, clear_wet_mode_store);
@@ -7040,6 +7075,7 @@ static DEVICE_ATTR(comm_err_count, S_IRUGO | S_IWUSR | S_IWGRP, read_comm_err_co
 static DEVICE_ATTR(multi_count, S_IRUGO | S_IWUSR | S_IWGRP, read_multi_count_show, clear_multi_count_store);
 static DEVICE_ATTR(module_id, S_IRUGO, read_module_id_show, NULL);
 static DEVICE_ATTR(ta_mode, S_IWUSR | S_IWGRP, NULL, set_ta_mode_store);
+static DEVICE_ATTR(prox_power_off, S_IRUGO | S_IWUSR | S_IWGRP, prox_power_off_show, prox_power_off_store);
 
 static struct attribute *touchscreen_attributes[] = {
 	&dev_attr_scrub_pos.attr,
@@ -7049,6 +7085,7 @@ static struct attribute *touchscreen_attributes[] = {
 	&dev_attr_comm_err_count.attr,
 	&dev_attr_module_id.attr,
 	&dev_attr_ta_mode.attr,
+	&dev_attr_prox_power_off.attr,
 	NULL,
 };
 
@@ -8542,6 +8579,7 @@ err_init_touch:
 err_input_register_device:
 err_fw_update:
 #if ESD_TIMER_INTERVAL
+	del_timer(&(info->esd_timeout_tmr));
 err_esd_sequence:
 #endif
 err_power_sequence:

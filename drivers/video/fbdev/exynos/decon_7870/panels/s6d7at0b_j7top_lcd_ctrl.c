@@ -38,7 +38,7 @@
 #define S6D7AT0B_ID_LEN			3
 #define BRIGHTNESS_REG			0x51
 
-#define get_bit(value, shift, size)    ((value >> shift) & (0xffffffff >> (32 - size)))
+#define get_bit(value, shift, width)	((value >> shift) & (GENMASK(width - 1, 0)))
 
 #define DSI_WRITE(cmd, size)		do {				\
 	ret = dsim_write_hl_data(lcd, cmd, size);			\

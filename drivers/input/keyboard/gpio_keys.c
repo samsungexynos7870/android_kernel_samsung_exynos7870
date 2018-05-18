@@ -929,7 +929,12 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 				button->gpio);
 			return ERR_PTR(-EINVAL);
 		}
-
+#if defined(CONFIG_SEC_FACTORY) && defined(CONFIG_VOLUME_SWAP)
+		if (button->code == KEY_VOLUMEDOWN)
+			button->code = KEY_VOLUMEUP;
+		else if (button->code == KEY_VOLUMEUP)
+			button->code = KEY_VOLUMEDOWN;
+#endif
 		button->desc = of_get_property(pp, "label", NULL);
 
 		if (of_property_read_u32(pp, "linux,input-type", &button->type))

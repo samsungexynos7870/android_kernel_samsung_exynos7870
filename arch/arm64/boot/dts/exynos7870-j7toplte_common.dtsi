@@ -576,6 +576,8 @@
 			sec,mis_cal_check = <1>;
 			sec,bringup = <3>;
 			sec,factory_item_version = <1>;
+			sec,tclm_level = <2>;
+			sec,afe_base = <0x0118>;
 		};
 	};
 

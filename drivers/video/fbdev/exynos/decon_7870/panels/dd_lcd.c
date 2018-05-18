@@ -133,7 +133,7 @@ static int tx(struct rw_info *rw, u8 *cmds)
 		ret = dsim_write_data(dsim, rw->type, cmds[0], (rw->len == 2) ? cmds[1] : 0);
 
 	if (ret < 0)
-		dbg_info("fail. %02x, ret: %d, type: %02x, cmd: %02x, len: %d, pos: %d\n", rw->cmd, ret, rw->type, rw->cmd, rw->len, rw->pos);
+		dbg_info("fail. ret: %d, type: %02x, cmd: %02x, len: %d, pos: %d\n", ret, rw->type, rw->cmd, rw->len, rw->pos);
 
 	return ret;
 }
@@ -143,15 +143,28 @@ static int rx(struct rw_info *rw, u8 *buf)
 	int ret = 0, type;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 
-	if (rw->pos)
-		ret = dsim_write_data(dsim, MIPI_DSI_DCS_SHORT_WRITE_PARAM, 0xB0, rw->pos);
+	if (rw->pos) {
+		u8 posbuf[2] = {0xB0, };
+
+		struct rw_info pos = {
+			.type = MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+			.cmd = 0xB0,
+			.len = 2,
+			.buf = posbuf,
+		};
+
+		posbuf[1] = rw->pos;
+		ret = tx(&pos, pos.buf);
+		if (ret < 0)
+			return ret;
+	}
 
 	type = (dsi_data_type_is_tx_short(rw->type) || dsi_data_type_is_tx_long(rw->type)) ? MIPI_DSI_DCS_READ : rw->type;
 
 	ret = dsim_read_data(dsim, type, rw->cmd, rw->len, buf);
 	dbg_info("%02x, %d, %d\n", rw->cmd, rw->len, ret);
 	if (ret != rw->len) {
-		dbg_info("fail. %02x, ret: %d, type: %02x, cmd: %02x, len: %d, pos: %d\n", rw->cmd, ret, rw->type, rw->cmd, rw->len, rw->pos);
+		dbg_info("fail. ret: %d, type: %02x, cmd: %02x, len: %d, pos: %d\n", ret, rw->type, rw->cmd, rw->len, rw->pos);
 		ret = -EINVAL;
 	}
 
@@ -246,8 +259,8 @@ static int make_tx(struct d_info *d, struct rw_info *rw, unsigned char *ibuf)
 
 	if (is_datatype) {
 		token = strsep(&pbuf, " ,:");
-		ret = kstrtou8(token, 16, &data);
-		if (!ret) {
+		ret = token ? kstrtou8(token, 16, &data) : -EINVAL;
+		if (ret < 0) {
 			if (dsi_data_type_is_tx_short(data) || dsi_data_type_is_tx_long(data)) {
 				type = data;
 				dbg_info("datatype is %02x\n", type);
@@ -274,8 +287,7 @@ static int make_tx(struct d_info *d, struct rw_info *rw, unsigned char *ibuf)
 		dbg_info("%2d, %*ph\n", end, end, obuf);
 
 	type = type ? type : get_dsi_data_type_tx(end);
-	len = end ? end : 1;
-	pos = pos ? pos : 0;
+	len = end;
 	cmd = obuf[0];
 
 	dbg_info("type: %02x cmd: %02x len: %u pos: %u\n", type, cmd, len, pos);
@@ -562,8 +574,6 @@ static ssize_t rx_store(struct file *f, const char __user *user_buf,
 		goto exit;
 
 	type = dsi_data_type_is_rx(type) ? type : MIPI_DSI_DCS_READ;
-	len = len ? len : 1;
-	pos = pos ? pos : 0;
 
 	dbg_info("ret: %d, type: %02x, cmd: %02x, len: %u, pos: %u\n", ret, type, cmd, len, pos);
 
@@ -791,7 +801,7 @@ static ssize_t read_show(struct kobject *kobj,
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 
 	char *pos = buf;
-	u8 reg, len, param;
+	u8 reg, len, param = 0;
 	int i;
 	u8 *dump = NULL;
 	unsigned int data_type;
@@ -805,7 +815,7 @@ static ssize_t read_show(struct kobject *kobj,
 	len = d->dump_info[1];
 	data_type = d->data_type;
 
-	if (!reg || !len || reg > 0xff || len > 255 || param > 0xff)
+	if (!reg || !len || reg > U8_MAX || len > 255 || param > U8_MAX)
 		goto exit;
 
 	dump = kcalloc(len, sizeof(u8), GFP_KERNEL);
@@ -840,7 +850,7 @@ static ssize_t read_store(struct kobject *kobj,
 
 	dbg_info("%x %x %x %x %x", data_type, reg, param, return_packet_type, len);
 
-	if (!reg || !len || reg > 0xff || len > 255 || param > 255)
+	if (!reg || !len || reg > U8_MAX || len > 255 || param > U8_MAX)
 		return -EINVAL;
 
 	d->data_type = data_type;
@@ -910,9 +920,8 @@ static void lcd_init_dsi_access(struct d_info *d)
 {
 	int ret = 0;
 
-#if !defined(CONFIG_SEC_INCELL)
-	return;
-#endif
+	if (!IS_ENABLED(CONFIG_SEC_INCELL))
+		return;
 
 	d->dsi_access = kobject_create_and_add("dsi_access", NULL);
 	if (!d->dsi_access)
@@ -934,6 +943,20 @@ static void lcd_init_dsi_access(struct d_info *d)
 	ret = sysfs_create_file(d->dsi_access, &d->dsi_access_w.attr);
 	if (ret < 0)
 		dbg_info("failed to add dsi_access_w\n");
+}
+
+static int init_add_unlock(struct d_info *d, unsigned char *input)
+{
+	unsigned char *ibuf = NULL;
+
+	ibuf = kstrdup(input, GFP_KERNEL);
+	if (!ibuf)
+		return -ENOMEM;
+
+	add_unlock(d, ibuf);
+	kfree(ibuf);
+
+	return 0;
 }
 
 static int init_debugfs_lcd(void)
@@ -967,9 +990,9 @@ static int init_debugfs_lcd(void)
 	debugfs_create_file("unlock", S_IRUSR | S_IWUSR, debugfs_root, d, &unlock_fops);
 
 	INIT_LIST_HEAD(&d->unlock_list);
-	add_unlock(d, "f0 5a 5a");
-	add_unlock(d, "f1 5a 5a");
-	add_unlock(d, "fc 5a 5a");
+	init_add_unlock(d, "f0 5a 5a");
+	init_add_unlock(d, "f1 5a 5a");
+	init_add_unlock(d, "fc 5a 5a");
 
 	lcd_init_dsi_access(d);
 

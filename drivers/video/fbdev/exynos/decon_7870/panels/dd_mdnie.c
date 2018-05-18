@@ -42,7 +42,7 @@ static int mdnie_open_file(const char *path, char **fp)
 	struct file *f;
 	char *dp;
 	long length;
-	int ret;
+	int ret = 0;
 	loff_t pos = 0;
 	mm_segment_t oldfs;
 

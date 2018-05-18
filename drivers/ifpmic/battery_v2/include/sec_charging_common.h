@@ -943,6 +943,7 @@ struct sec_battery_platform_data {
 	unsigned int expired_time;
 	unsigned int recharging_expired_time;
 	int standard_curr;
+	int swelling_standard_curr;
 
 	/* ADC type for each channel */
 	unsigned int adc_type[];

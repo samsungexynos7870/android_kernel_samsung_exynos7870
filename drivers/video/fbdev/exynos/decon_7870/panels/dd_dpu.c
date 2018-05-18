@@ -250,7 +250,7 @@ static ssize_t u32_array_write(struct file *f, const char __user *user_buf,
 	struct array_data *data = ((struct seq_file *)f->private_data)->private;
 	u32 *array = data->array;
 	u32 *pending = data->pending;
-	u32 array_size = data->elements;
+	int array_size = data->elements;
 
 	unsigned char wbuf[MAX_INPUT] = {0, };
 	unsigned int tbuf[MAX_INPUT] = {0, };
@@ -507,6 +507,8 @@ static int regdump_show(struct seq_file *m, void *unused)
 
 	dbg_info("reg: %8x, val: %8x\n", reg, val);
 
+	seq_printf(m, "reg: %8x, val: %8x\n", reg, val);
+
 	iounmap(ioregs);
 
 exit:
@@ -669,20 +671,21 @@ static int init_debugfs_dpu(void)
 
 	d = kzalloc(sizeof(struct d_info), GFP_KERNEL);
 
-	if (!debugfs_root) {
+	if (!debugfs_root)
 		debugfs_root = debugfs_create_dir("dd_dpu", NULL);
-		debugfs_create_file("_help", S_IRUSR, debugfs_root, d, &help_fops);
-		debugfs_create_file("status", S_IRUSR, debugfs_root, d, &status_fops);
-		debugfs_create_file("regdump", S_IRUSR | S_IWUSR, debugfs_root, d, &regdump_fops);
-	}
 
 	d->dev = dev;
 	d->debugfs_root = debugfs_root;
+
+	debugfs_create_file("_help", S_IRUSR, debugfs_root, d, &help_fops);
+	debugfs_create_file("status", S_IRUSR, debugfs_root, d, &status_fops);
+	debugfs_create_file("regdump", S_IRUSR | S_IWUSR, debugfs_root, d, &regdump_fops);
 
 	init_debugfs_lcd_info(d);
 
 	d->fb_notifier.notifier_call = fb_notifier_callback;
 	ret = decon_register_notifier(&d->fb_notifier);
+	d->enable = 1;
 
 	dbg_info("-\n");
 

@@ -28,13 +28,15 @@
 #ifdef CONFIG_RKP_CFP_FIX_SMC_BUG
 #include <linux/rkp_cfp.h>
 #endif
-#if defined(CONFIG_TRUSTONIC_TEE)
+
+#ifdef CONFIG_TZDEV //TEEgris
+#define CUSTOM_SMC_FID            (0xB2000202)
+#define SUBFUN_KAP_STATUS         150
+#else
 #define SMC_CMD_KAP_CALL          (0x83000009)
 #define SMC_CMD_KAP_STATUS        (0x8300000A)
-#else
-#define CUSTOM_SMC_FID            0xB2000202
-#define SUBFUN_KAP_STATUS         150
 #endif
+
 
 unsigned int kap_on_reboot = 0;  // 1: turn on kap after reboot; 0: no pending ON action
 unsigned int kap_off_reboot = 0; // 1: turn off kap after reboot; 0: no pending OFF action
@@ -130,10 +132,11 @@ static int knox_kap_read(struct seq_file *m, void *v)
 	//clean_dcache_area(&tz_ret, 8);
 	//tima_send_cmd(__pa(&tz_ret), 0x3f850221);
 	//tz_ret = exynos_smc_kap(SMC_CMD_KAP_CALL, 0x50, 0, 0);
-#if defined(CONFIG_TRUSTONIC_TEE)
-	tz_ret =  exynos_smc64(SMC_CMD_KAP_STATUS, 0, 0, 0);
-#else
+
+#ifdef CONFIG_TZDEV //TEEgris
 	tz_ret =  exynos_smc64(CUSTOM_SMC_FID, SUBFUN_KAP_STATUS, 0, 0);
+#else
+	tz_ret =  exynos_smc64(SMC_CMD_KAP_STATUS, 0, 0, 0);
 #endif
 	//tz_ret = KAP_MAGIC | 1;
 

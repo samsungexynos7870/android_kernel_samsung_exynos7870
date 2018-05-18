@@ -13,6 +13,7 @@
 #include <linux/lcd.h>
 #include <linux/backlight.h>
 #include <linux/of_device.h>
+#include <linux/ctype.h>
 #include <video/mipi_display.h>
 #include "../dsim.h"
 #include "dsim_panel.h"
@@ -47,7 +48,7 @@
 #define smtd_dbg(format, arg...)
 #endif
 
-#define get_bit(value, shift, size)	((value >> shift) & (0xffffffff >> (32 - size)))
+#define get_bit(value, shift, width)	((value >> shift) & (GENMASK(width - 1, 0)))
 
 union aor_info {
 	u32 value;
@@ -928,6 +929,13 @@ static int panel_dpui_notifier_callback(struct notifier_block *self,
 	struct dpui_info *dpui = data;
 	char tbuf[MAX_DPUI_VAL_LEN];
 	int size;
+	unsigned int site, rework, poc, i, invalid = 0;
+	unsigned char *m_info;
+
+	struct seq_file m = {
+		.buf = tbuf,
+		.size = sizeof(tbuf) - 1,
+	};
 
 	if (dpui == NULL) {
 		pr_err("%s: dpui is null\n", __func__);
@@ -959,6 +967,23 @@ static int panel_dpui_notifier_callback(struct notifier_block *self,
 		lcd->date[5], lcd->date[6], (lcd->coordinate[0] & 0xFF00) >> 8, lcd->coordinate[0] & 0x00FF,
 		(lcd->coordinate[1] & 0xFF00) >> 8, lcd->coordinate[1] & 0x00FF);
 	set_dpui_field(DPUI_KEY_CELLID, tbuf, size);
+
+	m_info = lcd->manufacture_info;
+	site = get_bit(m_info[1], 4, 4);
+	rework = get_bit(m_info[1], 0, 4);
+	poc = get_bit(m_info[2], 0, 4);
+	seq_printf(&m, "%d%d%d%02x%02x", site, rework, poc, m_info[3], m_info[4]);
+
+	for (i = 5; i < LDI_LEN_MANUFACTURE_INFO; i++) {
+		if (!isdigit(m_info[i]) && !isupper(m_info[i])) {
+			invalid = 1;
+			break;
+		}
+	}
+	for (i = 5; !invalid && i < LDI_LEN_MANUFACTURE_INFO; i++)
+		seq_printf(&m, "%c", m_info[i]);
+
+	set_dpui_field(DPUI_KEY_OCTAID, tbuf, m.count);
 
 	return NOTIFY_DONE;
 }
@@ -1249,22 +1274,30 @@ static ssize_t octa_id_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct lcd_info *lcd = dev_get_drvdata(dev);
-	int site, rework, poc;
+	unsigned int site, rework, poc, i, invalid = 0;
 	unsigned char *m_info;
 
+	struct seq_file m = {
+		.buf = buf,
+		.size = PAGE_SIZE - 1,
+	};
+
 	m_info = lcd->manufacture_info;
+	site = get_bit(m_info[1], 4, 4);
+	rework = get_bit(m_info[1], 0, 4);
+	poc = get_bit(m_info[2], 0, 4);
+	seq_printf(&m, "%d%d%d%02x%02x", site, rework, poc, m_info[3], m_info[4]);
 
-	site = m_info[1] & 0xf0;
-	site >>= 4;
-	rework = m_info[1] & 0x0f;
-	poc = m_info[2] & 0x0f;
+	for (i = 5; i < LDI_LEN_MANUFACTURE_INFO; i++) {
+		if (!isdigit(m_info[i]) && !isupper(m_info[i])) {
+			invalid = 1;
+			break;
+		}
+	}
+	for (i = 5; !invalid && i < LDI_LEN_MANUFACTURE_INFO; i++)
+		seq_printf(&m, "%c", m_info[i]);
 
-	sprintf(buf, "%d%d%d%02x%02x%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c\n",
-		site, rework, poc, m_info[3], m_info[4],
-		m_info[5], m_info[6], m_info[7], m_info[8],
-		m_info[9], m_info[10], m_info[11], m_info[12],
-		m_info[13], m_info[14], m_info[15], m_info[16],
-		m_info[17], m_info[18], m_info[19], m_info[20]);
+	seq_puts(&m, "\n");
 
 	return strlen(buf);
 }

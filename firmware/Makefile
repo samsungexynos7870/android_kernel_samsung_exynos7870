@@ -147,7 +147,7 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438) += tsp_melfas/mms438_j7x.fw tsp_m
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT1664) += tsp_atmel/mxt1664t_matisse.fw
 
-TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_stm
+TSPFIRMWARE_DIRECTORY = firmware/tsp_stm
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS7) += tsp_stm/matisse.fw tsp_stm/stm_gtaxl.fw tsp_stm/fts1a096_gtaxl_rev03.fw \
 					tsp_stm/fts1a096_gtaxl_note.fw
@@ -156,7 +156,7 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_FTS1BA90A) += tsp_stm/fts1ba90a_gtadv2.fw
 else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
-TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_zinitix
+TSPFIRMWARE_DIRECTORY = firmware/tsp_zinitix
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX) += tsp_zinitix/zt7548_degas2.fw tsp_zinitix/zt7538_o7.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX_TCLM) += tsp_zinitix/zt7548_a6lte.fw tsp_zinitix/zt7548_j6.fw
@@ -195,6 +195,7 @@ fw-shipped-$(CONFIG_SENSORS_ABOV_A96T316) += abov/a96t316_gppiris.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_J8) += abov/a96t326_j8lte.fw abov/a96t346_j8lte.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_A6) += abov/a96t326_a6lte.fw abov/a96t346_a6lte.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_J6) += abov/a96t326_j6lte.fw
+fw-shipped-$(CONFIG_SENSORS_A96T3X6_J6KOR) += abov/a96t326_j6ltekor.fw
 
 #Sensor Hub
 fw-shipped-$(CONFIG_SENSORS_SSP_2017A3) += ssp_stmf410_a2017.fw
@@ -230,7 +231,7 @@ quiet_cmd_fwbin = MK_FW   $@
 		  echo "    .section .rodata"				>>$@;\
 		  echo "    .p2align $${ASM_ALIGN}"			>>$@;\
 		  echo "_fw_$${FWSTR}_bin:"				>>$@;\
-		  echo "    .incbin \"$(srctree)/$(2)\""				>>$@;\
+		  echo "    .incbin \"$(2)\""				>>$@;\
 		  echo "_fw_end:"					>>$@;\
 		  echo "   .section .rodata.str,\"aMS\",$${PROGBITS},1"	>>$@;\
 		  echo "    .p2align $${ASM_ALIGN}"			>>$@;\

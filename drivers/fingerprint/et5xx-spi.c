@@ -1501,6 +1501,12 @@ static int etspi_probe(struct spi_device *spi)
 	if (status)
 		goto etspi_sysfs_failed;
 	etspi_enable_debug_timer();
+#ifdef CONFIG_SEC_FACTORY
+	/* Work around for exynos AP IRQ issue */
+	etspi_Interrupt_Init(etspi, 8, 10, 1);
+	usleep_range(3000, 3000);
+	etspi_Interrupt_Free(etspi);
+#endif
 	pr_info("%s is successful\n", __func__);
 
 	return status;

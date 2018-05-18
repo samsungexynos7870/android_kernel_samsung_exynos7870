@@ -2081,7 +2081,8 @@ static void s2mu004_usbpd_notify_detach(struct s2mu004_usbpd_data *pdic_data)
 	ccic_event_work(pdic_data, CCIC_NOTIFY_DEV_MUIC, CCIC_NOTIFY_ID_RID,
 							REG_RID_OPEN/*rid*/, 0);
 	if (pdic_data->is_host > HOST_OFF || pdic_data->is_client > CLIENT_OFF) {
-		if (pdic_data->is_host > HOST_OFF) {
+		if (pdic_data->is_host > HOST_OFF ||
+					pdic_data->power_role_dual == DUAL_ROLE_PROP_PR_SRC) {
 			vbus_turn_on_ctrl(pdic_data, VBUS_OFF);
 			muic_disable_otg_detect();
 			usbpd_manager_acc_detach(dev);

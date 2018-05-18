@@ -248,7 +248,7 @@ static int check_curve(struct bl_info *bl, char *str)
 	}
 
 	if (!max_brightness_point && max_tune_value_point != off_bl_point && tune_value_point[max_tune_value_point - 1]) {
-		dbg_info("if you want to input max_tune_value_point(%d) more than total_bl_point(%d),\n", max_tune_value_point, off_bl_point);
+		dbg_info("if you want to input max_tune_value_point(%d) different with total_bl_point(%d),\n", max_tune_value_point, off_bl_point);
 		dbg_info("please assign platform brightness point together because we can not recognize it automatically\n");
 		ret = -EINVAL;
 		goto exit;
@@ -276,11 +276,6 @@ static int check_curve(struct bl_info *bl, char *str)
 		dbg_info("max_tune_value_point: %d, max_brightness_point: %d, should not be zero\n", max_tune_value_point, max_brightness_point);
 		ret = -EINVAL;
 		goto exit;
-	}
-
-	if (!max_brightness_point && (max_tune_value_point == off_bl_point - 1) && tune_value_point[off_bl_point] != 0) {
-		dbg_info("off_tune_value_point[%d]: %d, off_bl_point may not exist, so we add it\n", off_bl_point, tune_value_point[off_bl_point]);
-		max_tune_value_point++;
 	}
 
 	if (brightness_point[0] > bl->bd->props.max_brightness) {

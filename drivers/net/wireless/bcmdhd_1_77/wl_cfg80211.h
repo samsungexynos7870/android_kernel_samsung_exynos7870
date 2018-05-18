@@ -1827,4 +1827,10 @@ static inline int wl_abort_scan_and_check(struct bcm_cfg80211 *cfg)
 	return TRUE;
 }
 #endif /* DHD_ABORT_SCAN_CREATE_INTERFACE */
+#ifdef APSTA_RESTRICTED_CHANNEL
+extern s32 wl_cfg80211_set_indoor_channels(struct net_device *ndev, char *command, int total_len);
+extern s32 wl_cfg80211_get_indoor_channels(struct net_device *ndev, char *command, int total_len);
+extern s32 wl_cfg80211_read_indoor_channels(struct net_device *ndev, void *buf, int buflen);
+extern bool wl_cfg80211_check_indoor_channels(struct net_device *ndev, int channel);
+#endif /* APSTA_RESTRICTED_CHANNEL */
 #endif /* _wl_cfg80211_h_ */
