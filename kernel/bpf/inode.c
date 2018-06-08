@@ -140,8 +140,18 @@ static int bpf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return 0;
 }
 
+static int bpffs_obj_open(struct inode *inode, struct file *file)
+{
+	return -EIO;
+}
+
+static const struct file_operations bpffs_obj_fops = {
+	.open		= bpffs_obj_open,
+};
+
 static int bpf_mkobj_ops(struct inode *dir, struct dentry *dentry,
-			 umode_t mode, const struct inode_operations *iops)
+			 umode_t mode, const struct inode_operations *iops,
+			 const struct file_operations *fops)
 {
 	struct inode *inode;
 
@@ -150,6 +160,7 @@ static int bpf_mkobj_ops(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(inode);
 
 	inode->i_op = iops;
+	inode->i_fop = fops;
 	inode->i_private = dentry->d_fsdata;
 
 	d_instantiate(dentry, inode);
@@ -169,9 +180,9 @@ static int bpf_mkobj(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	switch (type) {
 	case BPF_TYPE_PROG:
-		return bpf_mkobj_ops(dir, dentry, mode, &bpf_prog_iops);
+		return bpf_mkobj_ops(dir, dentry, mode, &bpf_prog_iops, &bpffs_obj_fops);
 	case BPF_TYPE_MAP:
-		return bpf_mkobj_ops(dir, dentry, mode, &bpf_map_iops);
+		return bpf_mkobj_ops(dir, dentry, mode, &bpf_map_iops, &bpffs_obj_fops);
 	default:
 		return -EPERM;
 	}
