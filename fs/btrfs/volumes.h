@@ -26,6 +26,8 @@
 
 extern struct mutex uuid_mutex;
 
+#define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
+
 #define BTRFS_STRIPE_LEN	(64 * 1024)
 
 struct buffer_head;
