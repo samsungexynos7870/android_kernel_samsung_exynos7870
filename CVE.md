@@ -76,13 +76,16 @@
 | CVE-2018-10881   | 6e8ab72a812396996035a37e5ca4b3b99b5d214b |
 | CVE-2018-10883   | open                                     |
 | CVE-2018-10940   | not affected                             |
-| CVE-2018-15594   | not affected                             |
 | CVE-2018-1120    | 7f7ccc2ccc2e70c6054685f5e3522efa81556830 |
 | CVE-2018-11232   | not affected                             |
 | CVE-2018-1130    | 67f93df79aeefc3add4e4b31a752600f834236e2 |
 | CVE-2018-11508   | not affected                             |
 | CVE-2018-12904   | not affected                             |
 | CVE-2018-13406   | 9f645bcc566a1e9f921bdae7528a01ced5bc3713 |
+| CVE-2018-14619   | not affected                             |
+| CVE-2018-15594   | not affected                             |
+| CVE-2018-15572   | not affected                             |
+| CVE-2018-16276   | f1e255d60ae66a9f672ff9a207ee6cd8e33d2679 |
 | CVE-2018-6927    | fbe0e839d1e22d88810f3ee3e2f1479be4c0aa4a |
 | CVE-2018-6554    | manually merged                          |
 | CVE-2018-6555    | manually merged                          |
