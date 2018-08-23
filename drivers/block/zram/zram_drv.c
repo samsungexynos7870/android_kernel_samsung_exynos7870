@@ -1278,6 +1278,7 @@ static int zram_add(void)
 	else
 		zram->disk->queue->limits.discard_zeroes_data = 0;
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, zram->disk->queue);
+	queue_flag_set_unlocked(QUEUE_FLAG_FAST, zram->disk->queue);
 
 	disk_to_dev(zram->disk)->groups = zram_disk_attr_groups;
 	add_disk(zram->disk);
