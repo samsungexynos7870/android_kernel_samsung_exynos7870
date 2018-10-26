@@ -846,6 +846,18 @@ task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
 	raw_spin_unlock_irqrestore(&p->pi_lock, *flags);
 }
 
+static inline struct rq *
+this_rq_lock_irq(void)
+	__acquires(rq->lock)
+{
+	struct rq *rq;
+
+	local_irq_disable();
+	rq = this_rq();
+	raw_spin_lock(&rq->lock);
+	return rq;
+}
+
 #include "stats.h"
 #include "auto_group.h"
 
