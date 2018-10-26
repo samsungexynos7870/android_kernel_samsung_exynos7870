@@ -822,6 +822,30 @@ static inline void sched_ttwu_pending(void) { }
 
 #endif /* CONFIG_SMP */
 
+extern void update_rq_clock(struct rq *rq);
+
+struct rq *__task_rq_lock(struct task_struct *p)
+	__acquires(rq->lock);
+
+struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
+	__acquires(p->pi_lock)
+	__acquires(rq->lock);
+
+static inline void __task_rq_unlock(struct rq *rq)
+	__releases(rq->lock)
+{
+	raw_spin_unlock(&rq->lock);
+}
+
+static inline void
+task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
+	__releases(rq->lock)
+	__releases(p->pi_lock)
+{
+	raw_spin_unlock(&rq->lock);
+	raw_spin_unlock_irqrestore(&p->pi_lock, *flags);
+}
+
 #include "stats.h"
 #include "auto_group.h"
 
@@ -1285,8 +1309,6 @@ static inline void rq_last_tick_reset(struct rq *rq)
 	rq->last_sched_tick = jiffies;
 #endif
 }
-
-extern void update_rq_clock(struct rq *rq);
 
 extern void activate_task(struct rq *rq, struct task_struct *p, int flags);
 extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
