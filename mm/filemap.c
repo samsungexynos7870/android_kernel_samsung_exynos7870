@@ -36,6 +36,7 @@
 #include <linux/cleancache.h>
 #include <linux/rmap.h>
 #include <linux/delayacct.h>
+#include <linux/psi.h>
 #include "internal.h"
 
 #ifdef CONFIG_SDP
@@ -691,21 +692,27 @@ void wait_on_page_bit(struct page *page, int bit_nr)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
 	bool thrashing = false;
+	unsigned long pflags;
 
 	if (!test_bit(bit_nr, &page->flags))
 		return;
 
-	if (bit_nr == PG_locked && !PageSwapBacked(page) &&
+	if (bit_nr == PG_locked &&
 	    !PageUptodate(page) && PageWorkingset(page)) {
-		delayacct_thrashing_start();
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_start();
+		psi_memstall_enter(&pflags);
 		thrashing = true;
 	}
 
 	__wait_on_bit(page_waitqueue(page), &wait, bit_wait_io,
 						TASK_UNINTERRUPTIBLE);
 
-	if (thrashing)
-		delayacct_thrashing_end();
+	if (thrashing) {
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_end();
+		psi_memstall_leave(&pflags);
+	}
 }
 EXPORT_SYMBOL(wait_on_page_bit);
 
@@ -713,22 +720,28 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
 	bool thrashing = false;
+	unsigned long pflags;
 	int ret;
 
 	if (!test_bit(bit_nr, &page->flags))
 		return 0;
 
-	if (bit_nr == PG_locked && !PageSwapBacked(page) &&
+	if (bit_nr == PG_locked &&
 	    !PageUptodate(page) && PageWorkingset(page)) {
-		delayacct_thrashing_start();
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_start();
+		psi_memstall_enter(&pflags);
 		thrashing = true;
 	}
 
 	ret = __wait_on_bit(page_waitqueue(page), &wait,
 			    bit_wait_io, TASK_KILLABLE);
 
-	if (thrashing)
-		delayacct_thrashing_end();
+	if (thrashing) {
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_end();
+		psi_memstall_leave(&pflags);
+	}
 
 	return ret;
 }

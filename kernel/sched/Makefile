@@ -20,3 +20,4 @@ obj-$(CONFIG_SCHEDSTATS) += stats.o
 obj-$(CONFIG_SCHED_DEBUG) += debug.o
 obj-$(CONFIG_CGROUP_CPUACCT) += cpuacct.o
 obj-$(CONFIG_SCHED_AVG_NR_RUNNING) += sched_avg.o
+obj-$(CONFIG_PSI) += psi.o
