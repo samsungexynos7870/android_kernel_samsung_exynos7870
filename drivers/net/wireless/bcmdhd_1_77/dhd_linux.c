@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux.c 752171 2018-03-15 02:55:35Z $
+ * $Id: dhd_linux.c 755939 2018-04-05 12:05:28Z $
  */
 
 #include <typedefs.h>
@@ -5546,6 +5546,15 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 		}
 #endif /* DHD_L2_FILTER */
 
+		/* Drop for Invalid Source address packet */
+		if ((ntoh16(eh->ether_type) != ETHER_TYPE_BRCM) &&
+			(!ETHER_ISUCAST(eh->ether_shost))) {
+			DHD_ERROR(("Invalid Ether Source Address is" MACDBG "\n",
+				MAC2STRDBG(eh->ether_shost)));
+			PKTCFREE(dhdp->osh, pktbuf, FALSE);
+			continue;
+		}
+
 #ifdef DHD_MCAST_REGEN
 		DHD_FLOWID_LOCK(dhdp->flowid_lock, flags);
 		if_flow_lkup = (if_flow_lkup_t *)dhdp->if_flow_lkup;
@@ -9371,6 +9380,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	INIT_WORK(&dhd->event_log_dispatcher_work, dhd_event_logtrace_process);
 #endif /* SHOW_LOGTRACE */
 
+	DHD_INFO(("%s: sssr mempool init\n", __FUNCTION__));
 	DHD_SSSR_MEMPOOL_INIT(&dhd->pub);
 
 #ifdef REPORT_FATAL_TIMEOUTS
@@ -10344,7 +10354,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 frameburst = CUSTOM_FRAMEBURST_SET;
 	uint wnm_bsstrans_resp = 0;
 #ifdef SUPPORT_SET_CAC
+#ifdef SUPPORT_CUSTOM_SET_CAC
+	uint32 cac = 0;
+#else
 	uint32 cac = 1;
+#endif /* SUPPORT_CUSTOM_SET_CAC */
 #endif /* SUPPORT_SET_CAC */
 
 #if defined(DHD_NON_DMA_M2M_CORRUPTION)
@@ -11373,6 +11387,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		dhd->pktfilter[DHD_UDPNETBIOS_DROP_FILTER_NUM] = DISCARD_UDPNETBIOS;
 		dhd->pktfilter_count++;
 #endif /* DISCARD_UDPNETBIOS */
+	
+		/* Immediately pkt filter TYPE 6 Discard BCMC Source IP packet */
+		dhd->pktfilter[DHD_BCMC_SRC_DROP_FILTER_NUM] = DISCARD_BCMC_SRC;
+		dhd->pktfilter_count++;
 	}
 
 #ifdef GAN_LITE_NAT_KEEPALIVE_FILTER
@@ -13980,7 +13998,7 @@ dhd_dev_get_feature_set(struct net_device *dev)
 	feature_set |= WIFI_FEATURE_LINKSTAT;
 #endif /* LINKSTAT_SUPPORT */
 
-#ifdef PNO_SUPPORT
+#if defined(PNO_SUPPORT) && !defined(DISABLE_ANDROID_PNO)
 	if (dhd_is_pno_supported(dhd)) {
 		feature_set |= WIFI_FEATURE_PNO;
 #ifdef GSCAN_SUPPORT
@@ -13988,7 +14006,7 @@ dhd_dev_get_feature_set(struct net_device *dev)
 		feature_set |= WIFI_FEATURE_HAL_EPNO;
 #endif /* GSCAN_SUPPORT */
 	}
-#endif /* PNO_SUPPORT */
+#endif /* PNO_SUPPORT && !DISABLE_ANDROID_PNO */
 #ifdef RSSI_MONITOR_SUPPORT
 	if (FW_SUPPORTED(dhd, rssi_mon)) {
 		feature_set |= WIFI_FEATURE_RSSI_MONITOR;
@@ -15521,6 +15539,17 @@ void dhd_get_customized_country_code(struct net_device *dev, char *country_iso_c
 		get_customized_country_code(dhd->adapter, country_iso_code, cspec);
 #endif /* CUSTOM_COUNTRY_CODE */
 	}
+#if !defined(CUSTOM_COUNTRY_CODE)
+	else {
+		/* Replace the ccode to XZ if ccode is undefined country */
+		if (strncmp(country_iso_code, "", WLC_CNTRY_BUF_SZ) == 0) {
+			strlcpy(country_iso_code, "XZ", WLC_CNTRY_BUF_SZ);
+			strlcpy(cspec->country_abbrev, country_iso_code, WLC_CNTRY_BUF_SZ);
+			strlcpy(cspec->ccode, country_iso_code, WLC_CNTRY_BUF_SZ);
+			DHD_ERROR(("%s: ccode change to %s\n", __FUNCTION__, country_iso_code));
+		}
+	}
+#endif /* !CUSTOM_COUNTRY_CODE */
 
 #if defined(KEEP_KR_REGREV)
 	if (strncmp(country_iso_code, "KR", 3) == 0) {

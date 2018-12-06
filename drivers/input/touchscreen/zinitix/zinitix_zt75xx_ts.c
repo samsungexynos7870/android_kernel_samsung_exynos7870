@@ -39,6 +39,7 @@
 #include <linux/input/sec_tclm_v2.h>
 #include <linux/of_gpio.h>
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 #ifdef CONFIG_BATTERY_SAMSUNG
 #include <linux/sec_batt.h>
 #endif
@@ -406,10 +407,11 @@ enum zt_cover_id {
 
 /* REG_USB_STATUS : optional setting from AP */
 #define DEF_OPTIONAL_MODE_USB_DETECT_BIT		0
-#define	DEF_OPTIONAL_MODE_SVIEW_DETECT_BIT		1
-#define	DEF_OPTIONAL_MODE_SENSITIVE_BIT		2
+#define DEF_OPTIONAL_MODE_SVIEW_DETECT_BIT		1
+#define DEF_OPTIONAL_MODE_SENSITIVE_BIT			2
 #define DEF_OPTIONAL_MODE_EDGE_SELECT			3
-#define	DEF_OPTIONAL_MODE_DUO_TOUCH		4
+#define DEF_OPTIONAL_MODE_DUO_TOUCH				4
+#define DEF_OPTIONAL_MODE_TOUCHABLE_AREA		5
 /* end header file */
 
 #define DEF_MIS_CAL_SPEC_MIN 40
@@ -1635,7 +1637,7 @@ static u8 ts_upgrade_firmware(struct bt532_ts_info *info,
 	int fuzing_udelay = 8000;
 #endif
 
-	verify_data = kzalloc(size, GFP_KERNEL);
+	verify_data = vzalloc(size);
 	if (verify_data == NULL) {
 		zinitix_printk(KERN_ERR "cannot alloc verify buffer\n");
 		return false;
@@ -1910,8 +1912,8 @@ retry_upgrade:
 			goto fail_upgrade;
 
 		if (verify_data){
-			zinitix_printk("kfree\n");
-			kfree(verify_data);
+			zinitix_printk("vfree\n");
+			vfree(verify_data);
 			verify_data = NULL;
 		}
 
@@ -1927,8 +1929,8 @@ fail_upgrade:
 	}
 
 	if (verify_data){
-		zinitix_printk("kfree\n");
-		kfree(verify_data);
+		zinitix_printk("vfree\n");
+		vfree(verify_data);
 	}
 
 	input_info(true, &client->dev, "Failed to upgrade\n");
@@ -2004,7 +2006,7 @@ static bool ts_hw_calibration(struct bt532_ts_info *info)
 		BT532_SAVE_CALIBRATION_CMD) != I2C_SUCCESS)
 		return false;
 
-	msleep(700);
+	msleep(1100);
 	write_reg(client, 0xc003, 0x0000);
 	write_reg(client, 0xc104, 0x0000);
 
@@ -2085,9 +2087,9 @@ static int fw_update_work(struct bt532_ts_info *info, bool force_update)
 
 	if (need_update == true || force_update == true) {
 #ifdef TCLM_CONCEPT
-		ret = info->tdata->tclm_read(info->tdata->client, SEC_TCLM_NVM_ALL_DATA);
+		ret = sec_tclm_get_nvm_all(info->tdata);
 		if (ret < 0) {
-			input_info(true, &info->client->dev, "%s: SEC_TCLM_NVM_ALL_DATA i2c read fail", __func__);
+			input_info(true, &info->client->dev, "%s: sec_tclm_get_nvm_all error \n", __func__);
 		}
 		input_info(true, &info->client->dev, "%s: tune_fix_ver [%04X] afe_base [%04X]\n",
 			__func__, info->tdata->nvdata.tune_fix_ver, info->tdata->afe_base);
@@ -6057,8 +6059,8 @@ int bt532_tclm_data_read(struct i2c_client *client, int address)
 		for (i = BT532_TS_NVM_OFFSET_HISTORY_QUEUE_ZERO; i < BT532_TS_NVM_OFFSET_LENGTH; i++)
 			info->tdata->nvdata.cal_pos_hist_queue[i - BT532_TS_NVM_OFFSET_HISTORY_QUEUE_ZERO] = nbuff[i];
 
-		input_err(true, &info->client->dev, "%s:	%d %X %d %d\n", __func__,
-			info->tdata->nvdata.cal_count, info->tdata->nvdata.tune_fix_ver,
+		input_err(true, &info->client->dev, "%s: %d %X %x %d %d\n", __func__,
+			info->tdata->nvdata.cal_count, info->tdata->nvdata.tune_fix_ver, info->tdata->nvdata.cal_position,
 			info->tdata->nvdata.cal_pos_hist_cnt, info->tdata->nvdata.cal_pos_hist_lastp);
 
 		return ret;
@@ -6377,6 +6379,38 @@ static void ium_read(void *device_data)
 }
 #endif
 #endif
+
+static void set_touchable_area(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct bt532_ts_info *info = container_of(sec, struct bt532_ts_info, sec);
+	char buff[SEC_CMD_STR_LEN] = { 0 };
+	int val = sec->cmd_param[0];
+
+	sec_cmd_set_default_result(sec);
+
+	if (sec->cmd_param[0] < 0 || sec->cmd_param[0] > 1) {
+		snprintf(buff, sizeof(buff), "%s", "NG");
+		sec->cmd_state = SEC_CMD_STATUS_FAIL;
+		goto out;
+	}
+
+	input_info(true, &info->client->dev,
+			"%s: set 16:9 mode %s\n", __func__, val ? "enable" : "disable");
+
+	if (val)
+		zinitix_bit_set(m_optional_mode.select_mode.flag, DEF_OPTIONAL_MODE_TOUCHABLE_AREA);
+	else
+		zinitix_bit_clr(m_optional_mode.select_mode.flag, DEF_OPTIONAL_MODE_TOUCHABLE_AREA);
+	
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+out:
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	sec_cmd_set_cmd_exit(sec);
+
+	input_info(true, &info->client->dev, "%s: %s\n", __func__, buff);
+}
 
 static void clear_cover_mode(void *device_data)
 {
@@ -7331,6 +7365,7 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("clear_reference_data", clear_reference_data),},
 	{SEC_CMD("run_ref_calibration", run_ref_calibration),},
 	{SEC_CMD("dead_zone_enable", dead_zone_enable),},
+	{SEC_CMD("set_touchable_area", set_touchable_area),},
 	{SEC_CMD("clear_cover_mode", clear_cover_mode),},
 	{SEC_CMD("spay_enable", spay_enable),},
 	{SEC_CMD("aod_enable", aod_enable),},

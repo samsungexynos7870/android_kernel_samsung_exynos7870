@@ -1,1 +1,1 @@
-../.././../../../../arch/powerpc/include/asm/asm-compat.h
+../../../../../../arch/powerpc/include/asm/asm-compat.h

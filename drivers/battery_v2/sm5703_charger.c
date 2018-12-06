@@ -376,10 +376,14 @@ static void sm5703_set_input_current_limit(struct sm5703_charger_data *charger,
 			msleep(100);
 		}
 #endif
-		if (current_limit > 100) {
-			temp = ((current_limit - 100) / 50) | data;
-			sm5703_reg_write(charger->i2c, SM5703_VBUSCNTL, temp);
-		}
+
+		if(current_limit <= 100)
+			current_limit = 100;
+		else if (current_limit >= 2100)
+			current_limit = 2100;
+
+		temp = ((current_limit - 100) / 50) | data;
+		sm5703_reg_write(charger->i2c, SM5703_VBUSCNTL, temp);
 
 		data = sm5703_reg_read(charger->i2c, SM5703_VBUSCNTL);
 		pr_info("%s : SM5703_VBUSCNTL (Input current limit) : 0x%02x\n",

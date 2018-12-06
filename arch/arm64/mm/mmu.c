@@ -502,6 +502,7 @@ void __init paging_init(void)
 #ifdef CONFIG_TIMA_RKP
 	int rkp_do =  0;
 #endif
+	set_memsize_kernel_type(MEMSIZE_KERNEL_PAGING);
 	map_mem();
 
 #if defined(CONFIG_ECT)
@@ -539,6 +540,7 @@ void __init paging_init(void)
 	 */
 	cpu_set_reserved_ttbr0();
 	flush_tlb_all();
+	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 }
 
 /*

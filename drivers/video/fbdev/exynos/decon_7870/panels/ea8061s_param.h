@@ -54,6 +54,16 @@ enum {
 #define GAMMA_CMD_CNT			ARRAY_SIZE(SEQ_GAMMA_CONDITION_SET)
 #define AID_CMD_CNT		ARRAY_SIZE(SEQ_AID_SET)
 
+static const unsigned char SEQ_POWER_SEQ[] = {
+	0xB1,
+	0x3C, 0x89, 0x00, 0x05, 0x33, 0x31, 0x14,
+};
+
+static const unsigned char SEQ_AOR_MAX[] = {
+	0xB2,
+	0x00, 0x00, 0x05, 0x10,
+};
+
 static const unsigned char SEQ_SOURCE_SLEW[] = {
 	0xBA,
 	0x77,

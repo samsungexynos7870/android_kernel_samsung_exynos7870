@@ -663,12 +663,20 @@ struct abd_pin {
 	struct abd_trace p_first;
 	struct abd_trace p_lcdon;
 	struct abd_trace p_event;
+
+	irq_handler_t	handler;
+	void		*dev_id;
+};
+
+enum {
+	ABD_PIN_PCD,
+	ABD_PIN_DET,
+	ABD_PIN_ERR,
+	ABD_PIN_MAX
 };
 
 struct abd_protect {
-	struct abd_pin pcd;
-	struct abd_pin det;
-	struct abd_pin err;
+	struct abd_pin pin[ABD_PIN_MAX];
 
 	struct abd_trace f_first;
 	struct abd_trace f_lcdon;
@@ -686,6 +694,7 @@ void decon_abd_enable(struct decon_device *decon, int enable);
 int decon_abd_register(struct decon_device *decon);
 void decon_abd_save_log_fto(struct abd_protect *abd, struct sync_fence *fence);
 void decon_abd_save_log_udr(struct abd_protect *abd, unsigned long , unsigned long, unsigned long);
+int decon_abd_register_pin_handler(int irq, irq_handler_t handler, void *dev_id);
 
 struct decon_device {
 	void __iomem			*regs;

@@ -3,6 +3,7 @@
 
 /* 2017.12.21 */
 
+
 static inline int get_hbm_index(int idx)
 {
 	int i = 0;
@@ -545,111 +546,6 @@ static unsigned char LOCAL_CE_3[] = {
 	0x00,
 };
 
-static unsigned char GAME_1[] = {
-	0xC7,
-	0x00,
-	0x0E,
-	0x18,
-	0x27,
-	0x36,
-	0x41,
-	0x5A,
-	0x6C,
-	0x7B,
-	0x89,
-	0x3D,
-	0x4A,
-	0x5B,
-	0x72,
-	0x7C,
-	0x89,
-	0x99,
-	0xA5,
-	0xB2,
-	0x00,
-	0x0E,
-	0x18,
-	0x27,
-	0x36,
-	0x41,
-	0x5A,
-	0x6C,
-	0x7B,
-	0x89,
-	0x3D,
-	0x4A,
-	0x5B,
-	0x72,
-	0x7C,
-	0x89,
-	0x99,
-	0xA5,
-	0xB2,
-};
-
-static unsigned char GAME_2[] = {
-	0xC8,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0x00,
-	0xFC,
-};
-
-static unsigned char GAME_3[] = {
-	0x55,
-	0x83,
-};
-
 #define MDNIE_SET(id)	\
 {							\
 	.name		= #id,				\
@@ -746,26 +642,26 @@ static struct mdnie_table main_table[SCENARIO_MAX][MODE_MAX] = {
 		MDNIE_SET(UI),
 		MDNIE_SET(EBOOK),
 	}, {
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME)
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
 	}, {
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME)
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
 	}, {
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME),
-		MDNIE_SET(GAME)
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
+		MDNIE_SET(CAMERA),
 	}
 };
 
@@ -777,6 +673,7 @@ static struct mdnie_tune tune_info = {
 	.hbm_table = hbm_table,
 	.dmb_table = dmb_table,
 	.main_table = main_table,
+
 	.get_hbm_index = get_hbm_index,
 };
 #endif

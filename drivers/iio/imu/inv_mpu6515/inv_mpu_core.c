@@ -4186,7 +4186,7 @@ mdelay(100);
 	wake_lock_init(&st->reactive_wake_lock, WAKE_LOCK_SUSPEND,
 			"reactive_wake_lock");
 
-	result = sensors_register(st->gyro_sensor_device,
+	result = sensors_register(&st->gyro_sensor_device,
 		st, gyro_sensor_attrs, "gyro_sensor");
 	if (result) {
 		pr_err("%s: cound not register gyro sensor device(%d).\n",
@@ -4194,7 +4194,7 @@ mdelay(100);
 		goto err_gyro_sensor_register_failed;
 	}
 
-	result = sensors_register(st->accel_sensor_device,
+	result = sensors_register(&st->accel_sensor_device,
 		st, accel_sensor_attrs, "accelerometer_sensor");
 	if (result) {
 		pr_err("%s: cound not register accel sensor device(%d).\n",

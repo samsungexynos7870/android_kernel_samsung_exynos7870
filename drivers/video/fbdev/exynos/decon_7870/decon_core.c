@@ -1598,6 +1598,87 @@ static void decon_set_protected_content_check(struct decon_device *decon,
 	decon->prev_protection_status = enable;
 }
 
+#if defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
+static void decon_set_color_map(struct decon_device *decon, u32 color)
+{
+	int i;
+	struct decon_psr_info psr;
+	struct decon_regs_data win_regs = {0};
+
+	/* 1.Protect SHADOW */
+	for (i = 0; i < decon->pdata->max_win; i++)
+		decon_reg_shadow_protect_win(DECON_INT, i, 1);
+
+	/* 2.Disable all the windows */
+	for (i = 0; i < decon->pdata->max_win; i++)
+		decon_reg_clear_win(DECON_INT, i);
+	/* 3. Colormap should be set for VIDEO MODE */
+	win_regs.wincon = WINCON_BPPMODE_ARGB8888;
+	win_regs.winmap = 0x0; /* WIN0 <-> G2 */
+	win_regs.vidosd_a = vidosd_a(0, 0);
+	/* 0, 0, width, height */
+	win_regs.vidosd_b = vidosd_b(0, 0,
+			decon->lcd_info->xres, decon->lcd_info->yres);
+	win_regs.vidosd_c = vidosd_c(0, 0, 0);
+	win_regs.vidosd_d = vidosd_d(0xff, 0xff, 0xff);
+	win_regs.vidw_whole_w = decon->lcd_info->xres;/* width */
+	win_regs.vidw_whole_h = decon->lcd_info->yres;/* height */
+	win_regs.vidw_offset_x = 0;
+	win_regs.vidw_offset_y = 0;
+	win_regs.type = IDMA_G2;
+	decon_reg_set_regs_data(DECON_INT, 0, &win_regs);
+	decon_reg_set_winmap(DECON_INT, 0, color/* 0 => black */, true);
+
+	/* 4.Enable window0 for colormap setting */
+	decon_reg_activate_window(DECON_INT, 0);
+
+	/* 5.Unprotect SHADOW */
+	for (i = 0; i < decon->pdata->max_win; i++)
+		decon_reg_shadow_protect_win(DECON_INT, i, 0);
+
+	/* 6.Request global update and start decon */
+	decon_to_psr_info(decon, &psr);
+	decon_reg_start(DECON_INT, DSI_MODE_SINGLE, &psr);
+
+	/* 7.SFR configuration update */
+	if (decon_reg_wait_for_update_timeout(DECON_INT, 300 * 1000) < 0) {
+		decon_dump(decon);
+		BUG();
+	}
+}
+
+static void decon_set_color_for_protected_content(struct decon_device *decon,
+		struct decon_reg_data *regs)
+{
+	int enable = 0;
+
+	/* Protection can be enabled only when cur_protection_bitmask is not 0 */
+	enable = decon->cur_protection_bitmask ? 1 : 0;
+
+	if (decon->prev_protection_status) {
+		if (enable) {
+			/* S -> S */
+		} else {
+			/* S -> N */
+			if (decon->pdata->psr_mode != DECON_MIPI_COMMAND_MODE) {
+				decon_set_color_map(decon, 0x0);
+				pr_info("decon is set to black colormap for S -> N\n");
+			}
+		}
+	} else {
+		if (enable) {
+			/* N -> S */
+			if (decon->pdata->psr_mode != DECON_MIPI_COMMAND_MODE) {
+				decon_set_color_map(decon, 0x0);
+				pr_info("decon is set to black colormap for N -> S\n");
+			}
+		} else {
+			/* N -> N */
+		}
+	}
+}
+#endif
+
 static void decon_set_protected_content(struct decon_device *decon,
 		struct decon_reg_data *regs, bool enable)
 {
@@ -1631,6 +1712,7 @@ static void decon_set_protected_content(struct decon_device *decon,
 					DISP_SS_EVENT_LOG(DISP_EVT_LINECNT_ZERO,
 							&decon->sd, ktime_set(0, 0));
 			} else {
+#if !defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
 				decon_reg_per_frame_off(DECON_INT);
 				decon_reg_update_standalone(DECON_INT);
 
@@ -1639,6 +1721,7 @@ static void decon_set_protected_content(struct decon_device *decon,
 					BUG();
 				}
 				DISP_SS_EVENT_LOG(DISP_EVT_UPDATE_TIMEOUT, &decon->sd, ktime_set(0, 0));
+#endif
 			}
 
 			/* unprotect previous buffers */
@@ -1663,6 +1746,7 @@ static void decon_set_protected_content(struct decon_device *decon,
 					DISP_SS_EVENT_LOG(DISP_EVT_LINECNT_ZERO,
 							&decon->sd, ktime_set(0, 0));
 			} else {
+#if !defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
 				decon_reg_per_frame_off(DECON_INT);
 				decon_reg_update_standalone(DECON_INT);
 
@@ -1671,6 +1755,7 @@ static void decon_set_protected_content(struct decon_device *decon,
 					BUG();
 				}
 				DISP_SS_EVENT_LOG(DISP_EVT_UPDATE_TIMEOUT, &decon->sd, ktime_set(0, 0));
+#endif
 			}
 
 			/* protect new buffers */
@@ -2162,6 +2247,15 @@ static void __decon_update_regs(struct decon_device *decon, struct decon_reg_dat
 	memset(&win_regs, 0, sizeof(struct decon_regs_data));
 
 	decon->cur_protection_bitmask = 0;
+
+#if defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
+	for (i = 0; i < decon->pdata->max_win; i++) {
+		decon_to_regs_param(&win_regs, regs, i);
+		decon->cur_protection_bitmask |=
+			regs->protection[i] << regs->win_config[i].idma_type;
+	}
+	decon_set_color_for_protected_content(decon, regs);
+#endif
 
 	if (decon->pdata->trig_mode == DECON_HW_TRIG)
 		decon_reg_set_trigger(DECON_INT, decon->pdata->dsi_mode,

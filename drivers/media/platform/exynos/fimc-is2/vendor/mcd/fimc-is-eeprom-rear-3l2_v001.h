@@ -78,7 +78,7 @@
 #define FIMC_IS_MAX_FW_SIZE                (8 * 1024)
 #endif
 #define FIMC_IS_MAX_SETFILE_SIZE           (1120 * 1024)
-#define HEADER_CRC32_LEN                   (216)
+#define HEADER_CRC32_LEN                   (80)
 #define EEPROM_AF_CAL_PAN_ADDR             0x0100
 #define EEPROM_AF_CAL_MACRO_ADDR           0x0108
 

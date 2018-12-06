@@ -621,7 +621,8 @@ static int sm5705_get_input_current(struct sm5705_charger_data *charger)
 {
 	int get_current;
 
-	if (!(__n_is_cable_type_for_wireless(charger->cable_type))) {
+	if (!(__n_is_cable_type_for_wireless(charger->cable_type)) ||
+			charger->cable_type == POWER_SUPPLY_TYPE_POGO) {
 		get_current = sm5705_CHG_get_INPUT_LIMIT(charger, SM5705_CHG_SRC_WPC);
 	} else {
 		get_current = sm5705_CHG_get_INPUT_LIMIT(charger, SM5705_CHG_SRC_VBUS);
@@ -638,7 +639,8 @@ static int sm5705_get_charge_current(struct sm5705_charger_data *charger)
 {
 	int get_current;
 
-	if (!(__n_is_cable_type_for_wireless(charger->cable_type))) {
+	if (!(__n_is_cable_type_for_wireless(charger->cable_type)) ||
+			charger->cable_type == POWER_SUPPLY_TYPE_POGO) {
 		get_current = sm5705_CHG_get_FASTCHG(charger, SM5705_CHG_SRC_WPC);
 	} else {
 		get_current = sm5705_CHG_get_FASTCHG(charger, SM5705_CHG_SRC_VBUS);
@@ -673,7 +675,8 @@ static void sm5705_enable_charging_on_switch(struct sm5705_charger_data *charger
 static int sm5705_set_charge_current(struct sm5705_charger_data *charger,
 				unsigned short charge_current)
 {
-	if (!(__n_is_cable_type_for_wireless(charger->cable_type))) {
+	if (!(__n_is_cable_type_for_wireless(charger->cable_type)) ||
+			charger->cable_type == POWER_SUPPLY_TYPE_POGO) {
 		sm5705_CHG_set_FASTCHG(charger, SM5705_CHG_SRC_WPC, charge_current);
 	} else {
 		sm5705_CHG_set_FASTCHG(charger, SM5705_CHG_SRC_VBUS, charge_current);
@@ -690,7 +693,8 @@ static int sm5705_set_input_current(struct sm5705_charger_data *charger,
 		return 0;
 	}
 
-	if (!(__n_is_cable_type_for_wireless(charger->cable_type))) {
+	if (!(__n_is_cable_type_for_wireless(charger->cable_type)) ||
+			charger->cable_type == POWER_SUPPLY_TYPE_POGO) {
 		sm5705_CHG_set_INPUT_LIMIT(charger, SM5705_CHG_SRC_WPC, input_current);
 	} else {
 		sm5705_CHG_set_INPUT_LIMIT(charger, SM5705_CHG_SRC_VBUS, input_current);
@@ -714,14 +718,14 @@ static void sm5705_set_operation_mode(struct sm5705_charger_data *charger)
 	} else if (charger->cable_type == POWER_SUPPLY_TYPE_BATTERY) {
 		/* set default value */
 		sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_VBUS, DISABLE);
-		sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_OTG, DISABLE);
 
 		if (charger->pdata->support_slow_charging)
 			cancel_delayed_work(&charger->aicl_work);
 	} else {
 #if defined(SM5705_USED_WIRELESS_CHARGER)
 		if (__is_cable_type_for_wireless(charger->cable_type) ||
-			__is_cable_type_for_hv_wireless(charger->cable_type)) {
+			__is_cable_type_for_hv_wireless(charger->cable_type) ||
+			charger->cable_type == POWER_SUPPLY_TYPE_POGO) {
 			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_VBUS, DISABLE);
 			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_WPC, ENABLE);
 		} else {
@@ -898,11 +902,13 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 		}
 		sm5705_enable_charging_on_switch(charger, charger->is_charging);
 		if (buck_state) {
-			sm5705_update_reg(charger->i2c, SM5705_REG_CNTL, SM5705_CHARGER_OP_MODE_CHG_ON, 0x07);
-			pr_info("update op_mode : SM5705_CHARGER_OP_MODE_CHG_ON\n");
+			if (!sm5705_charger_check_oper_otg_mode_on()) {
+				sm5705_update_reg(charger->i2c, SM5705_REG_CNTL, SM5705_CHARGER_OP_MODE_CHG_ON, 0x07);
+				pr_info("update op_mode : SM5705_CHARGER_OP_MODE_CHG_ON\n");
+			}
 		} else {
 			sm5705_update_reg(charger->i2c, SM5705_REG_CNTL, SM5705_CHARGER_OP_MODE_SUSPEND, 0x07);
-			pr_info("update op_mode : SM5705_CHARGER_OP_MODE_SUSPEND\n");
+			pr_info("update op_mode : SM5705_CHARGER_OP_MODE_SUSPEND\n"); 
 		}
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
@@ -1524,6 +1530,7 @@ static int _check_vbus_power_supply_status(struct sm5705_charger_data *charger,
 		} else if ((vbus_status & (1 << SM5705_INT_STATUS1_VBUSUVLO)) &&
 			(prev_battery_health != POWER_SUPPLY_HEALTH_UNDERVOLTAGE) &&
 			__n_is_cable_type_for_wireless(charger->cable_type) &&
+			charger->cable_type != POWER_SUPPLY_TYPE_POGO &&
 			(charger->cable_type != POWER_SUPPLY_TYPE_BATTERY)) {
 			pr_info("vBus is undervoltage\n");
 			battery_health = POWER_SUPPLY_HEALTH_UNDERVOLTAGE;

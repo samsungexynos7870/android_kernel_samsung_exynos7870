@@ -1643,38 +1643,39 @@ static void sec_ts_print_frame(struct sec_ts_data *ts, short *min, short *max)
 	int j = 0;
 	unsigned char *pStr = NULL;
 	unsigned char pTmp[16] = { 0 };
+	int lsize = 7 * (ts->tx_count + 1);
 
 	input_raw_info(true, &ts->client->dev, "%s\n", __func__);
 
-	pStr = kzalloc(6 * (ts->tx_count + 1), GFP_KERNEL);
+	pStr = kzalloc(lsize, GFP_KERNEL);
 	if (pStr == NULL)
 		return;
 
-	memset(pStr, 0x0, 6 * (ts->tx_count + 1));
+	memset(pStr, 0x0, lsize);
 	snprintf(pTmp, sizeof(pTmp), "      TX");
-	strncat(pStr, pTmp, 6 * ts->tx_count);
+	strncat(pStr, pTmp, lsize);
 
 	for (i = 0; i < ts->tx_count; i++) {
 		snprintf(pTmp, sizeof(pTmp), " %02d ", i);
-		strncat(pStr, pTmp, 6 * ts->tx_count);
+		strncat(pStr, pTmp, lsize);
 	}
 
 	input_raw_info(true, &ts->client->dev, "%s\n", pStr);
-	memset(pStr, 0x0, 6 * (ts->tx_count + 1));
+	memset(pStr, 0x0, lsize);
 	snprintf(pTmp, sizeof(pTmp), " +");
-	strncat(pStr, pTmp, 6 * ts->tx_count);
+	strncat(pStr, pTmp, lsize);
 
 	for (i = 0; i < ts->tx_count; i++) {
 		snprintf(pTmp, sizeof(pTmp), "----");
-		strncat(pStr, pTmp, 6 * ts->rx_count);
+		strncat(pStr, pTmp, lsize);
 	}
 
 	input_raw_info(true, &ts->client->dev, "%s\n", pStr);
 
 	for (i = 0; i < ts->rx_count; i++) {
-		memset(pStr, 0x0, 6 * (ts->tx_count + 1));
+		memset(pStr, 0x0, lsize);
 		snprintf(pTmp, sizeof(pTmp), "Rx%02d | ", i);
-		strncat(pStr, pTmp, 6 * ts->tx_count);
+		strncat(pStr, pTmp, lsize);
 
 		for (j = 0; j < ts->tx_count; j++) {
 			snprintf(pTmp, sizeof(pTmp), " %3d", ts->pFrame[(j * ts->rx_count) + i]);
@@ -1686,7 +1687,7 @@ static void sec_ts_print_frame(struct sec_ts_data *ts, short *min, short *max)
 				if (ts->pFrame[(j * ts->rx_count) + i] > *max)
 					*max = ts->pFrame[(j * ts->rx_count) + i];
 			}
-			strncat(pStr, pTmp, 6 * ts->rx_count);
+			strncat(pStr, pTmp, lsize);
 		}
 		input_raw_info(true, &ts->client->dev, "%s\n", pStr);
 	}
@@ -4628,9 +4629,11 @@ static void sec_ts_swap(u8 *a, u8 *b)
 
 static void rearrange_sft_result(u8 *data, int length)
 {
-	int i;
+	int i, nlength;
 
-	for (i = 0; i < length; i += 4) {
+	nlength = length - (length % 4);
+
+	for (i = 0; i < nlength; i += 4) {
 		sec_ts_swap(&data[i], &data[i + 3]);
 		sec_ts_swap(&data[i + 1], &data[i + 2]);
 	}
@@ -4689,7 +4692,7 @@ static int execute_selftest(struct sec_ts_data *ts, bool save_result)
 		input_err(true, &ts->client->dev, "%s: Selftest execution time out!\n", __func__);
 		goto err_exit;
 	}
-	rearrange_sft_result(rBuff, result_size);
+	rearrange_sft_result(rBuff, SEC_TS_SELFTEST_REPORT_SIZE);
 
 	for (i = 0; i < 80; i += 4) {
 		if (i / 4 == 0)
@@ -5390,6 +5393,14 @@ static void run_force_calibration(void *device_data)
 
 	if (ts->touch_count > 0) {
 		snprintf(buff, sizeof(buff), "%s", "NG_FINGER_ON");
+		sec->cmd_state = SEC_CMD_STATUS_FAIL;
+		goto out_force_cal_before_irq_ctrl;
+	}
+
+	/* for COB */
+	if (gpio_is_valid(ts->plat_data->tsp_connect) && gpio_get_value(ts->plat_data->tsp_connect)) {
+		input_info(true, &ts->client->dev, "%s: skip calibration (not connected)\n", __func__);
+		snprintf(buff, sizeof(buff), "%s", "NG_TSP_CONNECTION_CHECK_FAIL");
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 		goto out_force_cal_before_irq_ctrl;
 	}

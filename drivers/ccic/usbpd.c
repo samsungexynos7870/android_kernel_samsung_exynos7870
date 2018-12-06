@@ -283,6 +283,7 @@ void usbpd_set_ops(struct device *dev, usbpd_phy_ops_type *ops)
 	pd_data->phy_ops.poll_status = ops->poll_status;
 	pd_data->phy_ops.driver_reset = ops->driver_reset;
 	pd_data->phy_ops.set_otg_control = ops->set_otg_control;
+	pd_data->phy_ops.set_cc_control = ops->set_cc_control;
 }
 
 protocol_state usbpd_protocol_rx_layer_reset_for_receive(struct protocol_data *rx)

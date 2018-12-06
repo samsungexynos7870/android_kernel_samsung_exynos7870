@@ -185,6 +185,7 @@
 //Command mode
 #define CMD_LEN				32
 #define CMD_RESULT_LEN			512
+#define CMD_RESULT_STR_LEN		(4096 - 1)
 #define CMD_PARAM_NUM			8
 #if defined(MELFAS_GHOST_TOUCH_AUTO_DETECT)
 #define GHOST_TIMER_INTERVAL	HZ /* 1 sec */
@@ -285,6 +286,9 @@ struct mms_ts_info {
 	char *cmd_result;
 	int cmd_param[CMD_PARAM_NUM];
 	int cmd_buffer_size;
+	int item_count;
+	u8 cmd_all_factory_state;
+	char cmd_result_all[CMD_RESULT_STR_LEN];
 #endif
 
 #if MMS_USE_DEV_MODE
@@ -351,6 +355,7 @@ struct mms_devicetree_data {
 	struct regulator *vdd_io;
 	const char *fw_name;
 	bool support_lpm;
+	int item_version;
 };
 
 /**
@@ -452,6 +457,7 @@ static const struct attribute_group mms_test_attr_group;
 #if MMS_USE_CMD_MODE
 int mms_sysfs_cmd_create(struct mms_ts_info *info);
 void mms_sysfs_cmd_remove(struct mms_ts_info *info);
+extern void sec_cmd_set_cmd_result_all(struct mms_ts_info *data, char *buff, int len, char *item);
 static const struct attribute_group mms_cmd_attr_group;
 extern struct class *sec_class;
 #endif

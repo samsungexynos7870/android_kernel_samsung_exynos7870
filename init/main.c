@@ -195,13 +195,21 @@ static int __init obsolete_checksetup(char *line)
 			} else if (!p->setup_func) {
 				pr_warn("Parameter %s is obsolete, ignored\n",
 					p->str);
-				return 1;
-			} else if (p->setup_func(line + n))
-				return 1;
+				had_early_param = 1;
+				goto fail;
+			} else {
+				set_memsize_reserved_name(p->str);
+				if (p->setup_func(line + n)) {
+					had_early_param = 1;
+					goto fail;
+				}
+			}
 		}
 		p++;
 	} while (p < __setup_end);
 
+fail:
+	unset_memsize_reserved_name();
 	return had_early_param;
 }
 
@@ -439,6 +447,7 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 		    (strcmp(param, "console") == 0 &&
 		     strcmp(p->str, "earlycon") == 0)
 		) {
+			set_memsize_reserved_name(p->str);
 			if (p->setup_func(val) != 0)
 				pr_warn("Malformed early option '%s'\n", param);
 		}
@@ -453,6 +462,7 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 			}
 	}
 #endif
+	unset_memsize_reserved_name();
 	return 0;
 }
 
@@ -505,6 +515,7 @@ void __init __weak thread_info_cache_init(void)
  */
 static void __init mm_init(void)
 {
+	set_memsize_kernel_type(MEMSIZE_KERNEL_MM_INIT);
 	/*
 	 * page_cgroup requires contiguous pages,
 	 * bigger than MAX_ORDER unless SPARSEMEM.
@@ -515,6 +526,7 @@ static void __init mm_init(void)
 	percpu_init_late();
 	pgtable_init();
 	vmalloc_init();
+	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 }
 #ifdef	CONFIG_TIMA_RKP
 #ifdef CONFIG_TIMA_RKP_4G
@@ -564,6 +576,7 @@ asmlinkage __visible void __init start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
+	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 	/*
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
@@ -758,6 +771,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	ftrace_init();
 
+	set_memsize_kernel_type(MEMSIZE_KERNEL_STOP);
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }

@@ -15,7 +15,8 @@
 	|| defined(CONFIG_EPEN_WACOM_W9012) \
 	|| defined(CONFIG_EPEN_WACOM_W9014) \
 	|| defined(CONFIG_EPEN_WACOM_W9018) \
-	|| defined(CONFIG_EPEN_WACOM_W9019)
+	|| defined(CONFIG_EPEN_WACOM_W9019) \
+	|| defined(CONFIG_EPEN_WACOM_W9019_GTANOTE)
 #define WACOM_I2C_BOOT 0x09
 #else
 #define WACOM_I2C_BOOT 0x57

@@ -970,7 +970,7 @@ static int yas_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 	spin_lock_init(&st->spin_lock);
 
-	ret = sensors_register(factory_dev, indio_dev, mag_sensor_attrs,
+	ret = sensors_register(&factory_dev, indio_dev, mag_sensor_attrs,
 		MODULE_NAME_MAG);
 	if (ret < 0) {
 		pr_err("%s: cound not register mag sensor device(%d).\n",

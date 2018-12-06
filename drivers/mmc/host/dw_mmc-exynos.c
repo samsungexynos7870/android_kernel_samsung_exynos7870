@@ -1196,7 +1196,17 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	 * And that mid is odd number, means the selected case includes
 	 * using fine tuning.
 	 */
-
+	
+	/* 
+	 * This config should be applied only to T58x.
+	 */
+#ifdef CONFIG_MMC_TUNING_ALL_PASS_QUIRK 
+	if (!tuned && (all_pass_count >=2)) {
+		best_sample = 0x7;
+		tuned = true; 
+	}
+#endif
+ 
 	best_sample_ori = best_sample;
 	best_sample /= 2;
 
@@ -1461,6 +1471,120 @@ out:
 	return len;
 }
 
+static struct device *mmc_card_dev;
+static ssize_t mmc_data_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	struct mmc_card *card = host->cur_slot->mmc->card;
+	struct mmc_card_error_log *err_log;
+	u64 total_c_cnt = 0;
+	u64 total_t_cnt = 0;
+	int len = 0;
+	int i = 0;
+
+	if (!card) {
+		len = snprintf(buf, PAGE_SIZE,
+			"\"GE\":\"0\",\"CC\":\"0\",\"ECC\":\"0\",\"WP\":\"0\","\
+			"\"OOR\":\"0\",\"CRC\":\"0\",\"TMO\":\"0\","\
+			"\"HALT\":\"0\",\"CQED\":\"0\",\"RPMB\":\"0\"\n");
+		goto out;
+	}
+
+	err_log = card->err_log;
+
+	for (i = 0; i < 6; i++) {
+		if (err_log[i].err_type == -EILSEQ && total_c_cnt < MAX_CNT_U64)
+			total_c_cnt += err_log[i].count;
+		if (err_log[i].err_type == -ETIMEDOUT && total_t_cnt < MAX_CNT_U64)
+			total_t_cnt += err_log[i].count;
+	}
+
+	len = snprintf(buf, PAGE_SIZE,
+		"\"GE\":\"%d\",\"CC\":\"%d\",\"ECC\":\"%d\",\"WP\":\"%d\","\
+		"\"OOR\":\"%d\",\"CRC\":\"%lld\",\"TMO\":\"%lld\","\
+		"\"HALT\":\"%d\",\"CQED\":\"%d\",\"RPMB\":\"%d\"\n",
+		err_log[0].ge_cnt, err_log[0].cc_cnt, err_log[0].ecc_cnt,
+		err_log[0].wp_cnt, err_log[0].oor_cnt, total_c_cnt, total_t_cnt,
+		0, 0, err_log[0].rpmb_cnt);
+out:
+	return len;
+}
+
+static ssize_t mmc_summary_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	struct mmc_card *card = host->cur_slot->mmc->card;
+	char *bus_speed_mode = "";
+	static const char *const unit[] = {"B", "KB", "MB", "GB", "TB"};
+	uint64_t size;
+	int digit = 0, pre_size = 1;
+	char ret_size[6];
+
+	if (card) {
+		/* SIZE */
+		size = (uint64_t)card->ext_csd.sectors * card->ext_csd.data_sector_size;
+
+		/* SIZE - unit */
+		while(size > 1024)
+		{
+			size /= 1024;
+			digit++;
+			if(digit == 4)
+				break;
+		}
+
+		/* SIZE - capacity */
+		while(size > pre_size)
+		{
+			if(pre_size > 1024)
+				break;
+			pre_size = pre_size << 1;
+		}
+
+		sprintf(ret_size, "%d%s", pre_size, unit[digit]);
+
+		/* SPEED MODE */
+		if(mmc_card_hs400(card))
+			bus_speed_mode = "HS400";
+		else if(mmc_card_hs200(card))
+			bus_speed_mode = "HS200";
+		else if(mmc_card_ddr52(card))
+			bus_speed_mode = "DDR50";
+		else if(mmc_card_hs(card))
+			bus_speed_mode = "HS";
+		else
+			bus_speed_mode = "LEGACY";
+
+		/* SUMMARY */
+		sprintf(buf, "\"MANID\":\"0x%02X\",\"PNM\":\"%s\","\
+			"\"REV\":\"%#x%x%x%x\",\"CQ\":\"%d\","\
+			"\"SIZE\":\"%s\",\"SPEEDMODE\":\"%s\","\
+			"\"LIFE\":\"%u\"\n",
+			card->cid.manfid, card->cid.prod_name,
+			(char)card->ext_csd.fwrev[4],
+			(char)card->ext_csd.fwrev[5],
+			(char)card->ext_csd.fwrev[6],
+			(char)card->ext_csd.fwrev[7],
+			false,
+			ret_size, bus_speed_mode,
+			(card->ext_csd.device_life_time_est_typ_a >
+			card->ext_csd.device_life_time_est_typ_b ?
+			card->ext_csd.device_life_time_est_typ_a :
+			card->ext_csd.device_life_time_est_typ_b)
+			);
+		dev_info(dev, "%s", buf);
+		return sprintf(buf, "%s", buf);
+	} else {
+		/* SUMMARY : No MMC Case */
+		dev_info(dev, "%s : No eMMC Card\n", __func__);
+		return sprintf(buf, "\"MANID\":\"NoCard\",\"PNM\":\"NoCard\",\"REV\":\"NoCard\""\
+				",\"CQ\":\"NoCard\",\"SIZE\":\"NoCard\",\"SPEEDMODE\":\"NoCard\""\
+				",\"LIFE\":\"NoCard\"\n");
+	}
+}
+
 static DEVICE_ATTR(status, 0444, sd_detection_cmd_show, NULL);
 static DEVICE_ATTR(cd_cnt, 0444, sd_detection_cnt_show, NULL);
 static DEVICE_ATTR(max_mode, 0444, sd_detection_maxmode_show, NULL);
@@ -1468,6 +1592,8 @@ static DEVICE_ATTR(current_mode, 0444, sd_detection_curmode_show, NULL);
 static DEVICE_ATTR(sdcard_summary, 0444, sdcard_summary_show, NULL);
 static DEVICE_ATTR(sd_count, 0444, sd_count_show, NULL);
 static DEVICE_ATTR(sd_data, 0444, sd_data_show, NULL);
+static DEVICE_ATTR(mmc_data, S_IRUGO, mmc_data_show, NULL);
+static DEVICE_ATTR(mmc_summary, S_IRUGO, mmc_summary_show, NULL);
 
 /* Callback function for SD Card IO Error */
 static int sdcard_uevent(struct mmc_card *card)
@@ -1480,7 +1606,7 @@ static int dw_mci_sdcard_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 	struct mmc_card *card;
-	int retval;
+	int retval = 0;
 	bool card_exist;
 
 	add_uevent_var(env, "DEVNAME=%s", dev->kobj.name);
@@ -1491,13 +1617,14 @@ static int dw_mci_sdcard_uevent(struct device *dev, struct kobj_uevent_env *env)
 	} else
 		card_exist = false;
 
+#if 0	/* Disable this feature for MASS Project. It's possible to enable after review */
 	retval = add_uevent_var(env, "IOERROR=%s", card_exist ? (
 				((card->err_log[0].ge_cnt && !(card->err_log[0].ge_cnt % 1000)) ||
 				 (card->err_log[0].ecc_cnt && !(card->err_log[0].ecc_cnt % 1000)) ||
 				 (card->err_log[0].wp_cnt && !(card->err_log[0].wp_cnt % 100)) ||
 				 (card->err_log[0].oor_cnt && !(card->err_log[0].oor_cnt % 100)))
 				? "YES" : "NO")	: "NoCard");
-
+#endif
 	return retval;
 }
 
@@ -1614,6 +1741,25 @@ static void dw_mci_exynos_add_sysfs(struct dw_mci *host)
 			if (device_create_file(sd_data_cmd_dev,
 						&dev_attr_sd_data) < 0)
 				pr_err("Fail to create status sysfs file\n");
+		}
+	}
+	
+	/* For eMMC(dwmmc0) Case */
+	if (of_alias_get_id(host->dev->of_node, "mshc") == 0) {
+		if (!mmc_card_dev) {
+			mmc_card_dev = sec_device_create(host, "mmc");
+			if (IS_ERR(mmc_card_dev))
+				pr_err("Fail to create sysfs dev\n");
+
+			if (device_create_file(mmc_card_dev,
+					&dev_attr_mmc_data) < 0)
+				pr_err("%s : Failed to create device file(%s)!\n",
+					__func__, dev_attr_mmc_data.attr.name);
+
+			if (device_create_file(mmc_card_dev,
+					&dev_attr_mmc_summary) < 0)
+				pr_err("%s : Failed to create device file(%s)!\n",
+					__func__, dev_attr_mmc_summary.attr.name);
 		}
 	}
 }

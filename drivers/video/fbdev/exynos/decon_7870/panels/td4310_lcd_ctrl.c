@@ -525,7 +525,7 @@ static ssize_t lcd_type_show(struct device *dev,
 {
 	struct lcd_info *lcd = dev_get_drvdata(dev);
 
-	sprintf(buf, "BOE_%02X%02X%02X\n", lcd->id_info.id[0], lcd->id_info.id[1], lcd->id_info.id[2]);
+	sprintf(buf, "DTC_%02X%02X%02X\n", lcd->id_info.id[0], lcd->id_info.id[1], lcd->id_info.id[2]);
 
 	return strlen(buf);
 }

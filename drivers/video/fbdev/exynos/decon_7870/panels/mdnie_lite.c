@@ -969,7 +969,7 @@ static int mdnie_register_dpui(struct mdnie_info *mdnie)
 {
 	memset(&mdnie->dpui_notif, 0, sizeof(mdnie->dpui_notif));
 	mdnie->dpui_notif.notifier_call = dpui_notifier_callback;
-	return dpui_logging_register(&mdnie->dpui_notif, DPUI_TYPE_MDNIE);
+	return dpui_logging_register(&mdnie->dpui_notif, DPUI_TYPE_PANEL);
 }
 #endif /* CONFIG_DISPLAY_USE_INFO */
 

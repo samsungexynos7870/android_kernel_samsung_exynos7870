@@ -61,6 +61,7 @@
 bool is_final_cam_module_iris = false;
 bool is_iris_ver_read = false;
 bool is_iris_mtf_test_check = false;
+u8 is_iris_mtf_read_data[3];	/* 0:year 1:month 2:company */
 
 static u16 setfile_vision_5e6[][2] = {
 	{0x3303, 0x02},
@@ -301,6 +302,7 @@ static int sensor_5e6_init(struct v4l2_subdev *subdev, u32 val)
 #endif
 	u8 sensor_ver = 0;
 	u8 sensor_otp = 0;
+	u8 page_select = 0;
 
 	BUG_ON(!subdev);
 
@@ -330,6 +332,7 @@ static int sensor_5e6_init(struct v4l2_subdev *subdev, u32 val)
 
 	/* read sensor version */
 	if (!is_iris_ver_read) {
+		/* 1. read page_select */
 		/* make initial state */
 		ret = fimc_is_sensor_write8(client, 0x0A00, 0x04);
 		if (ret) {
@@ -337,7 +340,7 @@ static int sensor_5e6_init(struct v4l2_subdev *subdev, u32 val)
 			ret = -EINVAL;
 			goto exit;
 		}
-		/* set the PAGE4 of OTP */
+		/* set the PAGE of OTP */
 		ret = fimc_is_sensor_write8(client, 0x0A02, 0x04);
 		if (ret) {
 			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
@@ -354,16 +357,85 @@ static int sensor_5e6_init(struct v4l2_subdev *subdev, u32 val)
 		/* to wait Tmin = 47us(the time to transfer 1page data from OTP */
 		usleep_range(50, 50);
 
-		/* read the 1st byte data of PAGE4 from buffer */
+		/* page select 0x01(4page), 0x03(5page) */
+		ret = fimc_is_sensor_read8(client, 0x0A12, &page_select);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		/* 2. set page_select */
+		if (page_select == 0x01 || page_select == 0x00) {
+			page_select = 0x04;
+		} else if (page_select == 0x03) {
+			page_select = 0x05;
+		} else {
+			is_iris_mtf_test_check = false;
+			err("[%s][%d] page read fail read data=%d", __func__, __LINE__, page_select);
+			goto exit;
+		}
+
+		/* 3. read pass or fail /year/month/company information */
+		/* make initial state */
+		ret = fimc_is_sensor_write8(client, 0x0A00, 0x04);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* set the PAGE of OTP */
+		ret = fimc_is_sensor_write8(client, 0x0A02, page_select);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* set read mode of NVM controller Interface1 */
+		ret = fimc_is_sensor_write8(client, 0x0A00, 0x01);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* to wait Tmin = 47us(the time to transfer 1page data from OTP */
+		usleep_range(50, 50);
+
+		/* read the 1st byte data from buffer */
 		ret = fimc_is_sensor_read8(client, 0x0A04, &sensor_otp);
 		if (ret == 0) {
-			if (sensor_otp == 0x01) {
+			if (sensor_otp == 0x01)
 				is_iris_mtf_test_check = true;
-			} else {
+			else
 				is_iris_mtf_test_check = false;
-			}
 			pr_info("[%s][%d] otpValue = %d \n", __func__, __LINE__, sensor_otp);
-		 }
+		} else if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		/* read year */
+		ret = fimc_is_sensor_read8(client, 0x0A05, &is_iris_mtf_read_data[0]);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* read month */
+		ret = fimc_is_sensor_read8(client, 0x0A06, &is_iris_mtf_read_data[1]);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
+		/* read company */
+		ret = fimc_is_sensor_read8(client, 0x0A07, &is_iris_mtf_read_data[2]);
+		if (ret) {
+			err("[%s][%d] i2c transfer failed", __func__, __LINE__);
+			ret = -EINVAL;
+			goto exit;
+		}
 
 		ret = fimc_is_sensor_read8(client, SENSOR_REG_VERSION, &sensor_ver);
 		if (ret == 0) {
@@ -376,7 +448,7 @@ static int sensor_5e6_init(struct v4l2_subdev *subdev, u32 val)
 			}
 			pr_info("is_final_cam_module_iris = %s, sensor version = 0x%02x\n",
 				is_final_cam_module_iris ? "true" : "false", sensor_ver);
-		 }
+		}
 	}
 
 	hrtimer_init(&module->vsync_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -875,7 +947,9 @@ static int sensor_5e6_power_setpin(struct device *dev,
 	int gpio_mclk = 0;
 	int gpio_iris_1p8_en = 0;
 	int gpio_iris_2p8_en = 0;
-
+#if defined(CONFIG_CAMERA_5E6_USE_1P2_POWER)
+	int gpio_iris_1p2_en = 0;
+#endif
 	BUG_ON(!dev);
 
 	dnode = dev->of_node;
@@ -918,6 +992,15 @@ static int sensor_5e6_power_setpin(struct device *dev,
 		gpio_free(gpio_iris_2p8_en);
 	}
 
+#if defined(CONFIG_CAMERA_5E6_USE_1P2_POWER)
+	gpio_iris_1p2_en = of_get_named_gpio(dnode, "gpio_iris_1p2_en", 0);
+	if (!gpio_is_valid(gpio_iris_1p2_en)) {
+		dev_err(dev, "%s: failed to get gpio_iris_1p2_en\n", __func__);
+	} else {
+		gpio_request_one(gpio_iris_1p2_en, GPIOF_OUT_INIT_LOW, "CAM_GPIO_OUTPUT_LOW");
+		gpio_free(gpio_iris_1p2_en);
+	}
+#endif
 	SET_PIN_INIT(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON);
 	SET_PIN_INIT(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF);
 
@@ -925,14 +1008,24 @@ static int sensor_5e6_power_setpin(struct device *dev,
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_reset, "rst_low", PIN_OUTPUT, 0, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_iris_2p8_en, "gpio_iris_2p8_en_high", PIN_OUTPUT, 1, 0);
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_iris_1p8_en, "gpio_iris_1p8_en_high", PIN_OUTPUT, 1, 1000);
-//	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_none, "VDD_IRIS_1P2", PIN_REGULATOR, 1, 1000);
+
+#if defined(CONFIG_CAMERA_5E6_USE_1P2_POWER)
+	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_iris_1p2_en, "gpio_iris_1p2_en_high", PIN_OUTPUT, 1, 1000);
+#else
+	//SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_none, "VDD_IRIS_1P2", PIN_REGULATOR, 1, 1000);
+#endif
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_reset, "rst_high", PIN_OUTPUT, 1, 1000);
-	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 1, 200);
+	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_ON, gpio_none, "pin", PIN_FUNCTION, 1, 1000);
 
 	/* IRIS CAMERA  - POWER OFF */
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_none, "pin", PIN_FUNCTION, 0, 70);
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_reset, "rst_low", PIN_OUTPUT, 0, 2000);
-//	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_none, "VDD_IRIS_1P2", PIN_REGULATOR, 0, 2000);
+
+#if defined(CONFIG_CAMERA_5E6_USE_1P2_POWER)
+	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_iris_1p2_en, "gpio_iris_1p2_en_low", PIN_OUTPUT, 0, 1000);
+#else
+	//SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_none, "VDD_IRIS_1P2", PIN_REGULATOR, 0, 2000);
+#endif
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_iris_1p8_en, "gpio_iris_1p8_en_low", PIN_OUTPUT, 0, 2000);
 	SET_PIN(pdata, SENSOR_SCENARIO_SECURE, GPIO_SCENARIO_OFF, gpio_iris_2p8_en, "gpio_iris_2p8_en_low", PIN_OUTPUT, 0, 2000);
 

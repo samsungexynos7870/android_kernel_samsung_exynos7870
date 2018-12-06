@@ -1574,7 +1574,7 @@ static void sec_bat_aging_check(struct sec_battery_info *battery)
 	int calc_step = -1;
 	bool ret;
 
-	if (battery->pdata->num_age_step <= 0)
+	if (battery->pdata->num_age_step <= 0 || battery->batt_cycle < 0)
 		return;
 
 	if (battery->temperature < 50) {
@@ -7533,7 +7533,7 @@ static int sec_bat_parse_dt(struct device *dev,
 	ret = of_property_read_u32(np, "battery,swelling_high_temp_current", 
 					&pdata->swelling_high_temp_current);
 	if (ret) {
-		pr_info("%s: swelling_low_temp_current is Empty, Defualt value 1300mA \n", __func__);
+		pr_info("%s: swelling_high_temp_current is Empty, Defualt value 1300mA \n", __func__);
 		pdata->swelling_high_temp_current = 1300;
 	}
 

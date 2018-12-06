@@ -165,8 +165,8 @@ $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_BT541C) += tsp_zinitix/bt541c_GPPIris.fw
 
-fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX2) += tsp_synaptics/td4300_on7xelte.fw
-fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX2) += tsp_synaptics/td4300_on7xelte_recovery.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX2) += tsp_synaptics/td4300_on7xelte.fw  tsp_synaptics/td4300_on7xelte_recovery.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX2) += tsp_synaptics/td4310_on7xelte.fw  tsp_synaptics/td4310_on7xelte_recovery.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_TD4X00) += tsp_synaptics/td4100_j7pop.fw tsp_synaptics/td4100_j7pop_recovery.fw
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST3032C) += tsp_imagis/ist3032c_a3x.fw tsp_imagis/ist3032c_a3x_cmcs.bin

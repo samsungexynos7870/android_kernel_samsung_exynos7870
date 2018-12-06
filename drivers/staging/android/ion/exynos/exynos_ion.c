@@ -294,6 +294,7 @@ static int __init exynos_ion_reserved_mem_setup(struct reserved_mem *rmem)
 
 	rmem->ops = &exynos_ion_rmem_ops;
 	pdata->rmem = rmem;
+	rmem->reusable = pdata->reusable;
 
 	heap_data = &pdata->heap_data;
 	heap_data->id = pdata->id;

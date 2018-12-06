@@ -70,7 +70,7 @@ static int __init sec_hw_param_get_hw_rev(char *arg)
     get_option(&arg, &sec_hw_rev);
     return 0;
 }
-early_param("androidboot.hw_rev", sec_hw_param_get_hw_rev);
+early_param("androidboot.revision", sec_hw_param_get_hw_rev);
 
 static u32 chipid_reverse_value(u32 value, u32 bitcnt)
 {

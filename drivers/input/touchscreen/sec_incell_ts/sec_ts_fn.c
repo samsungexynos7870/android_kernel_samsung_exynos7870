@@ -46,10 +46,11 @@ static void get_rawcap(void *device_data);
 static void run_delta_read(void *device_data);
 static void run_delta_read_all(void *device_data);
 static void get_delta(void *device_data);
+static void run_decoded_raw_read_all(void *device_data);
+static void run_delta_cm_read_all(void *device_data);
 static void run_rawdata_read_all(void *device_data);
 static void run_force_calibration(void *device_data);
 static void get_force_calibration(void *device_data);
-static void run_low_freq_cm_read_all(void *device_data);
 
 #ifdef TCLM_CONCEPT
 static void set_external_factory(void *device_data);
@@ -109,12 +110,13 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("run_high_resistance_read", run_high_resistance_read),},
 	{SEC_CMD("run_high_resistance_read_all", run_high_resistance_read_all),},
 	{SEC_CMD("get_delta", get_delta),},
+	{SEC_CMD("run_cs_raw_read_all", run_decoded_raw_read_all),},
+	{SEC_CMD("run_cs_delta_read_all", run_delta_cm_read_all),},
 	{SEC_CMD("run_delta_read", run_delta_read),},
 	{SEC_CMD("run_delta_read_all", run_delta_read_all),},
 	{SEC_CMD("run_rawdata_read_all", run_rawdata_read_all),},
 	{SEC_CMD("run_force_calibration", run_force_calibration),},
 	{SEC_CMD("get_force_calibration", get_force_calibration),},
-	{SEC_CMD("run_low_freq_cm_read_all", run_low_freq_cm_read_all),},
 #ifdef TCLM_CONCEPT
 	{SEC_CMD("get_pat_information", get_pat_information),},
 	{SEC_CMD("set_external_factory", set_external_factory),},
@@ -419,7 +421,8 @@ static ssize_t read_vendor_show(struct device *dev,
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	unsigned char buffer[10] = { 0 };
 
-	snprintf(buffer, 5, ts->plat_data->firmware_name + 8);
+	if (ts->plat_data->firmware_name != NULL)
+		snprintf(buffer, 5, ts->plat_data->firmware_name + 8);
 
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "LSI_%s", buffer);
 }
@@ -2228,6 +2231,37 @@ static void get_delta(void *device_data)
 	input_info(true, &ts->client->dev, "%s: %s\n", __func__, buff);
 }
 
+static void run_decoded_raw_read_all(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	struct sec_ts_test_mode mode;
+
+	sec_cmd_set_default_result(sec);
+
+	memset(&mode, 0x00, sizeof(struct sec_ts_test_mode));
+	mode.type = TYPE_DECODED_DATA;
+	mode.allnode = TEST_MODE_ALL_NODE;
+
+	sec_ts_read_raw_data(ts, sec, &mode);
+}
+
+static void run_delta_cm_read_all(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	struct sec_ts_test_mode mode;
+
+	sec_cmd_set_default_result(sec);
+
+	memset(&mode, 0x00, sizeof(struct sec_ts_test_mode));
+	mode.type = TYPE_REMV_AMB_DATA;
+	mode.allnode = TEST_MODE_ALL_NODE;
+
+	sec_ts_read_raw_data(ts, sec, &mode);
+}
+
+
 /*
  * sec_ts_run_rawdata_all : read all raw data
  *
@@ -2315,6 +2349,7 @@ static void run_rawdata_read_all(void *device_data)
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	char buff[16] = { 0 };
+	int ret = 0;
 
 	sec_cmd_set_default_result(sec);
 
@@ -2332,6 +2367,11 @@ static void run_rawdata_read_all(void *device_data)
 	}
 
 	sec_ts_run_rawdata_all(ts, true);
+	
+	ret = sec_ts_sw_reset(ts, SEC_TS_CMD_SW_RESET);
+	if (!ret) {
+		input_err(true, &ts->client->dev, "%s: sec_ts_sw_reset failed\n", __func__);
+	}
 
 	snprintf(buff, sizeof(buff), "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -3022,230 +3062,6 @@ err_exit:
 	return rc;
 }
 
-static void run_low_freq_cm_read_all(void *device_data)
-{
-	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
-	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
-	char buff[SEC_CMD_STR_LEN] = {0};
-	int rc;
-	char *data = NULL;
-	unsigned short freq = 0;
-	int ii = 0;
-	int jj = 0;
-	int size = 0;
-	char *buffer = NULL;
-	char value[6] = { 0 };
-	short *pFrame = NULL;
-	short val;
-
-	sec_cmd_set_default_result(sec);
-
-	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
-		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
-		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
-		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
-		return;
-	}
-
-	disable_irq(ts->client->irq);
-
-	size = 	ts->tx_count * ts->rx_count * 2;
-
-	data = kzalloc(size, GFP_KERNEL);
-	if (!data)
-		goto out;
-
-	buffer = kzalloc(ts->tx_count * ts->rx_count * 6, GFP_KERNEL);
-	if (!buffer)
-		goto out;
-
-	/* SW RESET */
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_delay(100);
-
-	/* SENSE OFF */
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SENSE_OFF, NULL, 0);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_delay(30);
-
-	/* set selftest mode */
-	data[0] = 0xC0;
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SELFTEST, data, 1);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_delay(30);
-
-	memset(data, 0x00, 4);
-	rc = ts->sec_ts_i2c_read(ts, SEC_TS_READ_TS_STATUS, data, 4);
-	if (rc < 0)
-		goto out;
-	input_info(true, &ts->client->dev, "%02X %02X %02X %02X\n", data[0], data[1], data[2], data[3]);
-
-	/* clear event stack */
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_CLEAR_EVENT_STACK, NULL, 0);
-	if (rc < 0)
-		goto out;
-
-	/* mutual data type = 29 */
-	data[0] = 0x1D;
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_MUTU_RAW_TYPE, data, 1);
-	if (rc < 0)
-		goto out;
-
-	/* AFE setting for test */
-	data[0] = 0x40;
-	data[1] = 0x00;
-	data[2] = 0x50;
-	data[3] = 0x1C;
-	rc = ts->sec_ts_i2c_write(ts, 0xD0, data, 4);
-	if (rc < 0)
-		goto out;
-
-	data[0] = 0x00;
-	data[1] = 0x04;
-	rc = ts->sec_ts_i2c_write(ts, 0xD1, data, 2);
-	if (rc < 0)
-		goto out;
-
-	data[0] = 0x1F;
-	data[1] = 0x00;
-	data[2] = 0x00;
-	data[3] = 0x00;
-	rc = ts->sec_ts_i2c_write(ts, 0xD3, data, 4);
-	if (rc < 0)
-		goto out;
-
-	if (sec->cmd_param[0])
-		freq = sec->cmd_param[0];
-	else
-		freq = 0x32;
-
-	/* set frequency : 50Khz -> 0x0032 */
-	data[0] = 0x00;
-	data[1] = (char)(freq >> 8) & 0xFF;
-	data[2] = (char)(freq & 0xFF);
-	rc = ts->sec_ts_i2c_write(ts, 0xF7, data, 3);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_delay(30);
-
-	/* selftest, not save result in flash */
-	data[0] = 0x82;
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SELFTEST, data, 1);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_delay(1500);
-
-	ii = 0;
-	while (ii < 100) {
-		memset(data, 0x00, 6);
-
-		rc = ts->sec_ts_i2c_read(ts, 0x60, data, 6);
-		if (data[0] == 0x1D && data[1] == 0x41) {
-			input_info(true, &ts->client->dev, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n",
-					data[0], data[1], data[2], data[3], data[4], data[5]);
-			break;
-		}
-		sec_ts_delay(10);
-		ii++;
-		input_info(true, &ts->client->dev, "0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n",
-				data[0], data[1], data[2], data[3], data[4], data[5]);
-	}
-
-	memset(data, 0x00, size);
-
-	rc = ts->sec_ts_i2c_read(ts, SEC_TS_READ_TOUCH_RAWDATA, data, size);
-	if (rc < 0)
-		goto out;
-
-/*
- * 	cm(capacitance) value is big endian. do not arrange data.
-	rearrange_sft_result(data, size);
-*/
-	pFrame = kzalloc(ts->tx_count * ts->rx_count * 2, GFP_KERNEL);
-
-	for (ii = 0; ii < ts->tx_count * ts->rx_count * 2; ii += 2) {
-		pFrame[ii / 2] = ((data[ii] << 8) | data[ii + 1]);
-	}
-
-	for (ii = 0; ii < ts->rx_count; ii++) {
-		pr_cont("sec_input: ");
-		for (jj = 0; jj < ts->tx_count; jj++) {
-			val = pFrame[jj * ts->rx_count + ii];
-			pr_cont("%d ", val);
-			snprintf(value, 6, "%d,", val);
-			strncat(buffer, value, 6);
-			memset(value, 0x00, 6);
-
-		}
-		pr_cont("\n");
-	}
-
-	/* release mutual data type */
-	data[0] = 0xFF;
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_MUTU_RAW_TYPE, data, 1);
-	if (rc < 0)
-		goto out;
-
-	/* SW RESET */
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
-	if (rc < 0)
-		goto out;
-
-	/* SENSE ON */
-	rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
-	if (rc < 0)
-		goto out;
-
-	sec_ts_reinit(ts);
-	enable_irq(ts->client->irq);
-	sec_cmd_set_cmd_result(sec, buffer, strnlen(buffer, ts->tx_count * ts->rx_count * 6));
-	sec->cmd_state = SEC_CMD_STATUS_OK;
-
-	input_info(true, &ts->client->dev, "%s: %s\n", __func__, buffer);
-
-	if (pFrame)
-		kfree(pFrame);
-	if (data)
-		kfree(data);
-	if (buffer)
-		kfree(buffer);
-
-	return;
-
-out:
-	if (pFrame)
-		kfree(pFrame);
-	if (data)
-		kfree(data);
-
-	ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
-
-	sec_ts_reinit(ts);
-
-	enable_irq(ts->client->irq);
-
-	snprintf(buff, sizeof(buff), "%s", "NG");
-	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
-	sec->cmd_state = SEC_CMD_STATUS_FAIL;
-
-	input_info(true, &ts->client->dev, "%s: %s\n", __func__, buff);
-
-	if (buffer)
-		kfree(buffer);
-
-	return;
-}
-
 int sec_tclm_execute_force_calibration(struct i2c_client *client, int cal_mode)
 {
 	struct sec_ts_data *ts = i2c_get_clientdata(client);
@@ -3322,6 +3138,8 @@ static void run_force_calibration(void *device_data)
 					"%s: mis_cal_check error[1] ret: %d\n", __func__, rc);
 		}
 
+		sec_ts_delay(100);
+
 		buff[0] = 0x2;
 		buff[1] = 0x2;
 		rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_CHG_SYSMODE, buff, 2);
@@ -3329,6 +3147,8 @@ static void run_force_calibration(void *device_data)
 			input_err(true, &ts->client->dev,
 					"%s: mis_cal_check error[2] ret: %d\n", __func__, rc);
 		}
+
+		sec_ts_delay(100);
 
 		input_err(true, &ts->client->dev, "%s: try mis Cal. check\n", __func__);
 		rc = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_MIS_CAL_CHECK, NULL, 0);
@@ -3424,6 +3244,9 @@ static void get_force_calibration(void *device_data)
 		snprintf(buff, sizeof(buff), "%s", "FAIL");
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 	} else if (rc == SEC_TS_STATUS_CALIBRATION_SEC) {
+		snprintf(buff, sizeof(buff), "%s", "OK");
+		sec->cmd_state = SEC_CMD_STATUS_OK;
+	} else if (rc == SEC_TS_STATUS_CALIBRATION_SDC) {
 		snprintf(buff, sizeof(buff), "%s", "OK");
 		sec->cmd_state = SEC_CMD_STATUS_OK;
 	} else {

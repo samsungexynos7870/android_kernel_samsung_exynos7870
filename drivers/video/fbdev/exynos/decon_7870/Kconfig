@@ -98,6 +98,11 @@ config DECON_EVENT_LOG
         depends on DEBUG_INFO && EXYNOS_DECON_7870
         default y
 
+config DECON_COLORMAP_PROTECT_SWITCH
+	bool "DECON use colormap to switch secure"
+        depends on EXYNOS_DECON_7870 && EXYNOS7870_DISPLAY_VIDEO_MODE
+        default n
+
 config EXYNOS_MIPI_DSI_ENABLE_EARLY
 	bool "Samsung Exynos MIPI-DSI Driver ENABLE EARLY"
 	default n

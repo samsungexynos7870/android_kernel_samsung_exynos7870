@@ -50,7 +50,6 @@ int mms_i2c_read(struct mms_ts_info *info, char *write_buf, unsigned int write_l
 {
 	int retry = I2C_RETRY_COUNT;
 	int res;
-
 	struct i2c_msg msg[] = {
 		{
 			.addr = info->client->addr,
@@ -64,7 +63,6 @@ int mms_i2c_read(struct mms_ts_info *info, char *write_buf, unsigned int write_l
 			.len = read_len,
 		},
 	};
-
 #ifdef CONFIG_TRUSTONIC_TRUSTED_UI
 	if (TRUSTEDUI_MODE_INPUT_SECURED & trustedui_get_current_mode()) {
 		dev_err(&info->client->dev, 
@@ -75,7 +73,6 @@ int mms_i2c_read(struct mms_ts_info *info, char *write_buf, unsigned int write_l
 
 	while (retry--) {
 		res = i2c_transfer(info->client->adapter, msg, ARRAY_SIZE(msg));
-
 		if (res == ARRAY_SIZE(msg)) {
 			goto DONE;
 		} else if (res < 0) {

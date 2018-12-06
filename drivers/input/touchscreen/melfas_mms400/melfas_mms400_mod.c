@@ -307,7 +307,12 @@ int mms_parse_devicetree(struct device *dev, struct mms_ts_info *info)
 		tsp_debug_err(true, dev, "Failed to get fw_name property\n");
 		info->dtdata->fw_name = INTERNAL_FW_PATH;
 	}
-
+	
+	if (of_property_read_u32(np, "melfas,factory_item_version", &info->dtdata->item_version) < 0) {
+		tsp_debug_err(true, dev,  "Failed to get factory_item_version property\n");
+		info->dtdata->item_version = 0;
+	}
+	
 	info->dtdata->support_lpm = of_property_read_bool(np, "melfas,support_lpm");
 	
 	tsp_debug_info(true, dev, "%s: fw_name %s max_x:%d max_y:%d int:%d irq:%d sda:%d scl:%d support_LPM:%d\n",

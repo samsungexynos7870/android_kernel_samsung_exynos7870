@@ -60,6 +60,33 @@ static void cmd_clear_result(struct mms_ts_info *info)
 	strncat(info->cmd_result, &delim, 1);
 }
 
+static void cmd_check_sram(void *device_data);
+
+/*
+ * cmd_set_result_all
+ * added for one command result store
+ */
+ 
+void cmd_set_result_all(struct mms_ts_info *info, char *buff, int len, char *item)
+{
+	char delim1 = ' ';
+	char delim2 = ':';
+	int cmd_result_len;
+
+	cmd_result_len = (int)strlen(info->cmd_result_all) + len + 2 + (int)strlen(item);
+
+	if (cmd_result_len >= CMD_RESULT_STR_LEN) {
+		pr_err("%s %s: cmd length is over (%d)!!", SECLOG, __func__, cmd_result_len);
+		return;
+	}
+
+	info->item_count++;
+	strncat(info->cmd_result_all, &delim1, 1);
+	strncat(info->cmd_result_all, item, strlen(item));
+	strncat(info->cmd_result_all, &delim2, 1);
+	strncat(info->cmd_result_all, buff, len);
+}
+
 /**
  * Set command result
  */
@@ -162,13 +189,17 @@ static void cmd_get_fw_ver_bin(void *device_data)
 
 	release_firmware(fw);
 
-	sprintf(buf, "ME%02X%02X%02X\n", info->dtdata->panel, ver_file[3],ver_file[5]);
+	sprintf(buf, "ME%02X%02X%02X", info->dtdata->panel, ver_file[3],ver_file[5]);
 	info->cmd_state = CMD_STATUS_OK;
 
 	kfree(img);
 
 EXIT:
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "FW_VER_BIN");
+	input_info(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
 
@@ -195,12 +226,16 @@ static void cmd_get_fw_ver_ic(void *device_data)
 	info->core_ver_ic = rbuf[3];
 	info->config_ver_ic = rbuf[5];
 
-	sprintf(buf, "ME%02X%02X%02X\n",
+	sprintf(buf, "ME%02X%02X%02X",
 		info->dtdata->panel, info->core_ver_ic, info->config_ver_ic);
 	info->cmd_state = CMD_STATUS_OK;
 
 EXIT:
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "FW_VER_IC");
+	input_info(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
 }
@@ -219,10 +254,18 @@ static void cmd_get_chip_vendor(void *device_data)
 	sprintf(buf, "MELFAS");
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
 
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "IC_VENDOR");
+	
 	info->cmd_state = CMD_STATUS_OK;
 
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
+		
+	tsp_debug_dbg(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
+
+	return;
 }
 
 /**
@@ -239,10 +282,18 @@ static void cmd_get_chip_name(void *device_data)
 	sprintf(buf, CHIP_NAME);
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
 
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "IC_NAME");
+	
 	info->cmd_state = CMD_STATUS_OK;
 
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
+		
+	tsp_debug_dbg(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
+				
+	return;
 }
 
 static void cmd_get_config_ver(void *device_data)
@@ -629,6 +680,10 @@ static void cmd_run_test_cm_delta(void *device_data)
 
 EXIT:
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "CM_DELTA");
+	input_info(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
 }
@@ -728,6 +783,38 @@ static void cmd_get_cm_abs(void *device_data)
 	info->cmd_state = CMD_STATUS_OK;
 
 EXIT:
+	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
+		__func__, buf, info->cmd_state);
+}
+
+static void check_connection(void *device_data)
+{
+	struct mms_ts_info *info = (struct mms_ts_info *)device_data;
+	char buf[64] = { 0 };
+	
+	cmd_clear_result(info);
+
+	if (mms_run_test(info, MIP_TEST_TYPE_OPEN))
+		goto EXIT;
+
+	input_info(true, &info->client->dev, "%s: connection check(%d)\n", __func__, info->image_buf[0]);
+
+	if (!info->image_buf[0])
+		goto EXIT;
+
+	sprintf(buf, "%s", "OK");
+	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+
+	info->cmd_state = CMD_STATUS_OK;
+
+	input_info(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
+		__func__, buf, info->cmd_state);
+
+	return;
+EXIT:
+	sprintf(buf, "%s", "NG");
+	info->cmd_state = CMD_STATUS_FAIL;
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
@@ -910,6 +997,35 @@ out:
 	mutex_unlock(&info->lock);
 
 	info->cmd_state = CMD_STATUS_WAITING;
+}
+
+static void factory_cmd_result_all(void *device_data)
+{
+	struct mms_ts_info *info = (struct mms_ts_info *)device_data;
+	char buff[16] = { 0 };
+	
+	cmd_clear_result(info);
+	
+	info->item_count = 0;
+	memset(info->cmd_result_all, 0x00, CMD_RESULT_STR_LEN);
+	
+	info->cmd_all_factory_state = CMD_STATUS_RUNNING;
+	
+	snprintf(buff, sizeof(buff), "%d", info->dtdata->item_version);
+	cmd_set_result_all(info, buff, strnlen(buff, sizeof(buff)), "ITEM_VERSION");
+	
+	cmd_get_chip_vendor(info);
+	cmd_get_chip_name(info);
+	cmd_get_fw_ver_bin(info);
+	cmd_get_fw_ver_ic(info);
+	
+	cmd_run_test_cm_delta(info);
+	cmd_check_sram(info);
+
+	info->cmd_all_factory_state = CMD_STATUS_OK;
+
+	input_info(true, &info->client->dev, "%s: %d%s\n", __func__, info->item_count,
+				info->cmd_result_all);
 }
 
 #ifdef GLOVE_MODE
@@ -1218,10 +1334,18 @@ static void cmd_check_sram(void *device_data)
 
 	cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
 
+	if (info->cmd_all_factory_state == CMD_STATUS_RUNNING)
+		cmd_set_result_all(info, buf, strnlen(buf, sizeof(buf)), "SRAM");
+
 	info->cmd_state = CMD_STATUS_OK;
 
 	tsp_debug_dbg(true, &info->client->dev, "%s - cmd[%s] state[%d]\n",
 		__func__, buf, info->cmd_state);
+		
+	input_info(true, &info->client->dev, "%s: %s(%d)\n", __func__, info->cmd_result,
+				(int)strnlen(info->cmd_result, sizeof(info->cmd_result)));
+
+	return;
 }
 
 /**
@@ -1308,6 +1432,8 @@ static struct mms_cmd mms_commands[] = {
 	{MMS_CMD("set_aod_rect", set_aod_rect),},
 	{MMS_CMD("get_aod_rect", get_aod_rect),},
 	{MMS_CMD("check_sram", cmd_check_sram),},
+	{MMS_CMD("check_connection", check_connection),},
+	{MMS_CMD("factory_cmd_result_all", factory_cmd_result_all),},
 	{MMS_CMD(NAME_OF_UNKNOWN_CMD, cmd_unknown_cmd),},
 };
 
@@ -1477,6 +1603,41 @@ static ssize_t mms_sys_cmd_status(struct device *dev,
 static DEVICE_ATTR(cmd_status, S_IRUGO, mms_sys_cmd_status, NULL);
 
 /**
+ * Sysfs - print one command status
+ */
+static ssize_t mms_sys_cmd_status_all(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	struct mms_ts_info *info = dev_get_drvdata(dev);
+	int ret;
+	char cbuf[32] = {0};
+
+	tsp_debug_dbg(true, &info->client->dev, "%s [START]\n", __func__);
+
+	tsp_debug_dbg(true, &info->client->dev, "%s - status [%d]\n", __func__, info->cmd_all_factory_state);
+
+	if (info->cmd_all_factory_state == CMD_STATUS_WAITING) {
+		snprintf(cbuf, sizeof(cbuf), "WAITING");
+	} else if (info->cmd_all_factory_state == CMD_STATUS_RUNNING) {
+		snprintf(cbuf, sizeof(cbuf), "RUNNING");
+	} else if (info->cmd_all_factory_state == CMD_STATUS_OK) {
+		snprintf(cbuf, sizeof(cbuf), "OK");
+	} else if (info->cmd_all_factory_state == CMD_STATUS_FAIL) {
+		snprintf(cbuf, sizeof(cbuf), "FAIL");
+	} else if (info->cmd_all_factory_state == CMD_STATUS_NONE) {
+		snprintf(cbuf, sizeof(cbuf), "NOT_APPLICABLE");
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", cbuf);
+	//memset(info->print_buf, 0, 4096);
+
+	tsp_debug_dbg(true, &info->client->dev, "%s [DONE]\n", __func__);
+
+	return ret;
+}
+static DEVICE_ATTR(cmd_status_all, S_IRUGO, mms_sys_cmd_status_all, NULL);
+
+/**
  * Sysfs - print command result
  */
 static ssize_t mms_sys_cmd_result(struct device *dev,
@@ -1504,6 +1665,32 @@ static ssize_t mms_sys_cmd_result(struct device *dev,
 	return ret;
 }
 static DEVICE_ATTR(cmd_result, S_IRUGO, mms_sys_cmd_result, NULL);
+
+/**
+ * Sysfs - print command result all  "one command"
+ */
+static ssize_t cmd_show_result_all(struct device *dev,
+				 struct device_attribute *devattr, char *buf)
+{
+	struct mms_ts_info *info = dev_get_drvdata(dev);
+	int size;
+
+	tsp_debug_dbg(true, &info->client->dev, "%s [START]\n", __func__);
+	
+	mutex_lock(&info->lock);
+	info->cmd_busy = false;
+	mutex_unlock(&info->lock);
+
+	info->cmd_state = CMD_STATUS_WAITING;
+	pr_info("%s: %d, %s\n",__func__, info->item_count, info->cmd_result_all);
+	size = snprintf(buf, CMD_RESULT_STR_LEN, "%d%s\n", info->item_count, info->cmd_result_all);
+
+	info->item_count = 0;
+	memset(info->cmd_result_all, 0x00, CMD_RESULT_STR_LEN);
+
+	return size;
+}
+static DEVICE_ATTR(cmd_result_all, S_IRUGO, cmd_show_result_all, NULL);
 
 /**
  * Sysfs - print command list
@@ -1599,10 +1786,92 @@ static ssize_t read_vendor_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "MELFAS");
 }
 
+static ssize_t sensitivity_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mms_ts_info *info = dev_get_drvdata(dev);
+	
+	u8 wbuf[64];
+	u8 rbuf[64];
+	int ret;
+	int i;
+	u16 sTspSensitivity[5] = {0, };
+
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_TS_READ_SENSITIVITY_VALUE;			
+			
+	ret = mms_i2c_read(info, wbuf, 2, rbuf, 10);
+	
+	if (ret != 0) {
+		input_err(true, &info->client->dev, "%s: i2c fail!, %d\n", __func__, ret);
+		return ret;
+	}
+	
+	for(i = 0; i < 5; i++)
+		sTspSensitivity[i] = (rbuf[i * 2 + 1] & 0xFF) << 8 | (rbuf[i * 2] & 0xFF);
+		
+	input_info(true, &info->client->dev, "%s: sensitivity mode,%d,%d,%d,%d,%d\n", __func__,
+		sTspSensitivity[0], sTspSensitivity[1], sTspSensitivity[2], sTspSensitivity[3], sTspSensitivity[4]);
+		
+	return snprintf(buf, PAGE_SIZE,"%d,%d,%d,%d,%d",
+			sTspSensitivity[0], sTspSensitivity[1], sTspSensitivity[2], sTspSensitivity[3], sTspSensitivity[4]);
+		
+}
+
+static ssize_t sensitivity_mode_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+
+	struct mms_ts_info *info = dev_get_drvdata(dev);
+
+	u8 wbuf[64];
+	int ret;
+	//u8 temp;
+	unsigned long value = 0;
+
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_R1_CTRL_GLOVE_MODE;
+
+	if (count > 2)
+		return -EINVAL;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret != 0)
+		return ret;
+
+	input_err(true, &info->client->dev, "%s: enable:%d\n", __func__, value);
+	
+	if (value == 1) {
+		wbuf[2] = 1; // enable
+		//temp = 0x1;
+		ret = mms_i2c_write(info, wbuf, 3);
+		if (ret < 0) {
+			input_err(true, &info->client->dev, "%s: send sensitivity mode on fail!\n", __func__);
+			return ret;
+		}
+		input_info(true, &info->client->dev, "%s: enable end\n", __func__);
+	} else {
+		wbuf[2] = 0; // disable
+		//temp = 0x1;
+		ret = mms_i2c_write(info, wbuf, 3);
+		if (ret < 0) {
+			input_err(true, &info->client->dev, "%s: send sensitivity mode off fail!\n", __func__);
+			return ret;
+		}
+		input_info(true, &info->client->dev, "%s: disable end\n", __func__);
+	}
+
+	input_info(true, &info->client->dev, "%s: done\n", __func__);
+
+	return count;
+}
+
 static DEVICE_ATTR(multi_count, S_IRUGO | S_IWUSR | S_IWGRP, read_multi_count_show, clear_multi_count_store);
 static DEVICE_ATTR(comm_err_count, S_IRUGO | S_IWUSR | S_IWGRP, read_comm_err_count_show, clear_comm_err_count_store);
 static DEVICE_ATTR(module_id, S_IRUGO, read_module_id_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, read_vendor_show, NULL);
+static DEVICE_ATTR(sensitivity_mode, S_IRUGO | S_IWUSR | S_IWGRP, sensitivity_mode_show, sensitivity_mode_store);
 
 /**
  * Sysfs - cmd attr info
@@ -1610,13 +1879,16 @@ static DEVICE_ATTR(vendor, S_IRUGO, read_vendor_show, NULL);
 static struct attribute *mms_cmd_attr[] = {
 	&dev_attr_cmd.attr,
 	&dev_attr_cmd_status.attr,
+	&dev_attr_cmd_status_all.attr,
 	&dev_attr_cmd_result.attr,
+	&dev_attr_cmd_result_all.attr,
 	&dev_attr_cmd_list.attr,
 	&dev_attr_scrub_pos.attr,
 	&dev_attr_multi_count.attr,
 	&dev_attr_comm_err_count.attr,
 	&dev_attr_module_id.attr,
 	&dev_attr_vendor.attr,
+	&dev_attr_sensitivity_mode.attr,
 	NULL,
 };
 

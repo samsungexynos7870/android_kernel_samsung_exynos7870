@@ -574,8 +574,6 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		return;
 	}
 
-	exynos_ss_check_crash_key(button->code, state);
-
 	switch (button->code) {
 	case KEY_POWER:
 		printk(KERN_INFO "[sec_input] PWR key is %s\n", !!state ? "pressed" : "released");
@@ -617,6 +615,9 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 {
 	struct gpio_button_data *bdata =
 		container_of(work, struct gpio_button_data, work);
+	int state = (gpio_get_value_cansleep(bdata->button->gpio) ? 1 : 0) ^ bdata->button->active_low;
+
+	exynos_ss_check_crash_key(bdata->button->code, state);
 
 	gpio_keys_gpio_report_event(bdata);
 

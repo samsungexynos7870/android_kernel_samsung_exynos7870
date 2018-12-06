@@ -928,6 +928,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 			struct scatterlist *s;
 			int		i;
 
+			printk(KERN_DEBUG"usb: %s using mapped segments \n",__func__);
 			for_each_sg(sg, s, request->num_mapped_sgs, i) {
 				unsigned chain = true;
 

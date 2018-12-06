@@ -90,6 +90,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
 
+#ifdef CONFIG_SECURITY_DEFEX
+#include <linux/defex.h>
+#endif
+
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
  */
@@ -668,12 +672,15 @@ static void check_mm(struct mm_struct *mm)
 struct mm_struct *mm_alloc(void)
 {
 	struct mm_struct *mm;
+	void *putwork;
 
 	mm = allocate_mm();
 	if (!mm)
 		return NULL;
 
+	putwork = mm->async_put_work;
 	memset(mm, 0, sizeof(*mm));
+	mm->async_put_work = putwork;
 	return mm_init(mm, current);
 }
 
@@ -807,8 +814,7 @@ struct mm_struct *mm_access(struct task_struct *task, unsigned int mode)
 
 	mm = get_task_mm(task);
 	if (mm && mm != current->mm &&
-			!ptrace_may_access(task, mode) &&
-			!capable(CAP_SYS_RESOURCE)) {
+			!ptrace_may_access(task, mode)) {
 		mmput(mm);
 		mm = ERR_PTR(-EACCES);
 	}
@@ -921,13 +927,16 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 static struct mm_struct *dup_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm, *oldmm = current->mm;
+	void *putwork;
 	int err;
 
 	mm = allocate_mm();
 	if (!mm)
 		goto fail_nomem;
 
+	putwork = mm->async_put_work;
 	memcpy(mm, oldmm, sizeof(*mm));
+	mm->async_put_work = putwork;
 
 	if (!mm_init(mm, tsk))
 		goto fail_nomem;
@@ -1798,6 +1807,10 @@ long do_fork(unsigned long clone_flags,
 
 		pid = get_task_pid(p, PIDTYPE_PID);
 		nr = pid_vnr(pid);
+
+#ifdef CONFIG_SECURITY_DEFEX
+		task_defex_zero_creds(p);
+#endif
 
 		if (clone_flags & CLONE_PARENT_SETTID)
 			put_user(nr, parent_tidptr);

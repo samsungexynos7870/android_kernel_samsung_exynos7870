@@ -1,11 +1,11 @@
 /* dd_lcd.c
  *
- * Copyright (c) 2018 Samsung Electronics
+ * Copyright (c) Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 /* temporary solution: Do not use these sysfs as official purpose */
 /* these function are not official one. only purpose is for temporary test */
@@ -349,7 +349,7 @@ static ssize_t unlock_store(struct file *f, const char __user *user_buf,
 	if (count > sizeof(ibuf))
 		goto exit;
 
-	if (!strncmp(user_buf, "0", count)) {
+	if (!strncmp(user_buf, "0", count - 1)) {
 		dbg_info("input is 0(zero). reset unlock parameter to default(nothing)\n");
 		clean_unlock(d);
 		goto exit;
@@ -398,6 +398,7 @@ static int tx_show(struct seq_file *m, void *unused)
 
 	if (!d->enable) {
 		dbg_info("enable is %s\n", d->enable ? "on" : "off");
+		seq_printf(m, "enable is %s\n", d->enable ? "on" : "off");
 		goto exit;
 	}
 
@@ -489,6 +490,7 @@ static int rx_show(struct seq_file *m, void *unused)
 
 	if (!d->enable) {
 		dbg_info("enable is %s\n", d->enable ? "on" : "off");
+		seq_printf(m, "enable is %s\n", d->enable ? "on" : "off");
 		goto exit;
 	}
 
@@ -630,6 +632,9 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "* If you insist, we eliminate these function immediately\n");
 	seq_puts(m, "------------------------------------------------------------\n");
 	seq_puts(m, "\n");
+	seq_puts(m, "---------- usage\n");
+	seq_puts(m, "# cd /d/dd_lcd\n");
+	seq_puts(m, "\n");
 	seq_puts(m, "---------- rx usage\n");
 	seq_puts(m, "# echo cmd len > rx\n");
 	seq_puts(m, "# echo (datatype:) cmd len (pos) > rx\n");
@@ -704,6 +709,7 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "= check current tx_dump status\n");
 	seq_puts(m, "\n");
 	seq_puts(m, "---------- usage summary\n");
+	seq_puts(m, "# cd /d/dd_lcd\n");
 	seq_puts(m, "# echo 29 > tx\n");
 	seq_puts(m, "# cat tx\n");
 	seq_puts(m, "# echo a1 4 > rx\n");
@@ -978,16 +984,16 @@ static int init_debugfs_lcd(void)
 
 	if (!debugfs_root) {
 		debugfs_root = debugfs_create_dir("dd_lcd", NULL);
-		debugfs_create_file("_help", S_IRUSR, debugfs_root, d, &help_fops);
+		debugfs_create_file("_help", 0400, debugfs_root, d, &help_fops);
 	}
 
 	d->dev = dev;
 	d->tx_dump = &tx_dump;
 
-	debugfs_create_u32("tx_dump", S_IRUSR | S_IWUSR, debugfs_root, d->tx_dump);
-	debugfs_create_file("rx", S_IRUSR | S_IWUSR, debugfs_root, d, &rx_fops);
-	debugfs_create_file("tx", S_IRUSR | S_IWUSR, debugfs_root, d, &tx_fops);
-	debugfs_create_file("unlock", S_IRUSR | S_IWUSR, debugfs_root, d, &unlock_fops);
+	debugfs_create_u32("tx_dump", 0600, debugfs_root, d->tx_dump);
+	debugfs_create_file("rx", 0600, debugfs_root, d, &rx_fops);
+	debugfs_create_file("tx", 0600, debugfs_root, d, &tx_fops);
+	debugfs_create_file("unlock", 0600, debugfs_root, d, &unlock_fops);
 
 	INIT_LIST_HEAD(&d->unlock_list);
 	init_add_unlock(d, "f0 5a 5a");

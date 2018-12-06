@@ -240,7 +240,18 @@ static void android_work(struct work_struct *data)
 			dev->sw_connected);
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (cdev->config)
-		uevent_envp = configured;
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_CCR_PROTOCOL
+	{
+		if (dev->connected != dev->sw_connected) {
+			uevent_envp = connected;
+			schedule_work(&dev->work);
+		} else {
+#endif
+			uevent_envp = configured;
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_CCR_PROTOCOL
+		}
+	}
+#endif
 	else if (dev->connected != dev->sw_connected) {
 		uevent_envp = dev->connected ? connected : disconnected;
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER

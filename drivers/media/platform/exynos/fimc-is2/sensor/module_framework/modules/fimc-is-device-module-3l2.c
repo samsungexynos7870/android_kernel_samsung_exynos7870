@@ -175,7 +175,7 @@ static int sensor_module_3l2_power_setpin(struct platform_device *pdev,
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_camio_1p8_en, "camio_1p8_en", PIN_OUTPUT, 0, 0);
 
 	SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_cam_1p2_en, "cam_1p2_en", PIN_OUTPUT, 0, 0);
-	if (gpio_is_valid(gpio_camaf_2p8_en)) {
+	if (gpio_is_valid(gpio_cam_2p8_en)) {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_cam_2p8_en, "cam_2p8_en", PIN_OUTPUT, 0, 0);
 	} else {
 		SET_PIN(pdata, SENSOR_SCENARIO_NORMAL, GPIO_SCENARIO_OFF, gpio_none, "VDD_CAM_SENSOR_A2P8", PIN_REGULATOR, 0, 0);

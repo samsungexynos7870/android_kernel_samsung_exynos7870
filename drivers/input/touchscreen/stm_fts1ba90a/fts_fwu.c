@@ -473,6 +473,8 @@ int fts_execute_autotune(struct fts_ts_info *info, bool IsSaving)
 
 	input_info(true, &info->client->dev, "%s: start\n", __func__);
 
+	info->fts_command(info, FTS_CMD_CLEAR_ALL_EVENT, true);
+
 	fts_interrupt_set(info, INT_DISABLE);
 
 	// w A4 00 03
@@ -504,13 +506,8 @@ int fts_execute_autotune(struct fts_ts_info *info, bool IsSaving)
 	}
 
 	fts_set_factory_history_data(info, info->factory_position);
-	if (IsSaving == true) {
-		/* Reset FTS */
-		info->fts_systemreset(info);
-		fts_delay(20);
-		/* wait for ready event */
-		info->fts_wait_for_ready(info);
-	}
+	if (IsSaving == true)
+		fts_panel_ito_test(info, SAVE_MISCAL_REF_RAW);
 
 ERROR:
 	info->factory_position = OFFSET_FAC_NOSAVE;

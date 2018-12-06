@@ -99,6 +99,8 @@ struct ssrm_camera_data SsrmCameraInfo[FIMC_IS_SENSOR_COUNT];
 #ifdef CONFIG_SECURE_CAMERA_USE
 extern bool is_final_cam_module_iris;
 extern bool is_iris_ver_read;
+extern bool is_iris_mtf_test_check;
+extern u8 is_iris_mtf_read_data[3];	/* 0:year 1:month 2:company */
 #endif
 
 #ifdef CAMERA_SYSFS_V2
@@ -1691,7 +1693,7 @@ static ssize_t iris_camera_hw_param_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cam_hw_param *ec_param = NULL;
-	fimc_is_sec_get_hw_param(&ec_param);
+	fimc_is_sec_get_iris_hw_param(&ec_param);
 
 	return sprintf(buf, "\"CAMII_ID\":\"MI_NO\",\"I2CI_AF\":\"%d\",\"I2CI_COM\":\"%d\",\"I2CI_OIS\":\"%d\","
 		"\"I2CI_SEN\":\"%d\",\"MIPII_COM\":\"%d\",\"MIPII_SEN\":\"%d\"\n",
@@ -1705,7 +1707,7 @@ static ssize_t iris_camera_hw_param_store(struct device *dev,
 	struct cam_hw_param *ec_param = NULL;
 
 	if (!strncmp(buf, "c", 1)) {
-		fimc_is_sec_get_hw_param(&ec_param);
+		fimc_is_sec_get_iris_hw_param(&ec_param);
 
 		if (ec_param)
 			fimc_is_sec_init_err_cnt_file(ec_param);
@@ -1758,18 +1760,34 @@ static ssize_t camera_iris_camfw_full_show(struct device *dev,
 static ssize_t camera_iris_checkfw_factory_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	u8 year_month_company[3] = {'0', '0', '0'};
+
+	info("camera_iris_checkfw_factory_show\n");
+
+	if (is_iris_mtf_read_data[0] != 0x00)
+		year_month_company[0] = is_iris_mtf_read_data[0];
+
+	if (is_iris_mtf_read_data[1] != 0x00)
+		year_month_company[1] = is_iris_mtf_read_data[1];
+
+	if (is_iris_mtf_read_data[0] != 0x00)
+		year_month_company[2] = is_iris_mtf_read_data[2];
+
+	if (is_iris_mtf_test_check == false) {
+		return sprintf(buf, "NG_RES %c %c %c\n", year_month_company[0], year_month_company[1], year_month_company[2]);
+	}
 	if (is_iris_ver_read) {
 		if (is_final_cam_module_iris) {
-			return sprintf(buf, "%s\n", "OK");
+			return sprintf(buf, "OK %c %c %c\n", year_month_company[0], year_month_company[1], year_month_company[2]);
 		} else {
 #ifdef CAMERA_SYSFS_V2
-			return sprintf(buf, "%s\n", "NG_VER");
+			return sprintf(buf, "NG_VER %c %c %c\n", year_month_company[0], year_month_company[1], year_month_company[2]);
 #else
-			return sprintf(buf, "%s\n", "NG");
+			return sprintf(buf, "NG %c %c %c\n", year_month_company[0], year_month_company[1], year_month_company[2]);
 #endif
 		}
 	} else {
-		return sprintf(buf, "%s\n", "NG_VER");
+		return sprintf(buf, "NG_VER %c %c %c\n", year_month_company[0], year_month_company[1], year_month_company[2]);
 	}
 }
 

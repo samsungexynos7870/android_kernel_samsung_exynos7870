@@ -121,30 +121,6 @@ void s2mm001_print_reg_dump(struct s2mm001_muic_data *muic_data)
 }
 #endif
 
-/* don't access this variable directly!! except get_switch_sel_value function.
- * you must get switch_sel value by using get_switch_sel function. */
-static int switch_sel;
-
-/*
- * func : set_switch_sel
- * switch_sel value get from bootloader comand line
- * switch_sel data consist 4 bits
- */
-static int set_switch_sel(char *str)
-{
-	get_option(&str, &switch_sel);
-	switch_sel = switch_sel & 0x0f;
-	pr_info("%s:%s switch_sel: 0x%x\n", MUIC_DEV_NAME, __func__,
-			switch_sel);
-
-	return switch_sel;
-}
-__setup("pmic_info=", set_switch_sel);
-
-static int get_switch_sel(void)
-{
-	return switch_sel;
-}
 static int s2mm001_i2c_read_byte(const struct i2c_client *client, u8 command)
 {
 	int ret;

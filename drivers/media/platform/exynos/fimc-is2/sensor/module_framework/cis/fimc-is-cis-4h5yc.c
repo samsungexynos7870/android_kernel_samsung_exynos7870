@@ -1697,6 +1697,7 @@ int cis_4h5yc_probe(struct i2c_client *client,
 	struct fimc_is_device_sensor *device = NULL;
 	struct fimc_is_device_sensor_peri *sensor_peri = NULL;
 	u32 sensor_id = 0;
+	u32 fnum = 0;
 	char const *setfile;
 	struct device *dev;
 	struct device_node *dnode;
@@ -1760,9 +1761,18 @@ int cis_4h5yc_probe(struct i2c_client *client,
 
 	/* belows are depend on sensor cis. MUST check sensor spec */
 	cis->bayer_order = OTF_INPUT_ORDER_BAYER_GR_BG;
-	cis->aperture_num = F1_9;
+	cis->aperture_num = F2_2;
 	cis->use_dgain = true;
 	cis->hdr_ctrl_by_again = false;
+	
+	ret = of_property_read_u32(dnode, "fnum", &fnum);
+	if (ret) {
+		warn("fnum read is fail(%d), use default f num", ret);
+		cis->aperture_num = F2_2;
+	} else {
+		probe_info("%s f num %d from dt\n", __func__, fnum);
+		cis->aperture_num = fnum;
+	}
 
 	ret = of_property_read_string(dnode, "setfile", &setfile);
 	if (ret) {

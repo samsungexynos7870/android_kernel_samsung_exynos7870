@@ -560,7 +560,7 @@ static int board_id_setup(char *str)
 
 	return 1;
 }
-__setup("androidboot.hw_rev=", board_id_setup);
+__setup("androidboot.revision=", board_id_setup);
 #endif
 
 #endif /* CONFIG_SEC_DEBUG */

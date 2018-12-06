@@ -264,6 +264,7 @@ policy_state usbpd_policy_src_hard_reset(struct policy_data *policy)
 	msleep(tPSHardReset);
 
 	pd_data->phy_ops.hard_reset(pd_data);
+	pd_data->phy_ops.set_cc_control(pd_data, USBPD_CC_OFF);
 	pd_data->counter.hard_reset_counter++;
 
 	return PE_SRC_Transition_to_default;
@@ -399,6 +400,9 @@ policy_state usbpd_policy_snk_startup(struct policy_data *policy)
 
 	dev_info(pd_data->dev, "%s\n", __func__);
 	usbpd_init_protocol(pd_data);
+
+	pd_data->phy_ops.set_cc_control(pd_data, USBPD_CC_ON);
+
 	return PE_SNK_Discovery;
 }
 
@@ -559,7 +563,7 @@ policy_state usbpd_policy_snk_hard_reset(struct policy_data *policy)
 	dev_info(pd_data->dev, "%s\n", __func__);
 
 	pd_data->phy_ops.hard_reset(pd_data);
-
+	pd_data->phy_ops.set_cc_control(pd_data, USBPD_CC_OFF);
 	/* increase hard reset counter */
 	pd_data->counter.hard_reset_counter++;
 

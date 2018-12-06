@@ -1092,6 +1092,14 @@ static int lis2ds_init_sensors(struct lis2ds_data *cdata, int sindex)
 	if (err < 0)
 		return err;
 
+	/*
+	 * Set the wake_up_ths max to be prevented from false alert
+	 */
+	err = lis2ds_write_data_with_mask(cdata,
+					   LIS2DS_WAKE_UP_THS_ADDR,
+					   LIS2DS_WAKE_UP_THS_WU_MASK,
+					   0x3f, true);
+
 	return 0;
 }
 
@@ -1934,7 +1942,7 @@ static ssize_t lis2ds_smart_alert_store(struct device *dev,
 		mdelay(100);
 
 		if (factory_mode == 1) {
-			threshold = 0;
+			threshold = 0x00;
 			odr = LIS2DS_ODR_200HZ_HR_VAL;
 			duration = 0x00;
 		} else {
@@ -1976,6 +1984,11 @@ static ssize_t lis2ds_smart_alert_store(struct device *dev,
 	} else if ((enable == 0) && (cdata->sa_flag == 1)) {
 		lis2ds_set_irq(cdata, 0);
 		cdata->sa_flag = 0;
+
+		lis2ds_write_data_with_mask(cdata,
+					   LIS2DS_WAKE_UP_THS_ADDR,
+					   LIS2DS_WAKE_UP_THS_WU_MASK,
+					   0x3f, true);
 
 		lis2ds_write_data_with_mask(cdata,
 					   LIS2DS_CTRL4_INT1_PAD_ADDR,

@@ -797,3 +797,10 @@ config MMC_SUNXI
 	help
 	  This selects support for the SD/MMC Host Controller on
 	  Allwinner sunxi SoCs.
+	  
+config MMC_TUNING_ALL_PASS_QUIRK
+    bool "Check if all passed before for tuning fail case"
+    default n
+    help
+      If tuning failed with lowest driver strength but passed for all phase with previous driver strength,
+      do not treat the card as tuning failed. Select timing based on all pass case.

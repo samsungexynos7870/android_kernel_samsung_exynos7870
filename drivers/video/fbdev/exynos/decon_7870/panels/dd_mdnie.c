@@ -1,11 +1,11 @@
 /* dd_mdnie.c
  *
- * Copyright (c) 2018 Samsung Electronics
+ * Copyright (c) Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 /* temporary solution: Do not use these sysfs as official purpose */
 /* these function are not official one. only purpose is for temporary test */
@@ -241,7 +241,8 @@ static int status_show(struct seq_file *m, void *unused)
 	u8 *buffer;
 
 	if (!mdnie->enable) {
-		dbg_info("mdnie state is off\n");
+		dbg_info("mdnie state is %s\n", mdnie->enable ? "on" : "off");
+		seq_printf(m, "mdnie state is %s\n", mdnie->enable ? "on" : "off");
 		goto exit;
 	}
 
@@ -303,7 +304,8 @@ static int tuning_show(struct seq_file *m, void *unused)
 	int i, idx;
 
 	if (!d->tuning) {
-		seq_puts(m, "tunning mode is off\n");
+		dbg_info("tunning mode is %s\n", d->tuning ? "on" : "off");
+		seq_printf(m, "tunning mode is %s\n", d->tuning ? "on" : "off");
 		goto exit;
 	}
 
@@ -377,7 +379,7 @@ static ssize_t tuning_store(struct file *f, const char __user *user_buf,
 	wbuf[ret] = '\0';
 
 	pbuf = strim(wbuf);
-	if (!strncmp(wbuf, "0", 1) || !strncmp(wbuf, "1", 1)) {
+	if (!strncmp(wbuf, "0", count - 1) || !strncmp(wbuf, "1", count - 1)) {
 		ret = kstrtouint(wbuf, 0, &value);
 		if (ret < 0)
 			return count;
@@ -446,6 +448,8 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "* If you insist, we eliminate these function immediately\n");
 	seq_puts(m, "------------------------------------------------------------\n");
 	seq_puts(m, "\n");
+	seq_puts(m, "---------- usage\n");
+	seq_puts(m, "# cd /d/dd_mdnie\n");
 	seq_puts(m, "---------- status usage\n");
 	seq_puts(m, "# cat status\n");
 	seq_puts(m, "= see status value with latest read data from panel\n");
@@ -509,7 +513,7 @@ int init_debugfs_mdnie(struct mdnie_info *md, unsigned int mdnie_no)
 
 	if (!debugfs_root) {
 		debugfs_root = debugfs_create_dir("dd_mdnie", NULL);
-		debugfs_create_file("_help", S_IRUSR, debugfs_root, md, &help_fops);
+		debugfs_create_file("_help", 0400, debugfs_root, md, &help_fops);
 	}
 
 	d->md = md;
@@ -517,11 +521,11 @@ int init_debugfs_mdnie(struct mdnie_info *md, unsigned int mdnie_no)
 
 	memset(name, 0, sizeof(name));
 	scnprintf(name, sizeof(name), !mdnie_no ? "tuning" : "tuning.%d", mdnie_no);
-	debugfs_create_file(name, S_IRUSR | S_IWUSR, debugfs_root, d, &tuning_fops);
+	debugfs_create_file(name, 0600, debugfs_root, d, &tuning_fops);
 
 	memset(name, 0, sizeof(name));
 	scnprintf(name, sizeof(name), !mdnie_no ? "status" : "status.%d", mdnie_no);
-	debugfs_create_file(name, S_IRUSR, debugfs_root, d, &status_fops);
+	debugfs_create_file(name, 0400, debugfs_root, d, &status_fops);
 
 	dbg_info("-\n");
 

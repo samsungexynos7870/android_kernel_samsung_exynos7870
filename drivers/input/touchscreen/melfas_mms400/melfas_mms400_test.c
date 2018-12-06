@@ -442,6 +442,10 @@ int mms_run_test(struct mms_ts_info *info, u8 test_type)
 		//printk("=== Short Test ===\n");
 		sprintf(info->print_buf, "\n=== Short Test ===\n\n");
 		break;
+	case MIP_TEST_TYPE_OPEN:
+		//printk("=== OPEN Test(TSP Connection check) ===\n");
+		sprintf(info->print_buf, "\n=== OPEN Test(TSP Connection check) ===\n\n");
+		break;
 	default:
 		tsp_debug_err(true, &info->client->dev, "%s [ERROR] Unknown test type\n", __func__);
 		sprintf(info->print_buf, "\nERROR : Unknown test type\n\n");
@@ -505,48 +509,63 @@ int mms_run_test(struct mms_ts_info *info, u8 test_type)
 
 	tsp_debug_dbg(true, &info->client->dev, "%s - ready\n", __func__);
 
-	//data format
-	wbuf[0] = MIP_R0_TEST;
-	wbuf[1] = MIP_R1_TEST_DATA_FORMAT;
-	if (mms_i2c_read(info, wbuf, 2, rbuf, 6)) {
-		tsp_debug_err(true, &info->client->dev, "%s [ERROR] Read data format\n", __func__);
-		goto EXIT;
+	if (test_type == MIP_TEST_TYPE_OPEN) {
+		info->image_buf[0] = 1;
+	
+		//data format
+		wbuf[0] = MIP_R0_CTRL;
+		wbuf[1] = MIP_R1_CTRL_TSP_CONNECTION_CHECK;
+		if (mms_i2c_read(info, wbuf, 2, rbuf, 1)) {
+			input_err(true, &info->client->dev, "%s [ERROR] Read data format\n", __func__);
+			goto EXIT;
+		}
+		input_info(true, &info->client->dev, "%s: connection check(%d)\n", __func__, rbuf[0]);
+		info->image_buf[0] = rbuf[0]; //pass: 1, NG: 0
 	}
-	row_num = rbuf[0];
-	col_num = rbuf[1];
-	buffer_col_num = rbuf[2];
-	rotate = rbuf[3];
-	key_num = rbuf[4];
-	data_type = rbuf[5];
+	else {
+		//data format
+		wbuf[0] = MIP_R0_TEST;
+		wbuf[1] = MIP_R1_TEST_DATA_FORMAT;
+		if (mms_i2c_read(info, wbuf, 2, rbuf, 6)) {
+			tsp_debug_err(true, &info->client->dev, "%s [ERROR] Read data format\n", __func__);
+			goto EXIT;
+		}
+		row_num = rbuf[0];
+		col_num = rbuf[1];
+		buffer_col_num = rbuf[2];
+		rotate = rbuf[3];
+		key_num = rbuf[4];
+		data_type = rbuf[5];
 
-	data_type_sign = (data_type & 0x80) >> 7;
-	data_type_size = data_type & 0x7F;
+		data_type_sign = (data_type & 0x80) >> 7;
+		data_type_size = data_type & 0x7F;
 
-	tsp_debug_dbg(true, &info->client->dev,
-		"%s - row_num[%d] col_num[%d] buffer_col_num[%d] rotate[%d] key_num[%d]\n",
-		__func__, row_num, col_num, buffer_col_num, rotate, key_num);
-	tsp_debug_dbg(true, &info->client->dev,
-		"%s - data_type[0x%02X] data_sign[%d] data_size[%d]\n",
-		__func__, data_type, data_type_sign, data_type_size);
+		tsp_debug_dbg(true, &info->client->dev,
+			"%s - row_num[%d] col_num[%d] buffer_col_num[%d] rotate[%d] key_num[%d]\n",
+			__func__, row_num, col_num, buffer_col_num, rotate, key_num);
+		tsp_debug_dbg(true, &info->client->dev,
+			"%s - data_type[0x%02X] data_sign[%d] data_size[%d]\n",
+			__func__, data_type, data_type_sign, data_type_size);
 
-	//get buf addr
-	wbuf[0] = MIP_R0_TEST;
-	wbuf[1] = MIP_R1_TEST_BUF_ADDR;
-	if (mms_i2c_read(info, wbuf, 2, rbuf, 2)) {
-		tsp_debug_err(true, &info->client->dev, "%s [ERROR] Read buf addr\n", __func__);
-		goto EXIT;
-	}
+		//get buf addr
+		wbuf[0] = MIP_R0_TEST;
+		wbuf[1] = MIP_R1_TEST_BUF_ADDR;
+		if (mms_i2c_read(info, wbuf, 2, rbuf, 2)) {
+			tsp_debug_err(true, &info->client->dev, "%s [ERROR] Read buf addr\n", __func__);
+			goto EXIT;
+		}
 
-	buf_addr_l = rbuf[0];
-	buf_addr_h = rbuf[1];
-	tsp_debug_dbg(true, &info->client->dev, "%s - buf_addr[0x%02X 0x%02X]\n",
-		__func__, buf_addr_h, buf_addr_l);
+		buf_addr_l = rbuf[0];
+		buf_addr_h = rbuf[1];
+		tsp_debug_dbg(true, &info->client->dev, "%s - buf_addr[0x%02X 0x%02X]\n",
+			__func__, buf_addr_h, buf_addr_l);
 
-	//print data
-	if (mms_proc_table_data(info, size, data_type_size, data_type_sign,
-		buf_addr_h, buf_addr_l, row_num, col_num, buffer_col_num, rotate, key_num)) {
-		tsp_debug_err(true, &info->client->dev, "%s [ERROR] mms_proc_table_data\n", __func__);
-		goto EXIT;
+		//print data
+		if (mms_proc_table_data(info, size, data_type_size, data_type_sign,
+			buf_addr_h, buf_addr_l, row_num, col_num, buffer_col_num, rotate, key_num)) {
+			tsp_debug_err(true, &info->client->dev, "%s [ERROR] mms_proc_table_data\n", __func__);
+			goto EXIT;
+		}
 	}
 
 	//set normal mode

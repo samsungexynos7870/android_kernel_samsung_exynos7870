@@ -27,7 +27,7 @@
  * other than the GPL, without Broadcom's express prior written consent.
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlioctl.h 745037 2018-02-06 18:26:04Z $
+ * $Id: wlioctl.h 753884 2018-03-23 06:08:07Z $
  */
 
 #ifndef _wlioctl_h_

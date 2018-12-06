@@ -948,7 +948,7 @@ __init get_hw_rev(char *arg)
 	return 0;
 }
 
-early_param("androidboot.hw_rev", get_hw_rev);
+early_param("androidboot.revision", get_hw_rev);
 #endif /* SUPPORT_MULTIPLE_BOARD_REV_FROM_HW */
 #endif /* CUSTOMER_HW4 || CUSTOMER_HW40 */
 

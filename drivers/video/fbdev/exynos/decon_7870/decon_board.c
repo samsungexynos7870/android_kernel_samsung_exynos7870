@@ -480,7 +480,7 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 		break;
 	}
 
-	bd_info("idx: %d, type: %s\n", action->idx, action->type);
+	bd_info("idx: %d, type: %s, subinfo: %s\n", action->idx, action->type, action->subinfo);
 exit:
 
 	return ret;
@@ -563,24 +563,24 @@ static int do_list(struct list_head *lh)
 		case ACTION_GPIO_HIGH:
 			ret = gpio_request_one(action->gpio, GPIOF_OUT_INIT_HIGH, NULL);
 			if (ret < 0)
-				bd_warn("gpio_request_one fail\n");
+				bd_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
 			gpio_free(action->gpio);
 			break;
 		case ACTION_GPIO_LOW:
 			ret = gpio_request_one(action->gpio, GPIOF_OUT_INIT_LOW, NULL);
 			if (ret < 0)
-				bd_warn("gpio_request_one fail\n");
+				bd_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
 			gpio_free(action->gpio);
 			break;
 		case ACTION_REGULATOR_ENABLE:
 			ret = regulator_enable(action->supply->consumer);
 			if (ret < 0)
-				bd_warn("regulator_enable fail %s\n", action->supply->supply);
+				bd_warn("regulator_enable fail %d, %s\n", ret, action->supply->supply);
 			break;
 		case ACTION_REGULATOR_DISABLE:
 			ret = regulator_disable(action->supply->consumer);
 			if (ret < 0)
-				bd_warn("regulator_disable fail %s\n", action->supply->supply);
+				bd_warn("regulator_disable fail %d, %s\n", ret, action->supply->supply);
 			break;
 		case ACTION_DELAY_MDELAY:
 			mdelay(action->delay[0]);

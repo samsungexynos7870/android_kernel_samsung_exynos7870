@@ -153,6 +153,10 @@ static void s2mu005_charger_otg_control(struct s2mu005_charger_data *charger,
 		s2mu005_update_reg(charger->client, S2MU005_CHG_CTRL0,
 			2 << REG_MODE_SHIFT, REG_MODE_MASK);
 
+		/* OTG OCP debounce time 100usec->1msec, 0x88[3:2]=11 --> 10 */
+		s2mu005_update_reg(charger->client, 0x88,
+			0x8, 0xC);
+
 		/* mask VMID_INT */
 		s2mu005_update_reg(charger->client, S2MU005_REG_SC_INT_MASK,
 			1 << VMID_M_SHIFT, VMID_M_MASK);
@@ -166,6 +170,10 @@ static void s2mu005_charger_otg_control(struct s2mu005_charger_data *charger,
 		/* set mode to OTG */
 		s2mu005_update_reg(charger->client, S2MU005_CHG_CTRL0,
 			4 << REG_MODE_SHIFT, REG_MODE_MASK);
+
+		/* OTG OCP debounce time 100usec->1msec, 0x88[3:2]=10 --> 11 */
+		s2mu005_update_reg(charger->client, 0x88,
+			0xC, 0xC);
 
 		/* set boost frequency to 1MHz */
 		s2mu005_update_reg(charger->client, S2MU005_CHG_CTRL11,

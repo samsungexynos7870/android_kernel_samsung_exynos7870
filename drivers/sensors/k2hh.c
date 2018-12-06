@@ -45,7 +45,7 @@
 #define K2HH_DEFAULT_DELAY            200000000LL
 #define K2HH_MIN_DELAY                5000000LL
 
-#define CHIP_ID_RETRIES               3
+#define CHIP_ID_RETRIES               5
 #define ACCEL_LOG_TIME                15 /* 15 sec */
 
 #define K2HH_TOP_UPPER_RIGHT          0
@@ -736,9 +736,9 @@ static ssize_t k2hh_enable_store(struct device *dev,
 		}
 	} else {
 		if (pre_enable == ON) {
+			k2hh_set_enable(data, OFF);
 			atomic_set(&data->enable, OFF);
 			k2hh_set_mode(data, K2HH_MODE_SUSPEND);
-			k2hh_set_enable(data, OFF);
 		}
 	}
 
@@ -1542,8 +1542,8 @@ static int k2hh_suspend(struct device *dev)
 	SENSOR_INFO("\n");
 
 	if (atomic_read(&data->enable) == ON) {
-		k2hh_set_mode(data, K2HH_MODE_SUSPEND);
 		k2hh_set_enable(data, OFF);
+		k2hh_set_mode(data, K2HH_MODE_SUSPEND);
 	}
 
 	return 0;

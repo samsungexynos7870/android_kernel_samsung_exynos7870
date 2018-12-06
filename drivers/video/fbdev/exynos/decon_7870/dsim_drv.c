@@ -447,7 +447,7 @@ int dsim_read_data(struct dsim_device *dsim, u32 data_id,
 
 	/* Read request will be sent at safe region */
 	if (dsim->lcd_info.mode == DECON_VIDEO_MODE)
-		decon_reg_wait_linecnt_is_safe_timeout(DECON_INT, dsim->id, 35 * 1000, (dsim->lcd_info.yres >> 2));
+		decon_reg_wait_linecnt_is_safe_timeout(DECON_INT, dsim->id, 35 * 1000, (dsim->lcd_info.yres >> 1));
 
 	/* Read request */
 	dsim_write_data(dsim, data_id, addr, 0);

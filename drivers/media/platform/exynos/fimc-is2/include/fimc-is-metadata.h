@@ -1696,8 +1696,9 @@ struct camera2_uctl {
 	enum camera_vt_mode		vtMode;
 	float				zoomRatio;
 	enum camera_flash_mode		flashMode;
-	enum camera_op_mode             opMode;
-	uint32_t			reserved[8];
+	enum camera_op_mode		opMode;
+	uint8_t				countryCode[4];
+	uint32_t			reserved[7];
 };
 
 struct camera2_udm {

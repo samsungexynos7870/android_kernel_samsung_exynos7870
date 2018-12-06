@@ -712,11 +712,13 @@ static int ea8061s_displayon(struct lcd_info *lcd)
 
 	dev_info(&lcd->ld->dev, "%s\n", __func__);
 
-	/* 14. Display On(29h) */
+	/* 18. Display On(29h) */
 	DSI_WRITE(SEQ_DISPLAY_ON, ARRAY_SIZE(SEQ_DISPLAY_ON));
 
+	/* 19. Wait 10ms */
 	usleep_range(10000, 11000);
 
+	/* 20. Gamma Update */
 	DSI_WRITE(SEQ_TEST_KEY_ON_F0, ARRAY_SIZE(SEQ_TEST_KEY_ON_F0));
 	DSI_WRITE(SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
 	DSI_WRITE(SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0));
@@ -736,28 +738,45 @@ static int ea8061s_init(struct lcd_info *lcd)
 	DSI_WRITE(SEQ_TEST_KEY_ON_FC, ARRAY_SIZE(SEQ_TEST_KEY_ON_FC));
 
 #if defined(CONFIG_SEC_FACTORY)
+	/* 14. Module Information READ */
 	ea8061s_read_id(lcd);
 	ea8061s_read_coordinate(lcd);
 #endif
 
-	/* common setting */
+	/* 9. Common Setting */
 	DSI_WRITE(SEQ_HSYNC_GEN_ON, ARRAY_SIZE(SEQ_HSYNC_GEN_ON));
 	DSI_WRITE(SEQ_SOURCE_SLEW, ARRAY_SIZE(SEQ_SOURCE_SLEW));
 	DSI_WRITE(SEQ_AID_SET, ARRAY_SIZE(SEQ_AID_SET));
 	DSI_WRITE(SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
 	DSI_WRITE(SEQ_S_WIRE, ARRAY_SIZE(SEQ_S_WIRE));
 
+	/* 10. Sleep Out(11h) */
 	DSI_WRITE(SEQ_SLEEP_OUT, ARRAY_SIZE(SEQ_SLEEP_OUT));
-	msleep(20);
 
+	/* 11. Wait 10ms */
+	usleep_range(10000, 11000);
+
+	/* 12. Brightness Control Setting */
+	DSI_WRITE(SEQ_POWER_SEQ, ARRAY_SIZE(SEQ_POWER_SEQ));
+	DSI_WRITE(SEQ_AOR_MAX, ARRAY_SIZE(SEQ_AOR_MAX));
+	DSI_WRITE(SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
+
+	/* 13. Wait 10ms */
+	usleep_range(10000, 11000);
+
+	/* 14. Module Information READ */
+	/* 15. Wait 150ms */
+	msleep(150);
+
+	/* 16. Brightness Setting */
 	DSI_WRITE(SEQ_GAMMA_CONDITION_SET, ARRAY_SIZE(SEQ_GAMMA_CONDITION_SET));
 	DSI_WRITE(SEQ_AID_SET, ARRAY_SIZE(SEQ_AID_SET));
 	DSI_WRITE(SEQ_ELVSS_SET, ARRAY_SIZE(SEQ_ELVSS_SET));
 	DSI_WRITE(SEQ_ACL_OFF, ARRAY_SIZE(SEQ_ACL_OFF));
 	DSI_WRITE(SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
 	DSI_WRITE(SEQ_TSET, ARRAY_SIZE(SEQ_TSET));
-	msleep(150);
 
+	/* Test Key Disable */
 	DSI_WRITE(SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0));
 	DSI_WRITE(SEQ_TEST_KEY_OFF_FC, ARRAY_SIZE(SEQ_TEST_KEY_OFF_FC));
 
@@ -1123,14 +1142,28 @@ static ssize_t lux_store(struct device *dev,
  * HW PARAM LOGGING SYSFS NODE
  */
 static ssize_t dpui_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+	struct device_attribute *attr, char *buf)
 {
-	update_dpui_log(DPUI_LOG_LEVEL_INFO);
-	get_dpui_log(buf, DPUI_LOG_LEVEL_INFO);
+	int ret;
 
-	dev_info(dev, "%s: %s\n", __func__, buf);
+	update_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+	if (ret < 0) {
+		pr_err("%s failed to get log %d\n", __func__, ret);
+		return ret;
+	}
 
-	return strlen(buf);
+	pr_info("%s\n", buf);
+	return ret;
+}
+
+static ssize_t dpui_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	if (buf[0] == 'C' || buf[0] == 'c')
+		clear_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+
+	return size;
 }
 
 /*
@@ -1138,18 +1171,32 @@ static ssize_t dpui_show(struct device *dev,
  * HW PARAM LOGGING SYSFS NODE
  */
 static ssize_t dpui_dbg_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+	struct device_attribute *attr, char *buf)
 {
-	update_dpui_log(DPUI_LOG_LEVEL_DEBUG);
-	get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG);
+	int ret;
 
-	dev_info(dev, "%s: %s\n", __func__, buf);
+	update_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+	if (ret < 0) {
+		pr_err("%s failed to get log %d\n", __func__, ret);
+		return ret;
+	}
 
-	return strlen(buf);
+	pr_info("%s\n", buf);
+	return ret;
 }
 
-static DEVICE_ATTR(dpui, 0440, dpui_show, NULL);
-static DEVICE_ATTR(dpui_dbg, 0440, dpui_dbg_show, NULL);
+static ssize_t dpui_dbg_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	if (buf[0] == 'C' || buf[0] == 'c')
+		clear_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+
+	return size;
+}
+
+static DEVICE_ATTR(dpui, 0660, dpui_show, dpui_store);
+static DEVICE_ATTR(dpui_dbg, 0660, dpui_dbg_show, dpui_dbg_store);
 #endif
 
 static DEVICE_ATTR(lcd_type, 0444, lcd_type_show, NULL);
@@ -1371,12 +1418,4 @@ struct mipi_dsim_lcd_driver ea8061s_mipi_lcd_driver = {
 	.displayon	= dsim_panel_displayon,
 	.suspend	= dsim_panel_suspend,
 };
-
-static int td4310_module_init(void)
-{
-	mipi_lcd_driver = &ea8061s_mipi_lcd_driver;
-
-	return 0;
-}
-module_init(td4310_module_init);
 

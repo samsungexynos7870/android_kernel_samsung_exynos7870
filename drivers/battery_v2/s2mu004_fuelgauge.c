@@ -1454,6 +1454,27 @@ static int s2mu004_fg_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP_AMBIENT:
 		val->intval = s2mu004_get_temperature(fuelgauge);
 		break;
+	case POWER_SUPPLY_PROP_ENERGY_FULL:
+#if defined(CONFIG_FUELGAUGE_ASOC_FROM_CYCLES)
+		{
+			int calc_step = 0;
+
+			if (!(fuelgauge->pdata->fixed_asoc_levels <= 0 || val->intval < 0)) {
+				for (calc_step = fuelgauge->pdata->fixed_asoc_levels - 1; calc_step >= 0; calc_step--) {
+					if (fuelgauge->pdata->cycles_to_asoc[calc_step].cycle <= val->intval)
+						break;
+				}
+
+				dev_info(fuelgauge->dev, "%s: Battery Cycles = %d, ASOC step = %d\n",
+					__func__, val->intval, calc_step);
+
+				val->intval = fuelgauge->pdata->cycles_to_asoc[calc_step].asoc;
+			}
+		}
+#else
+		return -1;
+#endif
+		break;
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 		val->intval = fuelgauge->capacity_max;
 		break;
@@ -1627,6 +1648,9 @@ static int s2mu004_fuelgauge_parse_dt(struct s2mu004_fuelgauge_data *fuelgauge)
 	int ret;
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 	int len, i;
+#if defined(CONFIG_FUELGAUGE_ASOC_FROM_CYCLES)
+	const u32 *p;
+#endif
 #endif
 
 	/* reset, irq gpio info */
@@ -1740,6 +1764,33 @@ static int s2mu004_fuelgauge_parse_dt(struct s2mu004_fuelgauge_data *fuelgauge)
 					fuelgauge->age_data_info[i].soc_arr_val[0],
 					fuelgauge->age_data_info[i].ocv_arr_val[0]);
 			}
+#if defined(CONFIG_FUELGAUGE_ASOC_FROM_CYCLES)
+			p = of_get_property(np, "battery,cycles_to_asoc_mapping", &len);
+			if (p) {
+				fuelgauge->pdata->fixed_asoc_levels = len / sizeof(sec_cycles_to_asoc_t);
+				fuelgauge->pdata->cycles_to_asoc = kzalloc(len, GFP_KERNEL);
+				ret = of_property_read_u32_array(np, "battery,cycles_to_asoc_mapping",
+						 (u32 *)fuelgauge->pdata->cycles_to_asoc, len/sizeof(u32));
+				if (ret) {
+					pr_err("%s: failed to read fuelgauge->pdata->cycles_to_asoc: %d\n",
+							__func__, ret);
+					kfree(fuelgauge->pdata->cycles_to_asoc);
+					fuelgauge->pdata->cycles_to_asoc = NULL;
+					fuelgauge->pdata->fixed_asoc_levels = 0;
+				}
+				pr_err("%s: fixed_asoc_levels : %d\n", __func__, fuelgauge->pdata->fixed_asoc_levels);
+				for (len = 0; len < fuelgauge->pdata->fixed_asoc_levels; ++len) {
+					pr_err("[%d/%d]cycle:%d, asoc:%d\n",
+						len, fuelgauge->pdata->fixed_asoc_levels-1,
+						fuelgauge->pdata->cycles_to_asoc[len].cycle,
+						fuelgauge->pdata->cycles_to_asoc[len].asoc);
+				}
+
+			} else {
+				fuelgauge->pdata->fixed_asoc_levels = 0;
+				pr_err("%s: Cycles to ASOC mapping not defined\n", __func__);
+			}
+#endif
 #endif
 		}
 	}

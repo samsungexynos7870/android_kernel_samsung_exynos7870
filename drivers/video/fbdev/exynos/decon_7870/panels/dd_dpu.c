@@ -1,11 +1,11 @@
 /* dd_dpu.c
  *
- * Copyright (c) 2018 Samsung Electronics
+ * Copyright (c) Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 /* temporary solution: Do not use these sysfs as official purpose */
 /* these function are not official one. only purpose is for temporary test */
@@ -26,46 +26,45 @@
 static bool log_boot;
 #define dbg_info(fmt, ...)	pr_info(pr_fmt("%s: %3d: %s: " fmt), "dsim", __LINE__, __func__, ##__VA_ARGS__)
 #define dbg_warn(fmt, ...)	pr_warn(pr_fmt("%s: %3d: %s: " fmt), "dsim", __LINE__, __func__, ##__VA_ARGS__)
-#define dbg_boot(fmt, ...)	if (unlikely(log_boot)) pr_info(pr_fmt("%s: %3d: %s: " fmt), "dsim", __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_boot(fmt, ...)	do { if (unlikely(log_boot)) dbg_info(fmt, ##__VA_ARGS__); } while (0)
 
 #define LCD_INFO_DTS_NAME	"lcd_info"
 
 #define D_LIST	\
-_X(REFRESH,		"timing,refresh",	"refresh",		S_IRUSR)		\
-_X(PMS_P,		"timing,pms",		"pms",			S_IRUSR | S_IWUSR)	\
-_X(PMS_M,		"",			"",			0)			\
-_X(PMS_S,		"",			"",			0)			\
-_X(HS_CLK,		"timing,dsi-hs-clk",	"hs_clk",		S_IRUSR)		\
-_X(ESC_CLK,		"timing,dsi-escape-clk",	"esc_clk",	S_IRUSR)		\
-_X(HBP,			"timing,h-porch",	"h_porch",		S_IRUSR | S_IWUSR)	\
-_X(HFP,			"",			"",			0)			\
-_X(HSA,			"",			"",			0)			\
-_X(VBP,			"timing,v-porch",	"v_porch",		S_IRUSR | S_IWUSR)	\
-_X(VFP,			"",			"",			0)			\
-_X(VSA,			"",			"",			0)			\
-_X(VT_COMPENSATION,	"vt_compensation",	"vt_compensation",	S_IRUSR | S_IWUSR)	\
-_X(UNDERRUN_LP_REF,	"cmd_underrun_lp_ref",	"cmd_underrun_lp_ref",	S_IRUSR | S_IWUSR)	\
-_X(DSIM_HBP,		"timing,dsim_h-porch",	"dsim_h_porch",		S_IRUSR | S_IWUSR)	\
-_X(DSIM_HFP,		"",			"",			0)			\
-_X(DSIM_HSA,		"",			"",			0)			\
-_X(DSIM_VBP,		"timing,dsim_v-porch",	"dsim_v_porch",		S_IRUSR | S_IWUSR)	\
-_X(DSIM_VFP,		"",			"",			0)			\
-_X(DSIM_VSA,		"",			"",			0)			\
-_X(DECON_HBP,		"timing,decon_h-porch",	"decon_h_porch",	S_IRUSR | S_IWUSR)	\
-_X(DECON_HFP,		"",			"",			0)			\
-_X(DECON_HSA,		"",			"",			0)			\
-_X(DECON_VBP,		"timing,decon_v-porch",	"decon_v_porch",	S_IRUSR | S_IWUSR)	\
-_X(DECON_VFP,		"",			"",			0)			\
-_X(DECON_VSA,		"",			"",			0)			\
-_X(LCD_INFO_END,	"",			"",			0)			\
-_X(VCLK_NUMERATOR,	"vclk-num",		"vclk_numerator",	S_IRUSR)		\
-_X(VCLK_DENOMINATOR,	"vclk-denom",		"vclk_denominator",	S_IRUSR | S_IWUSR)	\
-_X(DISP_VCLK,		"disp-vclk",		"disp_vclk",		S_IRUSR | S_IWUSR)	\
-_X(DISP_PLL_CLK,	"disp-pll-clk",		"disp_pll",		S_IRUSR | S_IWUSR)	\
-_X(MAX,			"",			"",			0)
+_X(REFRESH,		"timing,refresh",	"refresh",		0400)	\
+_X(PMS_P,		"timing,pms",		"pms",			0600)	\
+_X(PMS_M,		"",			"",			0)	\
+_X(PMS_S,		"",			"",			0)	\
+_X(HS_CLK,		"timing,dsi-hs-clk",	"hs_clk",		0400)	\
+_X(ESC_CLK,		"timing,dsi-escape-clk",	"esc_clk",	0400)	\
+_X(HBP,			"timing,h-porch",	"h_porch",		0600)	\
+_X(HFP,			"",			"",			0)	\
+_X(HSA,			"",			"",			0)	\
+_X(VBP,			"timing,v-porch",	"v_porch",		0600)	\
+_X(VFP,			"",			"",			0)	\
+_X(VSA,			"",			"",			0)	\
+_X(VT_COMPENSATION,	"vt_compensation",	"vt_compensation",	0600)	\
+_X(UNDERRUN_LP_REF,	"cmd_underrun_lp_ref",	"cmd_underrun_lp_ref",	0600)	\
+_X(DSIM_HBP,		"timing,dsim_h-porch",	"dsim_h_porch",		0600)	\
+_X(DSIM_HFP,		"",			"",			0)	\
+_X(DSIM_HSA,		"",			"",			0)	\
+_X(DSIM_VBP,		"timing,dsim_v-porch",	"dsim_v_porch",		0600)	\
+_X(DSIM_VFP,		"",			"",			0)	\
+_X(DSIM_VSA,		"",			"",			0)	\
+_X(DECON_HBP,		"timing,decon_h-porch",	"decon_h_porch",	0600)	\
+_X(DECON_HFP,		"",			"",			0)	\
+_X(DECON_HSA,		"",			"",			0)	\
+_X(DECON_VBP,		"timing,decon_v-porch",	"decon_v_porch",	0600)	\
+_X(DECON_VFP,		"",			"",			0)	\
+_X(DECON_VSA,		"",			"",			0)	\
+_X(LCD_INFO_END,	"",			"",			0)	\
+_X(VCLK_NUMERATOR,	"vclk-num",		"vclk_numerator",	0400)	\
+_X(VCLK_DENOMINATOR,	"vclk-denom",		"vclk_denominator",	0600)	\
+_X(DISP_VCLK,		"disp-vclk",		"disp_vclk",		0600)	\
+_X(DISP_PLL_CLK,	"disp-pll-clk",		"disp_pll",		0600)	\
 
 #define _X(id, dts, sysfs, mode) D_##id,
-enum { D_LIST };
+enum { D_LIST D_MAX };
 #undef _X
 
 #define _X(id, dts, sysfs, mode) (#id),
@@ -157,7 +156,6 @@ static void configure_param(struct d_info *d)
 	d->point[D_VT_COMPENSATION]	=	&lcd_info->vt_compensation;
 	d->point[D_UNDERRUN_LP_REF]	=	&lcd_info->cmd_underrun_lp_ref;
 #endif
-
 }
 
 static inline void update_value(u32 *dest, u32 *src, u32 update)
@@ -378,7 +376,7 @@ static int init_debugfs_lcd_info(struct d_info *d)
 	struct device_node *npetc = NULL;
 	int ret = 0, count;
 	unsigned int i = 0;
-	struct dentry *dbgfs = NULL;
+	struct dentry *debugfs = NULL;
 
 	nplcd = of_find_node_with_property(NULL, LCD_INFO_DTS_NAME);
 	if (!nplcd) {
@@ -414,10 +412,10 @@ static int init_debugfs_lcd_info(struct d_info *d)
 
 		debugfs_list[i].length = count;
 
-		dbgfs = debugfs_create_array(debugfs_list[i].sysfs_name, debugfs_list[i].mode, d->debugfs_root,
+		debugfs = debugfs_create_array(debugfs_list[i].sysfs_name, debugfs_list[i].mode, d->debugfs_root,
 			&d->request_param[i], &d->pending_param[i], count);
 
-		if (dbgfs)
+		if (debugfs)
 			dbg_info("%s is created and length is %d\n", debugfs_list[i].sysfs_name, debugfs_list[i].length);
 
 	}
@@ -434,14 +432,15 @@ static int status_show(struct seq_file *m, void *unused)
 	struct d_info *d = m->private;
 	unsigned int i, j;
 
-	seq_puts(m, "                    |    DEFAULT|    REQUEST|    CURRENT\n");
-	seq_puts(m, "--------------------------------------------------------\n");
+	seq_puts(m, "--------------------------------------------------------------\n");
+	seq_puts(m, "                    |    DEFAULT|    REQUEST|    CURRENT|   RW\n");
+	seq_puts(m, "--------------------------------------------------------------\n");
 	for (i = 0; i < D_MAX; i++) {
 		for (j = 0; j < debugfs_list[i].length; j++) {
 			if (d->pending_param[i + j])
-				seq_printf(m, "%20s| %10u| %10u| %10u\n", D_LIST_NAME[i + j], d->default_param[i + j], d->request_param[i + j], d->current_param[i + j]);
+				seq_printf(m, "%20s| %10u| %10u| %10u| %4s\n", D_LIST_NAME[i + j], d->default_param[i + j], d->request_param[i + j], d->current_param[i + j], (debugfs_list[i].mode & 0222) ? "RW" : "R");
 			else
-				seq_printf(m, "%20s| %10u| %10s| %10u\n", D_LIST_NAME[i + j], d->default_param[i + j], " ", d->current_param[i + j]);
+				seq_printf(m, "%20s| %10u| %10s| %10u| %4s\n", D_LIST_NAME[i + j], d->default_param[i + j], " ", d->current_param[i + j], (debugfs_list[i].mode & 0222) ? "RW" : "R");
 		}
 	}
 	seq_puts(m, "\n");
@@ -462,7 +461,7 @@ static ssize_t status_write(struct file *f, const char __user *user_buf,
 	if (*ppos != 0)
 		return 0;
 
-	if (!strncmp(user_buf, "0", count)) {
+	if (!strncmp(user_buf, "0", count - 1)) {
 		dbg_info("input is 0(zero). reset request parameter to default\n");
 
 		memcpy(d->request_param, d->default_param, sizeof(d->request_param));
@@ -488,6 +487,7 @@ static int regdump_show(struct seq_file *m, void *unused)
 
 	if (!d->enable) {
 		dbg_info("enable is %s\n", d->enable ? "on" : "off");
+		seq_printf(m, "enable is %s\n", d->enable ? "on" : "off");
 		goto exit;
 	}
 
@@ -536,9 +536,19 @@ static ssize_t regdump_write(struct file *f, const char __user *user_buf,
 		goto exit;
 	}
 
-	ret = sscanf(user_buf, "%8x %8x", &reg, &val);
+	ret = sscanf(user_buf, "%x %x", &reg, &val);
 	if (clamp(ret, 1, 2) != ret) {
 		dbg_info("input is invalid, %d\n", ret);
+		goto exit;
+	}
+
+	if (reg > UINT_MAX) {
+		dbg_info("input is invalid, reg: %02x\n", reg);
+		goto exit;
+	}
+
+	if (val > UINT_MAX) {
+		dbg_info("input is invalid, val: %02x\n", val);
 		goto exit;
 	}
 
@@ -591,10 +601,13 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "* If you insist, we eliminate these function immediately\n");
 	seq_puts(m, "------------------------------------------------------------\n");
 	seq_puts(m, "\n");
+	seq_puts(m, "----------\n");
+	seq_puts(m, "# cd /d/dd_dpu\n");
+	seq_puts(m, "\n");
 	seq_puts(m, "---------- usage\n");
 	seq_puts(m, "1. you can request to change paremter like below\n");
 	for (i = 0; i < D_MAX; i++) {
-		if (!debugfs_list[i].length || !(debugfs_list[i].mode & S_IWUGO))
+		if (!debugfs_list[i].length || !(debugfs_list[i].mode & 0222))
 			continue;
 
 		seq_puts(m, "# echo ");
@@ -604,7 +617,7 @@ static int help_show(struct seq_file *m, void *unused)
 	}
 
 	for (i = 0; i < D_MAX; i++) {
-		if (!debugfs_list[i].length || !(debugfs_list[i].mode & S_IWUGO))
+		if (!debugfs_list[i].length || !(debugfs_list[i].mode & 0222))
 			continue;
 
 		seq_puts(m, "ex) # echo ");
@@ -618,17 +631,17 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "3. it is IMPOSSIBLE to apply parameter immediately during lcd on runtime\n");
 	seq_puts(m, "\n");
 	seq_puts(m, "---------- status usage\n");
-	seq_puts(m, "you can check current configuration status like below\n");
+	seq_puts(m, "1. you can check current configuration status like below\n");
 	seq_puts(m, "# cat status\n");
-	seq_puts(m, "--------------------------------------------------------\n");
-	seq_puts(m, "                    |    DEFAULT|    REQUEST|    CURRENT\n");
-	seq_puts(m, "--------------------------------------------------------\n");
+	seq_puts(m, "--------------------------------------------------------------\n");
+	seq_puts(m, "                    |    DEFAULT|    REQUEST|    CURRENT|   RW\n");
+	seq_puts(m, "--------------------------------------------------------------\n");
 	for (i = 0; i < D_MAX; i++) {
 		for (j = 0; j < debugfs_list[i].length; j++) {
 			if (d->pending_param[i + j])
-				seq_printf(m, "%20s| %10u| %10u| %10u\n", D_LIST_NAME[i + j], d->default_param[i + j], d->request_param[i + j], d->current_param[i + j]);
+				seq_printf(m, "%20s| %10u| %10u| %10u| %4s\n", D_LIST_NAME[i + j], d->default_param[i + j], d->request_param[i + j], d->current_param[i + j], (debugfs_list[i].mode & 0222) ? "RW" : "R");
 			else
-				seq_printf(m, "%20s| %10u| %10s| %10u\n", D_LIST_NAME[i + j], d->default_param[i + j], " ", d->current_param[i + j]);
+				seq_printf(m, "%20s| %10u| %10s| %10u| %4s\n", D_LIST_NAME[i + j], d->default_param[i + j], " ", d->current_param[i + j], (debugfs_list[i].mode & 0222) ? "RW" : "R");
 		}
 	}
 	seq_puts(m, "\n");
@@ -677,9 +690,9 @@ static int init_debugfs_dpu(void)
 	d->dev = dev;
 	d->debugfs_root = debugfs_root;
 
-	debugfs_create_file("_help", S_IRUSR, debugfs_root, d, &help_fops);
-	debugfs_create_file("status", S_IRUSR, debugfs_root, d, &status_fops);
-	debugfs_create_file("regdump", S_IRUSR | S_IWUSR, debugfs_root, d, &regdump_fops);
+	debugfs_create_file("_help", 0400, debugfs_root, d, &help_fops);
+	debugfs_create_file("status", 0400, debugfs_root, d, &status_fops);
+	debugfs_create_file("regdump", 0600, debugfs_root, d, &regdump_fops);
 
 	init_debugfs_lcd_info(d);
 

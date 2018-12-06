@@ -260,6 +260,11 @@ static const unsigned char SEQ_TD4100_55[] = {
 	0x00,
 };
 
+static const unsigned char SEQ_CABC_MIN[] = {
+	0x5E,
+	0x30,
+};
+
 static const unsigned char SEQ_SLEEP_OUT[] = {
 	0x11,
 	0x00, 0x00

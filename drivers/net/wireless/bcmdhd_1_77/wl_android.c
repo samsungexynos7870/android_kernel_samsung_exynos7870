@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_android.c 752839 2018-03-19 07:05:21Z $
+ * $Id: wl_android.c 755150 2018-04-02 08:14:47Z $
  */
 
 #include <linux/module.h>
@@ -5922,6 +5922,7 @@ wl_android_set_adps_mode(struct net_device *dev, const char* string_num)
 #endif	/* DHD_PM_CONTROL_FROM_FILE */
 
 	adps_mode = bcm_atoi(string_num);
+	WL_ERR(("%s: SET_ADPS %d\n", __FUNCTION__, adps_mode));
 
 	if ((adps_mode < 0) && (1 < adps_mode)) {
 		WL_ERR(("%s: Invalid value %d.\n", __FUNCTION__, adps_mode));
@@ -5952,7 +5953,7 @@ wl_android_get_adps_mode(
 
 	memset(&iov_buf, 0, sizeof(iov_buf));
 
-	len = OFFSETOF(bcm_iov_buf_t, data) + sizeof(*data);
+	len = OFFSETOF(bcm_iov_buf_t, data) + sizeof(band);
 
 	iov_buf.version = WL_ADPS_IOV_VER;
 	iov_buf.len = sizeof(band);

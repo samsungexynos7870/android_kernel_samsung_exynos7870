@@ -578,7 +578,7 @@ static ssize_t acc_read(struct file *fp, char __user *buf,
 	ssize_t r = count, xfer, len;
 	int ret = 0;
 
-	pr_debug("acc_read(%zu)\n", count);
+	pr_debug("usb: acc_read(%zu)\n", count);
 
 	if (dev->disconnected) {
 		pr_debug("acc_read disconnected");
@@ -775,7 +775,7 @@ static int acc_open(struct inode *ip, struct file *fp)
 
 static int acc_release(struct inode *ip, struct file *fp)
 {
-	printk(KERN_INFO "acc_release\n");
+	printk(KERN_INFO "usb: acc_release\n");
 
 	WARN_ON(!atomic_xchg(&_acc_dev->open_excl, 0));
 	/* indicate that we are disconnected
@@ -921,7 +921,7 @@ int acc_ctrlrequest(struct usb_composite_dev *cdev,
 		if (b_request == ACCESSORY_GET_PROTOCOL) {
 			*((u16 *)cdev->req->buf) = PROTOCOL_VERSION;
 			value = sizeof(u16);
-			
+
 			cdev->req->complete = acc_complete_setup_noop;
 			/* clear any string left over from a previous session */
 			memset(dev->manufacturer, 0, sizeof(dev->manufacturer));

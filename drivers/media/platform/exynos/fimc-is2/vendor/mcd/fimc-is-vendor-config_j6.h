@@ -1,7 +1,7 @@
 #ifndef FIMC_IS_VENDOR_CONFIG_J6_H
 #define FIMC_IS_VENDOR_CONFIG_J6_H
 
-#include "fimc-is-eeprom-rear-3l2_v001.h"
+#include "fimc-is-eeprom-rear-3l2_v002.h"
 #include "fimc-is-eeprom-front-4h5yc_v002.h"
 
 

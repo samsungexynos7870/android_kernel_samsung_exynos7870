@@ -38,6 +38,9 @@
 #define S6D7AT0B_ID_LEN			3
 #define BRIGHTNESS_REG			0x51
 
+#define VGL_READ_REG			0xF4
+#define VGL_READ_LEN			5
+
 #define get_bit(value, shift, width)	((value >> shift) & (GENMASK(width - 1, 0)))
 
 #define DSI_WRITE(cmd, size)		do {				\
@@ -72,6 +75,8 @@ struct lcd_info {
 
 	struct notifier_block		fb_notif_panel;
 	struct i2c_client		*backlight_client;
+
+	unsigned char			vgl_reg[VGL_READ_LEN+1];
 };
 
 
@@ -237,6 +242,25 @@ static int s6d7at0b_read_id(struct lcd_info *lcd)
 
 	return ret;
 }
+
+static int vgl_read_reg(struct lcd_info *lcd)
+{
+	int ret = 0;
+	unsigned char buf[VGL_READ_LEN] = {0, };
+	unsigned int pwrctl_cmd_cnt = VGL_READ_LEN + 1;
+
+	ret = dsim_read_hl_data(lcd, VGL_READ_REG, VGL_READ_LEN, buf);
+	if (ret < 0)
+		dev_err(&lcd->ld->dev, "%s: read fail\n", __func__);
+
+	lcd->vgl_reg[0] = VGL_READ_REG;
+
+	memcpy(&lcd->vgl_reg[1], buf, VGL_READ_LEN);
+
+	dev_info(&lcd->ld->dev, "%s: %*ph\n", __func__, pwrctl_cmd_cnt, lcd->vgl_reg);
+
+	return ret;
+}
 #endif
 
 static int s6d7at0b_displayon_late(struct lcd_info *lcd)
@@ -314,6 +338,10 @@ static int s6d7at0b_init(struct lcd_info *lcd)
 	DSI_WRITE(SEQ_S6D7AT0B_E9, ARRAY_SIZE(SEQ_S6D7AT0B_E9));
 	DSI_WRITE(SEQ_S6D7AT0B_EA, ARRAY_SIZE(SEQ_S6D7AT0B_EA));
 	DSI_WRITE(SEQ_S6D7AT0B_EB, ARRAY_SIZE(SEQ_S6D7AT0B_EB));
+
+#if defined(CONFIG_SEC_FACTORY)
+	vgl_read_reg(lcd);
+#endif
 
 	DSI_WRITE(SEQ_SLEEP_OUT, ARRAY_SIZE(SEQ_SLEEP_OUT));
 
@@ -434,6 +462,12 @@ static int s6d7at0b_probe(struct lcd_info *lcd)
 	lm3632_id->driver_data = (kernel_ulong_t)lcd;
 	i2c_add_driver(&lm3632_i2c_driver);
 
+#if defined(CONFIG_SEC_FACTORY)
+	DSI_WRITE(SEQ_TEST_KEY_ON_F0, ARRAY_SIZE(SEQ_TEST_KEY_ON_F0));
+	vgl_read_reg(lcd);
+	DSI_WRITE(SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0));
+#endif
+
 	dev_info(&lcd->ld->dev, "- %s\n", __func__);
 
 	return 0;
@@ -534,16 +568,61 @@ static ssize_t clk_change_show(struct device *dev,
 	return strlen(buf);
 }
 
+static ssize_t vgl_test_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct lcd_info *lcd = dev_get_drvdata(dev);
+	unsigned int value;
+	int ret;
+	unsigned int pwrctl_cmd_cnt = VGL_READ_LEN + 1;
+
+	if (lcd->state != PANEL_STATE_RESUMED)
+		return -EINVAL;
+
+	ret = kstrtouint(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value == 1) {
+		lcd->vgl_reg[4] = 0x03;	/* VGHO, VGON_SET, gate on voltage +6V */
+		lcd->vgl_reg[5] = 0x83;	/* VGLO, VGOFF_SET, gate off voltage -6V */
+	} else {
+		lcd->vgl_reg[4] = 0x11;	/* VGHO, VGON_SET, gate on voltage +8.1V(Default) */
+		lcd->vgl_reg[5] = 0x91;	/* VGLO, VGOFF_SET, gate off voltage -8V(Default) */
+	}
+
+	DSI_WRITE(SEQ_TEST_KEY_ON_F0, ARRAY_SIZE(SEQ_TEST_KEY_ON_F0));
+	DSI_WRITE(lcd->vgl_reg, ARRAY_SIZE(lcd->vgl_reg));
+	DSI_WRITE(SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0));
+
+	dev_info(&lcd->ld->dev, "%s: %d, %*ph\n", __func__, value, pwrctl_cmd_cnt, lcd->vgl_reg);
+
+	return size;
+}
+
+static ssize_t vgl_test_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct lcd_info *lcd = dev_get_drvdata(dev);
+
+	sprintf(buf, "%02X%02X%02X%02X%02X%02X\n", lcd->vgl_reg[0], lcd->vgl_reg[1], lcd->vgl_reg[2],
+		lcd->vgl_reg[3], lcd->vgl_reg[4], lcd->vgl_reg[5]);
+
+	return strlen(buf);
+}
+
 static DEVICE_ATTR(lcd_type, 0444, lcd_type_show, NULL);
 static DEVICE_ATTR(window_type, 0444, window_type_show, NULL);
 static DEVICE_ATTR(lux, 0644, lux_show, lux_store);
 static DEVICE_ATTR(clk_change, 0644, clk_change_show, clk_change_store);
+static DEVICE_ATTR(vgl_test, 0644, vgl_test_show, vgl_test_store);
 
 static struct attribute *lcd_sysfs_attributes[] = {
 	&dev_attr_lcd_type.attr,
 	&dev_attr_window_type.attr,
 	&dev_attr_lux.attr,
 	&dev_attr_clk_change.attr,
+	&dev_attr_vgl_test.attr,
 	NULL,
 };
 

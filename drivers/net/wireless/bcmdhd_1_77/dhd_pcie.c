@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_pcie.c 748759 2018-02-26 02:26:08Z $
+ * $Id: dhd_pcie.c 755077 2018-03-30 12:47:05Z $
  */
 
 
@@ -8762,6 +8762,11 @@ dhdpcie_d11_check_outofreset(dhd_pub_t *dhd)
 	for (i = 0; i < MAX_NUM_D11CORES; i++) {
 		/* Check if bit 0 of resetctrl is cleared */
 		addr = dhd->sssr_reg_info.mac_regs[i].wrapper_regs.resetctrl;
+		if (!addr) {
+			/* ignore invalid address */
+			dhd->sssr_d11_outofreset[i] = FALSE;
+			continue;
+		}
 		dhd_sbreg_op(dhd, addr, &val, TRUE);
 		if (!(val & 1)) {
 			dhd->sssr_d11_outofreset[i] = TRUE;

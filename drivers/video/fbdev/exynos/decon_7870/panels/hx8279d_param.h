@@ -13,9 +13,15 @@
 
 #define HX8279D_ID_LEN				3 /* 1 */
 
+#if 0
 #define BOE_PANEL_ID 0x82790d
 #define CRT_PANEL_ID 0x82790e
 #define BOE2_PANEL_ID 0x827910 //BOE 8.5 for T58X
+#else
+#define BOE_PANEL_ID 0x00
+#define CRT_PANEL_ID 0x01
+#define BOE2_PANEL_ID 0x03 //BOE 8.5 for T58X
+#endif
 
 struct mipi_cmd {
 	u8 cmd[2];

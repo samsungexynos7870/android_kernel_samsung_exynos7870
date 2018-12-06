@@ -372,23 +372,22 @@ static int hx8279d_init(struct lcd_info *lcd)
 	hx8279d_read_id(lcd);
 #endif
 
-	if (lcdtype == CRT_PANEL_ID) {
-				dev_info(&lcd->ld->dev, "%s: CPT PANEL. [0x%x]\n", __func__, lcdtype);
+	if (lcd->id_info.id[2] == CRT_PANEL_ID) {
+		dev_info(&lcd->ld->dev, "%s: CPT PANEL. [0x%x]\n", __func__, cpu_to_be32(lcd->id_info.value));
 		ret = dsi_write_table(lcd, SEQ_CMD_TABLE_CPT, ARRAY_SIZE(SEQ_CMD_TABLE_CPT));
 		if (ret < 0) {
 			dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_CMD_TABLE_CPT\n", __func__);
 			goto init_err;
 		}
-	} else if (lcdtype == BOE2_PANEL_ID) {
-		dev_info(&lcd->ld->dev, "%s: BOE2 PANEL. [0x%x]\n", __func__, lcdtype);
+	} else if (lcd->id_info.id[2] == BOE2_PANEL_ID) {
+		dev_info(&lcd->ld->dev, "%s: BOE2 PANEL. [0x%x]\n", __func__, cpu_to_be32(lcd->id_info.value));
 		ret = dsi_write_table(lcd, SEQ_CMD_TABLE_BOE2, ARRAY_SIZE(SEQ_CMD_TABLE_BOE2));
 		if (ret < 0) {
 			dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_CMD_TABLE_BOE2\n", __func__);
 			goto init_err;
 		}
 	} else {
-
-		dev_info(&lcd->ld->dev, "%s: BOE PANEL. [0x%x]\n", __func__, lcdtype);
+		dev_info(&lcd->ld->dev, "%s: BOE PANEL. [0x%x]\n", __func__, cpu_to_be32(lcd->id_info.value));
 		ret = dsi_write_table(lcd, SEQ_CMD_TABLE, ARRAY_SIZE(SEQ_CMD_TABLE));
 		if (ret < 0) {
 			dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_CMD_TABLE\n", __func__);

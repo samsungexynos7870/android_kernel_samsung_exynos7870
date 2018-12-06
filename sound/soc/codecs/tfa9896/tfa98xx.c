@@ -1587,7 +1587,7 @@ DEFINE_SIMPLE_ATTRIBUTE(tfa98xx_dbgfs_reg_##__reg##_fops, \
 
 #define TFA98XX_DEBUGFS_REG_CREATE_FILE(__reg, __name)			\
 	debugfs_create_file(TOSTRING(__reg) "-" TOSTRING(__name),	\
-			    0666, dbg_reg_dir,		\
+			    0664, dbg_reg_dir,		\
 			    i2c, &tfa98xx_dbgfs_reg_##__reg##_fops)
 
 TFA98XX_DEBUGFS_REG_SET(00);
@@ -2217,6 +2217,7 @@ static int tfa98xx_set_activate_spk(struct snd_kcontrol *kcontrol,
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 	struct tfa98xx *tfa98xx_queued;
 	int activate_spk = ucontrol->value.integer.value[0];
+	int prior_pstream;
 	int i = 0;
 
 	dev_dbg(&tfa98xx->i2c->dev, "%s: state: %d\n", __func__, activate_spk);
@@ -2243,11 +2244,12 @@ static int tfa98xx_set_activate_spk(struct snd_kcontrol *kcontrol,
 			tfa98xx_queued = tfa98xx_devices[i];
 			if (tfa98xx_queued->pstream == 0)
 				continue;
+			prior_pstream = tfa98xx_queued->pstream;
 			pr_info("%s: [0x%x] trigger mute first if pstream is active\n",
 				__func__, tfa98xx_queued->i2c->addr);
 			_tfa98xx_mute(tfa98xx_queued,
 				1, SNDRV_PCM_STREAM_PLAYBACK);
-			pending_pstream[i] = 1;
+			pending_pstream[i] = prior_pstream;
 		}
 		for (i = 0; i < tfa98xx_cnt_max_device(); i++) {
 			if (pending_pstream[i] == 0)
@@ -2263,10 +2265,12 @@ static int tfa98xx_set_activate_spk(struct snd_kcontrol *kcontrol,
 			tfa98xx_queued = tfa98xx_devices[i];
 			if (tfa98xx_queued->pstream == 0)
 				continue;
+			prior_pstream = tfa98xx_queued->pstream;
 			pr_info("%s: [0x%x] trigger mute by force\n",
 				__func__, tfa98xx_queued->i2c->addr);
 			_tfa98xx_mute(tfa98xx_queued,
 				1, SNDRV_PCM_STREAM_PLAYBACK);
+			pending_pstream[i] = prior_pstream;
 		}
 	}
 
@@ -3156,9 +3160,9 @@ tfa98xx_container_loaded(const struct firmware *cont,	void *context)
 		mutex_lock(&tfa98xx->dsp_lock);
 		tfa_err = tfa98xx_tfa_start
 			(tfa98xx, tfa98xx_profile, tfa98xx_vsteps);
-		if (tfa_err == TFA98XX_ERROR_OK)
+		if ((int)tfa_err == TFA98XX_ERROR_OK)
 			tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
-		else if (tfa_err == TFA98XX_ERROR_NOT_SUPPORTED)
+		else if ((int)tfa_err == TFA98XX_ERROR_NOT_SUPPORTED)
 			tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_FAIL;
 		mutex_unlock(&tfa98xx->dsp_lock);
 	}

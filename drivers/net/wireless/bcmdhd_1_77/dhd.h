@@ -1620,10 +1620,12 @@ void dhd_schedule_sssr_dump(dhd_pub_t *dhdp);
 #define DHD_CISCO_STP_DROP_FILTER_NUM	8
 #define DHD_CISCO_XID_DROP_FILTER_NUM	9
 #define DHD_UDPNETBIOS_DROP_FILTER_NUM 10
+#define DHD_BCMC_SRC_DROP_FILTER_NUM	11
 #define DISCARD_IPV4_MCAST	"102 1 6 IP4_H:16 0xf0 0xe0"
 #define DISCARD_IPV6_MCAST	"103 1 6 IP6_H:24 0xff 0xff"
 #define DISCARD_IPV4_BCAST	"107 1 6 IP4_H:16 0xffffffff 0xffffffff"
 #define DISCARD_UDPNETBIOS	"110 1 6 UDP_H:2 0xffff 0x0089"
+#define DISCARD_BCMC_SRC	"111 1 6 ETH_H:6 0x01 0x01"
 extern int dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
 extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
 extern int dhd_packet_filter_add_remove(dhd_pub_t *dhdp, int add_remove, int num);

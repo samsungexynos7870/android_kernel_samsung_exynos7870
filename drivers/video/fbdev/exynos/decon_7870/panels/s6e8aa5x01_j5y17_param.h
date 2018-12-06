@@ -23,7 +23,7 @@
 #define LDI_REG_ELVSS		0xB6
 #define LDI_REG_COORDINATE	0xA1
 #define LDI_REG_ID		0x04
-#define LDI_REG_CHIP_ID		0xD6
+#define LDI_REG_CHIP_ID		0xD5
 #define LDI_REG_MTP		0xC8
 #define LDI_REG_DATE		LDI_REG_MTP
 #define LDI_REG_RDDPM		0x0A

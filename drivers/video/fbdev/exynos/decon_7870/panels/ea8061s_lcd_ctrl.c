@@ -32,13 +32,6 @@
 #include "mdnie_lite_table_j7xe.h"
 #endif
 
-#ifdef CONFIG_DISPLAY_USE_INFO
-#include "dpui.h"
-
-#define	DPUI_VENDOR_NAME	"MAGNA"
-#define DPUI_MODEL_NAME		"AMS549HZ26"
-#endif
-
 struct lcd_info {
 	unsigned int			connected;
 	struct lcd_device *ld;
@@ -73,10 +66,6 @@ struct lcd_info {
 	unsigned char **acl_cutoff_tbl;
 	struct mutex lock;
 	struct dsim_device *dsim;
-
-#ifdef CONFIG_DISPLAY_USE_INFO
-	struct notifier_block		dpui_notif;
-#endif
 	struct device svc_dev;
 };
 
@@ -755,14 +744,17 @@ static int ea8061s_displayon(struct lcd_info *lcd)
 
 	dev_info(&lcd->ld->dev, "%s\n", __func__);
 
+	/* 18. Display On(29h) */
 	ret = dsim_write_hl_data(lcd, SEQ_DISPLAY_ON, ARRAY_SIZE(SEQ_DISPLAY_ON));
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: failed to write CMD : DISPLAY_ON\n", __func__);
 		goto displayon_err;
 	}
 
+	/* 19. Wait 10ms */
 	usleep_range(12000, 13000);
 
+	/* 20. Gamma Update */
 	ret = dsim_write_hl_data(lcd, SEQ_TEST_KEY_ON_F0, ARRAY_SIZE(SEQ_TEST_KEY_ON_F0));
 	ret = dsim_write_hl_data(lcd, SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
 	ret = dsim_write_hl_data(lcd, SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0));
@@ -804,6 +796,7 @@ static int ea8061s_init(struct lcd_info *lcd)
 	usleep_range(5000, 6000);
 
 #if defined(CONFIG_SEC_FACTORY)
+	/* 14. Module Information READ */
 	ea8061s_read_id(lcd);
 #endif
 
@@ -819,7 +812,7 @@ static int ea8061s_init(struct lcd_info *lcd)
 		goto init_exit;
 	}
 
-	/* common setting */
+	/* 9. Common Setting */
 	ret = dsim_write_hl_data(lcd, SEQ_HSYNC_GEN_ON, ARRAY_SIZE(SEQ_HSYNC_GEN_ON));
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_HSYNC_GEN_ON\n", __func__);
@@ -852,16 +845,43 @@ static int ea8061s_init(struct lcd_info *lcd)
 		goto init_exit;
 	}
 
+	/* 10. Sleep Out(11h) */
 	ret = dsim_write_hl_data(lcd, SEQ_SLEEP_OUT, ARRAY_SIZE(SEQ_SLEEP_OUT));
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_SLEEP_OUT\n", __func__);
 		goto init_exit;
 	}
 
-	msleep(20);
+	/* 11. Wait 10ms */
+	usleep_range(10000, 11000);
 
-	/* 1. Brightness setting */
+	/* 12. Brightness Control Setting */
+	ret = dsim_write_hl_data(lcd, SEQ_POWER_SEQ, ARRAY_SIZE(SEQ_POWER_SEQ));
+	if (ret < 0) {
+		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_POWER_SEQ\n", __func__);
+		goto init_exit;
+	}
 
+	ret = dsim_write_hl_data(lcd, SEQ_AOR_MAX, ARRAY_SIZE(SEQ_AOR_MAX));
+	if (ret < 0) {
+		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_AOR_MAX\n", __func__);
+		goto init_exit;
+	}
+
+	ret = dsim_write_hl_data(lcd, SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE));
+	if (ret < 0) {
+		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_GAMMA_UPDATE\n", __func__);
+		goto init_exit;
+	}
+
+	/* 13. Wait 10ms */
+	usleep_range(10000, 11000);
+
+	/* 14. Module Information READ */
+	/* 15. Wait 150ms */
+	msleep(150);
+
+	/* 16. Brightness Setting */
 	ret = dsim_write_hl_data(lcd, SEQ_GAMMA_CONDITION_SET, ARRAY_SIZE(SEQ_GAMMA_CONDITION_SET));
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_GAMMA_CONDITION_SET\n", __func__);
@@ -897,8 +917,6 @@ static int ea8061s_init(struct lcd_info *lcd)
 		dev_err(&lcd->ld->dev, "%s: failed to write CMD : SEQ_TSET\n", __func__);
 		goto init_exit;
 	}
-
-	msleep(150);
 
 	ret = dsim_write_hl_data(lcd, SEQ_TEST_KEY_OFF_FC, ARRAY_SIZE(SEQ_TEST_KEY_OFF_FC));
 	if (ret < 0) {
@@ -1324,45 +1342,6 @@ static int mdnie_lite_read(struct lcd_info *lcd, u8 addr, u8 *buf, u32 size)
 }
 #endif
 
-#ifdef CONFIG_DISPLAY_USE_INFO
-static int panel_dpui_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data)
-{
-	struct lcd_info *lcd = NULL;
-	struct dpui_info *dpui = data;
-	char tbuf[MAX_DPUI_VAL_LEN];
-	int size;
-
-	if (dpui == NULL) {
-		pr_err("%s: dpui is null\n", __func__);
-		return NOTIFY_DONE;
-	}
-
-	lcd = container_of(self, struct lcd_info, dpui_notif);
-
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%04d%02d%02d %02d%02d%02d",
-			((lcd->date[0] & 0xF0) >> 4) + 2011, lcd->date[0] & 0xF, lcd->date[1] & 0x1F,
-			lcd->date[2] & 0x1F, lcd->date[3] & 0x3F, lcd->date[4] & 0x3F);
-	set_dpui_field(DPUI_KEY_MAID_DATE, tbuf, size);
-
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[0]);
-	set_dpui_field(DPUI_KEY_LCDID1, tbuf, size);
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[1]);
-	set_dpui_field(DPUI_KEY_LCDID2, tbuf, size);
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%d", lcd->id_info.id[2]);
-	set_dpui_field(DPUI_KEY_LCDID3, tbuf, size);
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%s_%s", DPUI_VENDOR_NAME, DPUI_MODEL_NAME);
-	set_dpui_field(DPUI_KEY_DISP_MODEL, tbuf, size);
-
-	size = snprintf(tbuf, MAX_DPUI_VAL_LEN, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-		lcd->date[0], lcd->date[1], lcd->date[2], lcd->date[3], lcd->date[4],
-		lcd->date[5], lcd->date[6], (lcd->coordinate[0] & 0xFF00) >> 8, lcd->coordinate[0] & 0x00FF,
-		(lcd->coordinate[1] & 0xFF00) >> 8, lcd->coordinate[1] & 0x00FF);
-	set_dpui_field(DPUI_KEY_CELLID, tbuf, size);
-
-	return NOTIFY_DONE;
-}
-#endif /* CONFIG_DISPLAY_USE_INFO */
 
 static int dsim_panel_probe(struct dsim_device *dsim)
 {
@@ -1403,13 +1382,6 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 	mdnie_register(&lcd->ld->dev, lcd, (mdnie_w)mdnie_lite_send_seq, (mdnie_r)mdnie_lite_read, lcd->coordinate, &tune_info);
 	lcd->mdnie_class = get_mdnie_class();
 #endif
-
-#ifdef CONFIG_DISPLAY_USE_INFO
-	lcd->dpui_notif.notifier_call = panel_dpui_notifier_callback;
-	if (lcd->connected)
-		dpui_logging_register(&lcd->dpui_notif, DPUI_TYPE_PANEL);
-#endif
-
 	dev_info(&lcd->ld->dev, "%s: %s: done\n", kbasename(__FILE__), __func__);
 probe_err:
 	return ret;

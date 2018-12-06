@@ -1307,14 +1307,28 @@ static ssize_t octa_id_show(struct device *dev,
  * HW PARAM LOGGING SYSFS NODE
  */
 static ssize_t dpui_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+	struct device_attribute *attr, char *buf)
 {
-	update_dpui_log(DPUI_LOG_LEVEL_INFO);
-	get_dpui_log(buf, DPUI_LOG_LEVEL_INFO);
+	int ret;
 
-	dev_info(dev, "%s: %s\n", __func__, buf);
+	update_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+	if (ret < 0) {
+		pr_err("%s failed to get log %d\n", __func__, ret);
+		return ret;
+	}
 
-	return strlen(buf);
+	pr_info("%s\n", buf);
+	return ret;
+}
+
+static ssize_t dpui_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	if (buf[0] == 'C' || buf[0] == 'c')
+		clear_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
+
+	return size;
 }
 
 /*
@@ -1322,18 +1336,32 @@ static ssize_t dpui_show(struct device *dev,
  * HW PARAM LOGGING SYSFS NODE
  */
 static ssize_t dpui_dbg_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+	struct device_attribute *attr, char *buf)
 {
-	update_dpui_log(DPUI_LOG_LEVEL_DEBUG);
-	get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG);
+	int ret;
 
-	dev_info(dev, "%s: %s\n", __func__, buf);
+	update_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+	if (ret < 0) {
+		pr_err("%s failed to get log %d\n", __func__, ret);
+		return ret;
+	}
 
-	return strlen(buf);
+	pr_info("%s\n", buf);
+	return ret;
 }
 
-static DEVICE_ATTR(dpui, 0440, dpui_show, NULL);
-static DEVICE_ATTR(dpui_dbg, 0440, dpui_dbg_show, NULL);
+static ssize_t dpui_dbg_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+	if (buf[0] == 'C' || buf[0] == 'c')
+		clear_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
+
+	return size;
+}
+
+static DEVICE_ATTR(dpui, 0660, dpui_show, dpui_store);
+static DEVICE_ATTR(dpui_dbg, 0660, dpui_dbg_show, dpui_dbg_store);
 #endif
 
 static DEVICE_ATTR(lcd_type, 0444, lcd_type_show, NULL);
