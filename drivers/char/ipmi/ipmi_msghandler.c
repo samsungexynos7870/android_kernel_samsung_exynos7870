@@ -1030,7 +1030,8 @@ EXPORT_SYMBOL(ipmi_get_smi_info);
 
 static void free_user(struct kref *ref)
 {
-	ipmi_user_t user = container_of(ref, struct ipmi_user, refcount);
+	struct ipmi_user *user = container_of(ref, struct ipmi_user, refcount);
+	cleanup_srcu_struct(&user->release_barrier);
 	kfree(user);
 }
 
