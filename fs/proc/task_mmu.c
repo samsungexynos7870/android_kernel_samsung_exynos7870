@@ -496,7 +496,7 @@ struct mem_size_stats {
 };
 
 static void smaps_account(struct mem_size_stats *mss, struct page *page,
-		unsigned long size, bool young, bool dirty)
+		unsigned long size, bool young, bool dirty, bool locked)
 {
 	int mapcount;
 
@@ -518,12 +518,16 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
 		pss_delta = (u64)size << PSS_SHIFT;
 		do_div(pss_delta, mapcount);
 		mss->pss += pss_delta;
+		if (locked)
+			mss->pss_locked += pss_delta;
 	} else {
 		if (dirty || PageDirty(page))
 			mss->private_dirty += size;
 		else
 			mss->private_clean += size;
 		mss->pss += (u64)size << PSS_SHIFT;
+		if (locked)
+			mss->pss_locked += (u64)size << PSS_SHIFT;
 	}
 }
 
@@ -533,6 +537,7 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
 	struct mem_size_stats *mss = walk->private;
 	struct vm_area_struct *vma = mss->vma;
 	pgoff_t pgoff = linear_page_index(vma, addr);
+	bool locked = !!(vma->vm_flags & VM_LOCKED);
 	struct page *page = NULL;
 
 	if (pte_present(*pte)) {
@@ -566,7 +571,7 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
 	if (page->index != pgoff)
 		mss->nonlinear += PAGE_SIZE;
 
-	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte));
+	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte), locked);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -575,6 +580,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
 {
 	struct mem_size_stats *mss = walk->private;
 	struct vm_area_struct *vma = mss->vma;
+	bool locked = !!(vma->vm_flags & VM_LOCKED);
 	struct page *page;
 
 	/* FOLL_DUMP will return -EFAULT on huge zero page */
@@ -583,7 +589,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
 		return;
 	mss->anonymous_thp += HPAGE_PMD_SIZE;
 	smaps_account(mss, page, HPAGE_PMD_SIZE,
-			pmd_young(*pmd), pmd_dirty(*pmd));
+			pmd_young(*pmd), pmd_dirty(*pmd), locked);
 }
 #else
 static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
