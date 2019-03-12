@@ -62,6 +62,7 @@ obj-$(CONFIG_MCU_IPC)		+= mcu_ipc/
 obj-$(CONFIG_UART_SEL)	+= uart_sel/
 obj-$(CONFIG_SEC_SIPC_MODEM_IF)	+= modem_v1/
 obj-$(CONFIG_GNSS_SHMEM_IF)	+= gnss_if/
+obj-$(CONFIG_MEMORY_STATE_TIME) += memory_state_time.o
 obj-$(CONFIG_SD8XXX_RFKILL)	+= sd8x_rfkill.o
 obj-$(CONFIG_SENSORS_BHI)       += bhy/
 
@@ -75,7 +76,8 @@ obj-y				+= tzic64.o
 # Samsung Jack Support
 obj-$(CONFIG_SAMSUNG_JACK)	+= sec_jack.o
 
-# Tima
+# TIMA
+obj-$(CONFIG_TIMA)		+= tima_debug_test.o
 obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o
 
 # for DMVerity

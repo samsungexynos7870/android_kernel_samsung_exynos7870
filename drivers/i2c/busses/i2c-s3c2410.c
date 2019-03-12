@@ -1252,6 +1252,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		i2c->irq = ret = platform_get_irq(pdev, 0);
 		if (ret <= 0) {
 			dev_err(&pdev->dev, "cannot find IRQ\n");
+			clk_unprepare(i2c->clk);
 			return ret;
 		}
 
@@ -1260,6 +1261,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 		if (ret != 0) {
 			dev_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
+			clk_unprepare(i2c->clk);
 			return ret;
 		}
 	}
@@ -1278,7 +1280,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
 		return ret;
 	}
-	i2c->bus_id = of_alias_get_id(i2c->adap.dev.of_node, "ni2c");
 
 	platform_set_drvdata(pdev, i2c);
 
@@ -1302,14 +1303,12 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
+	clk_unprepare(i2c->clk);
+
 	pm_runtime_disable(&i2c->adap.dev);
 	pm_runtime_disable(&pdev->dev);
 
 	i2c_del_adapter(&i2c->adap);
-
-	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x11);
-	clk_disable_unprepare(i2c->clk);
-	exynos_ss_i2c_clk(i2c->clk, i2c->bus_id, 0x13);
 
 	if (pdev->dev.of_node && IS_ERR(i2c->pctrl))
 		s3c24xx_i2c_dt_gpio_free(i2c);

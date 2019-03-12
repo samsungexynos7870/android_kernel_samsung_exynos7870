@@ -673,9 +673,6 @@ static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 		return 0;
 	}
 
-	if (val == CPUFREQ_REMOVE_POLICY)
-		__cpufreq_stats_free_table(policy);
-
 	table = cpufreq_frequency_get_table(cpu);
 	if (!table)
 		return 0;
@@ -693,6 +690,8 @@ static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 
 	if (val == CPUFREQ_CREATE_POLICY)
 		ret = __cpufreq_stats_create_table(policy, table, count);
+	else if (val == CPUFREQ_REMOVE_POLICY)
+		__cpufreq_stats_free_table(policy);
 
 	return ret;
 }

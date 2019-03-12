@@ -30,11 +30,13 @@ obj-$(CONFIG_SENSORS_CM36652)	    += cm36652.o
 obj-$(CONFIG_SENSORS_CM36655)       += cm36655.o
 obj-$(CONFIG_SENSORS_CM36672P)      += cm36672p.o
 obj-$(CONFIG_SENSORS_CM36686)       += cm36686.o
+obj-$(CONFIG_SENSORS_VEML3328)      += veml3328.o
 obj-$(CONFIG_SENSORS_TMD3782)       += tmd3782.o
 obj-$(CONFIG_SENSORS_TMD3700)       += tmd3700.o
 obj-$(CONFIG_SENSORS_TMD3725)       += tmd3725.o
 obj-$(CONFIG_SENSORS_STK3013)       += stk3013.o
 obj-$(CONFIG_SENSORS_GP2AP070S)     += gp2ap070s.o
+obj-$(CONFIG_SENSORS_GP2AP110S)	    += gp2ap110s.o
 # grip_sensor
 obj-$(CONFIG_SENSORS_SX9306)        += sx9306.o
 obj-$(CONFIG_SENSORS_SX9306_SUB)    += sx9306_sub.o

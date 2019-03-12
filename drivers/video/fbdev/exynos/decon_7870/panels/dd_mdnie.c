@@ -1,6 +1,5 @@
-/* dd_mdnie.c
- *
- * Copyright (c) Samsung Electronics
+/*
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -304,8 +303,8 @@ static int tuning_show(struct seq_file *m, void *unused)
 	int i, idx;
 
 	if (!d->tuning) {
-		dbg_info("tunning mode is %s\n", d->tuning ? "on" : "off");
-		seq_printf(m, "tunning mode is %s\n", d->tuning ? "on" : "off");
+		dbg_info("tuning mode is %s\n", d->tuning ? "on" : "off");
+		seq_printf(m, "tuning mode is %s\n", d->tuning ? "on" : "off");
 		goto exit;
 	}
 
@@ -362,25 +361,19 @@ static ssize_t tuning_store(struct file *f, const char __user *user_buf,
 	struct mdnie_info *mdnie = d->md;
 	int ret = 0;
 	const char *filename = NULL;
-	char wbuf[NAME_MAX] = {0, };
+	char ibuf[NAME_MAX] = {0, };
 	char *pbuf;
 	unsigned int value;
 
-	if (*ppos != 0)
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
 		goto exit;
+	}
 
-	if (count > sizeof(wbuf))
-		goto exit;
-
-	ret = simple_write_to_buffer(wbuf, sizeof(wbuf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		goto exit;
-
-	wbuf[ret] = '\0';
-
-	pbuf = strim(wbuf);
-	if (!strncmp(wbuf, "0", count - 1) || !strncmp(wbuf, "1", count - 1)) {
-		ret = kstrtouint(wbuf, 0, &value);
+	pbuf = ibuf;
+	if (!strncmp(ibuf, "0", count - 1) || !strncmp(ibuf, "1", count - 1)) {
+		ret = kstrtouint(ibuf, 0, &value);
 		if (ret < 0)
 			return count;
 

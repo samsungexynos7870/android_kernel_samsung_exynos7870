@@ -164,6 +164,14 @@
 #undef ENABLE_DVFS
 #undef ENABLE_CLOCK_GATE
 
+#ifdef USE_FACE_UNLOCK_AE_AWB_INIT
+/* init AWB */
+#define ENABLE_INIT_AWB
+#define WB_GAIN_COUNT		(4)
+#define INIT_AWB_COUNT_REAR	(3)
+#define INIT_AWB_COUNT_FRONT	(7)
+#endif
+
 #elif defined(CONFIG_SOC_EXYNOS7880)
 #define SOC_30S
 #define SOC_30C

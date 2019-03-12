@@ -113,6 +113,10 @@ static ssize_t barcode_emul_store(struct device *dev,
 	u8 send_buf[DATA_MAX_LEN] = { 0, };
 	int i;
 	u16 len;
+	if(size <= 1) {
+		pr_info("[SSP] %s - not enough size of input data(%d)", __func__, (int)size);
+		return -EINVAL;
+	}
 
 	memset(send_buf, 0xFF, 128);
 	if (buf[0] == 0xFF && buf[1] != STOP_BEAMING) {
@@ -141,6 +145,10 @@ static ssize_t barcode_emul_store(struct device *dev,
 		mobeam_write(data, MOBEAM_HOP_COUNT, send_buf, 1);
 	} else {
 		ssp_infof(" - REGISTER SET(0x%X)", buf[0]);
+		if(size < 8) {
+			pr_info("[SSP] %s - not enough size of input data(%d)", __func__, (int)size);
+			return -EINVAL;
+		}
 		for (i = 0; i < 15; i++) {
 			if (reg_id_table[i].reg == buf[0]) {
 				send_buf[0] = reg_id_table[i].index;

@@ -1,6 +1,5 @@
-/* dd_backlight.c
- *
- * Copyright (c) Samsung Electronics
+/*
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,7 +23,7 @@
  * bl_tuning usage
  * you can skip out if your model has no outdoor or hbm
  * you can skip platform_brightness. if you skip it, we reuse binary default value
- * : (colon) is delemeter to seperate tune_value and platform platform_brightness
+ * : (colon) is delemeter to separate tune_value and platform platform_brightness
  * echo min dft max > bl_tuning
  * echo min dft max out > bl_tuning
  * echo min dft max: platform_min platform_dft platform_max > bl_tuning
@@ -41,7 +40,7 @@
  * ex) echo 2 1 3: 6 5 4 =  echo 1 2 3: 4 5 6 because we re-order it automatically
  *
  * ex) echo 1 2 3 4: 5 6 7 > /d/dd_backlight/bl_tuning (X) because tune_value(1 2 3 4) part count is 4 but brightness(5 6 7) part count is 3
- * ex) echo 1 2 3 4: 5 6 7: 8 9 10 > /d/dd_backlight/bl_tuning (X) because we allow only one :(colon) to seperate platform brightness point
+ * ex) echo 1 2 3 4: 5 6 7: 8 9 10 > /d/dd_backlight/bl_tuning (X) because we allow only one :(colon) to separate platform brightness point
  *
  */
 
@@ -54,8 +53,8 @@
  * = this means you write to 0x01(i2c_command) with 0x02(value) and you assign read i2c_command as 0x1 when you cat this sysfs next time
  */
 
-#define dbg_info(fmt, ...)	pr_info(pr_fmt("%s: %3d: %s: " fmt), "backlight panel", __LINE__, __func__, ##__VA_ARGS__)
-#define dbg_warn(fmt, ...)	pr_warn(pr_fmt("%s: %3d: %s: " fmt), "backlight panel", __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_info(fmt, ...)	pr_info(pr_fmt("%s: %3d: %s: " fmt), "lcd panel", __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_warn(fmt, ...)	pr_warn(pr_fmt("%s: %3d: %s: " fmt), "lcd panel", __LINE__, __func__, ##__VA_ARGS__)
 
 #define BL_POINTS	\
 	X(OUT)		\
@@ -152,7 +151,7 @@ static unsigned int parse_curve(char *str, char *delim, unsigned int *out)
 	}
 	str = str + i;
 
-	/* seperate with delimiter */
+	/* separate with delimiter */
 	i = 0;
 	while ((p = strsep(&str, delim)) != NULL) {
 		ret = kstrtouint(p, 0, out + i);
@@ -178,14 +177,14 @@ static int make_bl_curve(struct bl_info *bl, unsigned int *tune_value_point, uns
 				break;
 		}
 
-		if (i >= 255 || tune_value_point[idx] == 0)	/* flat */
+		if ((i >= 255 && idx == 1) || tune_value_point[idx] == 0)	/* flat */
 			value = tune_value_point[idx];
 		else if (i >= brightness_point[idx])
 			value = (i - brightness_point[idx]) * (tune_value_point[idx - 1] - tune_value_point[idx]) / (brightness_point[idx - 1] - brightness_point[idx]) + tune_value_point[idx];
 		else
 			value = 0;
 
-		dbg_info("[%4d] = %4d, %4d\t%s\n", i, bl->brightness_table[i], value, (value != bl->brightness_table[i]) ? "X" : "");
+		dbg_info("[%4d] = %4d -> %4d, idx: %d,\t%s\n", i, bl->brightness_table[i], value, idx, (value != bl->brightness_table[i]) ? "X" : "");
 		bl->brightness_table[i] = value;
 	}
 
@@ -299,7 +298,7 @@ exit:
 	return ret;
 }
 
-static unsigned int count_char(const char *str, char c)
+static unsigned int count_char(char *str, char c)
 {
 	unsigned int i, count = 0;
 
@@ -314,24 +313,9 @@ static unsigned int count_char(const char *str, char c)
 static int bl_tuning_show(struct seq_file *m, void *unused)
 {
 	struct bl_info *bl = m->private;
-	int i, off = 0;
+	int i, off = 0, point_idx = 0;
 	int end = (bl->default_brightness[BL_POINT_MAX] == bl->default_brightness[BL_POINT_OUT]) ? BL_POINT_MAX : BL_POINT_OUT;
-
-	seq_puts(m, "TABLE 1-------------------------------------------\n");
-	for (i = 0; i <= bl->bd->props.max_brightness; i++)
-		seq_printf(m, "[%4d] = %4d\n", i, bl->brightness_table[i]);
-
-	seq_puts(m, "TABLE 2-------------------------------------------\n");
-	seq_printf(m, "%d,\n", bl->brightness_table[0]);
-	for (i = 1; i <= bl->bd->props.max_brightness; i++)
-		seq_printf(m, "%d,%s", bl->brightness_table[i], !(i % 10) ? "\n" : " ");
-	seq_puts(m, "\n");
-
-	seq_puts(m, "DEFAULT ------------------------------------------\n");
-	seq_printf(m, "%8s| %8s| %8s\n", " ", "tune", "platform");
-	for (i = BL_POINT_OFF; i >= end; i--) {
-		seq_printf(m, "%8s| %8d| %8d\n", BL_POINT_NAME[i], bl->default_tune_value[i], bl->default_brightness[i]);
-	};
+	unsigned int *brightness_point;
 
 	for (off = 0; off < INPUT_LIMIT; off++) {
 		if (!bl->input_brightness[off]) {
@@ -340,6 +324,37 @@ static int bl_tuning_show(struct seq_file *m, void *unused)
 		}
 	};
 	off = (off == INPUT_LIMIT) ? 0 : off;
+
+	point_idx = off ? off : BL_POINT_OFF;
+	brightness_point = off ? bl->input_brightness : bl->default_brightness;
+
+	seq_puts(m, "TABLE 1-------------------------------------------\n");
+	for (i = 0; i <= bl->bd->props.max_brightness; i++)
+		seq_printf(m, "[%4d] = %4d\n", i, bl->brightness_table[i]);
+
+	seq_puts(m, "TABLE 2-------------------------------------------\n");
+	for (i = 0; i <= bl->bd->props.max_brightness; i++) {
+		seq_printf(m, "%d,", bl->brightness_table[i]);
+
+		if (i && !(i % 10) && point_idx >= 0 && i >= brightness_point[point_idx] && bl->brightness_table[brightness_point[point_idx]]) {
+			seq_printf(m, " /* %d: %d */\n", brightness_point[point_idx], bl->brightness_table[brightness_point[point_idx]]);
+			point_idx--;
+		} else if (!(i % 10) && point_idx >= 0 && i >= brightness_point[point_idx]) {
+			seq_puts(m, "\n");
+			point_idx--;
+		} else if (!(i % 10)) {
+			seq_puts(m, "\n");
+		} else {
+			seq_puts(m, " ");
+		}
+	}
+	seq_puts(m, "\n");
+
+	seq_puts(m, "DEFAULT ------------------------------------------\n");
+	seq_printf(m, "%8s| %8s| %8s\n", " ", "tune", "platform");
+	for (i = BL_POINT_OFF; i >= end; i--) {
+		seq_printf(m, "%8s| %8d| %8d\n", BL_POINT_NAME[i], bl->default_tune_value[i], bl->default_brightness[i]);
+	};
 
 	if (!off)
 		return 0;
@@ -362,13 +377,16 @@ static ssize_t bl_tuning_write(struct file *f, const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct bl_info *bl = ((struct seq_file *)f->private_data)->private;
-	char wbuf[INPUT_LIMIT];
+	char ibuf[INPUT_LIMIT] = {0, };
 	int ret, i;
 
-	if (*ppos != 0)
-		return 0;
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
+		goto exit;
+	}
 
-	if (!strncmp(user_buf, "0", count - 1)) {
+	if (!strncmp(ibuf, "0", count - 1)) {
 		dbg_info("input is 0(zero). reset brightness table to default\n");
 		make_bl_curve(bl, bl->default_tune_value, bl->default_brightness);
 		for (i = 0; i < bl->bd->props.max_brightness; i++) {
@@ -382,30 +400,17 @@ static ssize_t bl_tuning_write(struct file *f, const char __user *user_buf,
 		goto exit;
 	}
 
-	if (count > sizeof(wbuf)) {
-		dbg_info("input size is too big, %zu\n", count);
+	if (count_char(ibuf, ' ') == 0) {
+		dbg_info("input(blank count) is invalid, %d\n", count_char(ibuf, ' '));
 		goto exit;
 	}
 
-	if (count_char(user_buf, ' ') == 0) {
-		dbg_info("input(blank count) is invalid, %d\n", count_char(user_buf, ' '));
+	if (count_char(ibuf, ':') >= 2) {
+		dbg_info("input(comma count) is invalid, %d\n", count_char(ibuf, ':'));
 		goto exit;
 	}
 
-	if (count_char(user_buf, ':') >= 2) {
-		dbg_info("input(comma count) is invalid, %d\n", count_char(user_buf, ':'));
-		goto exit;
-	}
-
-	ret = simple_write_to_buffer(wbuf, sizeof(wbuf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		return ret;
-
-	wbuf[ret] = '\0';
-
-	strim(wbuf);
-
-	check_curve(bl, wbuf);
+	check_curve(bl, ibuf);
 
 exit:
 	return count;
@@ -450,16 +455,20 @@ static ssize_t ic_tuning_write(struct file *f, const char __user *user_buf,
 	struct ic_info *ic = ((struct seq_file *)f->private_data)->private;
 	int ret = 0, command = 0, value = 0;
 	u32 i2c_msg[2] = {0, };
-
-	if (*ppos != 0)
-		return 0;
+	char ibuf[INPUT_LIMIT] = {0, };
 
 	if (ic->bd->props.fb_blank != FB_BLANK_UNBLANK) {
 		dbg_info("fb_blank is invalid, %d\n", ic->bd->props.fb_blank);
 		goto exit;
 	}
 
-	ret = sscanf(user_buf, "%8x %8x", &command, &value);
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
+		goto exit;
+	}
+
+	ret = sscanf(ibuf, "%8x %8x", &command, &value);
 	if (clamp(ret, 1, 2) != ret) {
 		dbg_info("input is invalid, %d\n", ret);
 		goto exit;
@@ -539,7 +548,7 @@ static int help_show(struct seq_file *m, void *unused)
 	seq_puts(m, "# cat bl_tuning\n");
 	seq_puts(m, "1. 'echo 0' is for reset brightness table to default\n");
 	seq_puts(m, "2. 'cat bl_tuning' is for check latest brightness tuning table\n");
-	seq_puts(m, "3. colon(:) is delimiter to seperate platform brightness. optional\n");
+	seq_puts(m, "3. colon(:) is delimiter to separate platform brightness. optional\n");
 	seq_printf(m, "4. you can not change total platform brightness range(0~%d)\n", bl->default_brightness[end]);
 	seq_puts(m, "ex) # ");
 	for (i = BL_POINT_MIN; i >= end; i--)

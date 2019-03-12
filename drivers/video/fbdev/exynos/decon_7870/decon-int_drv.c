@@ -561,6 +561,10 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	decon_lpd_block_exit(decon);
 
+#if defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
+	decon_fb_handover_color_map(decon);
+#endif
+
 	/* Offset in bytes to the start of the displayed area */
 	start_boff = var->yoffset * info->fix.line_length;
 	/* X offset depends on the current bpp */

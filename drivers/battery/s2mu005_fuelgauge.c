@@ -126,24 +126,19 @@ static int s2mu005_read_reg(struct i2c_client *client, int reg, u8 *buf)
 
 static void s2mu005_fg_test_read(struct i2c_client *client)
 {
-	u8 data;
+	static int reg_list[] = {
+		0x03, 0x0E, 0x0F, 0x10, 0x11, 0x1E, 0x1F, 0x21, 0x24, 0x25,
+		0x26, 0x27, 0x44, 0x45, 0x48, 0x4A, 0x4B, 0x50, 0x51, 0x52,
+		0x53, 0x58, 0x59, 0x5A, 0x5B
+	};
+	u8 data = 0;
 	char str[1016] = {0,};
-	int i;
+	int i = 0, reg_list_size = 0;
 
-	/* address 0x00 ~ 0x1f */
-	for (i = 0x0; i <= 0x1F; i++) {
-		s2mu005_read_reg_byte(client, i, &data);
-		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
-	}
-
-	/* address 0x27 */
-	s2mu005_read_reg_byte(client, 0x27, &data);
-	sprintf(str+strlen(str),"0x27:0x%02x, ",data);
-
-	/* address 0x44, 0x45 */
-	for (i = 0x44; i <= 0x45; i++) {
-		s2mu005_read_reg_byte(client, i, &data);
-		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
+	reg_list_size = ARRAY_SIZE(reg_list);
+	for (i = 0; i < reg_list_size; i++) {
+		s2mu005_read_reg_byte(client, reg_list[i], &data);
+		sprintf(str+strlen(str), "0x%02x:0x%02x, ", reg_list[i], data);
 	}
 
 	/* print buffer */
@@ -252,6 +247,12 @@ static void WA_0_issue_at_init(struct s2mu005_fuelgauge_data *fuelgauge)
 static void WA_force_rawsoc_100(struct s2mu005_fuelgauge_data *fuelgauge)
 {
 	u8 temp1, v_40;
+
+	/* Set discharging current*/
+	s2mu005_write_reg_byte(fuelgauge->i2c, 0x26, 0xF6);
+	s2mu005_read_reg_byte(fuelgauge->i2c, 0x27, &temp1);
+	temp1 |= 0x0F;
+	s2mu005_write_reg_byte(fuelgauge->i2c, 0x27, temp1);
 
 	/* Set average voltage coefficient ( addr 0x40 = 0xFF ) */
 	s2mu005_read_reg_byte(fuelgauge->i2c, 0x40, &v_40);
@@ -458,13 +459,13 @@ static void s2mu005_reset_fg(struct s2mu005_fuelgauge_data *fuelgauge)
 	u8 temp = 0;
 	mutex_lock(&fuelgauge->fg_lock);
 	/* step 0: [Surge test] initialize register of FG */
-#if defined(CONFIG_BATTERY_AGE_FORECAST)
+
 	/*Reset IC*/
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x1F, 0x40);
 	msleep(50);
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x1F, 0x01);
 	msleep(50);
-#endif
+
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x0F, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[0]);
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x0E, fuelgauge->age_data_info[fuelgauge->fg_age_step].batcap[1]);
@@ -565,39 +566,35 @@ static void s2mu005_reset_fg(struct s2mu005_fuelgauge_data *fuelgauge)
 		s2mu005_write_reg_byte(fuelgauge->i2c, 0x26, temp);
 	}
 
-#if !defined(CONFIG_BATTERY_AGE_FORECAST)
+	/* Set average voltage coefficient ( addr 0x40 = 0x08 ) */
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x40, 0x08);
-
-	WA_0_issue_at_init(fuelgauge);
-#else
-	s2mu005_write_reg_byte(fuelgauge->i2c, 0x40, 0x08);
+	/* Set average current coefficient ( addr 0x41 = 0x04 ) */
 	s2mu005_write_reg_byte(fuelgauge->i2c, 0x41, 0x04);
 
-	/* Set discharging current*/
-	s2mu005_write_reg_byte(fuelgauge->i2c, 0x26, 0xF6);
-	s2mu005_read_reg_byte(fuelgauge->i2c, 0x27, &temp);
-	temp |= 0x0F;
-	s2mu005_write_reg_byte(fuelgauge->i2c, 0x27, temp);
-
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
 	if (fuelgauge->age_reset_status == 1)
 		WA_force_rawsoc_100(fuelgauge);
 	else
 		WA_0_issue_at_init(fuelgauge);
+#else
+	WA_0_issue_at_init(fuelgauge);
 #endif
 
 	/* If it was voltage mode, recover it */
 	if ((fuelgauge->revision >= 2) && (fuelgauge->mode == HIGH_SOC_VOLTAGE_MODE))
 		s2mu005_write_reg_byte(fuelgauge->i2c, 0x4A, 0xFF);
 
-	/*After FG reset current battery data version get reset to default value 1, causing mismatch in bootloader and kernel FG data verion.
-	 Below code restores the FG data version in 0x48 register to it's initalized value.*/
+	/*
+	 * After FG reset current battery data version gets reset to default value 1.
+	 * This is causing mismatch in bootloader and kernel FG data version.
+	 * The code below restores the FG data version in 0x48 register to its initalized value.
+	 */
 	pr_info("%s: FG data version %02x\n", __func__, fuelgauge->info.data_ver);
-	if (fuelgauge->info.data_ver != 0) {
-		s2mu005_read_reg_byte(fuelgauge->i2c, 0x48, &temp);
-		temp &= 0xF1;
-		temp |= (fuelgauge->info.data_ver << 1);
-		s2mu005_write_reg_byte(fuelgauge->i2c, 0x48, temp);
-	}
+
+	s2mu005_read_reg_byte(fuelgauge->i2c, 0x48, &temp);
+	temp &= 0xF1;
+	temp |= (fuelgauge->info.data_ver << 1);
+	s2mu005_write_reg_byte(fuelgauge->i2c, 0x48, temp);
 
 	mutex_unlock(&fuelgauge->fg_lock);
 	pr_info("%s: Reset FG completed\n", __func__);
@@ -1838,7 +1835,7 @@ static int s2mu005_fg_set_property(struct power_supply *psy,
 
 	switch (psp) {
 		case POWER_SUPPLY_PROP_STATUS:
-#if defined(CONFIG_BATTERY_AGE_FORECAST_DETACHABLE)
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
 			if (val->intval == POWER_SUPPLY_STATUS_FULL)
 				s2mu005_fg_aging_check(fuelgauge,
 					fuelgauge->change_step);
@@ -1896,12 +1893,8 @@ static int s2mu005_fg_set_property(struct power_supply *psy,
 			break;
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 		case POWER_SUPPLY_EXT_PROP_UPDATE_BATTERY_DATA:
-#if defined(CONFIG_BATTERY_AGE_FORECAST_DETACHABLE)
-					fuelgauge->change_step = val->intval;
-#else
-					s2mu005_fg_aging_check(fuelgauge, val->intval);
-#endif
-					break;
+			fuelgauge->change_step = val->intval;
+			break;
 #endif
 		default:
 			return -EINVAL;
@@ -2207,6 +2200,11 @@ static int s2mu005_fuelgauge_probe(struct i2c_client *client,
 	fuelgauge->psy_fg.properties    = s2mu005_fuelgauge_props;
 	fuelgauge->psy_fg.num_properties =
 			ARRAY_SIZE(s2mu005_fuelgauge_props);
+
+	if (!fuelgauge->info.data_ver) {
+		s2mu005_read_reg_byte(fuelgauge->i2c, 0x48, &temp);
+		fuelgauge->info.data_ver = (temp & 0x0E) >> 1;
+	}
 
 	/* 0x48[7:4]=0010 : EVT2 */
 	fuelgauge->revision = 0;

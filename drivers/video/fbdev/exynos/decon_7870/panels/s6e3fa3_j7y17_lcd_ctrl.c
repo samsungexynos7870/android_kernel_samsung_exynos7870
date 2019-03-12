@@ -1,14 +1,10 @@
 /*
- * drivers/video/decon_7870/panels/s6e3fa3_j7y17_lcd_ctrl.c
- *
- * Samsung SoC MIPI LCD CONTROL functions
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/lcd.h>
 #include <linux/backlight.h>
@@ -578,7 +574,7 @@ static int init_gamma(struct lcd_info *lcd, u8 *mtp_data)
 	int **gamma;
 
 	/* allocate memory for local gamma table */
-	gamma = kzalloc(IBRIGHTNESS_MAX * sizeof(int *), GFP_KERNEL);
+	gamma = kcalloc(IBRIGHTNESS_MAX, sizeof(int *), GFP_KERNEL);
 	if (!gamma) {
 		pr_err("failed to allocate gamma table\n");
 		ret = -ENOMEM;
@@ -586,7 +582,7 @@ static int init_gamma(struct lcd_info *lcd, u8 *mtp_data)
 	}
 
 	for (i = 0; i < IBRIGHTNESS_MAX; i++) {
-		gamma[i] = kzalloc(IV_MAX*CI_MAX * sizeof(int), GFP_KERNEL);
+		gamma[i] = kcalloc(IV_MAX*CI_MAX, sizeof(int), GFP_KERNEL);
 		if (!gamma[i]) {
 			pr_err("failed to allocate gamma\n");
 			ret = -ENOMEM;
@@ -896,11 +892,6 @@ static int init_hbm_gamma(struct lcd_info *lcd)
 	for (i = IBRIGHTNESS_MAX; i < IBRIGHTNESS_HBM_MAX; i++)
 		memcpy(&lcd->gamma_table[i], SEQ_GAMMA_CONDITION_SET, GAMMA_CMD_CNT);
 
-/*
-	V255 of 443 nit
-	ratio = (443-420) / (600-420) = 0.127778
-	target gamma = 256 + (281 - 256) * 0.127778 = 259.1944
-*/
 	for (i = IBRIGHTNESS_MAX; i < IBRIGHTNESS_HBM_MAX; i++) {
 		t1 = hitp->ibr_tbl[i] - hitp->ibr_tbl[hitp->idx_ref];
 		t2 = hitp->ibr_tbl[hitp->idx_hbm] - hitp->ibr_tbl[hitp->idx_ref];
@@ -958,14 +949,14 @@ static int s6e3fa3_exit(struct lcd_info *lcd)
 
 #ifdef CONFIG_DISPLAY_USE_INFO
 /*
-* ESD_ERROR[6] =  MIPI DSI error is occurred by ESD.
-* ESD_ERROR[5] =  HS CLK lane error is occurred by ESD.
-* ESD_ERROR[4] =  VLIN3 error is occurred by ESD.
-* ESD_ERROR[3] =  ELVDD error is occurred by ESD.
-* ESD_ERROR[2]  = CHECK_SUM error is occurred by ESD.
-* ESD_ERROR[1] =  HSYNC error is occurred by ESD.
-* ESD_ERROR[0] =  VLIN1 error is occurred by ESD
-*/
+ * ESD_ERROR[6] =  MIPI DSI error is occurred by ESD.
+ * ESD_ERROR[5] =  HS CLK lane error is occurred by ESD.
+ * ESD_ERROR[4] =  VLIN3 error is occurred by ESD.
+ * ESD_ERROR[3] =  ELVDD error is occurred by ESD.
+ * ESD_ERROR[2]  = CHECK_SUM error is occurred by ESD.
+ * ESD_ERROR[1] =  HSYNC error is occurred by ESD.
+ * ESD_ERROR[0] =  VLIN1 error is occurred by ESD
+ */
 	ret = s6e3fa3_read_info(lcd, ERR_READ_REG, sizeof(buf), &buf);
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: fail\n", __func__);
@@ -1873,7 +1864,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (buf) {
 		path = kernfs_path(svc_kobj->sd, buf, PATH_MAX);
-		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, path, !kn ? "create" : "");
+		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, buf, !kn ? "create" : "");
 		kfree(buf);
 	}
 

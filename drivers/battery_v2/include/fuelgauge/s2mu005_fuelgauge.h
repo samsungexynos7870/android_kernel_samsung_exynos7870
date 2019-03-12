@@ -50,7 +50,7 @@ enum {
 	END_MODE,
 };
 
-enum s2mu004_vbatl_mode {
+enum s2mu005_vbatl_mode {
 	VBATL_MODE_NORMAL = 0,
 	VBATL_MODE_SW_VALERT,
 	VBATL_MODE_SW_RECOVERY,
@@ -71,6 +71,7 @@ struct sec_fg_info {
 
 	/* battery info */
 	int soc;
+
 #if !defined(CONFIG_BATTERY_AGE_FORECAST)
 	/* copy from platform data /
 	 * DTS or update by shell script */
@@ -89,16 +90,17 @@ struct sec_fg_info {
 	unsigned long fullcap_check_interval;
 	int full_check_flag;
 	bool is_first_check;
+	int data_ver;
 };
 
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 struct fg_age_data_info {
-	int battery_table3[88]; /* evt2 */
-	int battery_table4[22]; /* evt2 */
-	int batcap[4];
-	int accum[2];
+        int battery_table3[88]; // evt2
+        int battery_table4[22]; // evt2
+        int batcap[4];
+        int accum[2];
 	int soc_arr_val[22];
-	int ocv_arr_val[22];
+        int ocv_arr_val[22];
 };
 
 #define	fg_age_data_info_t \
@@ -114,6 +116,7 @@ struct s2mu005_platform_data {
 	int fullsocthr;
 	int fg_irq;
 	int fg_log_enable;
+	int fuel_alert_vol;
 
 	char *fuelgauge_name;
 
@@ -137,8 +140,8 @@ struct s2mu005_fuelgauge_data {
 	int revision;
 	int change_step;
 
-	/* HW-dedicated fuel guage info structure
-	 * used in individual fuel gauge file only
+	/* HW-dedicated fuelgauge info structure
+	 * used in individual fuelgauge file only
 	 * (ex. dummy_fuelgauge.c)
 	 */
 	struct sec_fg_info      info;

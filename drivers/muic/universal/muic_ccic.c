@@ -703,10 +703,12 @@ static int muic_handle_ccic_notification(struct notifier_block *nb,
 		muic_data_t *pmuic =
 			container_of(nb, muic_data_t, ccic_nb);
 #endif
-
+#ifdef CONFIG_MUIC_POGO
 	union power_supply_propval wcvalue;
+	struct mdev_desc_t *pdesc = &mdev_desc;
 
 	psy_do_property("pogo", get, POWER_SUPPLY_PROP_ONLINE, wcvalue);
+#endif
 
 	pr_info("%s: Rcvd Noti=> action: %d src:%d dest:%d id:%d sub[%d %d %d]\n", __func__,
 		(int)action, pnoti->src, pnoti->dest, pnoti->id, pnoti->sub1, pnoti->sub2, pnoti->sub3);
@@ -714,6 +716,25 @@ static int muic_handle_ccic_notification(struct notifier_block *nb,
 #ifdef CONFIG_MUIC_POGO
 	if (wcvalue.intval) {
 		pr_info("%s: WCIN exists! Ignore ccic noti!\n", __func__);
+		if (pnoti->id == CCIC_NOTIFY_ID_ATTACH) {
+			if (pnoti->sub1) { /* attach */
+				pdesc->ccic_evt_attached = MUIC_CCIC_NOTI_ATTACH;
+				pdesc->ccic_evt_rprd = pnoti->sub2;
+				if (pdesc->ccic_evt_rprd) {
+					pmuic->rprd = true;
+					mdev_com_to(pmuic, MUIC_PATH_USB_AP);
+					set_switch_mode(pmuic,SWMODE_MANUAL);
+				}
+			} else { /* detach */
+				pdesc->ccic_evt_attached = MUIC_CCIC_NOTI_DETACH;
+				pdesc->ccic_evt_rprd = 0;
+				pmuic->rprd = false;
+#ifdef CONFIG_MUIC_USB_ID_CTR
+				gpio_direction_output(pmuic->usb_id_ctr, 0);
+#endif
+				set_switch_mode(pmuic,SWMODE_AUTO);
+			}
+		}
 		return 0;
 	}
 #endif

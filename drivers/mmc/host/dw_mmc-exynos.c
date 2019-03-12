@@ -1262,7 +1262,7 @@ static ssize_t sd_detection_cmd_show(struct device *dev,
 		if (priv->sec_sd_slot_type > 0 && !gpio_is_valid(priv->cd_gpio))
 			goto gpio_error;
 
-		if (gpio_get_value(priv->cd_gpio)
+		if (gpio_get_value(priv->cd_gpio) ^ (host->pdata->use_gpio_invert)
 				&& priv->sec_sd_slot_type == SEC_HYBRID_SD_SLOT) {
 			dev_info(host->dev, "SD slot tray Removed.\n");
 			return sprintf(buf, "Notray\n");

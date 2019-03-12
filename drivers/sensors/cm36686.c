@@ -1409,12 +1409,6 @@ static int cm36686_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	ret = cm36686_parse_dt(&client->dev, cm36686);
-	if (ret) {
-		SENSOR_ERR("error in device tree");
-		goto err_devicetree;
-	}
-
 	cm36686->i2c_client = client;
 	i2c_set_clientdata(client, cm36686);
 
@@ -1442,6 +1436,12 @@ static int cm36686_i2c_probe(struct i2c_client *client,
 	if (ret < 0) {
 		SENSOR_ERR("could not setup regs\n");
 		goto err_setup_reg;
+	}
+
+	ret = cm36686_parse_dt(&client->dev, cm36686);
+	if (ret) {
+		SENSOR_ERR("error in device tree");
+		goto err_devicetree;
 	}
 
 	/* allocate proximity input_device */
@@ -1606,6 +1606,7 @@ err_sensors_create_symlink_prox:
 	input_unregister_device(cm36686->proximity_input_dev);
 err_input_register_device_proximity:
 err_input_allocate_device_proximity:
+err_devicetree:
 err_setup_reg:
 	proximity_vled_onoff(&client->dev, OFF);
 	if (cm36686->vled_ldo)
@@ -1614,7 +1615,6 @@ err_setup_reg:
 	wake_lock_destroy(&cm36686->prox_wake_lock);
 	mutex_destroy(&cm36686->read_lock);
 	mutex_destroy(&cm36686->power_lock);
-err_devicetree:
 	kfree(cm36686);
 
 	SENSOR_ERR("failed (%d)\n", ret);

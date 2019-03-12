@@ -95,17 +95,22 @@ static int s2mu005_get_charging_health(struct s2mu005_charger_data *charger);
 
 static void s2mu005_test_read(struct i2c_client *i2c)
 {
+	static int reg_list[] = {
+		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11,
+		0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x2A,
+		0x51, 0x7E, 0x55, 0x5E, 0x7B
+	};
 	u8 data;
 	char str[1016] = {0,};
-	int i;
+	int i = 0, reg_list_size = 0;
 
-	for (i = 0x8; i <= 0x1A; i++) {
-		s2mu005_read_reg(i2c, i, &data);
-
-		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
+	reg_list_size = ARRAY_SIZE(reg_list);
+	for (i = 0; i < reg_list_size; i++) {
+		s2mu005_read_reg(i2c, reg_list[i], &data);
+		sprintf(str+strlen(str), "0x%02x:0x%02x, ", reg_list[i], data);
 	}
 
-	pr_info("[DEBUG]%s: %s\n", __func__, str);
+	pr_info("[DEBUG][CHG]%s: %s\n", __func__, str);
 }
 static BLOCKING_NOTIFIER_HEAD(s2m_acok_notifier_list);
 

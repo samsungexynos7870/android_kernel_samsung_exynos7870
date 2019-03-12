@@ -548,6 +548,8 @@ struct ufs_hba {
 	u8 lifetime;
 
 	struct ufs_debug debug;
+	int			latency_hist_enabled;
+	struct io_latency_state io_lat_s;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */

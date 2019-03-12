@@ -7022,7 +7022,8 @@ static int sec_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_MAX ... POWER_SUPPLY_EXT_PROP_MAX:
 		switch (ext_psp) {
 		case POWER_SUPPLY_EXT_PROP_WATER_DETECT:
-			if (battery->misc_event & BATT_MISC_EVENT_UNDEFINED_RANGE_TYPE) {
+			if (battery->misc_event & (BATT_MISC_EVENT_UNDEFINED_RANGE_TYPE |
+				BATT_MISC_EVENT_HICCUP_TYPE)) {
 				val->intval = 1;
 				pr_info("%s: Water Detect\n", __func__);
 			} else {

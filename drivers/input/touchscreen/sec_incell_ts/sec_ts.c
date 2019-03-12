@@ -366,6 +366,39 @@ void sec_ts_delay(unsigned int ms)
 		msleep(ms);
 }
 
+int sec_ts_set_touch_function(struct sec_ts_data *ts)
+{
+	int ret = 0;
+
+	ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&(ts->touch_functions), 2);
+	if (ret < 0)
+		input_err(true, &ts->client->dev, "%s: Failed to send command(0x%x)",
+				__func__, SEC_TS_CMD_SET_TOUCHFUNCTION);
+
+	schedule_delayed_work(&ts->work_read_functions, msecs_to_jiffies(30));
+
+	return ret;
+}
+
+void sec_ts_get_touch_function(struct work_struct *work)
+{
+	struct sec_ts_data *ts = container_of(work, struct sec_ts_data,
+			work_read_functions.work);
+	int ret = 0;
+
+	ret = sec_ts_i2c_read(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&(ts->ic_status), 2);
+	if (ret < 0) {
+		input_err(true, &ts->client->dev,
+				"%s: failed to read touch functions(%d)\n",
+				__func__, ret);
+		return;
+	}
+
+	input_info(true, &ts->client->dev,
+			"%s: touch_functions:%x ic_status:%x\n", __func__,
+			ts->touch_functions, ts->ic_status);
+}
+
 #define DEVICE_ID_RETRY_COUNT 10
 int sec_ts_wait_for_ready(struct sec_ts_data *ts, unsigned int ack)
 {
@@ -446,11 +479,12 @@ void sec_ts_reinit(struct sec_ts_data *ts)
 		if (ret < 0)
 			input_err(true, &ts->client->dev, "%s: Failed to send command(0x%x)",
 					__func__, SEC_TS_CMD_SET_COVERTYPE);
+	}
 
-		ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&(ts->touch_functions), 2);
-		if (ret < 0)
-			input_err(true, &ts->client->dev, "%s: Failed to send command(0x%x)",
-					__func__, SEC_TS_CMD_SET_TOUCHFUNCTION);
+	ret = sec_ts_set_touch_function(ts);
+	if (ret < 0) { 
+		input_err(true, &ts->client->dev, "%s: Failed to send command(0x%x)",
+				__func__, SEC_TS_CMD_SET_TOUCHFUNCTION);
 	}
 
 	sec_ts_set_grip_type(ts, ONLY_EDGE_HANDLER);
@@ -887,7 +921,7 @@ int sec_ts_glove_mode_enables(struct sec_ts_data *ts, int mode)
 		goto glove_enable_err;
 	}
 
-	ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&ts->touch_functions, 2);
+	ret = sec_ts_set_touch_function(ts);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: Failed to send command", __func__);
 		goto glove_enable_err;
@@ -951,7 +985,7 @@ int sec_ts_set_cover_type(struct sec_ts_data *ts, bool enable)
 		}
 	}
 
-	ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&(ts->touch_functions), 2);
+	ret = sec_ts_set_touch_function(ts);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: Failed to send command", __func__);
 		goto cover_enable_err;
@@ -1397,6 +1431,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ts->tdata->tclm_execute_force_calibration = sec_tclm_execute_force_calibration;
 #endif
 	INIT_DELAYED_WORK(&ts->work_read_info, sec_ts_read_info_work);
+	INIT_DELAYED_WORK(&ts->work_read_functions, sec_ts_get_touch_function);
 
 	i2c_set_clientdata(client, ts);
 
@@ -1521,7 +1556,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 				deviceID[0], deviceID[1], deviceID[2], deviceID[3], deviceID[4]);
 
 	ts->touch_functions |= SEC_TS_DEFAULT_ENABLE_BIT_SETFUNC;
-	ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&ts->touch_functions, 2);
+	ret = sec_ts_set_touch_function(ts);
 	if (ret < 0)
 		input_err(true, &ts->client->dev, "%s: Failed to send touch func_mode command", __func__);
 
@@ -1902,6 +1937,7 @@ static int sec_ts_remove(struct i2c_client *client)
 
 	cancel_delayed_work_sync(&ts->work_read_info);
 	flush_delayed_work(&ts->work_read_info);
+	cancel_delayed_work_sync(&ts->work_read_functions);
 
 	disable_irq_nosync(ts->client->irq);
 	free_irq(ts->client->irq, ts);
@@ -2016,7 +2052,7 @@ int sec_ts_start_device(struct sec_ts_data *ts)
 	}
 
 	ts->touch_functions = ts->touch_functions | SEC_TS_DEFAULT_ENABLE_BIT_SETFUNC;
-	ret = sec_ts_i2c_write(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, (u8 *)&ts->touch_functions, 2);
+	ret = sec_ts_set_touch_function(ts);
 	if (ret < 0)
 		input_err(true, &ts->client->dev,
 				"%s: Failed to send touch function command", __func__);

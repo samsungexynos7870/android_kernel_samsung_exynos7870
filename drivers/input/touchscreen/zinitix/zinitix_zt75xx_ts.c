@@ -127,8 +127,8 @@ enum key_event {
 /* ESD Protection */
 /*second : if 0, no use. if you have to use, 3 is recommended*/
 #define ESD_TIMER_INTERVAL			1
-#define SCAN_RATE_HZ				1000
-#define CHECK_ESD_TIMER				3
+#define SCAN_RATE_HZ				800
+#define CHECK_ESD_TIMER				1400
 
 /*Test Mode (Monitoring Raw Data) */
 #define TSP_INIT_TEST_RATIO  100
@@ -1294,7 +1294,7 @@ static void esd_timeout_handler(unsigned long data)
 	queue_work(esd_tmr_workqueue, &info->tmr_work);
 }
 
-static void esd_timer_start(u16 sec, struct bt532_ts_info *info)
+static void esd_timer_start(u16 msec, struct bt532_ts_info *info)
 {
 	unsigned long flags;
 
@@ -1314,7 +1314,7 @@ static void esd_timer_start(u16 sec, struct bt532_ts_info *info)
 	init_timer(&(info->esd_timeout_tmr));
 	info->esd_timeout_tmr.data = (unsigned long)(info);
 	info->esd_timeout_tmr.function = esd_timeout_handler;
-	info->esd_timeout_tmr.expires = jiffies + (HZ * sec);
+	info->esd_timeout_tmr.expires = jiffies + ((HZ * msec) / 1000);
 	info->p_esd_timeout_tmr = &info->esd_timeout_tmr;
 	add_timer(&info->esd_timeout_tmr);
 	spin_unlock_irqrestore(&info->lock, flags);

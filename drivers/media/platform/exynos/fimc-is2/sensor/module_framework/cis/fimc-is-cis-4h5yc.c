@@ -671,7 +671,7 @@ int sensor_4h5yc_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 	u16 long_coarse_int = 0;
 	u16 short_coarse_int = 0;
 	u32 line_length_pck = 0;
-	u32 fine_int = 0;
+	u32 min_fine_int = 0;
 
 #ifdef DEBUG_SENSOR_TIME
 	struct timeval st, end;
@@ -707,10 +707,10 @@ int sensor_4h5yc_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 
 	vt_pic_clk_freq_mhz = cis_data->pclk / (1000 * 1000);
 	line_length_pck = cis_data->line_length_pck;
-	fine_int = line_length_pck - 0xf0;
+	min_fine_int = cis_data->min_fine_integration_time;
 
-	long_coarse_int = ((target_exposure->long_val * vt_pic_clk_freq_mhz) - fine_int) / line_length_pck;
-	short_coarse_int = ((target_exposure->short_val * vt_pic_clk_freq_mhz) - fine_int) / line_length_pck;
+	long_coarse_int = ((target_exposure->long_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
+	short_coarse_int = ((target_exposure->short_val * vt_pic_clk_freq_mhz) - min_fine_int) / line_length_pck;
 
 	if (long_coarse_int > cis_data->max_coarse_integration_time) {
 		dbg_sensor("[MOD:D:%d] %s, vsync_cnt(%d), long coarse(%d) max(%d)\n", cis->id, __func__,
@@ -742,17 +742,18 @@ int sensor_4h5yc_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_par
 		goto p_err;
 	}
 
-	ret = fimc_is_sensor_write16(client, 0x0200, (u16)(fine_int & 0xFFFF));
+/*	ret = fimc_is_sensor_write16(client, 0x0200, (u16)(fine_int & 0xFFFF));
 	if (ret < 0)
 		goto p_err;
+*/
 
 	/* Short exposure */
 	ret = fimc_is_sensor_write16(client, 0x0202, short_coarse_int);
 	if (ret < 0)
 		goto p_err;
 
-	dbg_sensor("[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d), line_length_pck(%d), fine_int (%d)\n", cis->id, __func__,
-		cis_data->sen_vsync_count, vt_pic_clk_freq_mhz, line_length_pck, fine_int);
+/*	dbg_sensor("[MOD:D:%d] %s, vsync_cnt(%d), vt_pic_clk_freq_mhz (%d), line_length_pck(%d), fine_int (%d)\n", cis->id, __func__,
+		cis_data->sen_vsync_count, vt_pic_clk_freq_mhz, line_length_pck, fine_int);*/
 	dbg_sensor("[MOD:D:%d] %s, vsync_cnt(%d), frame_length_lines(%#x), long_coarse_int %#x, short_coarse_int %#x\n", cis->id, __func__,
 		cis_data->sen_vsync_count, cis_data->frame_length_lines, long_coarse_int, short_coarse_int);
 
@@ -1685,6 +1686,9 @@ static struct fimc_is_cis_ops cis_ops = {
 	.cis_get_max_digital_gain = sensor_4h5yc_cis_get_max_digital_gain,
 	.cis_compensate_gain_for_extremely_br = sensor_4h5yc_cis_compensate_gain_for_extremely_br,
 	.cis_wait_streamoff = sensor_cis_wait_streamoff,
+#ifdef USE_FACE_UNLOCK_AE_AWB_INIT
+	.cis_set_initial_exposure = sensor_cis_set_initial_exposure,
+#endif
 };
 
 int cis_4h5yc_probe(struct i2c_client *client,
@@ -1764,7 +1768,7 @@ int cis_4h5yc_probe(struct i2c_client *client,
 	cis->aperture_num = F2_2;
 	cis->use_dgain = true;
 	cis->hdr_ctrl_by_again = false;
-	
+
 	ret = of_property_read_u32(dnode, "fnum", &fnum);
 	if (ret) {
 		warn("fnum read is fail(%d), use default f num", ret);
@@ -1800,6 +1804,11 @@ int cis_4h5yc_probe(struct i2c_client *client,
 		sensor_4h5yc_pllinfos = sensor_4h5yc_pllinfos_A;
 		sensor_4h5yc_max_setfile_num = sizeof(sensor_4h5yc_setfiles_A) / sizeof(sensor_4h5yc_setfiles_A[0]);
 	}
+
+#ifdef USE_FACE_UNLOCK_AE_AWB_INIT
+	cis->use_initial_ae = of_property_read_bool(dnode, "use_initial_ae");
+	probe_info("%s use initial_ae(%d)\n", __func__, cis->use_initial_ae);
+#endif
 
 	v4l2_i2c_subdev_init(subdev_cis, client, &subdev_ops);
 	v4l2_set_subdevdata(subdev_cis, cis);

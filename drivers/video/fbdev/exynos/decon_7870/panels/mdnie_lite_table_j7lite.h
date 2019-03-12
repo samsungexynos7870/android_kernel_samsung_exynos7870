@@ -6640,13 +6640,13 @@ static struct mdnie_table night_table[NIGHT_MODE_MAX] = {
 
 static struct mdnie_table main_table[SCENARIO_MAX][MODE_MAX] = {
 	/*
-		DYNAMIC_MODE
-		STANDARD_MODE
-		NATURAL_MODE
-		MOVIE_MODE
-		AUTO_MODE
-		READING_MODE
-	*/
+	 *	DYNAMIC_MODE
+	 *	STANDARD_MODE
+	 *	NATURAL_MODE
+	 *	MOVIE_MODE
+	 *	AUTO_MODE
+	 *	READING_MODE
+	 */
 	// UI_APP
 	{
 		MDNIE_SET(UI_DYNAMIC),

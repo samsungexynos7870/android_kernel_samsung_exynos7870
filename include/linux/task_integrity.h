@@ -75,6 +75,24 @@ struct processing_event_list {
 	struct list_head list;
 };
 
+enum task_integrity_reset_cause {
+	CAUSE_UNKNOWN,
+	CAUSE_MISMATCH_LABEL,
+	CAUSE_BAD_FS,
+	CAUSE_NO_CERT,
+	CAUSE_INVALID_HASH_LENGTH,
+	CAUSE_INVALID_HEADER,
+	CAUSE_CALC_HASH_FAILED,
+	CAUSE_INVALID_LABEL_DATA,
+	CAUSE_INVALID_SIGNATURE_DATA,
+	CAUSE_INVALID_HASH,
+	CAUSE_INVALID_CALC_CERT_HASH,
+	CAUSE_INVALID_UPDATE_LABEL,
+	CAUSE_INVALID_SIGNATURE,
+	CAUSE_UKNOWN_FIVE_DATA,
+	CAUSE_MAX,
+};
+
 struct task_integrity {
 	enum task_integrity_value user_value;
 	enum task_integrity_value value;
@@ -83,6 +101,8 @@ struct task_integrity {
 	spinlock_t list_lock;
 	struct integrity_label *label;
 	struct processing_event_list events;
+	enum task_integrity_reset_cause reset_cause;
+	struct file *reset_file;
 };
 
 #ifdef CONFIG_FIVE
@@ -137,6 +157,31 @@ static inline enum task_integrity_value task_integrity_read(
 	return value;
 }
 
+static inline bool task_integrity_value_allow_sign(
+					enum task_integrity_value tint)
+{
+	if (tint == INTEGRITY_PRELOAD_ALLOW_SIGN
+			|| tint == INTEGRITY_MIXED_ALLOW_SIGN
+			|| tint == INTEGRITY_DMVERITY_ALLOW_SIGN) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * task_integrity_allow_sign - check whether application is allowed to sign
+ * @intg: pointer to the corresponding integrity struct (Should not be NULL)
+ *
+ * On success return true.
+ */
+static inline bool task_integrity_allow_sign(struct task_integrity *intg)
+{
+	enum task_integrity_value tint =
+					task_integrity_read(intg);
+	return task_integrity_value_allow_sign(tint);
+}
+
 static inline enum task_integrity_value task_integrity_user_read(
 						struct task_integrity *intg)
 {
@@ -160,6 +205,7 @@ extern int task_integrity_copy(struct task_integrity *from,
 extern int five_bprm_check(struct linux_binprm *bprm);
 extern void five_file_free(struct file *file);
 extern int five_file_mmap(struct file *file, unsigned long prot);
+extern int five_file_verify(struct task_struct *task, struct file *file);
 extern void five_task_free(struct task_struct *task);
 
 extern void five_inode_post_setattr(struct task_struct *tsk,
@@ -175,11 +221,10 @@ extern int five_fcntl_verify_sync(struct file *file);
 extern int five_fork(struct task_struct *task, struct task_struct *child_task);
 extern int five_ptrace(struct task_struct *task, long request);
 extern int five_process_vm_rw(struct task_struct *task, int write);
-
-#ifdef CONFIG_FIVE_PA_FEATURE
-extern int fivepa_fcntl_setxattr(struct file *file, void __user *lv_xattr);
-#endif /* CONFIG_FIVE_PA_FEATURE */
-
+extern char const * const tint_reset_cause_to_string(
+	enum task_integrity_reset_cause cause);
+extern void task_integrity_set_reset_reason(struct task_integrity *intg,
+	enum task_integrity_reset_cause cause, struct file *file);
 #else
 static inline struct task_integrity *task_integrity_alloc(void)
 {
@@ -250,6 +295,11 @@ static inline int five_file_mmap(struct file *file, unsigned long prot)
 	return 0;
 }
 
+static inline int five_file_verify(struct task_struct *task, struct file *file)
+{
+	return 0;
+}
+
 static inline void five_task_free(struct task_struct *task)
 {
 }
@@ -309,6 +359,17 @@ static inline int task_integrity_copy(struct task_integrity *from,
 				struct task_integrity *to)
 {
 	return 0;
+}
+
+static inline char const * const tint_reset_cause_to_string(
+	enum task_integrity_reset_cause cause)
+{
+	return NULL;
+}
+
+static inline void task_integrity_set_reset_reason(struct task_integrity *intg,
+	enum task_integrity_reset_cause cause, struct file *file)
+{
 }
 #endif
 

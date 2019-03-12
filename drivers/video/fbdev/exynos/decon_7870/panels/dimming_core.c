@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include "dimming_core.h"
 
@@ -432,6 +432,7 @@ int generate_volt_table(struct dim_data *data)
 	int ret = 0;
 
 	int calc_seq[NUM_VREF] = {V0, V255, V203, V151, V87, V51, V35, V23, V11, V3};
+
 	int (*calc_volt_point[NUM_VREF])(struct dim_data *, int) = {
 		calc_v0_volt,
 		calc_v3_volt,
@@ -457,9 +458,9 @@ int generate_volt_table(struct dim_data *data)
 		calc_inter_v203_v255,
 	};
 
-	for (i = 0; i < CI_MAX; i++) {
+	for (i = 0; i < CI_MAX; i++)
 		data->volt_vt[i] = calc_vt_volt(data->vt_mtp[i]);
-	}
+
 	/* calculate voltage for every vref point */
 	for (j = 0; j < NUM_VREF; j++) {
 		seq = calc_seq[j];
@@ -478,9 +479,8 @@ int generate_volt_table(struct dim_data *data)
 		}
 		gray = (i - vref_index[index - 1]) - 1;
 		for (j = 0; j < CI_MAX; j++) {
-			if (calc_inter_volt[index] != NULL) {
+			if (calc_inter_volt[index] != NULL)
 				data->volt[i][j] = calc_inter_volt[index](data, gray, j);
-			}
 		}
 
 	}
@@ -651,6 +651,7 @@ int cal_gamma_from_index(struct dim_data *data, struct SmtDimInfo *brInfo)
 	int gamma_int[NUM_VREF][CI_MAX];
 	int temp;
 	unsigned char *result;
+
 	int (*calc_reg[NUM_VREF])(struct dim_data *, int)  = {
 		NULL,
 		calc_reg_v3,
@@ -671,9 +672,8 @@ int cal_gamma_from_index(struct dim_data *data, struct SmtDimInfo *brInfo)
 			index = brInfo->m_gray[i];
 
 		for (j = 0; j < CI_MAX; j++) {
-			if (calc_reg[i] != NULL) {
+			if (calc_reg[i] != NULL)
 				data->look_volt[i][j] = data->volt[index][j];
-			}
 		}
 	}
 	for (i = V3; i < NUM_VREF; i++) {

@@ -696,9 +696,7 @@ static void lis2ds_event_management(struct work_struct *data_work)
 
 	if ((cdata->sensors[LIS2DS_STEP_C].enabled) &&
 	    (ck_gate_val & LIS2DS_FUNC_CK_GATE_STEP_D_MASK)) {
-		mutex_lock(&cdata->mutex_read);
 		lis2ds_report_step_c_data(cdata, &step_cnt);
-		mutex_unlock(&cdata->mutex_read);
 		cdata->last_steps_c = cdata->steps_c + step_cnt;
 		SENSOR_INFO("last_steps_c : %lld, steps_c : %lld, step_cnt : %d\n", cdata->last_steps_c, cdata->steps_c, step_cnt);
 		input_report_rel(cdata->sc_input, REL_MISC, cdata->last_steps_c+1);
@@ -1006,6 +1004,9 @@ static int lis2ds_disable_sensors(struct lis2ds_data *cdata, int sindex)
 		break;
 
 	case LIS2DS_ACCEL:
+		hrtimer_cancel(&cdata->acc_timer);
+		cancel_work_sync(&cdata->acc_work);
+
 		if (cdata->sensors[LIS2DS_TILT].enabled
 			|| cdata->sensors[LIS2DS_SIGN_M].enabled
 			|| cdata->sensors[LIS2DS_STEP_C].enabled
@@ -1016,7 +1017,7 @@ static int lis2ds_disable_sensors(struct lis2ds_data *cdata, int sindex)
 					  lis2ds_odr_table.mask,
 					  LIS2DS_ODR_25HZ_HR_VAL,
 					  true);
-		SENSOR_INFO("ODR = %d\n", LIS2DS_ODR_25HZ_HR_VAL);
+			SENSOR_INFO("ODR = %d\n", LIS2DS_ODR_25HZ_HR_VAL);
 
 		} else {
 			err = lis2ds_write_data_with_mask(cdata,
@@ -1024,15 +1025,13 @@ static int lis2ds_disable_sensors(struct lis2ds_data *cdata, int sindex)
 					  lis2ds_odr_table.mask,
 					  LIS2DS_ODR_POWER_OFF_VAL,
 					  true);
-		SENSOR_INFO("ODR = %d\n", LIS2DS_ODR_POWER_OFF_VAL);
+			SENSOR_INFO("ODR = %d\n", LIS2DS_ODR_POWER_OFF_VAL);
 
 		}
 
 		if (err < 0)
 			return err;
 
-		cancel_work_sync(&cdata->acc_work);
-		hrtimer_cancel(&cdata->acc_timer);
 		break;
 
 	default:
@@ -2395,9 +2394,7 @@ int lis2ds_common_probe(struct lis2ds_data *cdata, int irq, u16 bustype)
 	SENSOR_INFO("Start!\n");
 
 	mutex_init(&cdata->bank_registers_lock);
-	mutex_init(&cdata->tb.buf_lock);
 	mutex_init(&cdata->mutex_enable);
-	mutex_init(&cdata->mutex_read);
 
 	if (irq > 0) {
 		err = lis2ds_parse_dt(cdata);
@@ -2573,10 +2570,8 @@ exit_acc_input_init:
 exit_err_chip_id_or_i2c_error:
 parse_dt_error:
 	mutex_destroy(&cdata->bank_registers_lock);
-	mutex_destroy(&cdata->tb.buf_lock);
 	mutex_destroy(&cdata->mutex_enable);
-	mutex_destroy(&cdata->mutex_read);
-
+	SENSOR_INFO("failed!\n");
 	return err;
 }
 EXPORT_SYMBOL(lis2ds_common_probe);
@@ -2596,8 +2591,10 @@ void lis2ds_common_shutdown(struct lis2ds_data *cdata)
 {
 	u8 i;
 
-	for (i = 0; i < LIS2DS_SENSORS_NUMB; i++)
-		lis2ds_disable_sensors(cdata, i);
+	for (i = 0; i < LIS2DS_SENSORS_NUMB; i++) {
+		if(cdata->sensors[i].enabled)
+			lis2ds_disable_sensors(cdata, i);
+	}
 
 }
 EXPORT_SYMBOL(lis2ds_common_shutdown);
@@ -2617,9 +2614,7 @@ static int lis2ds_resume_sensors(struct lis2ds_data *cdata)
 		|| cdata->sensors[LIS2DS_STEP_D].enabled) {
 
 		if (cdata->sensors[LIS2DS_STEP_C].enabled) {
-			mutex_lock(&cdata->mutex_read);
 			lis2ds_report_step_c_data(cdata, &step_cnt);
-			mutex_unlock(&cdata->mutex_read);
 			cdata->last_steps_c = cdata->steps_c + step_cnt;
 			input_report_rel(cdata->sc_input, REL_MISC, cdata->last_steps_c+1);
 			input_report_rel(cdata->sc_input, REL_X, time_hi);
@@ -2679,6 +2674,9 @@ int lis2ds_common_suspend(struct lis2ds_data *cdata)
 		SENSOR_ERR(": suspend failed\n");
 		return err;
 	}
+
+	SENSOR_INFO(" finished\n");
+
 	return 0;
 }
 EXPORT_SYMBOL(lis2ds_common_suspend);
@@ -2691,6 +2689,8 @@ int lis2ds_common_resume(struct lis2ds_data *cdata)
 		SENSOR_ERR(": resume failed\n");
 		return err;
 	}
+
+	SENSOR_INFO(" finished\n");
 
 	return 0;
 }

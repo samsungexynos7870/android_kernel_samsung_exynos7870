@@ -37,7 +37,7 @@ int isdbt_spi_probe(struct spi_device *spi)
 
 	isdbt_spi_device = spi;
 
-	DPRINTK("isdbt_spi_probe() isdbt_spi_device : 0x%p\n", isdbt_spi_device);
+	DPRINTK("isdbt_spi_probe() isdbt_spi_device\n");
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 32;

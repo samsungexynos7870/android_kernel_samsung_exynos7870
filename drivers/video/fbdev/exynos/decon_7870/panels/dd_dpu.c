@@ -1,6 +1,5 @@
-/* dd_dpu.c
- *
- * Copyright (c) Samsung Electronics
+/*
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,6 +22,8 @@
 #include "../decon.h"
 #include "../decon_notify.h"
 
+#include "dd.h"
+
 static bool log_boot;
 #define dbg_info(fmt, ...)	pr_info(pr_fmt("%s: %3d: %s: " fmt), "dsim", __LINE__, __func__, ##__VA_ARGS__)
 #define dbg_warn(fmt, ...)	pr_warn(pr_fmt("%s: %3d: %s: " fmt), "dsim", __LINE__, __func__, ##__VA_ARGS__)
@@ -35,26 +36,38 @@ _X(REFRESH,		"timing,refresh",	"refresh",		0400)	\
 _X(PMS_P,		"timing,pms",		"pms",			0600)	\
 _X(PMS_M,		"",			"",			0)	\
 _X(PMS_S,		"",			"",			0)	\
+_X(PMSK_P,		"timing,pmsk",		"pmsk",			0600)	\
+_X(PMSK_M,		"",			"",			0)	\
+_X(PMSK_S,		"",			"",			0)	\
+_X(PMSK_K,		"",			"",			0)	\
 _X(HS_CLK,		"timing,dsi-hs-clk",	"hs_clk",		0400)	\
 _X(ESC_CLK,		"timing,dsi-escape-clk",	"esc_clk",	0400)	\
-_X(HBP,			"timing,h-porch",	"h_porch",		0600)	\
+_X(HBP,			"timing,h-porch",	"hporch",		0600)	\
 _X(HFP,			"",			"",			0)	\
 _X(HSA,			"",			"",			0)	\
-_X(VBP,			"timing,v-porch",	"v_porch",		0600)	\
+_X(VBP,			"timing,v-porch",	"vporch",		0600)	\
 _X(VFP,			"",			"",			0)	\
 _X(VSA,			"",			"",			0)	\
 _X(VT_COMPENSATION,	"vt_compensation",	"vt_compensation",	0600)	\
-_X(UNDERRUN_LP_REF,	"cmd_underrun_lp_ref",	"cmd_underrun_lp_ref",	0600)	\
-_X(DSIM_HBP,		"timing,dsim_h-porch",	"dsim_h_porch",		0600)	\
+_X(MRES_WIDTH,		"mres_width",		"mres_width",		0400)	\
+_X(MRES_WIDTH_2,	"",			"",			0)	\
+_X(MRES_WIDTH_3,	"",			"",			0)	\
+_X(MRES_HEIGHT,		"mres_height",		"mres_height",		0400)	\
+_X(MRES_HEIGHT_2,	"",			"",			0)	\
+_X(MRES_HEIGHT_3,	"",			"",			0)	\
+_X(CMD_UNDERRUN_LP_REF,	"cmd_underrun_lp_ref",	"cmd_underrun_lp_ref",	0600)	\
+_X(CMD_UNDERRUN_LP_REF_2,	"",		"",			0)	\
+_X(CMD_UNDERRUN_LP_REF_3,	"",		"",			0)	\
+_X(DSIM_HBP,		"timing,dsim_h-porch",	"dsim_hporch",		0600)	\
 _X(DSIM_HFP,		"",			"",			0)	\
 _X(DSIM_HSA,		"",			"",			0)	\
-_X(DSIM_VBP,		"timing,dsim_v-porch",	"dsim_v_porch",		0600)	\
+_X(DSIM_VBP,		"timing,dsim_v-porch",	"dsim_vporch",		0600)	\
 _X(DSIM_VFP,		"",			"",			0)	\
 _X(DSIM_VSA,		"",			"",			0)	\
-_X(DECON_HBP,		"timing,decon_h-porch",	"decon_h_porch",	0600)	\
+_X(DECON_HBP,		"timing,decon_h-porch",	"decon_hporch",	0600)	\
 _X(DECON_HFP,		"",			"",			0)	\
 _X(DECON_HSA,		"",			"",			0)	\
-_X(DECON_VBP,		"timing,decon_v-porch",	"decon_v_porch",	0600)	\
+_X(DECON_VBP,		"timing,decon_v-porch",	"decon_vporch",	0600)	\
 _X(DECON_VFP,		"",			"",			0)	\
 _X(DECON_VSA,		"",			"",			0)	\
 _X(LCD_INFO_END,	"",			"",			0)	\
@@ -111,9 +124,16 @@ static void configure_param(struct d_info *d)
 #endif
 
 	d->point[D_REFRESH]		=	&lcd_info->fps;
+#if defined(CONFIG_SOC_EXYNOS9610)
+	d->point[D_PMSK_P]		=	&lcd_info->dphy_pms.p;
+	d->point[D_PMSK_M]		=	&lcd_info->dphy_pms.m;
+	d->point[D_PMSK_S]		=	&lcd_info->dphy_pms.s;
+	d->point[D_PMSK_K]		=	&lcd_info->dphy_pms.k;
+#else
 	d->point[D_PMS_P]		=	&lcd_info->dphy_pms.p;
 	d->point[D_PMS_M]		=	&lcd_info->dphy_pms.m;
 	d->point[D_PMS_S]		=	&lcd_info->dphy_pms.s;
+#endif
 
 	d->point[D_HS_CLK]		=	&clks->hs_clk;
 	d->point[D_ESC_CLK]		=	&clks->esc_clk;
@@ -154,7 +174,12 @@ static void configure_param(struct d_info *d)
 
 #if defined(CONFIG_SOC_EXYNOS7885)
 	d->point[D_VT_COMPENSATION]	=	&lcd_info->vt_compensation;
-	d->point[D_UNDERRUN_LP_REF]	=	&lcd_info->cmd_underrun_lp_ref;
+	d->point[D_CMD_UNDERRUN_LP_REF]	=	&lcd_info->cmd_underrun_lp_ref;
+#endif
+
+#if defined(CONFIG_SOC_EXYNOS9610)
+	d->point[D_VT_COMPENSATION]	=	&lcd_info->vt_compensation;
+	d->point[D_CMD_UNDERRUN_LP_REF]	=	lcd_info->cmd_underrun_lp_ref;
 #endif
 }
 
@@ -250,42 +275,42 @@ static ssize_t u32_array_write(struct file *f, const char __user *user_buf,
 	u32 *pending = data->pending;
 	int array_size = data->elements;
 
-	unsigned char wbuf[MAX_INPUT] = {0, };
+	unsigned char ibuf[MAX_INPUT] = {0, };
 	unsigned int tbuf[MAX_INPUT] = {0, };
 	unsigned int value, i;
 	char *pbuf, *token = NULL;
 	int ret = 0, end = 0;
 
-	if (*ppos != 0)
-		return 0;
-
-	if (count > sizeof(wbuf))
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
 		goto exit;
+	}
 
-	ret = simple_write_to_buffer(wbuf, sizeof(wbuf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		goto exit;
-
-	wbuf[ret] = '\0';
-
-	pbuf = strim(wbuf);
-
+	pbuf = ibuf;
 	while (--array_size >= 0 && (token = strsep(&pbuf, " "))) {
 		dbg_info("%d, %s\n", array_size, token);
 		ret = kstrtou32(token, 0, &value);
-		if (ret < 0 || end == ARRAY_SIZE(tbuf))
+		if (ret < 0) {
+			dbg_info("kstrtou32 fail: ret: %d\n", ret);
 			break;
+		}
+
+		if (end == ARRAY_SIZE(tbuf)) {
+			dbg_info("invalid input: end: %d, tbuf: %zu\n", end, ARRAY_SIZE(tbuf));
+			break;
+		}
 
 		tbuf[end] = value;
 		end++;
 	}
 
-	if (ret < 0 || data->elements != end || end == ARRAY_SIZE(tbuf)) {
-		dbg_info("invalid input: %2d, %s\n", end, user_buf);
+	if (ret < 0 || !end || data->elements < end || end == ARRAY_SIZE(tbuf)) {
+		dbg_info("invalid input: end: %d, %s\n", end, user_buf);
 		goto exit;
 	}
 
-	for (i = 0; i < data->elements; i++) {
+	for (i = 0; i < end; i++) {
 		array[i] = tbuf[i];
 		pending[i] = 1;
 	}
@@ -457,17 +482,23 @@ static ssize_t status_write(struct file *f, const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct d_info *d = ((struct seq_file *)f->private_data)->private;
+	unsigned char ibuf[MAX_INPUT] = {0, };
+	int ret = 0;
 
-	if (*ppos != 0)
-		return 0;
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
+		goto exit;
+	}
 
-	if (!strncmp(user_buf, "0", count - 1)) {
+	if (!strncmp(ibuf, "0", count - 1)) {
 		dbg_info("input is 0(zero). reset request parameter to default\n");
 
 		memcpy(d->request_param, d->default_param, sizeof(d->request_param));
 		memset(d->pending_param, 1, sizeof(d->pending_param));
 	}
 
+exit:
 	return count;
 }
 
@@ -527,16 +558,20 @@ static ssize_t regdump_write(struct file *f, const char __user *user_buf,
 	int ret = 0;
 	u32 reg = 0, val = 0;
 	void __iomem *ioregs = NULL;
-
-	if (*ppos != 0)
-		return 0;
+	unsigned char ibuf[MAX_INPUT] = {0, };
 
 	if (!d->enable) {
 		dbg_info("enable is %s\n", d->enable ? "on" : "off");
 		goto exit;
 	}
 
-	ret = sscanf(user_buf, "%x %x", &reg, &val);
+	ret = dd_simple_write_to_buffer(ibuf, sizeof(ibuf), ppos, user_buf, count);
+	if (ret < 0) {
+		dbg_info("dd_simple_write_to_buffer fail: %d\n", ret);
+		goto exit;
+	}
+
+	ret = sscanf(ibuf, "%x %x", &reg, &val);
 	if (clamp(ret, 1, 2) != ret) {
 		dbg_info("input is invalid, %d\n", ret);
 		goto exit;
@@ -645,9 +680,9 @@ static int help_show(struct seq_file *m, void *unused)
 		}
 	}
 	seq_puts(m, "\n");
-	seq_puts(m, "= DEFAULT: default booting paramter\n");
-	seq_puts(m, "= REQUEST: request paramter (not applied yet)\n");
-	seq_puts(m, "= CURRENT: current applied paramter\n");
+	seq_puts(m, "= DEFAULT: default booting parameter\n");
+	seq_puts(m, "= REQUEST: request parameter (not applied yet)\n");
+	seq_puts(m, "= CURRENT: current applied parameter\n");
 	seq_puts(m, "\n");
 
 
@@ -706,48 +741,13 @@ exit:
 	return ret;
 }
 
-static struct notifier_block dd_dpu_fb_notifier;
-
-static int fb_register_callback(struct notifier_block *self,
-			unsigned long event, void *data)
-{
-	struct fb_event *evdata = data;
-
-	switch (event) {
-	case FB_EVENT_FB_REGISTERED:
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	if (evdata->info->node)
-		return NOTIFY_DONE;
-
-	init_debugfs_dpu();
-
-	fb_unregister_client(&dd_dpu_fb_notifier);
-
-	return NOTIFY_DONE;
-}
-
 static int __init dd_dpu_init(void)
 {
-	/* init_debugfs_dpu(); */
-
-	dd_dpu_fb_notifier.notifier_call = fb_register_callback;
-	fb_register_client(&dd_dpu_fb_notifier);
+	init_debugfs_dpu();
 
 	return 0;
 }
 
-static void __exit dd_dpu_exit(void)
-{
-	fb_unregister_client(&dd_dpu_fb_notifier);
-}
-
-/* we use fb notification instead of late_initcall */
-/* late_initcall(dd_dpu_init); */
-module_init(dd_dpu_init);
-module_exit(dd_dpu_exit);
+late_initcall(dd_dpu_init);
 #endif
 

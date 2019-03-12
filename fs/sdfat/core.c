@@ -1811,7 +1811,7 @@ free_bh:
 	sdfat_log_msg(sb, KERN_INFO,
 		"detected volume size     : %llu KB (disk : %llu KB, "
 		"part : %llu KB)",
-		fsi->num_sectors >> 1,
+		(fsi->num_sectors * (sb->s_blocksize >> SECTOR_SIZE_BITS)) >> 1,
 		disk ? (u64)((disk->part0.nr_sects) >> 1) : 0,
 		part ? (u64)((part->nr_sects) >> 1) : 0);
 

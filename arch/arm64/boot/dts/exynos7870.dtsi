@@ -1577,6 +1577,17 @@
 		smfc,int_qos_minlock = <400000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		fb_handover: bootloader_fb {
+			compatible = "exynos,fb_handover";
+			reg = <0x0 0x67000000 0xA00000>;
+		};
+	};
+
 	dsim_0: dsim@14800000 {
 		compatible = "samsung,exynos8-mipi-dsi";
 		reg = <0x0 0x14800000 0x100>;
@@ -1630,6 +1641,8 @@
 		pinctrl-names = "decon_te_on", "decon_te_off";
 		pinctrl-0 = <&decon_te_on>;
 		pinctrl-1 = <&decon_te_off>;
+
+		memory-region = <&fb_handover>;
 
 		cam-stat {
 			/* ISP_STATUS register */

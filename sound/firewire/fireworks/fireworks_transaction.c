@@ -121,8 +121,6 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	size_t capacity, till_end;
 	struct snd_efw_transaction *t;
 
-	spin_lock_irq(&efw->lock);
-
 	t = (struct snd_efw_transaction *)data;
 	length = min_t(size_t, be32_to_cpu(t->length) * sizeof(u32), length);
 
@@ -155,7 +153,6 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	}
 
 	/* for hwdep */
-	efw->resp_queues++;
 	wake_up(&efw->hwdep_wait);
 
 	*rcode = RCODE_COMPLETE;

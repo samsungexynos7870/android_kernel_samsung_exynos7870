@@ -93,6 +93,11 @@ config DECON_USE_BOOTLOADER_FB
         depends on EXYNOS7870_DISPLAY_VIDEO_MODE
         default n
 
+config EXYNOS_SUPPORT_FB_HANDOVER
+	bool "Samsung Exynos Framebuffer handover support"
+        depends on EXYNOS7870_DISPLAY_VIDEO_MODE
+        default n
+
 config DECON_EVENT_LOG
 	bool "Display sub-system event logger (DECON/DSIM)"
         depends on DEBUG_INFO && EXYNOS_DECON_7870

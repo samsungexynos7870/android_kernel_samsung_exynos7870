@@ -507,11 +507,9 @@ static void exynos_usbdrd_set_hstune(struct exynos_usbdrd_phy *phy_drd,
 			}
 			break;
 		case TYPE_EXYNOS7870:
-			if (phy_drd->drv_data->ip_type == TYPE_USB2DRD) {
-				hs_tune->tx_vref	= 0x5;
-				hs_tune->tx_pre_emp	= 0x0;
-				hs_tune->compdis	= 0x7;
-			}
+			hs_tune->tx_vref	= 0x5;
+			hs_tune->tx_pre_emp	= 0x0;
+			hs_tune->compdis	= 0x7;
 			break;
 		default:
 			break;

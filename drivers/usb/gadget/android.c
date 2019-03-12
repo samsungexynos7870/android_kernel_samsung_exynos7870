@@ -867,6 +867,8 @@ static ssize_t rndis_manufacturer_store(struct device *dev,
 	struct android_usb_function *f = dev_get_drvdata(dev);
 	struct rndis_function_config *config = f->config;
 
+	if (size < strlen(buf))
+		return -EINVAL;
 	if (size >= sizeof(config->manufacturer))
 		return -EINVAL;
 	if (sscanf(buf, "%s", config->manufacturer) == 1)
@@ -1207,6 +1209,8 @@ static ssize_t mass_storage_vendor_store(struct device *dev,
 	struct android_usb_function *f = dev_get_drvdata(dev);
 	struct mass_storage_function_config *config = f->config;
 
+	if (size < strlen(buf))
+		return -EINVAL;
 	if (size >= sizeof(config->common->vendor_string))
 		return -EINVAL;
 	if (sscanf(buf, "%s", config->common->vendor_string) != 1)
@@ -1235,6 +1239,8 @@ static ssize_t mass_storage_product_store(struct device *dev,
 	struct android_usb_function *f = dev_get_drvdata(dev);
 	struct mass_storage_function_config *config = f->config;
 
+	if (size < strlen(buf))
+		return -EINVAL;
 	if (size >= sizeof(config->common->product_string))
 		return -EINVAL;
 	if (sscanf(buf, "%s", config->common->product_string) != 1)

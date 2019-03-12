@@ -3798,8 +3798,10 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE || \
 	CONFIG_BCM43456 || CONFIG_BCM43456_MODULE */
 	
-	if (of_find_property(np, "card-detect-invert-gpio", NULL))
+	if (of_find_property(np, "card-detect-invert-gpio", NULL)) {
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+		pdata->use_gpio_invert = true;
+	}
 
 	if (of_find_property(np, "card-detect-gpio", NULL)) {
 		pdata->cd_type = DW_MCI_CD_GPIO;

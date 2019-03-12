@@ -868,6 +868,20 @@ static ssize_t rear_flash_store(struct device *dev,
 		flash_config_factory = true;
 	} else if (1001 <= value && value <= 1010) {
 		/* (value) 1001, 1002, 1004, 1006, 1009 */
+#if defined (CONFIG_CAMERA_M10LTE)
+		if (value <= 1001)
+			torch_current = 50;
+		else if (value <= 1002)
+			torch_current = 75;
+		else if (value <= 1004)
+			torch_current = 125;
+		else if (value <= 1006)
+			torch_current = 175;
+		else if (value <= 1009)
+			torch_current = 225;
+		else
+			torch_current = 75;
+#else		
 		if (value <= 1001)
 			torch_current = 25;
 		else if (value <= 1002)
@@ -884,7 +898,7 @@ static ssize_t rear_flash_store(struct device *dev,
 #endif
 		else
 			torch_current = 50;
-
+#endif
 		brightness= S2MU005_TORCH_BRIGHTNESS(torch_current);
 		pr_info("torch current : %d mA\n", torch_current);
 		assistive_light = true;

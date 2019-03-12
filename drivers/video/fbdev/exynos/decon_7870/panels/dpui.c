@@ -270,7 +270,7 @@ static int __get_dpui_u32_field(enum dpui_key key, u32 *value)
 		return -EINVAL;
 	}
 
-	rc = kstrtouint(dpui.field[key].buf, (unsigned int)0, &cur_val);
+	rc = kstrtouint(dpui.field[key].buf, 0, &cur_val);
 	if (rc < 0) {
 		pr_err("%s failed to get value\n", __func__);
 		return rc;

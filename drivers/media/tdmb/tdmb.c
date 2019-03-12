@@ -455,8 +455,6 @@ static int tdmb_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot))
 		return -EAGAIN;
 
-	DPRINTK("succeeded\n");
-
 	tdmb_ts_head = (unsigned int *)ts_ring;
 	tdmb_ts_tail = (unsigned int *)(ts_ring + 4);
 	tdmb_ts_buffer = ts_ring + 8;
@@ -468,10 +466,6 @@ static int tdmb_mmap(struct file *filp, struct vm_area_struct *vma)
 	tdmb_ts_size
 	= ((tdmb_ts_size / DMB_TS_SIZE) * DMB_TS_SIZE) - (30 * DMB_TS_SIZE);
 
-	DPRINTK("head : %p, tail : %p, buffer : %p, size : %x\n",
-			tdmb_ts_head, tdmb_ts_tail,
-			tdmb_ts_buffer, tdmb_ts_size);
-
 	cmd_buffer = tdmb_ts_buffer + tdmb_ts_size + 8;
 	cmd_head = (unsigned int *)(cmd_buffer - 8);
 	cmd_tail = (unsigned int *)(cmd_buffer - 4);
@@ -481,10 +475,7 @@ static int tdmb_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	cmd_size = 30 * DMB_TS_SIZE - 8; /* klaatu hard coding */
 
-	DPRINTK("cmd head : %p, tail : %p, buffer : %p, size : %x\n",
-			cmd_head, cmd_tail,
-			cmd_buffer, cmd_size);
-
+	DPRINTK("succeeded\n");
 	return 0;
 }
 
@@ -522,7 +513,7 @@ static int _tdmb_cmd_update(
 		return false;
 	}
 
-	DPRINTK("%p head %d tail %d\n", cmd_buffer, head, tail);
+	DPRINTK("head %d tail %d\n", head, tail);
 
 	if (head+data_size_tmp <= size) {
 		memcpy((cmd_buffer + head),

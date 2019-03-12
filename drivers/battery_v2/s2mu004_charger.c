@@ -63,17 +63,23 @@ static int s2mu004_get_charging_health(struct s2mu004_charger_data *charger);
 
 static void s2mu004_test_read(struct i2c_client *i2c)
 {
+	static int reg_list[] = {
+		0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13,
+		0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+		0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x33, 0x03, 0x71,
+		0x74, 0x91, 0x96, 0xA5
+	};
 	u8 data;
 	char str[1016] = {0,};
-	int i;
+	int i = 0, reg_list_size = 0;
 
-	for (i = 0x0A; i <= 0x24; i++) {
-		s2mu004_read_reg(i2c, i, &data);
-
-		sprintf(str+strlen(str), "0x%02x:0x%02x, ", i, data);
+	reg_list_size = ARRAY_SIZE(reg_list);
+	for (i = 0; i < reg_list_size; i++) {
+		s2mu004_read_reg(i2c, reg_list[i], &data);
+		sprintf(str+strlen(str), "0x%02x:0x%02x, ", reg_list[i], data);
 	}
-	s2mu004_read_reg(i2c, 0x33, &data);
-	pr_err("%s: %s0x33:0x%02x\n", __func__, str, data);
+
+	pr_info("[DEBUG][CHG]%s: %s\n", __func__, str);
 }
 
 static int s2mu004_charger_otg_control(

@@ -78,6 +78,8 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 
 		exthdr = (struct ipv6_opt_hdr *)(skb_network_header(skb) +
 						 offset);
+		if (offset > IPV6_MAXPLEN)
+			return -EINVAL;
 		len = ipv6_optlen(exthdr);
 		if (len + offset >= IPV6_MAXPLEN)
 			return -EINVAL;

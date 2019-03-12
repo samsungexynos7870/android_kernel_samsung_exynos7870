@@ -664,7 +664,7 @@ int fimc_is_lib_isp_delete_tune_set(struct fimc_is_lib_isp *this,
 }
 
 int fimc_is_lib_isp_load_cal_data(struct fimc_is_lib_isp *this,
-	u32 instance_id, ulong addr)
+	u32 instance_id, ulong addr, u32 cal_version_index)
 {
 	char version[32];
 	int ret = 0;
@@ -673,8 +673,8 @@ int fimc_is_lib_isp_load_cal_data(struct fimc_is_lib_isp *this,
 	BUG_ON(!this->func);
 	BUG_ON(!this->object);
 
-	memcpy(version, (void *)(addr + 0x20), (FIMC_IS_CAL_VER_SIZE - 1));
 	version[FIMC_IS_CAL_VER_SIZE] = '\0';
+	memcpy(version, (void *)(addr + cal_version_index), (FIMC_IS_CAL_VER_SIZE - 1));
 	info_lib("CAL version: %s\n", version);
 
 	ret = CALL_LIBOP(this, load_cal_data, this->object, instance_id, addr);
@@ -749,11 +749,14 @@ int fimc_is_lib_isp_convert_face_map(struct fimc_is_hardware *hardware,
 {
 	int ret = 0;
 	int i;
-	u32 preview_width, preview_height;
+	u32 fd_width = 0, fd_height = 0;
 	u32 bayer_crop_width, bayer_crop_height;
 	struct fimc_is_group *group = NULL;
+	struct fimc_is_group *group_vra;
 	struct camera2_shot *shot = NULL;
 	struct fimc_is_device_ischain *device = NULL;
+	struct param_otf_input *fd_otf_input;
+	struct param_dma_input *fd_dma_input;
 
 	BUG_ON(!hardware);
 	BUG_ON(!param_set);
@@ -794,12 +797,27 @@ int fimc_is_lib_isp_convert_face_map(struct fimc_is_hardware *hardware,
 		return 0;
 	}
 
-	/* The face size is determined by the preview size in FD uctl */
-	preview_width = device->scp.output.width;
-	preview_height = device->scp.output.height;
-	if (preview_width == 0 || preview_height == 0) {
-		dbg_hw("%s: invalid preview size (%d * %d)!!\n",
-			__func__, preview_width, preview_height);
+	/* The face size is determined by the fd input size */
+	group_vra = &device->group_vra;
+	if (test_bit(FIMC_IS_GROUP_INIT, &group_vra->state)
+		&& (!test_bit(FIMC_IS_GROUP_OTF_INPUT, &group_vra->state))) {
+
+		fd_dma_input = fimc_is_itf_g_param(device, frame, PARAM_FD_DMA_INPUT);
+		if (fd_dma_input->cmd == DMA_INPUT_COMMAND_ENABLE) {
+			fd_width = fd_dma_input->width;
+			fd_height = fd_dma_input->height;
+		}
+	} else {
+		fd_otf_input = fimc_is_itf_g_param(device, frame, PARAM_FD_OTF_INPUT);
+		if (fd_otf_input->cmd == OTF_INPUT_COMMAND_ENABLE) {
+			fd_width = fd_otf_input->width;
+			fd_height = fd_otf_input->height;
+		}
+	}
+
+	if (fd_width == 0 || fd_height == 0) {
+		warn_hw("%s: invalid fd size (%d * %d)!!\n",
+			__func__, fd_width, fd_height);
 		return 0;
 	}
 
@@ -810,16 +828,16 @@ int fimc_is_lib_isp_convert_face_map(struct fimc_is_hardware *hardware,
 
 		shot->uctl.fdUd.faceRectangles[i][0] =
 				CONVRES(shot->uctl.fdUd.faceRectangles[i][0],
-				preview_width, bayer_crop_width);
+				fd_width, bayer_crop_width);
 		shot->uctl.fdUd.faceRectangles[i][1] =
 				CONVRES(shot->uctl.fdUd.faceRectangles[i][1],
-				preview_height, bayer_crop_height);
+				fd_height, bayer_crop_height);
 		shot->uctl.fdUd.faceRectangles[i][2] =
 				CONVRES(shot->uctl.fdUd.faceRectangles[i][2],
-				preview_width, bayer_crop_width);
+				fd_width, bayer_crop_width);
 		shot->uctl.fdUd.faceRectangles[i][3] =
 				CONVRES(shot->uctl.fdUd.faceRectangles[i][3],
-				preview_height, bayer_crop_height);
+				fd_height, bayer_crop_height);
 
 		dbg_lib("%s: ID(%d), x_min(%d), y_min(%d), x_max(%d), y_max(%d)\n",
 			__func__, shot->uctl.fdUd.faceIds[i],

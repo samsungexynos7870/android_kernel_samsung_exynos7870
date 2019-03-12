@@ -1,12 +1,10 @@
 /*
- * drivers/video/decon_3475/panels/s6e8aa5x01_lcd_ctrl.c
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <video/mipi_display.h>
 #include <linux/init.h>
@@ -693,21 +691,20 @@ error:
 	return ret;
 }
 
-static int s6e8aa5x01_read_id(struct lcd_info *lcd, unsigned char *mtp)
+static int s6e8aa5x01_read_id(struct lcd_info *lcd)
 {
-	int ret = 0;
 	struct panel_private *priv = &lcd->dsim->priv;
+	int ret = 0;
 
 	lcd->id_info.value = 0;
 	priv->lcdconnected = lcd->connected = lcdtype ? 1 : 0;
 
 	/* id */
-	msleep(1);
+	mdelay(1);
 	ret = dsim_read_hl_data(lcd, S6E8AA5X01_ID_REG, S6E8AA5X01_ID_LEN, lcd->id_info.id);
 	if (ret < 0 || !lcd->id_info.value) {
-		dev_err(&lcd->ld->dev, "%s: can't find connected panel. check panel connection\n", __func__);
 		priv->lcdconnected = lcd->connected = 0;
-		goto read_exit;
+		dev_err(&lcd->ld->dev, "%s: connected lcd is invalid\n", __func__);
 	}
 
 	dev_info(&lcd->ld->dev, "%s: %x\n", __func__, cpu_to_be32(lcd->id_info.value));
@@ -1325,7 +1322,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (buf) {
 		path = kernfs_path(svc_kobj->sd, buf, PATH_MAX);
-		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, path, !kn ? "create" : "");
+		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, buf, !kn ? "create" : "");
 		kfree(buf);
 	}
 

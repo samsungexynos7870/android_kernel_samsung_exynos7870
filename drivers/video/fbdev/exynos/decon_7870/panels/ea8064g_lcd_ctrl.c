@@ -1,14 +1,10 @@
 /*
- * drivers/video/decon_7580/panels/ea8064g_lcd_ctrl.c
- *
- * Samsung SoC MIPI LCD CONTROL functions
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/lcd.h>
 #include <linux/backlight.h>
@@ -347,9 +343,9 @@ static int low_level_set_brightness(struct lcd_info *lcd, int force)
 	dsim_panel_set_hbm(lcd, force);
 
 	if (dsim_write_hl_data(lcd, SEQ_TEST_KEY_OFF_FC, ARRAY_SIZE(SEQ_TEST_KEY_OFF_FC)) < 0)
-			dev_err(&lcd->ld->dev, "%s: failed to write FC on command.\n", __func__);
+		dev_err(&lcd->ld->dev, "%s: failed to write FC on command.\n", __func__);
 	if (dsim_write_hl_data(lcd, SEQ_TEST_KEY_OFF_F1, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F1)) < 0)
-			dev_err(&lcd->ld->dev, "%s: failed to write F1 on command.\n", __func__);
+		dev_err(&lcd->ld->dev, "%s: failed to write F1 on command.\n", __func__);
 	if (dsim_write_hl_data(lcd, SEQ_TEST_KEY_OFF_F0, ARRAY_SIZE(SEQ_TEST_KEY_OFF_F0)) < 0)
 		dev_err(&lcd->ld->dev, "%s: failed to write F0 on command\n", __func__);
 

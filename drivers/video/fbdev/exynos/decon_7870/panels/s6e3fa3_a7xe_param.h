@@ -187,7 +187,7 @@ static unsigned char SEQ_TSET_SETTING[] = {
 	0x19	/* (ex) 25 degree : 0x19 */
 };
 
- static const unsigned char SEQ_SCALER_ON[] = {
+static const unsigned char SEQ_SCALER_ON[] = {
 	0xBA,
 	0x00
 };
@@ -327,19 +327,19 @@ struct elvss_otp_info {
 };
 
 struct elvss_otp_info elvss_otp_data[IBRIGHTNESS_MAX] = {
-	[IBRIGHTNESS_002NIT] = {2,	{0x10, 0x19, 0x1F}},
-	[IBRIGHTNESS_003NIT] = {3,	{0x0F, 0x17, 0x1D}},
-	[IBRIGHTNESS_004NIT] = {4,	{0x0F, 0x17, 0x1C}},
-	[IBRIGHTNESS_005NIT] = {5,	{0x0F, 0x15, 0x1A}},
-	[IBRIGHTNESS_006NIT] = {6,	{0x0F, 0x13, 0x18}},
-	[IBRIGHTNESS_007NIT] = {7,	{0x0F, 0x13, 0x17}},
-	[IBRIGHTNESS_008NIT] = {8,	{0x0F, 0x12, 0x16}},
-	[IBRIGHTNESS_009NIT] = {9,	{0x0F, 0x12, 0x15}},
-	[IBRIGHTNESS_010NIT] = {10,	{0x0F, 0x11, 0x14}},
-	[IBRIGHTNESS_011NIT] = {11,	{0x0F, 0x11, 0x13}},
-	[IBRIGHTNESS_012NIT] = {12,	{0x0F, 0x10, 0x12}},
-	[IBRIGHTNESS_013NIT] = {13,	{0x0F, 0x0F, 0x11}},
-	[IBRIGHTNESS_014NIT] = {14,	{0x0E, 0x0E, 0x10}},
+	[IBRIGHTNESS_002NIT] = {2,	{0x10, 0x19, 0x1F} },
+	[IBRIGHTNESS_003NIT] = {3,	{0x0F, 0x17, 0x1D} },
+	[IBRIGHTNESS_004NIT] = {4,	{0x0F, 0x17, 0x1C} },
+	[IBRIGHTNESS_005NIT] = {5,	{0x0F, 0x15, 0x1A} },
+	[IBRIGHTNESS_006NIT] = {6,	{0x0F, 0x13, 0x18} },
+	[IBRIGHTNESS_007NIT] = {7,	{0x0F, 0x13, 0x17} },
+	[IBRIGHTNESS_008NIT] = {8,	{0x0F, 0x12, 0x16} },
+	[IBRIGHTNESS_009NIT] = {9,	{0x0F, 0x12, 0x15} },
+	[IBRIGHTNESS_010NIT] = {10,	{0x0F, 0x11, 0x14} },
+	[IBRIGHTNESS_011NIT] = {11,	{0x0F, 0x11, 0x13} },
+	[IBRIGHTNESS_012NIT] = {12,	{0x0F, 0x10, 0x12} },
+	[IBRIGHTNESS_013NIT] = {13,	{0x0F, 0x0F, 0x11} },
+	[IBRIGHTNESS_014NIT] = {14,	{0x0E, 0x0E, 0x10} },
 };
 
 static unsigned char AOR_TABLE[EXTEND_BRIGHTNESS + 1][AID_CMD_CNT] = {

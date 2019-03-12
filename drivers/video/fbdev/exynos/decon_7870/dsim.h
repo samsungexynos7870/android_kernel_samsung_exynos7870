@@ -50,7 +50,7 @@
 	} while (0)
 
 #define call_panel_ops(q, op, args...)				\
-	((q) && ((q)->panel_ops->op) ? ((q)->panel_ops->op(args)) : 0)
+	(((q) && ((q)->panel_ops->op)) ? ((q)->panel_ops->op(args)) : 0)
 
 extern struct dsim_device *dsim0_for_decon;
 extern struct dsim_device *dsim1_for_decon;

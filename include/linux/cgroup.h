@@ -614,9 +614,9 @@ struct cgroup_subsys {
 	void (*css_offline)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
 	void (*css_reset)(struct cgroup_subsys_state *css);
-
 	int (*allow_attach)(struct cgroup_subsys_state *css,
-			    struct cgroup_taskset *tset);
+			struct cgroup_taskset *tset);
+
 	int (*can_attach)(struct cgroup_subsys_state *css,
 			  struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup_subsys_state *css,
@@ -913,6 +913,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 						       struct cgroup_subsys *ss);
 
+
 /*
  * Default Android check for whether the current process is allowed to move a
  * task across cgroups, either because CAP_SYS_NICE is set or because the uid
@@ -920,9 +921,6 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
  * running as root.
  * Returns 0 if this is allowed, or -EACCES otherwise.
  */
-int subsys_cgroup_allow_attach(struct cgroup_subsys_state *css,
-			       struct cgroup_taskset *tset);
-
 
 #else /* !CONFIG_CGROUPS */
 
@@ -945,11 +943,6 @@ static inline int cgroup_attach_task_all(struct task_struct *from,
 	return 0;
 }
 
-static inline int subsys_cgroup_allow_attach(struct cgroup_subsys_state *css,
-					     void *tset)
-{
-	return -EINVAL;
-}
 #endif /* !CONFIG_CGROUPS */
 
 #endif /* _LINUX_CGROUP_H */

@@ -5,11 +5,11 @@
 
 #define EXTEND_BRIGHTNESS	306
 #define UI_MAX_BRIGHTNESS	255
-#define UI_DEFAULT_BRIGHTNESS	128
+#define UI_DEFAULT_BRIGHTNESS	131
 
 #define S6D7AA0_ID_REG		0xDA
 #define S6D7AA0_ID_LEN		3
-#define BRIGHTNESS_REG 		0x51
+#define BRIGHTNESS_REG		0x51
 
 struct lcd_seq_info {
 	unsigned char	*cmd;

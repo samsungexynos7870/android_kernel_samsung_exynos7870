@@ -91,6 +91,7 @@ struct a96t3x6_data {
 	u8 checksum_l;
 	u8 checksum_l_bin;
 	bool enabled;
+	bool resume_called;
 
 	int ldo_en;			/* ldo_en pin gpio */
 	int grip_int;			/* irq pin gpio */
@@ -419,6 +420,12 @@ static void a96t3x6_debug_work_func(struct work_struct *work)
 	static int hall_prev_state;
 	int hall_state;
 
+	if (data->resume_called == true) {
+		data->resume_called = false;
+		a96t3x6_sar_only_mode(data, 0);
+		schedule_delayed_work(&data->debug_work, msecs_to_jiffies(1000));
+		return;
+	}
 	hall_state = a96t3x6_get_hallic_state(data);
 	if (hall_state == HALL_CLOSE_STATE && hall_prev_state != hall_state) {
 		SENSOR_INFO("%s - hall is closed\n", __func__);
@@ -1953,6 +1960,7 @@ static int a96t3x6_probe(struct i2c_client *client,
 #endif
 	SENSOR_INFO("done\n");
 	data->probe_done = true;
+	data->resume_called = false;
 	return 0;
 
 err_req_irq:
@@ -2008,6 +2016,7 @@ static int a96t3x6_suspend(struct device *dev)
 {
 	struct a96t3x6_data *data = dev_get_drvdata(dev);
 
+	data->resume_called = false;
 	SENSOR_INFO("%s\n", __func__);
 	a96t3x6_sar_only_mode(data, 1);
 	a96t3x6_set_debug_work(data, 0, 1000);
@@ -2020,8 +2029,8 @@ static int a96t3x6_resume(struct device *dev)
 	struct a96t3x6_data *data = dev_get_drvdata(dev);
 
 	SENSOR_INFO("%s\n", __func__);
-	a96t3x6_sar_only_mode(data, 0);
-	a96t3x6_set_debug_work(data, 1, 1000);
+	data->resume_called = true;
+	a96t3x6_set_debug_work(data, 1, 0);
 
 	return 0;
 }

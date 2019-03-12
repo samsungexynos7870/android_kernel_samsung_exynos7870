@@ -239,7 +239,19 @@ int fimc_is_hw_camif_cfg(void *sensor_data)
 		writel(val, isp_mipiphy_con);
 		break;
 	case 2:
+#if !defined(CONFIG_CAMERA_MIPI_PHY_SELECT_M0S2)
 		set_bit(FLITE_DUMMY, &flite->state);
+#else
+		if (is_otf)
+			clear_bit(FLITE_DUMMY, &flite->state);
+		else
+			set_bit(FLITE_DUMMY, &flite->state);
+
+		/* MIPI PHY select to M0S2 for CSIS1 */
+		val = readl(isp_mipiphy_con);
+		val &= (~(1 << 3));
+		writel(val, isp_mipiphy_con);
+#endif
 		break;
 	default:
 		merr("sensor id is invalid(%d)", sensor, sensor->instance);

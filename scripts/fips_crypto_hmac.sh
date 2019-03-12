@@ -99,10 +99,10 @@ for i in "${array[@]}"; do
 	last_addr=`cat $system_map_var|grep -w $var3|awk '{print $1}'`
 	if  [[ ! $last_addr =~ $reg ]]; then echo "$0 : last_addr invalid"; exit 1; fi
 
-	start_addr=`cat vmlinux.elf |grep -w "$var1 "|grep PROGBITS|awk '{print '$var4'}'`
+	start_addr=`cat vmlinux.elf |grep -w "$var1 "|grep PROGBITS|awk '{print $(NF-1)}'`
 	if  [[ ! $start_addr =~ $reg ]]; then echo "$0 : start_addr invalid"; exit 1; fi
 
-	offset=`cat vmlinux.elf |grep -w "$var1 "|grep PROGBITS|awk '{print '$var5'}'`
+	offset=`cat vmlinux.elf |grep -w "$var1 "|grep PROGBITS|awk '{print $(NF)}'`
 	if  [[ ! $offset =~ $reg ]]; then echo "$0 : offset invalid"; exit 1; fi
 
 	if [[ $((16#$first_addr)) -lt $((16#$start_addr)) ]]; then echo "$0 : first_addr < start_addr"; exit 1; fi
@@ -204,10 +204,10 @@ fi
 first_addr=`cat $system_map_var|grep -w "builtime_crypto_hmac"|awk '{print $1}' `
 if  [[ ! $first_addr =~ $reg ]]; then echo "$0 : first_addr of hmac variable invalid"; exit 1; fi
 
-start_addr=`cat vmlinux.elf |grep -w ".rodata"|grep PROGBITS|awk '{print $5}' `
+start_addr=`cat vmlinux.elf |grep -w ".rodata"|grep PROGBITS|awk '{print $(NF-1)}' `
 if  [[ ! $start_addr =~ $reg ]]; then echo "$0 : start_addr of .rodata invalid"; exit 1; fi
 
-offset=`cat vmlinux.elf |grep -w ".rodata"|grep PROGBITS| awk '{print $6}' `
+offset=`cat vmlinux.elf |grep -w ".rodata"|grep PROGBITS| awk '{print $(NF)}' `
 if  [[ ! $offset =~ $reg ]]; then echo "$0 : offset of .rodata invalid"; exit 1; fi
 
 if [[ $((16#$first_addr)) -le $((16#$start_addr)) ]]; then echo "$0 : hmac var first_addr <= start_addr"; exit 1; fi

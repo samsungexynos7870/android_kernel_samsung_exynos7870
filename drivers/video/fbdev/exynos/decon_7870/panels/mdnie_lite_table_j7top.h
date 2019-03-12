@@ -3402,13 +3402,13 @@ static struct mdnie_table lens_table[COLOR_LENS_MAX] = {
 
 static struct mdnie_table main_table[SCENARIO_MAX][MODE_MAX] = {
 	/*
-		DYNAMIC_MODE
-		STANDARD_MODE
-		NATURAL_MODE
-		MOVIE_MODE
-		AUTO_MODE
-		READING_MODE
-	*/
+	 *	DYNAMIC_MODE
+	 *	STANDARD_MODE
+	 *	NATURAL_MODE
+	 *	MOVIE_MODE
+	 *	AUTO_MODE
+	 *	READING_MODE
+	 */
 	{
 		MDNIE_SET(DYNAMIC_UI),
 		MDNIE_SET(STANDARD_UI),

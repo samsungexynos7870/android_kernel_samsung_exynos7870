@@ -375,6 +375,9 @@ struct fimc_is_cis_ops {
 	cis_func_type cis_read_sysreg; /* TBD */
 	cis_func_type cis_read_userreg; /* TBD */
 	int (*cis_wait_streamoff)(struct v4l2_subdev *subdev);
+#ifdef USE_FACE_UNLOCK_AE_AWB_INIT
+	int (*cis_set_initial_exposure)(struct v4l2_subdev *subdev);
+#endif
 };
 
 struct fimc_is_sensor_ctl
@@ -679,6 +682,15 @@ struct fimc_is_cis_interface_ops {
 	/* Set sensor 3a mode - OTF/M2M */
 	int (*set_sensor_3a_mode)(struct fimc_is_sensor_interface *itf,
 					u32 mode);
+#ifdef USE_FACE_UNLOCK_AE_AWB_INIT
+	int (*get_initial_exposure_gain_of_sensor)(struct fimc_is_sensor_interface *itf,
+					u32 *long_expo,
+					u32 *long_again,
+					u32 *long_dgain,
+					u32 *short_expo,
+					u32 *short_again,
+					u32 *short_dgain);
+#endif
 	/* DO NOT CHANGE THIS STRUCTURE! - "fimc_is_cis_interface_ops structure"
 	   If the new function is needed, it can be added in "fimc_is_cis_ext_interface_ops"
 	   to keep the backward compatibility */

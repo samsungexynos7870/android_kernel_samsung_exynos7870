@@ -1,12 +1,10 @@
 /*
- * drivers/video/decon_3475/panels/ea8061s_lcd_ctrl.c
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <video/mipi_display.h>
 #include <linux/init.h>
@@ -333,7 +331,7 @@ static int low_level_set_brightness(struct lcd_info *lcd, int force)
 	dsim_panel_set_acl(lcd, force);
 
 	if (dsim_write_hl_data(lcd, SEQ_GAMMA_UPDATE, ARRAY_SIZE(SEQ_GAMMA_UPDATE)) < 0)
-			dev_err(&lcd->ld->dev, "%s: failed to write SEQ_GAMMA_UPDATE on command.\n", __func__);
+		dev_err(&lcd->ld->dev, "%s: failed to write SEQ_GAMMA_UPDATE on command.\n", __func__);
 
 	dsim_panel_set_tset(lcd, force);
 
@@ -1259,7 +1257,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (buf) {
 		path = kernfs_path(svc_kobj->sd, buf, PATH_MAX);
-		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, path, !kn ? "create" : "");
+		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, buf, !kn ? "create" : "");
 		kfree(buf);
 	}
 

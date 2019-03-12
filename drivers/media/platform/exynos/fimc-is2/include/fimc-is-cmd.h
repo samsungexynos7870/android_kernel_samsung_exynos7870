@@ -138,6 +138,10 @@ enum is_subscenario_id {
 	ISS_SUB_SCENARIO_FRONT_VT4 = 38,		/* 38: front camera VT4 */
 	ISS_SUB_SCENARIO_FRONT_VT1_STILL_CAPTURE = 39,	/* 39: front camera VT1 still capture */
 	ISS_SUB_SCENARIO_FRONT_STILL_PREVIEW_BINNING = 40, /* 40: front camera binning mode for low power */
+
+	ISS_SUB_SCENARIO_LIVE_OUTFOCUS_PREVIEW = 44,		/* 44 ~ 50: Bokeh (HDR off/auto/on) */
+	ISS_SUB_SCENARIO_LIVE_OUTFOCUS_CAPTURE = 45,
+	ISS_SUB_SCENARIO_LIVE_OUTFOCUS_VIDEO = 46,
 };
 
 enum is_system_control_id {

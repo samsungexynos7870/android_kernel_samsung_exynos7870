@@ -671,6 +671,7 @@ int fimc_is_hw_3aa_apply_setfile(struct fimc_is_hw_ip *hw_ip, int index,
 	ulong cal_addr = 0;
 	u32 setfile_index = 0;
 	int ret = 0;
+	int cal_version_index = 0x20;
 
 	BUG_ON(!hw_ip);
 
@@ -702,18 +703,36 @@ int fimc_is_hw_3aa_apply_setfile(struct fimc_is_hw_ip *hw_ip, int index,
 
 	ret = fimc_is_lib_isp_apply_tune_set(&hw_3aa->lib[instance], setfile_index, instance);
 
-	if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_REAR)
+	if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_REAR) {
 		cal_addr = hw_3aa->lib_support->minfo->kvaddr_rear_cal;
-#if !defined(CONFIG_CAMERA_OTPROM_SUPPORT_FRONT)
-	else if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_FRONT)
+#if defined (EEP_HEADER_VERSION_START_ADDR)
+		cal_version_index = EEP_HEADER_VERSION_START_ADDR;
+#endif /*EEP_HEADER_VERSION_START_ADDR*/
+	}
+	else if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_REAR2) {
+		cal_addr = hw_3aa->lib_support->minfo->kvaddr_rear2_cal;
+#if defined (EEP_HEADER_VERSION_START_ADDR_REAR2)
+		cal_version_index = EEP_HEADER_VERSION_START_ADDR_REAR2;
+#endif /*EEP_HEADER_VERSION_START_ADDR_REAR2*/
+	}
+	else if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_REAR3) {
+		cal_addr = hw_3aa->lib_support->minfo->kvaddr_rear3_cal;
+#if defined (EEP_HEADER_VERSION_START_ADDR_REAR3)
+		cal_version_index = EEP_HEADER_VERSION_START_ADDR_REAR3;
+#endif /*EEP_HEADER_VERSION_START_ADDR_REAR3*/
+	}
+	else if (hw_ip->hardware->sensor_position[instance] == SENSOR_POSITION_FRONT) {
 		cal_addr = hw_3aa->lib_support->minfo->kvaddr_front_cal;
-#endif
+#if defined (OTP_HEADER_VERSION_START_ADDR_FRONT)
+		cal_version_index = OTP_HEADER_VERSION_START_ADDR_FRONT;
+#endif /*OTP_HEADER_VERSION_START_ADDR_FRONT*/
+	}
 	else
 		return 0;
 
 	info_hw("[%d][ID:%d] load cal data, position: %d, addr: 0x%lx \n", instance, hw_ip->id,
 				hw_ip->hardware->sensor_position[instance], cal_addr);
-	ret = fimc_is_lib_isp_load_cal_data(&hw_3aa->lib[instance], instance, cal_addr);
+	ret = fimc_is_lib_isp_load_cal_data(&hw_3aa->lib[instance], instance, cal_addr, cal_version_index);
 
 	return ret;
 }

@@ -91,6 +91,21 @@ int fimc_is_vender_cal_load(struct fimc_is_vender *vender,
 #else
 		cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal + CAL_OFFSET0;
 #endif
+	} else if (module->position == SENSOR_POSITION_REAR2) {
+	if (module->position == SENSOR_POSITION_REAR) {
+		/* Load calibration data from file system */
+		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,
+								FIMC_IS_REAR2_CAL, NULL);
+		if (ret) {
+			err("[Vendor]: request_binary filed: %s%s",
+					FIMC_IS_REAR_CAL_SDCARD_PATH, FIMC_IS_REAR2_CAL);
+			goto exit;
+		}
+#ifdef ENABLE_IS_CORE
+		cal_addr = core->resourcemgr.minfo.kvaddr + CAL_OFFSET0;
+#else
+		cal_addr = core->resourcemgr.minfo.kvaddr_rear_cal + CAL_OFFSET0;
+#endif
 	} else if (module->position == SENSOR_POSITION_FRONT) {
 		/* Load calibration data from file system */
 		ret = request_binary(&cal_bin, FIMC_IS_REAR_CAL_SDCARD_PATH,

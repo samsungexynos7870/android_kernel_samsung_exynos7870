@@ -46,6 +46,9 @@
 #include "../../../../staging/android/sw_sync.h"
 #include "../../../../kernel/irq/internals.h"
 
+#include <linux/of_reserved_mem.h>
+#include "../../../../../mm/internal.h"
+
 #define MHZ (1000 * 1000)
 
 #ifdef CONFIG_OF
@@ -1598,7 +1601,7 @@ static void decon_set_protected_content_check(struct decon_device *decon,
 	decon->prev_protection_status = enable;
 }
 
-#if defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
+#if defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH) || defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
 static void decon_set_color_map(struct decon_device *decon, u32 color)
 {
 	int i;
@@ -1646,7 +1649,9 @@ static void decon_set_color_map(struct decon_device *decon, u32 color)
 		BUG();
 	}
 }
+#endif
 
+#if defined(CONFIG_DECON_COLORMAP_PROTECT_SWITCH)
 static void decon_set_color_for_protected_content(struct decon_device *decon,
 		struct decon_reg_data *regs)
 {
@@ -1676,6 +1681,56 @@ static void decon_set_color_for_protected_content(struct decon_device *decon,
 			/* N -> N */
 		}
 	}
+}
+#endif
+
+static int decon_free_fb_resource(struct decon_device *decon)
+{
+	decon_info("%s ++\n", __func__);
+
+	/* unreserve memory */
+	of_reserved_mem_device_release(decon->dev);
+
+	/* update state */
+	decon->fb_reservation = false;
+
+	decon_info("%s --\n", __func__);
+
+	return 0;
+}
+
+static int decon_acquire_fb_resource(struct decon_device *decon)
+{
+	decon_info("%s ++\n", __func__);
+
+	decon->fb_reservation = true;
+
+	decon_info("%s --\n", __func__);
+
+	return 0;
+}
+
+#if defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
+void decon_fb_handover_color_map(struct decon_device *decon)
+{
+	int ret = 0;
+
+	if (decon->fst_frame)
+		return;
+
+	decon_info("%s ++\n", __func__);
+
+	if (!decon->fst_frame && decon->out_type == DECON_OUT_DSI
+		&& decon->pdata->psr_mode == DECON_VIDEO_MODE) {
+			decon->fst_frame = true;
+			decon_set_color_map(decon, 0x0);
+			ret = iovmm_activate(decon->dev);
+			if (ret < 0) {
+				decon_err("failed to reactivate vmm\n");
+			}
+			decon_free_fb_resource(decon);
+	}
+	decon_info("%s --\n", __func__);
 }
 #endif
 
@@ -2425,6 +2480,11 @@ static void decon_update_regs(struct decon_device *decon, struct decon_reg_data 
 
 	if (decon->state == DECON_STATE_LPD)
 		decon_exit_lpd(decon);
+
+
+#if defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
+	decon_fb_handover_color_map(decon);
+#endif
 
 	memset(old_dma_bufs, 0, sizeof(struct decon_dma_buf_data) *
 			decon->pdata->max_win *
@@ -4210,6 +4270,18 @@ static int decon_probe(struct platform_device *pdev)
 	decon_to_psr_info(decon, &psr);
 	decon_to_init_param(decon, &p);
 
+	/* if decon already running in video mode and fb_handover is enabled */
+	if (decon_reg_get_stop_status(DECON_INT) &&
+			decon->out_type == DECON_OUT_DSI
+			&& decon->pdata->psr_mode == DECON_VIDEO_MODE) {
+		ret = decon_acquire_fb_resource(decon);
+		if (ret < 0) {
+			decon_err("failed to decon_acquire_fb_resource\n");
+			goto fail_entity;
+		}
+	}
+
+#if !defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
 	/* if decon already running in video mode but no bootloader fb info, stop decon */
 	if (decon_reg_get_stop_status(DECON_INT) &&
 			psr.psr_mode == DECON_VIDEO_MODE &&
@@ -4233,6 +4305,8 @@ static int decon_probe(struct platform_device *pdev)
 			goto fail_entity;
 		}
 	}
+	decon_free_fb_resource(decon);
+#endif
 
 	/* configure windows */
 	ret = decon_acquire_window(decon);
@@ -4559,6 +4633,47 @@ static void exynos_decon_unregister(void)
 }
 late_initcall(exynos_decon_register);
 module_exit(exynos_decon_unregister);
+
+static int rmem_device_init(struct reserved_mem *rmem, struct device *dev)
+{
+	pr_info("%s: base=%pa, size=%pa\n",
+			__func__, &rmem->base, &rmem->size);
+
+	return 0;
+}
+
+/* of_reserved_mem_device_release(dev) when reserved memory is no logner required */
+static void rmem_device_release(struct reserved_mem *rmem, struct device *dev)
+{
+	struct page *first = phys_to_page(PAGE_ALIGN(rmem->base));
+	struct page *last = phys_to_page((rmem->base + rmem->size) & PAGE_MASK);
+	struct page *page;
+
+	pr_info("%s: base=%pa, size=%pa, first=%pa, last=%pa\n",
+			__func__, &rmem->base, &rmem->size, first, last);
+
+	free_memsize_reserved(rmem->base, rmem->size);
+	for (page = first; page != last; page++) {
+		__ClearPageReserved(page);
+		set_page_count(page, 1);
+		__free_pages(page, 0);
+		adjust_managed_page_count(page, 1);
+	}
+}
+
+static const struct reserved_mem_ops rmem_ops = {
+	.device_init	= rmem_device_init,
+	.device_release = rmem_device_release,
+};
+
+static int __init fb_handover_setup(struct reserved_mem *rmem)
+{
+	pr_info("%s: base=%pa, size=%pa\n", __func__, &rmem->base, &rmem->size);
+
+	rmem->ops = &rmem_ops;
+	return 0;
+}
+RESERVEDMEM_OF_DECLARE(fb_handover, "exynos,fb_handover", fb_handover_setup);
 
 MODULE_AUTHOR("Ayoung Sim <a.sim@samsung.com>");
 MODULE_DESCRIPTION("Samsung EXYNOS Soc DECON driver");

@@ -1,8 +1,10 @@
-/* mdnie_lite.c
+/*
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
- * Register interface file for Samsung mDNIe driver
- *
-*/
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -294,7 +296,7 @@ static ssize_t scenario_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int value;
+	unsigned int value = 0;
 	int ret;
 
 	ret = kstrtouint(buf, 0, &value);
@@ -327,7 +329,7 @@ static ssize_t accessibility_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int value, s[12] = {0, }, i = 0;
+	unsigned int value = 0, s[12] = {0, }, i = 0;
 	int ret;
 	mdnie_t *wbuf;
 	struct mdnie_scr_info *scr_info = mdnie->tune->scr_info;
@@ -430,7 +432,7 @@ static ssize_t bypass_store(struct device *dev,
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
 	struct mdnie_table *table = NULL;
-	unsigned int value;
+	unsigned int value = 0;
 	int ret;
 
 	ret = kstrtouint(buf, 0, &value);
@@ -470,7 +472,7 @@ static ssize_t lux_store(struct device *dev,
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
 	unsigned int hbm = 0, update = 0;
-	int ret, value;
+	int ret, value = 0;
 
 	ret = kstrtoint(buf, 0, &value);
 	if (ret < 0)
@@ -506,7 +508,7 @@ static ssize_t sensorRGB_store(struct device *dev,
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
 	struct mdnie_table *table = NULL;
-	unsigned int white_r, white_g, white_b;
+	unsigned int white_r = 0, white_g = 0, white_b = 0;
 	int ret;
 	struct mdnie_scr_info *scr_info = mdnie->tune->scr_info;
 
@@ -551,7 +553,7 @@ static ssize_t whiteRGB_store(struct device *dev,
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
 	mdnie_t *wbuf;
 	u8 scenario;
-	int white_r, white_g, white_b;
+	int white_r = 0, white_g = 0, white_b = 0;
 	int ret;
 	struct mdnie_scr_info *scr_info = mdnie->tune->scr_info;
 
@@ -617,7 +619,7 @@ static ssize_t night_mode_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int enable, level, base_index;
+	unsigned int enable = 0, level = 0, base_index;
 	int i;
 	int ret;
 	mdnie_t *wbuf;
@@ -646,9 +648,8 @@ static ssize_t night_mode_store(struct device *dev,
 	if (enable) {
 		wbuf = &mdnie->tune->night_table[enable].seq[scr_info->index].cmd[scr_info->cr];
 		base_index = mdnie->tune->night_info->max_w * level;
-		for (i = 0; i < mdnie->tune->night_info->max_w; i++) {
+		for (i = 0; i < mdnie->tune->night_info->max_w; i++)
 			wbuf[i] = mdnie->tune->night_mode_table[base_index + i];
-		}
 	}
 
 	mdnie->night_mode = enable;
@@ -675,7 +676,7 @@ static ssize_t mdnie_ldu_store(struct device *dev,
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
 	mdnie_t *wbuf;
 	u8 mode, scenario;
-	unsigned int idx;
+	unsigned int idx = 0;
 	int ret;
 	struct mdnie_scr_info *scr_info = mdnie->tune->scr_info;
 
@@ -732,7 +733,7 @@ static ssize_t light_notification_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int value;
+	unsigned int value = 0;
 	int ret;
 
 	ret = kstrtouint(buf, 0, &value);
@@ -767,7 +768,7 @@ static ssize_t color_lens_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int enable, color, level, base_index;
+	unsigned int enable = 0, color = 0, level = 0, base_index;
 	int i;
 	int ret;
 	mdnie_t *wbuf;
@@ -796,9 +797,8 @@ static ssize_t color_lens_store(struct device *dev,
 	if (enable) {
 		wbuf = &mdnie->tune->lens_table[enable].seq[scr_info->index].cmd[scr_info->cr];
 		base_index = (mdnie->tune->color_lens_info->max_level * mdnie->tune->color_lens_info->max_w * color) + (mdnie->tune->color_lens_info->max_w * level);
-		for (i = 0; i < mdnie->tune->color_lens_info->max_w; i++) {
+		for (i = 0; i < mdnie->tune->color_lens_info->max_w; i++)
 			wbuf[i] = mdnie->tune->color_lens_table[base_index + i];
-		}
 	}
 
 	mdnie->color_lens = enable;
@@ -825,7 +825,7 @@ static ssize_t hmtColorTemp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct mdnie_info *mdnie = dev_get_drvdata(dev);
-	unsigned int value;
+	unsigned int value = 0;
 	int ret;
 
 	ret = kstrtouint(buf, 0, &value);

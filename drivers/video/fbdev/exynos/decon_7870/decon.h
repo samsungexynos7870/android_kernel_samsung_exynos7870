@@ -629,7 +629,7 @@ void DISP_SS_DUMP(u32 type);
 #endif
 
 struct abd_log {
-	ktime_t stamp;
+	u64 stamp;
 
 	unsigned int level;
 	unsigned int state;
@@ -693,7 +693,6 @@ struct abd_protect {
 void decon_abd_enable(struct decon_device *decon, int enable);
 int decon_abd_register(struct decon_device *decon);
 void decon_abd_save_log_fto(struct abd_protect *abd, struct sync_fence *fence);
-void decon_abd_save_log_udr(struct abd_protect *abd, unsigned long , unsigned long, unsigned long);
 int decon_abd_register_pin_handler(int irq, irq_handler_t handler, void *dev_id);
 
 struct decon_device {
@@ -789,6 +788,11 @@ struct decon_device {
 	void	(*tracing_mark_write)( int pid, char id, char* str1, int value);
 
 	int 			update_regs_list_cnt;
+
+#if defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
+	bool				fst_frame;
+#endif
+	bool				fb_reservation;
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
@@ -876,6 +880,10 @@ void decon_reg_set_block_mode(u32 id, u32 win_idx, u32 x, u32 y, u32 h, u32 w, u
 void decon_reg_set_tui_va(u32 id, u32 va);
 void decon_set_qos(struct decon_device *decon, struct decon_reg_data *regs,
 			bool is_after, bool is_default_qos);
+
+#if defined(CONFIG_EXYNOS_SUPPORT_FB_HANDOVER)
+void decon_fb_handover_color_map(struct decon_device *decon);
+#endif
 
 /* LPD related */
 static inline void decon_lpd_block(struct decon_device *decon)

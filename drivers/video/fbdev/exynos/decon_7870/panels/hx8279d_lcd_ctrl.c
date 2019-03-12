@@ -1,14 +1,10 @@
 /*
- * drivers/video/decon_7870/panels/hx8279d_lcd_ctrl.c
- *
- * Samsung SoC MIPI LCD CONTROL functions
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/lcd.h>
 #include <linux/backlight.h>
@@ -265,7 +261,7 @@ static int hx8279d_read_id(struct lcd_info *lcd)
 	if (ret < 0)
 		goto stop;
 
-	lcd->id_info.id[2] = lcd->id_info.id[2] + buf;
+	lcd->id_info.id[2] = buf;
 
 stop:
 	if (ret < 0 || !lcd->id_info.value) {

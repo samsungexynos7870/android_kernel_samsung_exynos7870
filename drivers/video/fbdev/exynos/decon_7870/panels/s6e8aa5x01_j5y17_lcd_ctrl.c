@@ -1,14 +1,10 @@
 /*
- * drivers/video/fbdev/exynos/decon_7870/panels/s6e8aa5x01_j5y17_lcd_ctrl.c
- *
- * Samsung SoC MIPI LCD CONTROL functions
- *
- * Copyright (c) 2015 Samsung Electronics
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/lcd.h>
 #include <linux/backlight.h>
@@ -526,7 +522,7 @@ static int init_gamma(struct lcd_info *lcd, u8 *mtp_data)
 	int **gamma;
 
 	/* allocate memory for local gamma table */
-	gamma = kzalloc(IBRIGHTNESS_HBM_MAX * sizeof(int *), GFP_KERNEL);
+	gamma = kcalloc(IBRIGHTNESS_HBM_MAX, sizeof(int *), GFP_KERNEL);
 	if (!gamma) {
 		pr_err("failed to allocate gamma table\n");
 		ret = -ENOMEM;
@@ -534,7 +530,7 @@ static int init_gamma(struct lcd_info *lcd, u8 *mtp_data)
 	}
 
 	for (i = 0; i < IBRIGHTNESS_HBM_MAX; i++) {
-		gamma[i] = kzalloc(IV_MAX*CI_MAX * sizeof(int), GFP_KERNEL);
+		gamma[i] = kcalloc(IV_MAX*CI_MAX, sizeof(int), GFP_KERNEL);
 		if (!gamma[i]) {
 			pr_err("failed to allocate gamma\n");
 			ret = -ENOMEM;
@@ -788,14 +784,14 @@ static int s6e8aa5x01_exit(struct lcd_info *lcd)
 
 #ifdef CONFIG_DISPLAY_USE_INFO
 /*
-* ESD_ERROR[6] = VLIN1 error is occurred by ESD = 0x40
-* ESD_ERROR[5] = Internal HSYNC error is occurred by ESD
-* ESD_ERROR[4] = CHECK_SUM error is occurred by ESD
-* ESD_ERROR[3] = ELVDD error is occurred by ESD = 0x08
-* ESD_ERROR[2] = VLIN3 error is occurred by ESD = 0x04
-* ESD_ERROR[1] = HS CLK lane error is occurred by ESD
-* ESD_ERROR[0] = MIPI DSI error is occurred by ESD
-*/
+ * ESD_ERROR[6] = VLIN1 error is occurred by ESD = 0x40
+ * ESD_ERROR[5] = Internal HSYNC error is occurred by ESD
+ * ESD_ERROR[4] = CHECK_SUM error is occurred by ESD
+ * ESD_ERROR[3] = ELVDD error is occurred by ESD = 0x08
+ * ESD_ERROR[2] = VLIN3 error is occurred by ESD = 0x04
+ * ESD_ERROR[1] = HS CLK lane error is occurred by ESD
+ * ESD_ERROR[0] = MIPI DSI error is occurred by ESD
+ */
 	ret = s6e8aa5x01_read_info(lcd, ERR_READ_REG, sizeof(buf), &buf);
 	if (ret < 0) {
 		dev_err(&lcd->ld->dev, "%s: fail\n", __func__);
@@ -1419,7 +1415,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (buf) {
 		path = kernfs_path(svc_kobj->sd, buf, PATH_MAX);
-		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, path, !kn ? "create" : "");
+		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, buf, !kn ? "create" : "");
 		kfree(buf);
 	}
 

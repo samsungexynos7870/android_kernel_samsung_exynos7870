@@ -305,13 +305,13 @@ static const struct i2c_rom_data backlight_ic_tuning[] = {//LM3632_eprom_drv_arr
 	{ 0x0C, 0x1F},
 };
 
-/*
+#if 0
 static const struct i2c_rom_data backlight_i2c_bl_ctrl[] = {	//LM3632_eprom_drv_arr_off[] = {
 	{ 0x04, 0x00},
 	{ 0x05, 0x00},
 
 };
-*/
+#endif
 static const struct i2c_rom_data backlight_ic_tuning_outdoor[] = {//LM3632_eprom_drv_arr_outdoor_on[] = {
 	{ 0x09, 0x01},
 	{ 0x04, 0x07},

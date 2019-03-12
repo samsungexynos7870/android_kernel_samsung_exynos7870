@@ -369,10 +369,12 @@
 #define SEC_TS_STATUS_CALIBRATION_SDC	0xA1
 #define SEC_TS_STATUS_CALIBRATION_SEC	0xA2
 
+/*
 #define SEC_TS_CMD_EDGE_HANDLER		0xAA
 #define SEC_TS_CMD_EDGE_AREA		0xAB
 #define SEC_TS_CMD_DEAD_ZONE		0xAC
-#define SEC_TS_CMD_LANDSCAPE_MODE	0xAD
+*/
+#define SEC_TS_CMD_LANDSCAPE_MODE	0x94
 
 enum grip_write_mode {
 	G_NONE				= 0,
@@ -649,6 +651,7 @@ struct sec_ts_data {
 	int raw_status;
 	int touchkey_glove_mode_status;
 	u16 touch_functions;
+	u16 ic_status;
 	u8 charger_mode;
 	struct sec_ts_event_coordinate touchtype;
 	bool touched[11];
@@ -664,7 +667,7 @@ struct sec_ts_data {
 	/*bool fb_ready;*/
 #endif
 	struct delayed_work work_read_info;
-
+	struct delayed_work work_read_functions;
 	struct completion resume_done;
 	struct wake_lock wakelock;
 	struct sec_cmd_data sec;
@@ -691,6 +694,8 @@ struct sec_ts_data {
 	u8 grip_landscape_mode;
 	int grip_landscape_edge;
 	u16 grip_landscape_deadzone;
+	u16 grip_landscape_top_deadzone;
+	u16 grip_landscape_bottom_deadzone;
 
 	struct delayed_work ghost_check;
 	u8 tsp_dump_lock;
@@ -818,6 +823,8 @@ int set_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 length, u8 *data);
 int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, int length, u8 *data);
 void set_tsp_nvm_data_clear(struct sec_ts_data *ts, u8 offset);
 int sec_ts_set_custom_library(struct sec_ts_data *ts);
+
+int sec_ts_set_touch_function(struct sec_ts_data *ts);
 
 void sec_ts_unlocked_release_all_finger(struct sec_ts_data *ts);
 void sec_ts_locked_release_all_finger(struct sec_ts_data *ts);

@@ -33,6 +33,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
 #include <linux/of_gpio.h>
+#if defined(CONFIG_TYPEC)
+#include <linux/usb/typec.h>
+#endif
 
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
@@ -70,6 +73,16 @@ struct dwc3_exynos_drvdata {
 	int ip_type;
 };
 
+#if defined(CONFIG_TYPEC)
+struct intf_typec {
+	/* struct mutex lock; */ /* device lock */
+	struct device *dev;
+	struct typec_port *port;
+	struct typec_capability cap;
+	struct typec_partner *partner;
+};
+#endif
+
 struct dwc3_exynos {
 	struct platform_device	*usb2_phy;
 	struct platform_device	*usb3_phy;
@@ -85,6 +98,9 @@ struct dwc3_exynos {
 
 	struct dwc3_exynos_rsw	rsw;
 	const struct dwc3_exynos_drvdata *drv_data;
+#if defined(CONFIG_TYPEC)
+	struct intf_typec	*typec;
+#endif
 
 #ifdef CONFIG_PM_DEVFREQ
 	unsigned int int_min_lock;
@@ -664,8 +680,10 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	struct dwc3_exynos	*exynos;
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = dev->of_node;
-
 	int			ret;
+#if defined(CONFIG_TYPEC)
+	struct intf_typec	*typec;
+#endif
 
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
 	if (!exynos)
@@ -682,13 +700,8 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, exynos);
 
-	ret = dwc3_exynos_register_phys(exynos);
-	if (ret) {
-		dev_err(dev, "couldn't register PHYs\n");
-		return ret;
-	}
-
 	exynos->dev	= dev;
+
 #if IS_ENABLED(CONFIG_OF)
 	exynos->drv_data = dwc3_exynos_get_driver_data(pdev);
 #endif
@@ -746,20 +759,50 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = dwc3_exynos_register_phys(exynos);
+	if (ret) {
+		dev_err(dev, "couldn't register PHYs\n");
+		goto err4;
+	}
+
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, dev);
 		if (ret) {
 			dev_err(dev, "failed to add dwc3 core\n");
-			goto err4;
+			goto err5;
 		}
 	} else {
 		dev_err(dev, "no device node, failed to add dwc3 core\n");
 		ret = -ENODEV;
-		goto err4;
+		goto err5;
 	}
 
+#if defined(CONFIG_TYPEC)
+		typec = devm_kzalloc(dev, sizeof(*typec), GFP_KERNEL);
+		if (!typec)
+			return -ENOMEM;
+
+		/* mutex_init(&md05->lock); */
+		typec->dev = dev;
+
+		typec->cap.type = TYPEC_PORT_DRP;
+		typec->cap.revision = USB_TYPEC_REV_1_1;
+		typec->cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+
+		typec->port = typec_register_port(dev, &typec->cap);
+		if (!typec->port)
+			return -ENODEV;
+
+		typec_set_data_role(typec->port, TYPEC_DEVICE);
+		typec_set_pwr_role(typec->port, TYPEC_SINK);
+		typec_set_pwr_opmode(typec->port, TYPEC_PWR_MODE_USB);
+		exynos->typec = typec;
+#endif
 	return 0;
 
+err5:
+	platform_device_unregister(exynos->usb2_phy);
+	platform_device_unregister(exynos->usb3_phy);
 err4:
 	if (exynos->vdd10)
 		regulator_disable(exynos->vdd10);
@@ -793,6 +836,11 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 		pm_runtime_set_suspended(&pdev->dev);
 	}
 	dwc3_exynos_clk_unprepare(exynos);
+
+#if defined(CONFIG_TYPEC)
+	typec_unregister_partner(exynos->typec->partner);
+	typec_unregister_port(exynos->typec->port);
+#endif
 
 	return 0;
 }

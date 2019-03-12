@@ -483,7 +483,24 @@ static int __init add_pcie_port(struct pcie_port *pp,
 		return ret;
 	}
 
-	pp->root_bus_nr = 0;
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		pp->msi_irq = platform_get_irq(pdev, 0);
+		if (!pp->msi_irq) {
+			dev_err(&pdev->dev, "failed to get msi irq\n");
+			return -ENODEV;
+		}
+
+		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
+					exynos_pcie_msi_irq_handler,
+					IRQF_SHARED | IRQF_NO_THREAD,
+					"exynos-pcie", pp);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request msi irq\n");
+			return ret;
+		}
+	}
+
+	pp->root_bus_nr = -1;
 	pp->ops = &exynos_pcie_host_ops;
 
 	spin_lock_init(&pp->conf_lock);

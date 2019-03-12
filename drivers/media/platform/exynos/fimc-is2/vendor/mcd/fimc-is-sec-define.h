@@ -165,6 +165,8 @@
 #define FIMC_IS_4H5YC_SETF			"setfile_4h5yc.bin"
 #define FIMC_IS_3M3_SETF			"setfile_3m3.bin"
 #define FIMC_IS_3L2_SETF			"setfile_3l2.bin"
+#define FIMC_IS_5E9_SETF			"setfile_5e9.bin"
+#define FIMC_IS_5E9_FRONT_SETF			"setfile_5e9_front.bin"
 #define FIMC_IS_6B2_SETF			"setfile_6b2.bin"
 #define FIMC_IS_8B1_SETF			"setfile_8b1.bin"
 #define FIMC_IS_6D1_SETF			"setfile_6d1.bin"
@@ -205,6 +207,7 @@
 #define FIMC_IS_CAL_MAP_VER_SIZE     4
 #define FIMC_IS_PROJECT_NAME_SIZE    8
 #define FIMC_IS_ISP_SETFILE_VER_SIZE 6
+#define FIMC_IS_SENSOR_ID_SIZE       16
 #define FIMC_IS_MODULE_ID_SIZE       10
 
 #if defined(CONFIG_CAMERA_EEPROM_SUPPORT_OIS)
@@ -265,6 +268,7 @@ struct fimc_is_from_info {
 	u32		concord_cal_section_crc_addr;
 	u32		af_cal_pan;
 	u32		af_cal_macro;
+	u32		mtf_data_addr;
 	char		header_ver[FIMC_IS_HEADER_VER_SIZE + 1];
 	char		cal_map_ver[FIMC_IS_CAL_MAP_VER_SIZE + 1];
 	char		setfile_ver[FIMC_IS_SETFILE_VER_SIZE + 1];
@@ -274,7 +278,9 @@ struct fimc_is_from_info {
 	char		load_fw_name[50];
 	char		load_setfile_name[50];
 	char		project_name[FIMC_IS_PROJECT_NAME_SIZE + 1];
+	char		from_sensor_id[FIMC_IS_SENSOR_ID_SIZE + 1];
 	u8		module_id[FIMC_IS_MODULE_ID_SIZE + 1];
+	u8		eeprom_front_module_id[FIMC_IS_MODULE_ID_SIZE + 1];
 	bool		is_caldata_read;
 	bool		is_check_cal_reload;
 #ifdef CONFIG_COMPANION_USE
@@ -380,11 +386,19 @@ ssize_t write_data_to_file(char *name, char *buf, size_t count, loff_t *pos);
 ssize_t read_data_from_file(char *name, char *buf, size_t count, loff_t *pos);
 bool fimc_is_sec_file_exist(char *name);
 
+int fimc_is_sec_get_max_cal_size(int position);
+int fimc_is_sec_get_sysfs_finfo_by_position(int position, struct fimc_is_from_info **finfo);
 int fimc_is_sec_get_sysfs_finfo(struct fimc_is_from_info **finfo);
 int fimc_is_sec_get_sysfs_pinfo(struct fimc_is_from_info **pinfo);
 int fimc_is_sec_get_sysfs_finfo_front(struct fimc_is_from_info **finfo);
 int fimc_is_sec_get_sysfs_pinfo_front(struct fimc_is_from_info **pinfo);
+int fimc_is_sec_get_sysfs_finfo_rear2(struct fimc_is_from_info **finfo);
+int fimc_is_sec_get_sysfs_pinfo_rear2(struct fimc_is_from_info **pinfo);
+int fimc_is_sec_get_sysfs_finfo_rear3(struct fimc_is_from_info **finfo);
+int fimc_is_sec_get_sysfs_pinfo_rear3(struct fimc_is_from_info **pinfo);
 int fimc_is_sec_get_front_cal_buf(char **buf);
+int fimc_is_sec_get_rear2_cal_buf(char **buf);
+int fimc_is_sec_get_rear3_cal_buf(char **buf);
 
 int fimc_is_sec_get_cal_buf(char **buf);
 int fimc_is_sec_get_loaded_fw(char **buf);
@@ -396,7 +410,7 @@ int fimc_is_sec_get_camid_from_hal(char *fw_name, char *setf_name);
 int fimc_is_sec_get_camid(void);
 int fimc_is_sec_set_camid(int id);
 int fimc_is_sec_get_pixel_size(char *header_ver);
-int fimc_is_sec_fw_find(struct fimc_is_core *core);
+int fimc_is_sec_fw_find(struct fimc_is_core *core, int position);
 int fimc_is_sec_check_reload(struct fimc_is_core *core);
 int fimc_is_sec_run_fw_sel(struct device *dev, int position);
 

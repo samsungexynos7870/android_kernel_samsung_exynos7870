@@ -108,6 +108,16 @@ config SENSORS_CM3323
 
 	  Say N here if you do not use cm3323.
 
+config SENSORS_VEML3328
+	depends on I2C
+	tristate "VEML3328 driver"
+	default n
+	help
+	  Say Y here if you use veml3328.
+	  This option enables RGB sensors using
+	  Capella veml3328 device driver.
+	  Say N here if you do not use veml3328.
+
 config SENSORS_CM36652
 	depends on I2C
 	tristate "CM36652 driver"
@@ -226,6 +236,13 @@ config SENSORS_GP2AP070S
 	default n
 	help
 	  This option enables proximity sensor using GP2AP070S driver
+
+config SENSORS_GP2AP110S
+	depends on I2C
+	tristate "GP2AP110S proximity sensor" 
+	default n
+	help
+	  Say Y here to enable the GP2AP110S
 
 config SENSORS_SX9306
 	depends on I2C

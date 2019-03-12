@@ -41,9 +41,7 @@
 #define EN_OTGFAIL_IRQ		1
 
 #define SM5705_STATUS3_OTGFAIL		(1 << 2)
-#if defined(CONFIG_USE_POGO)
 #define SM5705_STATUS1_WPCINPOK		(1 << 4)
-#endif
 
 enum {
 	CHIP_ID = 0,

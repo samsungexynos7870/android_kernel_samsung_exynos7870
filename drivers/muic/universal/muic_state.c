@@ -301,7 +301,7 @@ static void muic_handle_attach(muic_data_t *pmuic,
 		break;
 	case ATTACHED_DEV_CHARGING_POGO_VB_MUIC:
 #ifdef CONFIG_MUIC_POGO
-		muic_mux_sel_control(pmuic, POGO_USB_PATH);
+		muic_mux_sel_control(pmuic, NORMAL_USB_PATH);
 		pmuic->attached_dev = new_dev;
 #endif
 		break;
@@ -448,6 +448,8 @@ void muic_detect_dev(muic_data_t *pmuic)
 #if defined(CONFIG_MUIC_UNIVERSAL_CCIC)
 	if (pmuic->rprd && pmuic->vps.s.vbvolt) {
 		pr_info("%s:%s OTG Already attached.\n", MUIC_DEV_NAME, __func__);
+		switch_to_ap_usb(pmuic);
+		set_switch_mode(pmuic,SWMODE_MANUAL);
 #if defined(CONFIG_VBUS_NOTIFIER)
 		vbus_notifier_handle(!!pmuic->vps.s.vbvolt ? STATUS_VBUS_HIGH : STATUS_VBUS_LOW);
 #endif /* CONFIG_VBUS_NOTIFIER */

@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __DIMMING_CORE_H__
 #define __DIMMING_CORE_H__
@@ -22,19 +22,19 @@
 
 
 #define dimm_err(fmt, ...)					\
-	do {							\
+	{							\
 		pr_err(pr_fmt(fmt), ##__VA_ARGS__);		\
-	} while (0)
+	}
 
 #define dimm_info(fmt, ...)					\
-	do {							\
+	{							\
 		pr_info(pr_fmt(fmt), ##__VA_ARGS__);		\
-	} while (0)
+	}
 
 #define dimm_dbg(fmt, ...)					\
-	do {							\
+	{							\
 		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);		\
-	} while (0)
+	}
 
 int generate_volt_table(struct dim_data *data);
 int cal_gamma_from_index(struct dim_data *data, struct SmtDimInfo *brInfo);

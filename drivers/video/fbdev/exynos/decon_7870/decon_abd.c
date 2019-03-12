@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2016 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * Interface file between DECON and DSIM for Samsung EXYNOS DPU driver
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/of_gpio.h>
 #include <linux/of.h>
@@ -39,7 +36,7 @@ void decon_abd_save_log_fto(struct abd_protect *abd, struct sync_fence *fence)
 	struct abd_log *event_log = &event->log[(event->count % ABD_LOG_MAX)];
 
 	memset(event_log, 0, sizeof(struct abd_log));
-	event_log->stamp = ktime_get();
+	event_log->stamp = ktime_to_ns(ktime_get());
 	memcpy(&event_log->fence, fence, sizeof(struct sync_fence));
 
 	if (!first->count) {
@@ -76,7 +73,7 @@ static void decon_abd_save_log_pin(struct decon_device *decon, struct abd_pin *p
 	struct abd_log *first_log = &first->log[(first->count) % ABD_LOG_MAX];
 	struct abd_log *trace_log = &trace->log[(trace->count) % ABD_LOG_MAX];
 
-	trace_log->stamp = ktime_get();
+	trace_log->stamp = ktime_to_ns(ktime_get());
 	trace_log->level = pin->level;
 	trace_log->state = decon->state;
 	trace_log->onoff = on;
@@ -256,9 +253,9 @@ static int decon_debug_pin_log_print(struct seq_file *m, struct abd_trace *trace
 	abd_printf(m, "%s total count: %d\n", trace->name, trace->count);
 	for (i = 0; i < ABD_LOG_MAX; i++) {
 		log = &trace->log[i];
-		if (!log->stamp.tv64)
+		if (!log->stamp)
 			continue;
-		tv = ns_to_timeval(log->stamp.tv64);
+		tv = ns_to_timeval(log->stamp);
 		abd_printf(m, "time: %lu.%06lu level: %d onoff: %d state: %d\n",
 			(unsigned long)tv.tv_sec, tv.tv_usec, log->level, log->onoff, log->state);
 	}
@@ -303,9 +300,9 @@ static int decon_debug_fto_print(struct seq_file *m, struct abd_trace *trace)
 	abd_printf(m, "%s total count: %d\n", trace->name, trace->count);
 	for (i = 0; i < ABD_LOG_MAX; i++) {
 		log = &trace->log[i];
-		if (!log->stamp.tv64)
+		if (!log->stamp)
 			continue;
-		tv = ns_to_timeval(log->stamp.tv64);
+		tv = ns_to_timeval(log->stamp);
 		abd_printf(m, "time: %lu.%06lu, %d, %s: %s\n",
 			(unsigned long)tv.tv_sec, tv.tv_usec, log->winid, log->fence.name, sync_status_str(atomic_read(&log->fence.status)));
 	}
@@ -321,15 +318,15 @@ static int decon_debug_ss_log_print(struct seq_file *m)
 	int start = atomic_read(&decon->disp_ss_log_idx);
 	struct disp_ss_log *log;
 
-	start = (start > ss_log_max) ? start - ss_log_max + 1: 0;
+	start = (start > ss_log_max) ? start - ss_log_max + 1 : 0;
 
 	for (i = 0; i < ss_log_max; i++) {
 		idx = (start + i) % DISP_EVENT_LOG_MAX;
 		log = &decon->disp_ss_log[idx];
 
-		if (!log->time.tv64)
+		if (!ktime_to_ns(log->time))
 			continue;
-		tv = ns_to_timeval(log->time.tv64);
+		tv = ktime_to_timeval(log->time);
 		if (i && !(i % 10))
 			abd_printf(m, "\n");
 		abd_printf(m, "%lu.%06lu %11u, ", (unsigned long)tv.tv_sec, tv.tv_usec, log->type);

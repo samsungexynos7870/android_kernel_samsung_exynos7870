@@ -3,7 +3,7 @@ obj-$(CONFIG_EXYNOS_DECON_MDNIE_LITE) += mdnie_lite.o
 obj-$(CONFIG_DISPLAY_USE_INFO) += dpui.o
 
 obj-$(and $(CONFIG_EXYNOS_DECON_MDNIE_LITE),$(CONFIG_SEC_GPIO_DVS),$(subst undefined,y,$(origin CONFIG_SAMSUNG_PRODUCT_SHIP))) += dd_mdnie.o
-obj-$(and $(CONFIG_SEC_GPIO_DVS),$(subst undefined,y,$(origin CONFIG_SAMSUNG_PRODUCT_SHIP))) += dd_lcd.o dd_backlight.o dd_dpu.o
+obj-$(and $(CONFIG_SEC_GPIO_DVS),$(subst undefined,y,$(origin CONFIG_SAMSUNG_PRODUCT_SHIP))) += dd_lcd.o dd_backlight.o dd_dpu.o dd_param.o
 
 obj-$(CONFIG_PANEL_EA8064G_DYNAMIC) += ea8064g_lcd_ctrl.o dimming_core.o
 obj-$(CONFIG_PANEL_S6E3FA3_J7XE) += s6e3fa3_a7xe_lcd_ctrl.o dynamic_aid.o
@@ -24,3 +24,4 @@ obj-$(CONFIG_PANEL_S6D78A0_GPPIRIS) += s6d78a0_qhd_gppiris_lcd_ctrl.o
 obj-$(CONFIG_PANEL_S6D7AT0B_J7TOP) += s6d7at0b_j7top_lcd_ctrl.o
 obj-$(CONFIG_PANEL_S6E8AA5X01_A6LTE) += s6e8aa5x01_a6lte_lcd_ctrl.o dynamic_aid.o
 obj-$(CONFIG_PANEL_S6E8AA5X01_J6Y18) += s6e8aa5x01_a6lte_lcd_ctrl.o dynamic_aid.o
+obj-$(CONFIG_PANEL_S6D7AT0B_M10LTE) += s6d7at0b_m10lte_lcd_ctrl.o

@@ -897,7 +897,7 @@ static int sdfat_file_fsync(struct file *filp, int datasync)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
 static void sdfat_writepage_end_io(struct bio *bio)
 {
-	__sdfat_writepage_end_io(bio, bio->bi_status);
+	__sdfat_writepage_end_io(bio, blk_status_to_errno(bio->bi_status));
 }
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 static void sdfat_writepage_end_io(struct bio *bio)
@@ -3157,7 +3157,7 @@ static int sdfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 	if (((fsi->vol_type == FAT12) || (fsi->vol_type == FAT16)) &&
 					(inode->i_ino == SDFAT_ROOT_INO)) {
 		if (sector < (fsi->dentries_in_root >>
-				(sb->s_blocksize_bits-DENTRY_SIZE_BITS))) {
+				(sb->s_blocksize_bits - DENTRY_SIZE_BITS))) {
 			*phys = sector + fsi->root_start_sector;
 			*mapped_blocks = 1;
 		}
@@ -3266,7 +3266,17 @@ static int sdfat_da_prep_block(struct inode *inode, sector_t iblock,
 
 	} else if (create == 1) {
 		/* Not exist: new cluster needed */
-		BUG_ON(!BLOCK_ADDED(bmap_create));
+		if (!BLOCK_ADDED(bmap_create)) {
+			sector_t last_block;
+			last_block = (i_size_read(inode) + (sb->s_blocksize - 1))
+						>> sb->s_blocksize_bits;
+			sdfat_fs_error(sb, "%s: new cluster need, but "
+				"bmap_create == BMAP_NOT_CREATE(iblock:%lld, "
+				"last_block:%lld)", __func__,
+				(s64)iblock, (s64)last_block);
+			err = -EIO;
+			goto unlock_ret;
+		}
 
 		// Reserved Cluster (only if iblock is the first sector in a clu)
 		if (sec_offset == 0) {
@@ -3635,7 +3645,7 @@ static int sdfat_writepage(struct page *page, struct writeback_control *wbc)
 	atomic_inc(&SDFAT_SB(sb)->stat_n_pages_queued);
 
 	sdfat_submit_fullpage_bio(head->b_bdev,
-		head->b_blocknr << (inode->i_blkbits - sb->s_blocksize_bits),
+		head->b_blocknr << (sb->s_blocksize_bits - SECTOR_SIZE_BITS),
 		nr_blocks_towrite << inode->i_blkbits,
 		page);
 

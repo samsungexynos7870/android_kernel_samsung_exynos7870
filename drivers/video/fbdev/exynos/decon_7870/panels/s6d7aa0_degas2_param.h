@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 
 #define UI_MAX_BRIGHTNESS	255
-#define UI_DEFAULT_BRIGHTNESS	128
+#define UI_DEFAULT_BRIGHTNESS	115
 
 struct lcd_seq_info {
 	unsigned char	*cmd;

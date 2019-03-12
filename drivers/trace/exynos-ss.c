@@ -43,7 +43,13 @@
 #include <asm/ptrace.h>
 #include <asm/memory.h>
 #include <asm/map.h>
+#include <asm/mmu.h>
+#include <asm/smp_plat.h>
+#ifdef CONFIG_PMUCAL_MOD
+#include "../soc/samsung/pwrcal/pwrcal.h"
+#else
 #include <soc/samsung/exynos-pmu.h>
+#endif
 
 #ifdef CONFIG_SEC_EXT
 #include <linux/sec_ext.h>
@@ -86,15 +92,20 @@
 #define ESS_SIGN_FORCE_REBOOT		0xDAFE
 
 /*  Specific Address Information */
-#define S5P_VA_SS_BASE			((void __iomem __force *)(VMALLOC_START + 0xF6000000))
-#define S5P_VA_SS_SCRATCH		(S5P_VA_SS_BASE + 0x100)
-#define S5P_VA_SS_LAST_LOGBUF		(S5P_VA_SS_BASE + 0x200)
-#define S5P_VA_SS_EMERGENCY_REASON	(S5P_VA_SS_BASE + 0x300)
-#define S5P_VA_SS_CORE_POWER_STAT	(S5P_VA_SS_BASE + 0x400)
-#define S5P_VA_SS_CORE_PANIC_STAT	(S5P_VA_SS_BASE + 0x500)
+#define ESS_FIXED_VIRT_BASE		(VMALLOC_START + 0xF6000000)
+#define ESS_OFFSET_SCRATCH		(0x100)
+#define ESS_OFFSET_LAST_LOGBUF		(0x200)
+#define ESS_OFFSET_EMERGENCY_REASON	(0x300)
+#define ESS_OFFSET_CORE_POWER_STAT	(0x400)
+#define ESS_OFFSET_PANIC_STAT		(0x500)
 
 /* S5P_VA_SS_BASE + 0xC00 -- 0xFFF is reserved */
-#define S5P_VA_SS_PANIC_STRING		(S5P_VA_SS_BASE + 0xC00)
+#define ESS_OFFSET_PANIC_STRING 	(0xC00)
+#define ESS_OFFSET_SPARE_BASE		(ESS_HEADER_SZ + ESS_MMU_REG_SZ + ESS_CORE_REG_SZ)
+
+#define mpidr_cpu_num(mpidr)			\
+	( MPIDR_AFFINITY_LEVEL(mpidr, 1) << 2	\
+	 | MPIDR_AFFINITY_LEVEL(mpidr, 0))
 
 struct exynos_ss_base {
 	size_t size;
@@ -394,6 +405,8 @@ struct exynos_ss_desc {
 	unsigned int callstack;
 	int hardlockup;
 	int no_wdt_dev;
+
+	struct vm_struct vm;
 };
 
 struct exynos_ss_interface {
@@ -618,16 +631,28 @@ static void exynos_ss_save_mmu(struct exynos_ss_mmu_reg *mmu_reg)
 #endif
 }
 
+void __iomem *exynos_ss_get_base_vaddr(void)
+{
+	return (void __iomem *)(ess_base.vaddr);
+}
+
+void __iomem *exynos_ss_get_base_paddr(void)
+{
+	return (void __iomem *)(ess_base.paddr);
+}
+
 static void exynos_ss_core_power_stat(unsigned int val, unsigned cpu)
 {
 	if (exynos_ss_get_enable("log_kevents", true))
-		__raw_writel(val, (S5P_VA_SS_CORE_POWER_STAT + cpu * 4));
+		__raw_writel(val, (exynos_ss_get_base_vaddr() +
+					ESS_OFFSET_CORE_POWER_STAT + cpu * 4));
 }
 
 static unsigned int exynos_ss_get_core_panic_stat(unsigned cpu)
 {
 	if (exynos_ss_get_enable("log_kevents", true))
-		return __raw_readl(S5P_VA_SS_CORE_PANIC_STAT + cpu * 4);
+		return __raw_readl(exynos_ss_get_base_vaddr() +
+					ESS_OFFSET_PANIC_STAT + cpu * 4);
 	else
 		return 0;
 }
@@ -635,19 +660,38 @@ static unsigned int exynos_ss_get_core_panic_stat(unsigned cpu)
 static void exynos_ss_set_core_panic_stat(unsigned int val, unsigned cpu)
 {
 	if (exynos_ss_get_enable("log_kevents", true))
-		__raw_writel(val, (S5P_VA_SS_CORE_PANIC_STAT + cpu * 4));
+		__raw_writel(val, (exynos_ss_get_base_vaddr() +
+					ESS_OFFSET_PANIC_STAT + cpu * 4));
 }
 
 static void exynos_ss_scratch_reg(unsigned int val)
 {
 	if (exynos_ss_get_enable("log_kevents", true) || ess_desc.need_header)
-		__raw_writel(val, S5P_VA_SS_SCRATCH);
+		__raw_writel(val, exynos_ss_get_base_vaddr() + ESS_OFFSET_SCRATCH);
 }
 
 static void exynos_ss_report_reason(unsigned int val)
 {
 	if (exynos_ss_get_enable("log_kevents", true))
-		__raw_writel(val, S5P_VA_SS_EMERGENCY_REASON);
+		__raw_writel(val, exynos_ss_get_base_vaddr() + ESS_OFFSET_EMERGENCY_REASON);
+}
+
+unsigned long exynos_ss_get_spare_vaddr(unsigned int offset)
+{
+	return (unsigned long)(exynos_ss_get_base_vaddr() +
+				ESS_OFFSET_SPARE_BASE + offset);
+}
+
+unsigned long exynos_ss_get_spare_paddr(unsigned int offset)
+{
+	unsigned long kevent_vaddr = 0;
+	unsigned int kevent_paddr = exynos_ss_get_item_paddr("log_kevents");
+
+	if (kevent_paddr) {
+		kevent_vaddr = (unsigned long)(kevent_paddr + ESS_HEADER_SZ +
+				ESS_MMU_REG_SZ + ESS_CORE_REG_SZ + offset);
+	}
+	return kevent_vaddr;
 }
 
 unsigned int exynos_ss_get_item_size(char* name)
@@ -767,7 +811,7 @@ int exynos_ss_dump_panic(char *str, size_t len)
 
 	/*  This function is only one which runs in panic funcion */
 	if (str && len && len < 1024)
-		memcpy(S5P_VA_SS_PANIC_STRING, str, len);
+		memcpy(exynos_ss_get_base_vaddr() + ESS_OFFSET_PANIC_STRING, str, len);
 
 	return 0;
 }
@@ -1090,7 +1134,8 @@ static inline void exynos_ss_hook_logbuf(const char buf)
 
 		/*  save the address of last_buf to physical address */
 		last_buf = (unsigned int)item->curr_ptr;
-		__raw_writel((last_buf & (SZ_16M - 1)) | ess_base.paddr, S5P_VA_SS_LAST_LOGBUF);
+		__raw_writel(item->entry.paddr + (last_buf - item->entry.vaddr),
+				exynos_ss_get_base_vaddr() + ESS_OFFSET_LAST_LOGBUF);
 	}
 }
 #else
@@ -1099,7 +1144,7 @@ static inline void exynos_ss_hook_logbuf(const char *buf, size_t size)
 	struct exynos_ss_item *item = &ess_items[ess_desc.log_kernel_num];
 
 	if (likely(ess_base.enabled == true && item->entry.enabled == true)) {
-		size_t last_buf, align;
+		size_t last_buf;
 
 		if (exynos_ss_check_eob(item, size)) {
 			item->curr_ptr = item->head_ptr;
@@ -1112,9 +1157,10 @@ static inline void exynos_ss_hook_logbuf(const char *buf, size_t size)
 		memcpy(item->curr_ptr, buf, size);
 		item->curr_ptr += size;
 		/*  save the address of last_buf to physical address */
-		align = (size_t)(item->entry.size - 1);
 		last_buf = (size_t)item->curr_ptr;
-		__raw_writel((last_buf & align) | (item->entry.paddr & ~align), S5P_VA_SS_LAST_LOGBUF);
+
+		__raw_writel(item->entry.paddr + (last_buf - item->entry.vaddr),
+				exynos_ss_get_base_vaddr() + ESS_OFFSET_LAST_LOGBUF);
 	}
 }
 #endif
@@ -1477,16 +1523,33 @@ void exynos_ss_panic_handler_safe(struct pt_regs *regs)
 
 }
 
-static size_t __init exynos_ss_remap(unsigned int base, unsigned int size)
+static size_t __init exynos_ss_remap(void)
 {
-	struct map_desc ess_iodesc;
 	unsigned long i;
 	unsigned int enabled_count = 0;
 	size_t pre_paddr, pre_vaddr, item_size;
+	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
+	int page_size, ret;
+	struct page *page;
+	struct page **pages;
+
+	page_size = ess_desc.vm.size / PAGE_SIZE;
+	pages = kzalloc(sizeof(struct page*) * page_size, GFP_KERNEL);
+	page = phys_to_page(ess_desc.vm.phys_addr);
+
+	for (i = 0; i < page_size; i++)
+		pages[i] = page++;
+
+	ret = map_vm_area(&ess_desc.vm, prot, pages);
+	if (ret) {
+		pr_err("exynos-snapshot: failed to mapping between virt and phys for firmware");
+		return -ENOMEM;
+	}
+	kfree(pages);
 
 	/* initializing value */
-	pre_paddr = (size_t)base;
-	pre_vaddr = (size_t)S5P_VA_SS_BASE;
+	pre_paddr = (size_t)ess_base.paddr;
+	pre_vaddr = (size_t)ess_base.vaddr;
 
 	for (i = 0; i < ARRAY_SIZE(ess_items); i++) {
 		/* fill rest value of ess_items arrary */
@@ -1504,21 +1567,14 @@ static size_t __init exynos_ss_remap(unsigned int base, unsigned int size)
 			ess_items[i].head_ptr = (unsigned char *)ess_items[i].entry.vaddr;
 			ess_items[i].curr_ptr = (unsigned char *)ess_items[i].entry.vaddr;
 
-			/* fill to ess_iodesc for mapping */
-			ess_iodesc.type = MT_NORMAL_NC;
-			ess_iodesc.length = item_size;
-			ess_iodesc.virtual = ess_items[i].entry.vaddr;
-			ess_iodesc.pfn = __phys_to_pfn(ess_items[i].entry.paddr);
-
 			/* For Next */
 			pre_vaddr = ess_items[i].entry.vaddr + item_size;
 			pre_paddr = ess_items[i].entry.paddr + item_size;
 
-			iotable_init(&ess_iodesc, 1);
 			enabled_count++;
 		}
 	}
-	return (size_t)(enabled_count ? S5P_VA_SS_BASE : 0);
+	return (size_t)(enabled_count ? exynos_ss_get_base_vaddr() : 0);
 }
 
 static int __init exynos_ss_init_desc(void)
@@ -1590,18 +1646,23 @@ static int __init exynos_ss_setup(char *str)
 #ifdef CONFIG_NO_BOOTMEM
 	if (!memblock_is_region_reserved(base, size) &&
 		!memblock_reserve(base, size)) {
-
 #else
 	if (!reserve_bootmem(base, size, BOOTMEM_EXCLUSIVE)) {
 #endif
 		ess_base.paddr = base;
-		ess_base.vaddr = exynos_ss_remap(base,size);
+		ess_base.vaddr = (size_t)(ESS_FIXED_VIRT_BASE);
 		ess_base.size = size;
 		ess_base.enabled = false;
 
-		pr_info("exynos-snapshot: memory reserved complete : 0x%zx, 0x%zx\n",
-			base, size);
+		/* Reserved fixed virtual memory within VMALLOC region */
+		ess_desc.vm.phys_addr = base;
+		ess_desc.vm.addr = (void *)(ESS_FIXED_VIRT_BASE);
+		ess_desc.vm.size = size;
 
+		vm_area_add_early(&ess_desc.vm);
+
+		pr_info("exynos-snapshot: memory reserved complete : 0x%zx, 0x%zx, 0x%zx\n",
+			base, (size_t)(ESS_FIXED_VIRT_BASE), size);
 #ifdef CONFIG_SEC_DEBUG
 		sec_getlog_supply_kernel((void*)phys_to_virt(ess_items[ess_desc.log_kernel_num].entry.paddr));
 #endif
@@ -1695,7 +1756,7 @@ static void __init exynos_ss_fixmap_header(void)
 
 	/*  set fake translation to virtual address to debug trace */
 	ess_info.info_event = (struct exynos_ss_log *)(PAGE_OFFSET |
-			    (0x0FFFFFFF & (paddr + ESS_HEADER_TOTAL_SZ)));
+				(0x0FFFFFFF & (paddr + ESS_HEADER_TOTAL_SZ)));
 
 #ifndef CONFIG_EXYNOS_SNAPSHOT_MINIMIZED_MODE
 	atomic_set(&(ess_idx.printk_log_idx), -1);
@@ -1748,7 +1809,7 @@ static void __init exynos_ss_fixmap_header(void)
 
 static int __init exynos_ss_fixmap(void)
 {
-	size_t last_buf, align;
+	size_t last_buf;
 	size_t vaddr, paddr, size;
 	unsigned long i;
 
@@ -1766,15 +1827,14 @@ static int __init exynos_ss_fixmap(void)
 
 		if (!strncmp(ess_items[i].name, "log_kernel", strlen(ess_items[i].name))) {
 			/*  load last_buf address value(phy) by virt address */
-			last_buf = (size_t)__raw_readl(S5P_VA_SS_LAST_LOGBUF);
-			align = (size_t)(size - 1);
-
+			last_buf = (size_t)__raw_readl(exynos_ss_get_base_vaddr() +
+							ESS_OFFSET_LAST_LOGBUF);
 			/*  check physical address offset of kernel logbuf */
-			if ((size_t)(last_buf & ~align) == (size_t)(paddr & ~align)) {
+			if (last_buf >= ess_items[i].entry.paddr &&
+				(last_buf) <= (ess_items[i].entry.paddr + ess_items[i].entry.size)) {
 				/*  assumed valid address, conversion to virt */
-				ess_items[i].curr_ptr = (unsigned char *)
-						((last_buf & align) |
-						(size_t)(vaddr & ~align));
+				ess_items[i].curr_ptr = (unsigned char *)(ess_items[i].entry.vaddr +
+							(last_buf - ess_items[i].entry.paddr));
 			} else {
 				/*  invalid address, set to first line */
 				ess_items[i].curr_ptr = (unsigned char *)vaddr;
@@ -1787,8 +1847,7 @@ static int __init exynos_ss_fixmap(void)
 				memset((size_t *)vaddr, 0, size);
 		}
 		ess_info.info_log[i - 1].name = kstrdup(ess_items[i].name, GFP_KERNEL);
-		ess_info.info_log[i - 1].head_ptr =
-			(unsigned char *)((PAGE_OFFSET | (UL(SZ_256M - 1) & paddr)));
+		ess_info.info_log[i - 1].head_ptr = (unsigned char *)ess_items[i].entry.vaddr;
 		ess_info.info_log[i - 1].curr_ptr = NULL;
 		ess_info.info_log[i - 1].entry.size = size;
 	}
@@ -1848,7 +1907,7 @@ static int __init exynos_ss_init_dt(void)
 
 static int __init exynos_ss_init(void)
 {
-	if (ess_base.vaddr && ess_base.paddr) {
+	if (ess_base.vaddr && ess_base.paddr && ess_base.size) {
 	/*
 	 *  for debugging when we don't know the virtual address of pointer,
 	 *  In just privous the debug buffer, It is added 16byte dummy data.
@@ -1856,6 +1915,7 @@ static int __init exynos_ss_init(void)
 	 *  --> @virtual_addr | @phy_addr | @buffer_size | @magic_key(0xDBDBDBDB)
 	 *  And then, the debug buffer is shown.
 	 */
+		exynos_ss_remap();
 		exynos_ss_fixmap();
 		exynos_ss_init_dt();
 		exynos_ss_scratch_reg(ESS_SIGN_SCRATCH);

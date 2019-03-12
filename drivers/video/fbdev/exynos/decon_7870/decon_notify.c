@@ -12,6 +12,7 @@
  */
 #include <linux/fb.h>
 #include <linux/export.h>
+#include <linux/module.h>
 
 #include "decon_notify.h"
 
@@ -68,8 +69,6 @@ static struct notifier_block decon_fb_notifier = {
 static void __exit decon_notifier_exit(void)
 {
 	fb_unregister_client(&decon_fb_notifier);
-
-	return;
 }
 
 static int __init decon_notifier_init(void)
@@ -81,4 +80,3 @@ static int __init decon_notifier_init(void)
 
 late_initcall(decon_notifier_init);
 module_exit(decon_notifier_exit);
-

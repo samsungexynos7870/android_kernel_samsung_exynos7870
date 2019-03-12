@@ -186,7 +186,7 @@ int fimc_is_lib_isp_apply_tune_set(struct fimc_is_lib_isp *this,
 int fimc_is_lib_isp_delete_tune_set(struct fimc_is_lib_isp *this,
 	u32 index, u32 instance_id);
 int fimc_is_lib_isp_load_cal_data(struct fimc_is_lib_isp *this,
-	u32 index, ulong addr);
+	u32 index, ulong addr, u32 cal_index);
 int fimc_is_lib_isp_get_cal_data(struct fimc_is_lib_isp *this,
 	u32 instance_id, struct cal_info *data, int type);
 int fimc_is_lib_isp_sensor_info_mode_chg(struct fimc_is_lib_isp *this,

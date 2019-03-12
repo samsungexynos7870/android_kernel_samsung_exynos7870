@@ -479,6 +479,7 @@ struct dw_mci_board {
 	u32 hto_timeout;
 	bool use_gate_clock;
 	bool use_biu_gate_clock;
+	bool use_gpio_invert;
 	bool enable_cclk_on_suspend;
 	bool on_suspend;
 

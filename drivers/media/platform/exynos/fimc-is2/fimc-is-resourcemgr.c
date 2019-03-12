@@ -42,8 +42,6 @@
 #include "fimc-is-interface-library.h"
 #include "hardware/fimc-is-hw-control.h"
 #endif
-#include <linux/memblock.h>
-#include <asm/map.h>
 
 #define CLUSTER_MIN_MASK			0x0000FFFF
 #define CLUSTER_MIN_SHIFT			0
@@ -235,6 +233,22 @@ static int fimc_is_resourcemgr_allocmem(struct fimc_is_resourcemgr *resourcemgr)
 	}
 	minfo->total_size += minfo->pb_front_cal->size;
 
+	/* calibration data for rear2 lens */
+	minfo->pb_rear2_cal = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, REAR_CALDATA_SIZE, 16);
+	if (IS_ERR(minfo->pb_rear2_cal)) {
+		err("failed to allocate buffer for REAR_CALDATA");
+		return -ENOMEM;
+	}
+	minfo->total_size += minfo->pb_rear2_cal->size;
+
+	/* calibration data for rear3 lens */
+	minfo->pb_rear3_cal = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, REAR_CALDATA_SIZE, 16);
+	if (IS_ERR(minfo->pb_rear3_cal)) {
+		err("failed to allocate buffer for REAR_CALDATA");
+		return -ENOMEM;
+	}
+	minfo->total_size += minfo->pb_rear3_cal->size;
+
 	/* library logging */
 	minfo->pb_debug = CALL_PTR_MEMOP(mem, alloc, mem->default_ctx, DEBUG_REGION_SIZE + 0x10, 16);
 	if (IS_ERR(minfo->pb_debug)) {
@@ -386,6 +400,8 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 	resourcemgr->minfo.kvaddr_setfile = CALL_BUFOP(minfo->pb_setfile, kvaddr, minfo->pb_setfile);
 	resourcemgr->minfo.kvaddr_rear_cal = CALL_BUFOP(minfo->pb_rear_cal, kvaddr, minfo->pb_rear_cal);
 	resourcemgr->minfo.kvaddr_front_cal = CALL_BUFOP(minfo->pb_front_cal, kvaddr, minfo->pb_front_cal);
+	resourcemgr->minfo.kvaddr_rear2_cal = CALL_BUFOP(minfo->pb_rear2_cal, kvaddr, minfo->pb_rear2_cal);
+	resourcemgr->minfo.kvaddr_rear3_cal = CALL_BUFOP(minfo->pb_rear3_cal, kvaddr, minfo->pb_rear3_cal);
 
 	probe_info("[RSC] Kernel virtual for library: %08lx\n", resourcemgr->minfo.kvaddr);
 	probe_info("[RSC] Kernel virtual for debug: %08lx\n", resourcemgr->minfo.kvaddr_debug);
@@ -393,26 +409,6 @@ static int fimc_is_resourcemgr_initmem(struct fimc_is_resourcemgr *resourcemgr)
 p_err:
 	return ret;
 }
-
-static int __init fimc_is_init_static_mem(char *str)
-{
-	struct fimc_is_static_mem static_mem[] = {{0, LIB_START, LIB_SIZE}};
-	struct map_desc fimc_iodesc[ARRAY_SIZE(static_mem)];
-	u32 i;
-
-	for (i = 0; i < ARRAY_SIZE(static_mem); i++) {
-		static_mem[i].paddr = memblock_alloc(static_mem[i].size, SZ_4K);
-
-		fimc_iodesc[i].virtual = static_mem[i].vaddr;
-		fimc_iodesc[i].pfn = __phys_to_pfn(static_mem[i].paddr);
-		fimc_iodesc[i].length = static_mem[i].size;
-		fimc_iodesc[i].type = MT_MEMORY;
-	}
-	iotable_init_exec(fimc_iodesc, ARRAY_SIZE(static_mem));
-
-	return 0;
-}
-__setup("reserve-fimc=", fimc_is_init_static_mem);
 
 #ifndef ENABLE_RESERVED_MEM
 static int fimc_is_resourcemgr_deinitmem(struct fimc_is_resourcemgr *resourcemgr)

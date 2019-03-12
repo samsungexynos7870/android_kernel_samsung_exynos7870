@@ -23,4 +23,6 @@
 #define CSI_SCENARIO_SEN_FRONT	(1)
 #endif
 
+#define USE_FACE_UNLOCK_AE_AWB_INIT /* for Face Unlock */
+
 #endif /* FIMC_IS_VENDOR_CONFIG_A6_H */

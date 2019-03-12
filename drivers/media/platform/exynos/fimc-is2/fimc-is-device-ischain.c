@@ -5746,6 +5746,9 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 	struct fimc_is_frame *frame;
 	struct camera2_node_group *node_group;
 	struct camera2_node ldr_node = {0, };
+#ifdef ENABLE_INIT_AWB
+	struct fimc_is_device_sensor *sensor;
+#endif
 
 #ifdef ENABLE_FAST_SHOT
 	uint32_t af_trigger_bk;
@@ -5765,6 +5768,9 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 
 	frame = NULL;
 	group = &device->group_3aa;
+#ifdef ENABLE_INIT_AWB
+	sensor = device->sensor;
+#endif
 
 	framemgr = GET_SUBDEV_FRAMEMGR(&group->leader);
 	if (!framemgr) {
@@ -5856,6 +5862,26 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 	/* fd information copy */
 	memcpy(&frame->shot->uctl.fdUd, &device->cur_peri_ctl.fdUd, sizeof(struct camera2_fd_uctl));
 
+#ifdef ENABLE_INIT_AWB
+	if (sensor) {
+		if ((frame->shot->ctl.aa.awbMode == AA_AWBMODE_WB_AUTO)
+			&& (frame->fcount <= sensor->init_wb_cnt)
+			&& (frame->shot->ctl.aa.sceneMode == AA_SCENE_MODE_FACE_LOCK)
+			&& memcmp(sensor->init_wb, sensor->chk_wb, sizeof(float) * WB_GAIN_COUNT)) {
+
+			/* for applying init AWB feature,
+			 * 1. awbMode is AA_AWB_MODE_WB_AUTO
+			 * 2. it is applied at only initial count frame num
+			 * 3. set only last_ae value exist
+			 */
+			memcpy(frame->shot->ctl.color.gains, sensor->init_wb, sizeof(float) * WB_GAIN_COUNT);
+			frame->shot->ctl.aa.awbMode = AA_AWBMODE_OFF;
+
+			minfo("F[%d]init AWB(applied cnt:%d)", sensor, frame->fcount, sensor->init_wb_cnt);
+		}
+	}
+#endif
+	
 	PROGRAM_COUNT(9);
 
 	parent = NULL;

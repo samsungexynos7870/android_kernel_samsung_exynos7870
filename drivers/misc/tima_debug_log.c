@@ -21,6 +21,8 @@
 extern int boot_mode_security;
 #endif
 
+extern int tima_debug_modify_kernel(const char *val, struct kernel_param *kp);
+
 #ifdef CONFIG_TIMA_RKP
 #define DEBUG_RKP_LOG_START	TIMA_DEBUG_LOG_START
 #define SECURE_RKP_LOG_START	TIMA_SEC_LOG 
@@ -152,6 +154,9 @@ out:
 	return 0;
 }
 __setup("tima_log=", tima_log_setup);
+
+/* leave the following definithion of module param call here for the compatibility with other models */
+module_param_call(force_modify, tima_debug_modify_kernel, NULL, NULL, 0644);
 
 ssize_t	tima_read(struct file *filep, char __user *buf, size_t size, loff_t *offset)
 {

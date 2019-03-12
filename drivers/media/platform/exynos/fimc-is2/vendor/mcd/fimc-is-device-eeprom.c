@@ -27,6 +27,8 @@
 #define DRIVER_NAME "fimc_is_eeprom_i2c"
 #define DRIVER_NAME_REAR "rear-eeprom-i2c"
 #define DRIVER_NAME_FRONT "front-eeprom-i2c"
+#define DRIVER_NAME_REAR2 "rear2-eeprom-i2c"
+#define DRIVER_NAME_REAR3 "rear3-eeprom-i2c"
 #define REAR_DATA 0
 #define FRONT_DATA 1
 
@@ -72,12 +74,10 @@ int sensor_eeprom_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	if (id->driver_data == REAR_DATA) {
-		specific->eeprom_client0 = client;
-	} else if (id->driver_data == FRONT_DATA) {
-		specific->eeprom_client1 = client;
-	} else {
-		probe_err("rear eeprom device is failed!");
+	if (id->driver_data < SENSOR_POSITION_END)
+		specific->eeprom_client[id->driver_data] = client;
+	else {
+		probe_err("eeprom device is failed!");
 		return -ENODEV;
 	}
 
@@ -126,18 +126,26 @@ static int sensor_eeprom_remove(struct i2c_client *client)
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_fimc_is_sensor_eeprom_match[] = {
 	{
-		.compatible = "samsung,rear-eeprom-i2c", .data = (void *)REAR_DATA
+		.compatible = "samsung,rear-eeprom-i2c", .data = (void *)SENSOR_POSITION_REAR
 	},
 	{
-		.compatible = "samsung,front-eeprom-i2c", .data = (void *)FRONT_DATA
+		.compatible = "samsung,front-eeprom-i2c", .data = (void *)SENSOR_POSITION_FRONT
+	},
+	{
+		.compatible = "samsung,rear2-eeprom-i2c", .data = (void *)SENSOR_POSITION_REAR2
+	},
+	{
+		.compatible = "samsung,rear3-eeprom-i2c", .data = (void *)SENSOR_POSITION_REAR3
 	},
 	{},
 };
 #endif
 
 static const struct i2c_device_id sensor_eeprom_idt[] = {
-	{ DRIVER_NAME_REAR, REAR_DATA },
-	{ DRIVER_NAME_FRONT, FRONT_DATA },
+	{ DRIVER_NAME_REAR, SENSOR_POSITION_REAR },
+	{ DRIVER_NAME_FRONT, SENSOR_POSITION_FRONT },
+	{ DRIVER_NAME_REAR2, SENSOR_POSITION_REAR2 },
+	{ DRIVER_NAME_REAR3, SENSOR_POSITION_REAR3 },
 	{},
 };
 

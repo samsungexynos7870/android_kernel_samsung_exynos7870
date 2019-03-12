@@ -248,11 +248,6 @@ static int __init sec_tsp_log_setup(char *str)
 	sec_tsp_log_buf = phys_to_virt(base);
 	sec_tsp_log_size = size;
 
-	pr_info("%s: *sec_tsp_log_ptr:%x " \
-		"sec_tsp_log_buf:%p sec_tsp_log_size:0x%x\n",
-		__func__, *sec_tsp_log_ptr, sec_tsp_log_buf,
-		sec_tsp_log_size);
-
 	if (*sec_tsp_log_mag != LOG_MAGIC) {
 		pr_info("%s: no old log found\n", __func__);
 		*sec_tsp_log_ptr = 0;

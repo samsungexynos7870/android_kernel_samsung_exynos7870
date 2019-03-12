@@ -64,10 +64,21 @@ enum fimc_is_cam_info_ois {
 	CAM_INFO_OIS_USE,
 };
 
+enum fimc_is_cam_info_valid {
+	CAM_INFO_INVALID = 0,
+	CAM_INFO_VALID,
+};
+
+enum fimc_is_cam_info_dual_open {
+	CAM_INFO_SINGLE_OPEN = 0,
+	CAM_INFO_DUAL_OPEN,
+};
+
 enum fimc_is_cam_info_index {
 	CAM_INFO_REAR = 0,
 	CAM_INFO_FRONT,
 	CAM_INFO_IRIS,
+	CAM_INFO_REAR3,
 	CAM_INFO_MAX
 };
 
@@ -81,9 +92,18 @@ struct fimc_is_cam_info {
 	unsigned int fw_dump;
 	unsigned int companion;
 	unsigned int ois;
+	unsigned int valid;
+	unsigned int dual_open;
+	unsigned int dual_cam;
+};
+
+struct fimc_is_common_cam_info {
+	unsigned int supported_camera_ids[FIMC_IS_SENSOR_COUNT];
+	unsigned int max_supported_camera;
 };
 
 int fimc_is_get_cam_info(struct fimc_is_cam_info **caminfo);
+void fimc_is_get_common_cam_info(struct fimc_is_common_cam_info **caminfo);
 
 #endif
 #endif /* _FIMC_IS_SYSFS_H_ */

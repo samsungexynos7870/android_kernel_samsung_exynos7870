@@ -127,7 +127,7 @@ struct sdfat_mount_options {
 	unsigned char errors;       /* on error: continue, panic, remount-ro */
 	unsigned char discard;      /* flag on if -o dicard specified and device support discard() */
 	unsigned char fs_type;      /* fs_type that user specified */
-	unsigned short adj_req;      /* support aligned mpage write */
+	unsigned short adj_req;     /* support aligned mpage write */
 };
 
 #define SDFAT_HASH_BITS    8

@@ -77,6 +77,8 @@
 #include <linux/workqueue.h>
 #include <linux/kcov.h>
 
+#include <linux/workqueue.h>
+
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -361,7 +363,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	set_task_stack_end_magic(tsk);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
-	tsk->stack_canary = get_random_int();
+	tsk->stack_canary = get_random_long();
 #endif
 
 	/*
@@ -541,37 +543,8 @@ static inline void mm_free_pgd(struct mm_struct *mm)
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
 
-struct mm_work {
-	struct work_struct work;
-	struct mm_struct *mm;
-};
-
-static struct mm_struct *allocate_mm(void)
-{
-	struct mm_struct *mm;
-	struct mm_work *mmw;
-
-	mmw = kmalloc(sizeof(*mmw), GFP_KERNEL);
-	if (!mmw)
-		return NULL;
-
-	mm = kmem_cache_alloc(mm_cachep, GFP_KERNEL);
-	if (!mm) {
-		kfree(mmw);
-		return NULL;
-	}
-
-	mm->async_put_work = mmw;
-	mmw->mm = mm;
-
-	return mm;
-}
-
-static void free_mm(struct mm_struct *mm)
-{
-	kfree(mm->async_put_work);
-	kmem_cache_free(mm_cachep, mm);
-}
+#define allocate_mm()	(kmem_cache_alloc(mm_cachep, GFP_KERNEL))
+#define free_mm(mm)	(kmem_cache_free(mm_cachep, (mm)))
 
 static unsigned long default_dump_filter = MMF_DUMP_FILTER_DEFAULT;
 
@@ -672,7 +645,7 @@ static void check_mm(struct mm_struct *mm)
 struct mm_struct *mm_alloc(void)
 {
 	struct mm_struct *mm;
-	void *putwork;
+	struct work_struct putwork;
 
 	mm = allocate_mm();
 	if (!mm)
@@ -734,17 +707,15 @@ EXPORT_SYMBOL_GPL(mmput);
 
 static void mmput_async_fn(struct work_struct *work)
 {
-	struct mm_work *mmw = container_of(work, struct mm_work, work);
-	__mmput(mmw->mm);
+	struct mm_struct *mm = container_of(work, struct mm_struct, async_put_work);
+	__mmput(mm);
 }
 
 void mmput_async(struct mm_struct *mm)
 {
 	if (atomic_dec_and_test(&mm->mm_users)) {
-		struct mm_work *mmw = mm->async_put_work;
-
-		INIT_WORK(&mmw->work, mmput_async_fn);
-		schedule_work(&mmw->work);
+		INIT_WORK(&mm->async_put_work, mmput_async_fn);
+		schedule_work(&mm->async_put_work);
 	}
 }
 
@@ -927,7 +898,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 static struct mm_struct *dup_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm, *oldmm = current->mm;
-	void *putwork;
+	struct work_struct putwork;
 	int err;
 
 	mm = allocate_mm();
@@ -1119,7 +1090,7 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	/* Thread group counters. */
 	thread_group_cputime_init(sig);
 
-	cpu_limit = ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
+	cpu_limit = READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
 	if (cpu_limit != RLIM_INFINITY) {
 		sig->cputime_expires.prof_exp = secs_to_cputime(cpu_limit);
 		sig->cputimer.running = 1;
@@ -1949,13 +1920,21 @@ static int check_unshare_flags(unsigned long unshare_flags)
 				CLONE_NEWUSER|CLONE_NEWPID))
 		return -EINVAL;
 	/*
-	 * Not implemented, but pretend it works if there is nothing to
-	 * unshare. Note that unsharing CLONE_THREAD or CLONE_SIGHAND
-	 * needs to unshare vm.
+	 * Not implemented, but pretend it works if there is nothing
+	 * to unshare.  Note that unsharing the address space or the
+	 * signal handlers also need to unshare the signal queues (aka
+	 * CLONE_THREAD).
 	 */
 	if (unshare_flags & (CLONE_THREAD | CLONE_SIGHAND | CLONE_VM)) {
-		/* FIXME: get_task_mm() increments ->mm_users */
-		if (atomic_read(&current->mm->mm_users) > 1)
+		if (!thread_group_empty(current))
+			return -EINVAL;
+	}
+	if (unshare_flags & (CLONE_SIGHAND | CLONE_VM)) {
+		if (atomic_read(&current->sighand->count) > 1)
+			return -EINVAL;
+	}
+	if (unshare_flags & CLONE_VM) {
+		if (!current_is_single_threaded())
 			return -EINVAL;
 	}
 
@@ -2024,15 +2003,15 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 	if (unshare_flags & CLONE_NEWUSER)
 		unshare_flags |= CLONE_THREAD | CLONE_FS;
 	/*
-	 * If unsharing a thread from a thread group, must also unshare vm.
-	 */
-	if (unshare_flags & CLONE_THREAD)
-		unshare_flags |= CLONE_VM;
-	/*
 	 * If unsharing vm, must also unshare signal handlers.
 	 */
 	if (unshare_flags & CLONE_VM)
 		unshare_flags |= CLONE_SIGHAND;
+	/*
+	 * If unsharing a signal handlers, must also unshare the signal queues.
+	 */
+	if (unshare_flags & CLONE_SIGHAND)
+		unshare_flags |= CLONE_THREAD;
 	/*
 	 * If unsharing namespace, must also unshare filesystem information.
 	 */

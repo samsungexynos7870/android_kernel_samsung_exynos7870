@@ -7082,12 +7082,14 @@ static int sec_pogo_set_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		battery->pogo_status = val->intval;
+		if (factory_mode != 2) {
+			battery->pogo_status = val->intval;
 
-		wake_lock(&battery->cable_wake_lock);
-		queue_delayed_work(battery->monitor_wqueue,
+			wake_lock(&battery->cable_wake_lock);
+			queue_delayed_work(battery->monitor_wqueue,
 				&battery->cable_work, 0);
-		pr_info("%s: pogo_status : %d\n", __func__, battery->pogo_status);
+			pr_info("%s: pogo_status : %d\n", __func__, battery->pogo_status);
+		}
 		break;
 	default:
 		return -EINVAL;

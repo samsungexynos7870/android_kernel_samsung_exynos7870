@@ -120,6 +120,8 @@
 #define FIMC_IS_SETFILE_VER_SIZE		52
 
 #define FIMC_IS_REAR_CAL			"rear_cal_data.bin"
+#define FIMC_IS_REAR2_CAL			"rear2_cal_data.bin"
+#define FIMC_IS_REAR3_CAL			"rear3_cal_data.bin"
 #define FIMC_IS_FRONT_CAL			"front_cal_data.bin"
 #define FIMC_IS_CAL_SDCARD			"/data/cal_data.bin"
 #define FIMC_IS_CAL_RETRY_CNT			(2)

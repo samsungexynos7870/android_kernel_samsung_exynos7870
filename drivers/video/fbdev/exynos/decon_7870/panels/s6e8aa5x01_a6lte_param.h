@@ -68,14 +68,14 @@
 #define LDI_PNDSIE_MASK		(GENMASK(6, 0))
 
 /*
-* ESD_ERROR[6] = VLIN1 error is occurred by ESD = 0x40
-* ESD_ERROR[5] = Internal HSYNC error is occurred by ESD
-* ESD_ERROR[4] = CHECK_SUM error is occurred by ESD
-* ESD_ERROR[3] = ELVDD error is occurred by ESD = 0x08
-* ESD_ERROR[2] = VLIN3 error is occurred by ESD = 0x04
-* ESD_ERROR[1] = HS CLK lane error is occurred by ESD
-* ESD_ERROR[0] = MIPI DSI error is occurred by ESD
-*/
+ * ESD_ERROR[6] = VLIN1 error is occurred by ESD = 0x40
+ * ESD_ERROR[5] = Internal HSYNC error is occurred by ESD
+ * ESD_ERROR[4] = CHECK_SUM error is occurred by ESD
+ * ESD_ERROR[3] = ELVDD error is occurred by ESD = 0x08
+ * ESD_ERROR[2] = VLIN3 error is occurred by ESD = 0x04
+ * ESD_ERROR[1] = HS CLK lane error is occurred by ESD
+ * ESD_ERROR[0] = MIPI DSI error is occurred by ESD
+ */
 #define LDI_REG_ESDERR		0xEE		/* DPUI_KEY_PNELVDE, DPUI_KEY_PNVLI1E, DPUI_KEY_PNVLO3E, DPUI_KEY_PNESDE */
 #define LDI_LEN_ESDERR		1
 #define LDI_PNELVDE_MASK	(BIT(3))	/* ELVDD error */

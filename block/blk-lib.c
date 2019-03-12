@@ -106,6 +106,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio = next_bio(bio, 1, type, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
+		bio->bi_rw = type;
 
 		bio->bi_iter.bi_size = req_sects << 9;
 		nr_sects -= req_sects;

@@ -1,13 +1,10 @@
-/* linux/drivers/video/backlight/dynamic_aid.c
- *
- * Samsung Electronics Dynamic AID for AMOLED.
- *
- * Copyright (c) 2013 Samsung Electronics
+/*
+ * Copyright (c) Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -315,19 +312,19 @@ int dynamic_aid(struct dynamic_aid_param_t param, int **gamma)
 	d_aid.ibr_tbl = (int *)param.ibr_tbl;
 	d_aid.ibr_max = param.ibr_max;
 
-	d_aid.point_voltages = kzalloc(sizeof(struct rgb64_t)*d_aid.iv_max, GFP_KERNEL);
+	d_aid.point_voltages = kcalloc(d_aid.iv_max, sizeof(struct rgb64_t), GFP_KERNEL);
 	if (!d_aid.point_voltages) {
 		pr_err("failed to allocate point_voltages\n");
 		ret = -ENOMEM;
 		goto error1;
 	}
-	d_aid.output_voltages = kzalloc(sizeof(struct rgb64_t)*(d_aid.iv_top+1), GFP_KERNEL);
+	d_aid.output_voltages = kcalloc(d_aid.iv_top + 1, sizeof(struct rgb64_t), GFP_KERNEL);
 	if (!d_aid.output_voltages) {
 		pr_err("failed to allocate output_voltages\n");
 		ret = -ENOMEM;
 		goto error2;
 	}
-	d_aid.m_voltage = kzalloc(sizeof(struct rgb64_t)*d_aid.iv_max, GFP_KERNEL);
+	d_aid.m_voltage = kcalloc(d_aid.iv_max, sizeof(struct rgb64_t), GFP_KERNEL);
 	if (!d_aid.m_voltage) {
 		pr_err("failed to allocate m_voltage\n");
 		ret = -ENOMEM;

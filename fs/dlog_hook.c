@@ -35,6 +35,8 @@ DEFINE_DLOG(dlog_rmdir);
 #define MAX_EXT			(1 << 7)
 #define MAX_DEPTH		2
 
+#define SDFAT_SUPER_MAGIC       (0x5EC5DFA4UL)
+
 struct dlog_keyword {
 	struct hlist_node hlist;
 	const char *keyword;
@@ -47,7 +49,6 @@ struct dlog_keyword_hash_tbl {
 enum {
 	DLOG_HT_EXTENSION = 0,
 	DLOG_HT_EXCEPTION,
-	DLOG_HT_CORE_DIR,
 	DLOG_HT_MAX
 };
 
@@ -82,7 +83,7 @@ static const char *extensions[] = {
 	"m4a", "mid", "midi", "mka", "mp3",
 	"mpga",	"mxmf", "oga", "ogg", "ota",
 	"rtttl", "rtx", "smf", "wav", "wma",
-	"xmf",
+	"xmf", "dcf",
 	/* video */
 	"3g2", "3gp", "3gpp", "3gpp2",
 	"ak3g", "asf", "avi", "divx", "flv",
@@ -107,14 +108,8 @@ static const char *exceptions[] = {
 	"txt", NULL,
 };
 
-static const char *core_dir[] = {
-	"data", "system", "system_ce", "system_de", "0",
-	"misc", "misc_ce", "misc_de", "user", "user_de",
-	NULL,
-};
-
 static const char **dlog_keyword_tbl[DLOG_HT_MAX] = {
-	extensions, exceptions, core_dir
+	extensions, exceptions
 };
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
@@ -157,21 +152,6 @@ bool is_ext(const char *name, const char token, struct dlog_keyword_hash_tbl *ha
 	kfree(ext);
 
 	return ret;
-}
-
-bool is_core_dir(const char *name, struct dlog_keyword_hash_tbl *hash_tbl)
-{
-	struct dlog_keyword *hash_cur;
-	unsigned hash;
-
-	hash = dlog_full_name_hash(name, strlen(name));
-
-	hash_for_each_possible(hash_tbl->table, hash_cur, hlist, hash) {
-		if (!strcmp(name, hash_cur->keyword))
-			return true;
-	}
-
-	return false;
 }
 
 int __init dlog_keyword_hash_init(void)
@@ -228,10 +208,17 @@ static int get_support_part_id(struct vfsmount *mnt)
 	return -1;
 }
 
-static int is_sdcardfs(struct vfsmount *mnt)
+static int is_sdcard(struct vfsmount *mnt)
 {
+	/* internal storage (external storage till Andorid 8.x) */
 	if (mnt->mnt_sb->s_magic == SDCARDFS_SUPER_MAGIC)
 		return true;
+	/* external storage from Android 9.x */
+	else if (mnt->mnt_sb->s_magic == SDFAT_SUPER_MAGIC)
+		return true;
+	else if (mnt->mnt_sb->s_magic == MSDOS_SUPER_MAGIC)
+		return true;
+
 	return false;
 }
 
@@ -248,8 +235,10 @@ static void store_log(struct dentry *dentry, struct inode *inode,
 {
 	kuid_t euid = current->cred->euid;
 	unsigned long ino = inode ? inode->i_ino : 0;
+	loff_t isize = inode ? inode->i_size : 0;
 	char prefix = 0;
 	char *buf, *full_path;
+	char unit = 'B';
 
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (!buf) {
@@ -259,22 +248,26 @@ static void store_log(struct dentry *dentry, struct inode *inode,
 
 	full_path = dentry_path_raw(dentry, buf, PATH_MAX);
 	make_prefix(part_id, &prefix);
+	if (isize >> 10) {
+		isize >>= 10;
+		unit = 'K';
+	}
 
 	if (type == DLOG_MM) {
-		fslog_dlog_mm("[%c]\"%s\" (%u, %lu, %lu)\n", prefix, full_path,
-				euid, path->dentry->d_inode->i_ino, ino);
+		fslog_dlog_mm("[%c]\"%s\" (%u, %lu, %lu, %lld%c)\n", prefix, full_path,
+				euid, path->dentry->d_inode->i_ino, ino, isize, unit);
 		goto out;
 	}
 
 	if (type == DLOG_ETC) {
-		fslog_dlog_etc("[%c]\"%s\" (%u, %lu, %lu)\n", prefix, full_path,
-				euid, path->dentry->d_inode->i_ino, ino);
+		fslog_dlog_etc("[%c]\"%s\" (%u, %lu, %lu, %lld%c)\n", prefix, full_path,
+				euid, path->dentry->d_inode->i_ino, ino, isize, unit);
 		goto out;
 	}
 
 	if (type == DLOG_EFS) {
-		fslog_dlog_efs("\"%s\" (%lu, %lu)\n", full_path,
-				path->dentry->d_inode->i_ino, ino);
+		fslog_dlog_efs("\"%s\" (%lu, %lu, %lld%c)\n", full_path,
+				path->dentry->d_inode->i_ino, ino, isize, unit);
 		goto out;
 	}
 
@@ -289,7 +282,7 @@ void dlog_hook(struct dentry *dentry, struct inode *inode, struct path *path)
 {
 	int part_id = get_support_part_id(path->mnt);
 
-	if ((part_id < 0) && !is_sdcardfs(path->mnt))
+	if ((part_id < 0) && !is_sdcard(path->mnt))
 		return;
 
 	/* for efs partition */
@@ -342,8 +335,7 @@ void dlog_hook_rmdir(struct dentry *dentry, struct path *path)
 	if (depth < 0)
 		return;
 
-	if (is_core_dir(dentry->d_name.name, &ht[DLOG_HT_CORE_DIR]))
-		store_log(dentry, NULL, path, DLOG_RMDIR, part_id);
+	store_log(dentry, NULL, path, DLOG_RMDIR, part_id);
 
 	return;
 }

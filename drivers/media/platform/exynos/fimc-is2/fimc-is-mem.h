@@ -119,6 +119,8 @@ struct fimc_is_minfo {
 	struct fimc_is_priv_buf *pb_setfile;
 	struct fimc_is_priv_buf *pb_rear_cal;
 	struct fimc_is_priv_buf *pb_front_cal;
+	struct fimc_is_priv_buf *pb_rear2_cal;
+	struct fimc_is_priv_buf *pb_rear3_cal;
 	struct fimc_is_priv_buf *pb_debug;
 	struct fimc_is_priv_buf *pb_fshared;
 	struct fimc_is_priv_buf *pb_dregion;
@@ -155,6 +157,8 @@ struct fimc_is_minfo {
 	ulong		kvaddr_setfile;
 	ulong		kvaddr_rear_cal;
 	ulong		kvaddr_front_cal;
+	ulong		kvaddr_rear2_cal;
+	ulong		kvaddr_rear3_cal;
 };
 
 int fimc_is_mem_init(struct fimc_is_mem *mem, struct platform_device *pdev);
