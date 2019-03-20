@@ -353,6 +353,7 @@ static int debug_seq_printf(struct seq_file *m, const char *f, ...)
 	va_start(args, f);
 	seq_vprintf(m, f, args);
 	va_end(args);
+	return 0;
 }
 #endif
 
