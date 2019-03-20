@@ -108,7 +108,7 @@ static void flip_cover_work(struct work_struct *work)
 
 	if(first == second) {
 		flip_cover = first;
-		input_report_switch(ddata->input, SW_FLIP, flip_cover);
+		input_report_switch(ddata->input, SW_LID, !flip_cover);
 		input_sync(ddata->input);
 #if defined(CONFIG_HALL_NOTIFIER)
 		if(flip_cover == HALL_OPEN)
@@ -131,7 +131,7 @@ static void flip_cover_work(struct work_struct *work)
 	printk("[keys] %s flip_status : %d (%s)\n", __func__, first, first?"open":"close");
 
 	flip_cover = first;
-	input_report_switch(ddata->input, SW_FLIP, flip_cover);
+	input_report_switch(ddata->input, SW_LID, !flip_cover);
 	input_sync(ddata->input);
 #if defined(CONFIG_HALL_NOTIFIER)
 	if(flip_cover == HALL_OPEN)
@@ -299,7 +299,7 @@ static int hall_probe(struct platform_device *pdev)
 	input->dev.parent = &pdev->dev;
 
 	input->evbit[0] |= BIT_MASK(EV_SW);
-	input_set_capability(input, EV_SW, SW_FLIP);
+	input_set_capability(input, EV_SW, SW_LID);
 
 	input->open = hall_open;
 	input->close = hall_close;
