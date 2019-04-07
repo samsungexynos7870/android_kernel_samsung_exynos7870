@@ -38,6 +38,8 @@
 #define PREFIX ""
 #endif
 
+#define WLAN_ANT_INFO_FILE "wlan/qca_cld/ant.info" 
+
 #ifdef MSM_PLATFORM
 #define WLAN_INI_FILE              "wlan/qca_cld/" PREFIX "WCNSS_qcom_cfg.ini"
 #define WLAN_CFG_FILE              "wlan/qca_cld/" PREFIX "WCNSS_cfg.dat"

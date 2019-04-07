@@ -6,10 +6,8 @@ else
 	KERNEL_BUILD := 0
 endif
 
-ifeq ($(CONFIG_CLD_HL_SDIO_CORE), y)
-	CONFIG_QCA_WIFI_SDIO := 1
-	CONFIG_ROME_IF = sdio
-endif
+CONFIG_QCA_WIFI_SDIO := 1
+CONFIG_ROME_IF = sdio
 
 ifndef CONFIG_ROME_IF
 	CONFIG_ROME_IF = pci
@@ -19,7 +17,7 @@ ifeq ($(KERNEL_BUILD),1)
 	# These are provided in external module based builds
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
-	WLAN_ROOT := drivers/net/wireless/qcacld-2.0
+	WLAN_ROOT := drivers/staging/qcacld-2.0
 	WLAN_OPEN_SOURCE := 1
 endif
 
