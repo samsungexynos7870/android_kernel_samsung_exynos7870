@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -113,13 +113,7 @@ typedef enum {
     WMI_SERVICE_BATCH_SCAN = 44,          /*Service to support batch scan*/
     WMI_SERVICE_QPOWER = 45,              /* QPower service */
     WMI_SERVICE_PLMREQ = 46,
-    WMI_SERVICE_THERMAL_MGMT = 47,        /* thermal throttling support,
-                                           * compared with
-                                           * WMI_SERVICE_THERM_THROT,
-                                           * this service only reports
-                                           * current temperature to host,
-                                           * and host will do the thermal
-                                           * throttling. */
+    WMI_SERVICE_THERMAL_MGMT = 47,        /* thermal throttling support */
     WMI_SERVICE_RMC = 48,                 /* RMC support */
     /* multi-hop forwarding offload */
     WMI_SERVICE_MHF_OFFLOAD = 49,
@@ -294,6 +288,8 @@ typedef enum {
     WMI_SERVICE_ACK_TIMEOUT=126, /* Support TX ack timeout configurations */
     WMI_SERVICE_PDEV_BSS_CHANNEL_INFO_64 = 127, /* BSS channel info (freq, noise floor, rx clear, cycles 64-bit counters) event support */
 
+    /***** ADD NEW SERVICES HERE UNTIL ALL VALUES UP TO 128 ARE USED *****/
+
     WMI_MAX_SERVICE = 128, /* max service */
 
     /**
@@ -307,61 +303,8 @@ typedef enum {
      * WMI_SERVICE_READY_EVENT message.
      */
 
-    WMI_SERVICE_CHAN_LOAD_INFO=128, /* The values in WMI_CHAN_INFO_EVENTID is the difference in cycle counters */
-    WMI_SERVICE_TX_PPDU_INFO_STATS_SUPPORT=129, /* support to report tx ppdu info stats via htt events */
-    WMI_SERVICE_VDEV_LIMIT_OFFCHAN_SUPPORT=130, /* support to report the offchannel duration limiting capability on connected interface */
-    WMI_SERVICE_FILS_SUPPORT=131, /* support for FILS */
-    WMI_SERVICE_WLAN_OIC_PING_OFFLOAD=132, /* Support for wlan OIC ping service */
-    WMI_SERVICE_WLAN_DHCP_RENEW=133, /* Support for wlan DHCP Renew service */
-    WMI_SERVICE_MAWC_SUPPORT = 134, /* Support for MAWC service */
-    WMI_SERVICE_VDEV_LATENCY_CONFIG=135, /* support for vdev latency config */
-    WMI_SERVICE_PDEV_UPDATE_CTLTABLE_SUPPORT=136, /* support for pdev update ctl table */
-    WMI_SERVICE_PKTLOG_SUPPORT_OVER_HTT=137, /* upload pktlog data over HTT communication channel */
-    WMI_SERVICE_VDEV_MULTI_GROUP_KEY_SUPPORT=138, /* Support for vdev level multi group key */
-    WMI_SERVICE_SCAN_PHYMODE_SUPPORT=139, /* Support for phymode also with channel in offchan WMI_START_SCAN_CMDID */
-    WMI_SERVICE_THERM_THROT = 140, /* Support thermal cfg and indication on AP.
-                                    * Compared with WMI_SERVICE_THERMAL_MGMT,
-                                    * this service is to allow thermal tool to
-                                    * configure thermal throttling threshold
-                                    * for different levels and pass down duty
-                                    * cycle value. FW will also report thermal
-                                    * throttling status to host through this
-                                    * service. */
-    WMI_SERVICE_BCN_OFFLOAD_START_STOP_SUPPORT=141, /* support dynamically enabling / disabling beacon tx offload */
-    WMI_SERVICE_WOW_WAKEUP_BY_TIMER_PATTERN=142, /* fw to support waking up host from wow pattern timer */
-    WMI_SERVICE_PEER_MAP_UNMAP_V2_SUPPORT=143, /* Support for HTT peer map/unmap V2 */
-    WMI_SERVICE_OFFCHAN_DATA_TID_SUPPORT=144, /* Support new tid for offchan data/mgmt tx over wmi */
-    WMI_SERVICE_RX_PROMISC_ENABLE_SUPPORT=145, /* Support enabling/disabling rx promiscuous mode as directed by a WMI message from the host */
-    WMI_SERVICE_SUPPORT_DIRECT_DMA=146, /* indicates target supports direct DMA,
-                                         * host will rely on WMI_DMA_RING_CAPABILITIES to get supported modules */
-    WMI_SERVICE_AP_OBSS_DETECTION_OFFLOAD=147, /* Support SAP mode OBSS detection offload */
-    WMI_SERVICE_11K_NEIGHBOUR_REPORT_SUPPORT=148, /* Support for 11k neighbor report */
-    WMI_SERVICE_LISTEN_INTERVAL_OFFLOAD_SUPPORT=149, /* Support listen interval offload */
-    WMI_SERVICE_BSS_COLOR_OFFLOAD=150, /* Support BSS color change for STA, OBSS color collision detection in FW for AP and STA */
-    WMI_SERVICE_RUNTIME_DPD_RECAL=151, /* Runtime DPD recalibration support */
-    WMI_SERVICE_STA_TWT=152, /* support for TWT (Target Wake Time) of STA */
-    WMI_SERVICE_AP_TWT=153, /* support for TWT (Target Wake Time) on AP */
-    WMI_SERVICE_GMAC_OFFLOAD_SUPPORT=154, /* Support for GMAC */
-    WMI_SERVICE_SPOOF_MAC_SUPPORT=155,  /* support for SERVICE_SPOOF_MAC */
-    WMI_SERVICE_PEER_TID_CONFIGS_SUPPORT=156,  /* Support TID specific configurations per peer (ack,aggr,retry,rate) */
-    WMI_SERVICE_VDEV_SWRETRY_PER_AC_CONFIG_SUPPORT=157,  /* Support vdev software retries configuration per AC (non aggr retry/aggr retry) */
-    WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_SCC_SUPPORT=158, /* Support dual beacon on same channel on single MAC */
-    WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_MCC_SUPPORT=159, /* Support dual beacon on different channel on single MAC */
-    WMI_SERVICE_MOTION_DET=160, /* support for motion detection config */
-    WMI_SERVICE_INFRA_MBSSID=161, /* support infra multi-BSSID feature */
-    WMI_SERVICE_OBSS_SPATIAL_REUSE=162, /* support spatial reuse feature */
-    WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT=163, /* Support different beacon intervals on different VDEVs */
-    WMI_SERVICE_NAN_DBS_SUPPORT=164, /* Support DBS for NAN discovery interface */
-    WMI_SERVICE_NDI_DBS_SUPPORT=165, /* Support DBS for NAN data interface */
-    WMI_SERVICE_NAN_SAP_SUPPORT=166, /* Support SAP Concurrency for NAN Discovery interface */
-    WMI_SERVICE_NDI_SAP_SUPPORT=167, /* Support SAP Concurrency for NAN Data interface */
-    WMI_SERVICE_CFR_CAPTURE_SUPPORT=168, /* Support to capture uncompressed Channel Frequency Response (CFR) */
-    WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_1=169, /* Message type HTT_PEER_CFR_CAPTURE_MSG_TYPE_1 in HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND */
-    WMI_SERVICE_ESP_SUPPORT=170, /* Support for Estimated Service Params IE */
-    WMI_SERVICE_PEER_CHWIDTH_CHANGE = 171, /* Support for host to update/re-intersect the node capability */
-    WMI_SERVICE_WLAN_HPCS_PULSE=172, /* Support for High Precision Clock Synchronization feature */
-
-    /******* ADD NEW SERVICES HERE *******/
+    /*PUT 1ST EXT SERVICE HERE:*//*WMI_SERVICE_xxxxxxxx=128,*/
+    /*PUT 2ND EXT SERVICE HERE:*//*WMI_SERVICE_yyyyyyyy=129,*/
 
     WMI_MAX_EXT_SERVICE
 
@@ -422,8 +365,8 @@ typedef enum {
         (svc_id) < WMI_MAX_SERVICE ? \
             WMI_SERVICE_IS_ENABLED(pwmi_svc_bmap, svc_id) : \
             /* If service ID is in the extended range, check ext_bmap */ \
-            (((pwmi_svc_ext_bmap)[((svc_id) - WMI_MAX_SERVICE) / 32] >> \
-                ((svc_id) & 0x1f)) & 0x1))
+            (pwmi_svc_ext_bmap)[((svc_id) - WMI_MAX_SERVICE) / 32] >> \
+                ((svc_id) & 0x1f))
 
 
 #ifdef __cplusplus

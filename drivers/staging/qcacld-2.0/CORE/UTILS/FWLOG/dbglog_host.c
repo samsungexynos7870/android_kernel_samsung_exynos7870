@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -49,7 +49,6 @@
 #ifdef WLAN_OPEN_SOURCE
 #include <linux/debugfs.h>
 #endif /* WLAN_OPEN_SOURCE */
-#include <linux/relay.h>
 #include "wmi_unified_priv.h"
 
 #ifdef MULTI_IF_NAME
@@ -58,8 +57,6 @@
 #define CLD_DEBUGFS_DIR          "cld"
 #endif
 #define DEBUGFS_BLOCK_NAME       "dbglog_block"
-
-#define CFR_DEBUGFS_CAPT          "cfr_capture"
 
 #define ATH_MODULE_NAME fwlog
 #include <a_debug.h>
@@ -1895,7 +1892,7 @@ dbglog_print_raw_data(A_UINT32 *buffer, A_UINT32 length)
     char parseArgsString[DBGLOG_PARSE_ARGS_STRING_LENGTH];
     char *dbgidString;
 
-    while (count + 1 < length) {
+    while (count < length) {
 
         debugid = DBGLOG_GET_DBGID(buffer[count + 1]);
         moduleid = DBGLOG_GET_MODULEID(buffer[count + 1]);
@@ -1907,16 +1904,12 @@ dbglog_print_raw_data(A_UINT32 *buffer, A_UINT32 length)
             OS_MEMZERO(parseArgsString, sizeof(parseArgsString));
             totalWriteLen = 0;
 
-            if (!numargs || (count + numargs + 2 > length))
-                goto skip_args_processing;
-
             for (curArgs = 0; curArgs < numargs; curArgs++){
                 // Using sprintf_s instead of sprintf, to avoid length overflow
                 writeLen = snprintf(parseArgsString + totalWriteLen, DBGLOG_PARSE_ARGS_STRING_LENGTH - totalWriteLen, "%x ", buffer[count + 2 + curArgs]);
                 totalWriteLen += writeLen;
             }
 
-skip_args_processing:
             if (debugid < MAX_DBG_MSGS){
                 dbgidString = DBG_MSG_ARR[moduleid][debugid];
                 if (dbgidString != NULL) {
@@ -2126,9 +2119,6 @@ send_diag_netlink_data(const u_int8_t *buffer, A_UINT32 len, A_UINT32 cmd)
         slot->dropped = get_version;
         memcpy(slot->payload, buffer, len);
 
-        /* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
-        memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
-
         res = nl_srv_bcast_fw_logs(skb_out);
         if ((res < 0) && (res != -ESRCH)) {
             AR_DEBUG_PRINTF(ATH_DEBUG_RSVD1,
@@ -2190,9 +2180,6 @@ dbglog_process_netlink_data(wmi_unified_t wmi_handle, const u_int8_t *buffer,
         slot->length = cpu_to_le32(len);
         slot->dropped = cpu_to_le32(dropped);
         memcpy(slot->payload, buffer, len);
-
-        /* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
-        memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
 
         res = nl_srv_bcast_fw_logs(skb_out);
         if ((res < 0) && (res != -ESRCH))
@@ -2313,22 +2300,19 @@ diag_fw_handler(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
 static int
 process_fw_diag_event_data(uint8_t *datap, uint32_t num_data)
 {
+	uint32_t i;
 	uint32_t diag_type;
 	uint32_t nl_data_len; /* diag hdr + payload */
 	uint32_t diag_data_len; /* each fw diag payload */
 	struct wlan_diag_data *diag_data;
 
-	while (num_data > 0) {
+	for (i = 0; i < num_data; i++) {
 		diag_data = (struct wlan_diag_data *)datap;
 		diag_type = WLAN_DIAG_0_TYPE_GET(diag_data->word0);
 		diag_data_len = WLAN_DIAG_0_LEN_GET(diag_data->word0);
 		/* Length of diag struct and len of payload */
 		nl_data_len = sizeof(struct wlan_diag_data) + diag_data_len;
-		if (nl_data_len > num_data) {
-			AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-					("processed all the messages\n"));
-			return 0;
-		}
+
 		switch (diag_type) {
 		case DIAG_TYPE_FW_EVENT:
 			return send_fw_diag_nl_data(datap, nl_data_len,
@@ -2341,7 +2325,6 @@ process_fw_diag_event_data(uint8_t *datap, uint32_t num_data)
 		}
 		/* Move to the next event and send to cnss-diag */
 		datap += nl_data_len;
-		num_data -= nl_data_len;
 	}
 
 	return 0;
@@ -2409,11 +2392,6 @@ dbglog_parse_debug_logs(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
 
         datap = param_buf->bufp;
         len = param_buf->num_bufp;
-    }
-
-    if (len < sizeof(dropped)) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid length\n"));
-        return -1;
     }
 
     dropped = *((A_UINT32 *)datap);
@@ -4713,312 +4691,3 @@ dbglog_deinit(wmi_unified_t wmi_handle)
     kd_nl_init = FALSE;
     return res;
 }
-
-#ifdef WLAN_OPEN_SOURCE
-static ssize_t wlan_cfr_dbg_read_cfr_capture(struct file *file,
-                                             char __user *user_buf,
-                                             size_t count, loff_t *ppos)
-{
-    struct ol_txrx_peer_t *peer = file->private_data;
-    tp_wma_handle wma = (tp_wma_handle)peer->cfr_capture.priv;
-    char buf[512];
-    int len = 0;
-
-    mutex_lock(&wma->cfr_conf_mutex);
-    len = scnprintf(buf, sizeof(buf) - len, "cfr_status: %s\n"
-                    "cfr_bandwidth: %dMHz\ncfr_period: %d ms\ncfr_method: %d\n",
-                    (peer->cfr_capture.cfr_enable) ? "enabled" :
-                    "disabled", (peer->cfr_capture.cfr_bandwidth == 0) ?
-                    20 : (peer->cfr_capture.cfr_bandwidth == 1) ?
-                    40 : 80, peer->cfr_capture.cfr_period,
-                    peer->cfr_capture.cfr_method);
-    mutex_unlock(&wma->cfr_conf_mutex);
-
-    return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-extern int wmi_peer_set_cfr_capture_conf(tp_wma_handle wma, struct wmi_peer_cfr_capture_conf *arg);
-
-static ssize_t wlan_cfr_dbg_write_cfr_capture(struct file *file,
-                                              const char __user *user_buf,
-                                              size_t count, loff_t *ppos)
-{
-    struct ol_txrx_peer_t *peer = file->private_data;
-    tp_wma_handle wma = (tp_wma_handle)peer->cfr_capture.priv;
-    struct wmi_peer_cfr_capture_conf param = {0};
-    u32 per_peer_cfr_status = 0, per_peer_cfr_bw  = 0;
-    u32 per_peer_cfr_method = 0, per_peer_cfr_period = 0;
-    int ret = 0;
-    char buf[64] = {0};
-
-    simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-
-    mutex_lock(&wma->cfr_conf_mutex);
-
-    ret = sscanf(buf, "%u %u %u %u", &per_peer_cfr_status, &per_peer_cfr_bw,
-                 &per_peer_cfr_period, &per_peer_cfr_method);
-
-    if (ret < 1) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    if (per_peer_cfr_status && ret != 4) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    if (per_peer_cfr_status == peer->cfr_capture.cfr_enable &&
-        per_peer_cfr_period == peer->cfr_capture.cfr_period &&
-        per_peer_cfr_bw == peer->cfr_capture.cfr_bandwidth &&
-        per_peer_cfr_method == peer->cfr_capture.cfr_method) {
-        if (per_peer_cfr_period) {
-            ret = count;
-            goto out;
-        }
-    }
-
-    if (per_peer_cfr_status > WMI_PEER_CFR_CAPTURE_ENABLE ||
-        per_peer_cfr_status < WMI_PEER_CFR_CAPTURE_DISABLE ||
-        per_peer_cfr_bw >= WMI_PEER_CFR_CAPTURE_BW_MAX  ||
-        per_peer_cfr_bw < WMI_PEER_CFR_CAPTURE_BW_20MHZ ||
-        per_peer_cfr_method < WMI_PEER_CFR_CAPTURE_METHOD_NULL_FRAME ||
-        per_peer_cfr_method >= WMI_PEER_CFR_CAPTURE_METHOD_MAX) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    /*TODO: Need rework when base time is configurable*/
-    if (per_peer_cfr_period &&
-        (per_peer_cfr_period < WMI_PEER_CFR_PERIODICITY_MIN ||
-        per_peer_cfr_period > WMI_PEER_CFR_PERIODICITY_MAX)) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    /*TODO:Need correction for 80+80 MHz*/
-    if (per_peer_cfr_period % 10) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    if (!per_peer_cfr_status) {
-        per_peer_cfr_bw     = peer->cfr_capture.cfr_bandwidth;
-        per_peer_cfr_period = peer->cfr_capture.cfr_period;
-        per_peer_cfr_method = peer->cfr_capture.cfr_method;
-    }
-
-    param.vdev_id        = peer->vdev->vdev_id;
-    param.request        = per_peer_cfr_status;
-    param.periodicity    = per_peer_cfr_period;
-    param.bandwidth      = per_peer_cfr_bw;
-    param.capture_method = per_peer_cfr_method;
-    memcpy(&param.peer_macaddr, &peer->mac_addr.align4, 6);
-
-    ret = wmi_peer_set_cfr_capture_conf(wma, &param);
-    if (ret) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("failed to send cfr capture info\n"));
-        goto out;
-    }
-
-    ret = count;
-out:
-    mutex_unlock(&wma->cfr_conf_mutex);
-    return ret;
-}
-
-static const struct file_operations fops_cfr_capture = {
-    .read = wlan_cfr_dbg_read_cfr_capture,
-    .write = wlan_cfr_dbg_write_cfr_capture,
-    .open = simple_open,
-    .owner = THIS_MODULE,
-    .llseek = default_llseek,
-};
-
-extern int wmi_peer_periodic_cfr_enable(tp_wma_handle wma, u8 cfr_enable);
-
-static ssize_t wlan_peer_write_cfr_enable(struct file *file,
-                                          const char __user *user_buf,
-                                          size_t count, loff_t *ppos)
-{
-    tp_wma_handle wma = file->private_data;
-    wmi_unified_t wmi_handle = wma->wmi_handle;
-    u8 cfr_enable;
-    int ret;
-
-    if (kstrtou8_from_user(user_buf, count, 0, &cfr_enable))
-        return -EINVAL;
-
-    if (cfr_enable > 1 || cfr_enable < 0) {
-        ret = -EINVAL;
-        goto exit;
-    }
-
-    if (wmi_handle->cfr_enable == cfr_enable) {
-        ret = count;
-        goto exit;
-    }
-
-    wmi_handle->cfr_enable = cfr_enable;
-
-    ret = wmi_peer_periodic_cfr_enable(wma, cfr_enable);
-    if (ret) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("CFR capture enable failed from debugfs: %d\n",ret));
-        goto exit;
-    }
-
-    ret = count;
-exit:
-    return ret;
-}
-
-static ssize_t wlan_peer_read_cfr_enable(struct file *file, char __user *user_buf,
-                                         size_t count, loff_t *ppos)
-{
-    tp_wma_handle wma = file->private_data;
-    wmi_unified_t wmi_handle = wma->wmi_handle;
-    int len = 0;
-    char buf[32];
-
-    len = scnprintf(buf, sizeof(buf) - len, "%d\n",
-                    wmi_handle->cfr_enable);
-
-    return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static const struct file_operations fops_cfr_enable = {
-    .read = wlan_peer_read_cfr_enable,
-    .write = wlan_peer_write_cfr_enable,
-    .open = simple_open,
-    .owner = THIS_MODULE,
-    .llseek = default_llseek
-};
-
-bool create_periodic_cfr_enable_onetime;
-
-int destroy_peer_cfr_debug_entry(tp_wma_handle wma, void *buf)
-{
-    struct ol_txrx_peer_t *peer = (struct ol_txrx_peer_t *)buf;
-    wmi_unified_t wmi_handle = wma->wmi_handle;
-
-    if (!wmi_handle->debugfs_phy)
-        return -1;
-
-    if (peer->cfr_peer_mac)
-         debugfs_remove_recursive(peer->cfr_peer_mac);
-
-    return 0;
-}
-
-int create_peer_cfr_debug_entry(tp_wma_handle wma, void *buf)
-{
-    char macdir[18];
-    struct ol_txrx_peer_t *peer = (struct ol_txrx_peer_t *)buf;
-    wmi_unified_t wmi_handle = wma->wmi_handle;
-
-    if (!wmi_handle->debugfs_phy)
-         return -1;
-
-    if (!create_periodic_cfr_enable_onetime) {
-        debugfs_create_file("periodic_cfr_enable", 0600, wmi_handle->debugfs_phy,
-                             wma, &fops_cfr_enable);
-
-        wmi_handle->cfr_stations = debugfs_create_dir("stations", wmi_handle->debugfs_phy);
-        if(!wmi_handle->cfr_stations)
-            return -ENOMEM;
-
-        create_periodic_cfr_enable_onetime = TRUE;
-    }
-
-    sprintf(&macdir[0], "%02x" , peer->mac_addr.raw[0]);
-    macdir[2] = ':';
-    sprintf(&macdir[3], "%02x" , peer->mac_addr.raw[1]);
-    macdir[5] = ':';
-    sprintf(&macdir[6], "%02x" , peer->mac_addr.raw[2]);
-    macdir[8] = ':';
-    sprintf(&macdir[9], "%02x" , peer->mac_addr.raw[3]);
-    macdir[11]= ':';
-    sprintf(&macdir[12], "%02x" ,peer->mac_addr.raw[4]);
-    macdir[14] = ':';
-    sprintf(&macdir[15], "%02x" ,peer->mac_addr.raw[5]);
-    macdir[17] = '\0';
-
-    peer->cfr_peer_mac = debugfs_create_dir(macdir, wmi_handle->cfr_stations);
-    if (!peer->cfr_peer_mac)
-        return -ENOMEM;
-
-    peer->cfr_capture.priv = (void*)wma;
-    debugfs_create_file(CFR_DEBUGFS_CAPT, 0644 , peer->cfr_peer_mac,
-                        peer, &fops_cfr_capture);
-
-    AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("DEBUGFS PEER MAC = 0x%x:0x%x:0x%x:0x%x:0x%x:0x%x",
-                                      peer->mac_addr.raw[0], peer->mac_addr.raw[1],
-                                      peer->mac_addr.raw[2], peer->mac_addr.raw[3],
-                                      peer->mac_addr.raw[4], peer->mac_addr.raw[5]));
-
-    mutex_init(&wma->cfr_conf_mutex);
-    return TRUE;
-}
-
-struct rchan *rfs_cfr_capture;
-
-void cfr_finalalize_relay(void)
-{
-    if (!rfs_cfr_capture)
-        return;
-    relay_flush(rfs_cfr_capture);
-}
-
-void cfr_dump_to_rfs(const void *buf, const int length)
-{
-    if (!rfs_cfr_capture)
-        return;
-
-    relay_write(rfs_cfr_capture, buf, length);
-}
-
-static struct dentry *create_buf_file_handler(const char *filename,
-                                              struct dentry *parent,
-                                              umode_t mode,
-                                              struct rchan_buf *buf,
-                                              int *is_global)
-{
-    struct dentry *buf_file;
-    buf_file = debugfs_create_file(filename, mode, parent, buf,
-                                   &relay_file_operations);
-    *is_global = 1;
-    return buf_file;
-}
-
-static int remove_buf_file_handler(struct dentry *dentry)
-{
-    debugfs_remove(dentry);
-    return 0;
-}
-
-static struct rchan_callbacks rfs_cfr_capture_cb = {
-    .create_buf_file = create_buf_file_handler,
-    .remove_buf_file = remove_buf_file_handler,
-};
-
-int cfr_capture_init(wmi_unified_t wmi_handle)
-{
-    if (!wmi_handle->debugfs_phy)
-         return -1;
-
-    rfs_cfr_capture = relay_open("cfr_dump", wmi_handle->debugfs_phy,
-                                  1100, 2000, &rfs_cfr_capture_cb, NULL);
-    if (!rfs_cfr_capture)
-        return -1;
-
-    return 0;
-}
-
-void cfr_capture_deinit(void)
-{
-    if (rfs_cfr_capture) {
-        relay_close(rfs_cfr_capture);
-        rfs_cfr_capture = NULL;
-    }
-}
-#endif /* WLAN_OPEN_SOURCE */

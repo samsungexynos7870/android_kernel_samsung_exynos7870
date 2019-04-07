@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -548,7 +548,6 @@ typedef struct tagCsrConfig
     tANI_U32 bgScanInterval;
     eCsrCBChoice cbChoice;
     eCsrBand bandCapability;     //indicate hw capability
-    tANI_U8 gStaLocalEDCAEnable;
     eCsrRoamWmmUserModeType WMMSupportMode;
     tANI_BOOLEAN Is11eSupportEnabled;
     tANI_BOOLEAN Is11dSupportEnabled;
@@ -694,9 +693,6 @@ typedef struct tagCsrConfig
     tANI_U8 isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
     tANI_U8 cc_switch_mode;
-    bool    band_switch_enable;
-    bool    ap_p2pgo_concurrency_enable;
-    bool    ap_p2pclient_concur_enable;
 #endif
     tANI_U8 allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -714,14 +710,6 @@ typedef struct tagCsrConfig
     bool enable_fatal_event;
     uint32_t tx_aggregation_size;
     uint32_t rx_aggregation_size;
-    uint32_t tx_aggr_sw_retry_threshhold_be;
-    uint32_t tx_aggr_sw_retry_threshhold_bk;
-    uint32_t tx_aggr_sw_retry_threshhold_vi;
-    uint32_t tx_aggr_sw_retry_threshhold_vo;
-    uint32_t tx_non_aggr_sw_retry_threshhold_be;
-    uint32_t tx_non_aggr_sw_retry_threshhold_bk;
-    uint32_t tx_non_aggr_sw_retry_threshhold_vi;
-    uint32_t tx_non_aggr_sw_retry_threshhold_vo;
     bool enable_edca_params;
     uint32_t edca_vo_cwmin;
     uint32_t edca_vi_cwmin;
@@ -737,7 +725,6 @@ typedef struct tagCsrConfig
     uint32_t edca_be_aifs;
     bool vendor_vht_for_24ghz_sap;
     struct csr_sta_roam_policy_params sta_roam_policy;
-    bool enable_bcast_probe_rsp;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
@@ -1132,7 +1119,6 @@ typedef struct tagCsrRoamStruct
 #endif
     vos_timer_t packetdump_timer;
     tANI_BOOLEAN pending_roam_disable;
-    vos_spin_lock_t roam_state_lock;
 }tCsrRoamStruct;
 
 

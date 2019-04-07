@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -6364,19 +6364,14 @@ eHalStatus csrNeighborRoamHandoffReqHdlr(tpAniSirGlobal pMac, void* pMsg)
                              pHandoffReqInfo->bssid,
                              6);
                 pNeighborRoamInfo->uOsRequestedHandoff = 1;
-                if (pNeighborRoamInfo->lastSentCmd != ROAM_SCAN_OFFLOAD_STOP)
+                status = csrRoamOffloadScan(pMac, sessionId,
+                                            ROAM_SCAN_OFFLOAD_STOP,
+                                            REASON_OS_REQUESTED_ROAMING_NOW);
+                if (eHAL_STATUS_SUCCESS != status)
                 {
-                    status = csrRoamOffloadScan(pMac, sessionId,
-                                                ROAM_SCAN_OFFLOAD_STOP,
-                                                REASON_OS_REQUESTED_ROAMING_NOW);
-                    if (eHAL_STATUS_SUCCESS != status)
-                    {
-                        smsLog(pMac, LOGE, FL("csrRoamOffloadScan failed"));
-                        pNeighborRoamInfo->uOsRequestedHandoff = 0;
-                    }
+                    smsLog(pMac, LOGE, FL("csrRoamOffloadScan failed"));
+                    pNeighborRoamInfo->uOsRequestedHandoff = 0;
                 }
-                else
-                    csrNeighborRoamProceedWithHandoffReq(pMac, sessionId);
             }
             else
             {

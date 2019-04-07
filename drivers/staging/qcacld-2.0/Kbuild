@@ -6,8 +6,10 @@ else
 	KERNEL_BUILD := 0
 endif
 
-CONFIG_QCA_WIFI_SDIO := 1
-CONFIG_ROME_IF = sdio
+ifeq ($(CONFIG_CLD_HL_SDIO_CORE), y)
+	CONFIG_QCA_WIFI_SDIO := 1
+	CONFIG_ROME_IF = sdio
+endif
 
 ifndef CONFIG_ROME_IF
 	CONFIG_ROME_IF = pci
@@ -17,7 +19,7 @@ ifeq ($(KERNEL_BUILD),1)
 	# These are provided in external module based builds
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
-	WLAN_ROOT := drivers/staging/qcacld-2.0
+	WLAN_ROOT := drivers/net/wireless/qcacld-2.0
 	WLAN_OPEN_SOURCE := 1
 endif
 
@@ -49,13 +51,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	ifeq ($(CONFIG_ARCH_MSM8917), y)
 		ifeq ($(CONFIG_ROME_IF), sdio)
 			CONFIG_WLAN_SYNC_TSF_PLUS := y
-		endif
-	endif
-
-	ifeq ($(CONFIG_ARCH_MSM8909), y)
-		ifeq ($(CONFIG_ROME_IF), sdio)
-			CONFIG_WLAN_SYNC_TSF_PLUS := y
-			CONFIG_FEATURE_COEX_PTA_CONFIG_ENABLE := y
 		endif
 	endif
 
@@ -190,7 +185,7 @@ endif
 # Feature flags which are not (currently) configurable via Kconfig
 
 #Whether to build debug version
-BUILD_DEBUG_VERSION := 0
+BUILD_DEBUG_VERSION := 1
 
 #Enable this flag to build driver in diag version
 BUILD_DIAG_VERSION := 1
@@ -345,12 +340,6 @@ CONFIG_FEATURE_STATS_EXT := 1
 #for these channels has not yet been added to the kernel.
 CONFIG_STATICALLY_ADD_11P_CHANNELS := n
 
-#Enable thermal shutdown
-CONFIG_WLAN_THERMAL_SHUTDOWN := 0
-
-#Enable the Disable Channel Switch
-CONFIG_WLAN_DISABLE_CHANNEL_SWITCH := 1
-
 ifeq ($(CONFIG_CFG80211),y)
 HAVE_CFG80211 := 1
 else
@@ -444,7 +433,6 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_main.o \
 		$(HDD_SRC_DIR)/wlan_hdd_memdump.o \
 		$(HDD_SRC_DIR)/wlan_hdd_oemdata.o \
-		$(HDD_SRC_DIR)/wlan_hdd_request_manager.o \
 		$(HDD_SRC_DIR)/wlan_hdd_scan.o \
 		$(HDD_SRC_DIR)/wlan_hdd_softap_tx_rx.o \
 		$(HDD_SRC_DIR)/wlan_hdd_tx_rx.o \
@@ -1006,8 +994,6 @@ endif
 
 EXTRA_CFLAGS += $(INCS)
 
-EXTRA_CFLAGS += -Wno-unused-function -Wno-unused-variable
-
 CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DANI_LITTLE_BIT_ENDIAN \
 		-DQC_WLAN_CHIPSET_QCA_CLD \
@@ -1068,11 +1054,6 @@ ifeq ($(CONFIG_FEATURE_COEX_PTA_CONFIG_ENABLE), y)
 CDEFINES += -DFEATURE_COEX_PTA_CONFIG_ENABLE
 endif
 
-ifeq ($(CONFIG_QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK), y)
-CDEFINES += -DQCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
-CDEFINES += -DFEATURE_BUS_BANDWIDTH
-endif
-
 ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
 CDEFINES += -DWLAN_FEATURE_FILS_SK
 endif
@@ -1085,8 +1066,7 @@ ifeq ($(CONFIG_QCA_WIFI_AUTOMOTIVE_CONC), y)
 CDEFINES +=     -DWLAN_FEATURE_MBSSID \
 		-DFEATURE_WLAN_MCC_TO_SCC_SWITCH \
 		-DFEATURE_WLAN_CH_AVOID \
-		-DFEATURE_WLAN_STA_AP_MODE_DFS_DISABLE \
-		-DWLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+		-DFEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
 endif
 
 ifeq ($(CONFIG_QCA_WIFI_SDIO), 1)
@@ -1100,11 +1080,6 @@ CDEFINES +=     -DCONFIG_HL_SUPPORT \
 
 ifneq ($(TARGET_BUILD_VARIANT),user)
 CDEFINES +=	-DCONFIG_ATH_PROCFS_DIAG_SUPPORT
-endif
-
-# Enable SDIO HIF Rx Thread
-ifeq ($(CONFIG_HIF_RX_THREAD), y)
-CDEFINES +=	-DHIF_RX_THREAD
 endif
 endif
 
@@ -1470,8 +1445,6 @@ CDEFINES += -DWLAN_FEATURE_GTK_OFFLOAD
 CDEFINES += -DIGTK_OFFLOAD
 endif
 
-CDEFINES += -DWLAN_FEATURE_MOTION_DETECTION
-
 #Enable GTK Offload
 ifeq ($(CONFIG_EXT_WOW), 1)
 CDEFINES += -DWLAN_FEATURE_EXTWOW_SUPPORT
@@ -1643,8 +1616,6 @@ CDEFINES += -DFEATURE_WLAN_SUB_20_MHZ
 CDEFINES += -DHL_RX_AGGREGATION_HOLE_DETCTION
 CDEFINES += -DMAC_NOTIFICATION_FEATURE
 CDEFINES += -DCHANNEL_HOPPING_ALL_BANDS
-#Enable 4address scheme
-CDEFINES += -DFEATURE_WLAN_STA_4ADDR_SCHEME
 endif
 
 ifeq ($(CONFIG_ARCH_MSM8996), y)
@@ -1652,16 +1623,9 @@ CDEFINES += -DACS_FW_REPORT_PARAM
 CDEFINES += -DFEATURE_WLAN_SUB_20_MHZ
 CDEFINES += -DMAC_NOTIFICATION_FEATURE
 CDEFINES += -DCHANNEL_HOPPING_ALL_BANDS
-CDEFINES += -DHDD_IPA_RX_SOFTIRQ_THRESH
 endif
 
 ifeq ($(CONFIG_ARCH_MSM8937), y)
-CDEFINES += -DTX_COMPLETION_THREAD
-CDEFINES += -DMSM8976_TCP_PERF
-CDEFINES += -DACS_FW_REPORT_PARAM
-endif
-
-ifeq ($(CONFIG_ARCH_MSM8953), y)
 CDEFINES += -DTX_COMPLETION_THREAD
 CDEFINES += -DMSM8976_TCP_PERF
 CDEFINES += -DACS_FW_REPORT_PARAM
@@ -1694,6 +1658,17 @@ endif
 ifeq ($(CONFIG_WLAN_WOW_PULSE), y)
 CDEFINES += -DWLAN_FEATURE_WOW_PULSE
 endif
+########## SAMSUNG FEATURE ###########
+CONFIG_WLAN_SAMSUNG_FEATURE=y
+
+ifeq ($(CONFIG_WLAN_SAMSUNG_FEATURE), y)
+EXTRA_CFLAGS += -DSEC_READ_MACADDR
+EXTRA_CFLAGS += -DSEC_CONFIG_PSM
+EXTRA_CFLAGS += -DSEC_WRITE_VERSION_IN_FILE
+EXTRA_CFLAGS += -DSEC_CONFIG_ANTENNA_CONTROL
+EXTRA_CFLAGS += -DSEC_CONFIG_GRIP_POWER
+EXTRA_CFLAGS += -DSEC_WRITE_ANT_GPIO_INFO_IN_FILE
+endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH),y)
 CDEFINES += -DWLAN_FEATURE_NAN_DATAPATH
@@ -1707,20 +1682,15 @@ ifeq ($(CONFIG_HIF_PCI), 1)
 CDEFINES += -DFORCE_LEGACY_PCI_INTERRUPTS
 endif
 
-ifeq ($(CONFIG_WLAN_THERMAL_SHUTDOWN), 1)
-CDEFINES += -DFEATURE_WLAN_THERMAL_SHUTDOWN
-CDEFINES += -DFEATURE_WLAN_AUTO_SHUTDOWN
-endif
-
-ifeq ($(CONFIG_WLAN_DISABLE_CHANNEL_SWITCH), 1)
-CDEFINES += -DFEATURE_WLAN_DISABLE_CHANNEL_SWITCH
-endif
-
-ifeq ($(CONFIG_WLAN_WAPI_MODE_11AC_DISABLE), y)
-CDEFINES += -DWLAN_WAPI_MODE_11AC_DISABLE
-endif
-
 KBUILD_CPPFLAGS += $(CDEFINES)
+
+# Currently, for versions of gcc which support it, the kernel Makefile
+# is disabling the maybe-uninitialized warning.  Re-enable it for the
+# WLAN driver.  Note that we must use EXTRA_CFLAGS here so that it
+# will override the kernel settings.
+ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
+EXTRA_CFLAGS += -Wmaybe-uninitialized
+endif
 
 ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard

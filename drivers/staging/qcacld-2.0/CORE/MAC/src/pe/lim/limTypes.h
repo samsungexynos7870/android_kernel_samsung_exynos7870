@@ -199,13 +199,8 @@ typedef struct sLimMlmScanCnf
 {
     tSirResultCodes         resultCode;
     tANI_U16                scanResultLength;
-    tANI_U8                 sessionId;
     tSirBssDescription      bssDescription[1];
-    /*
-     * WARNING: Pls make bssDescription as last variable in struct
-     * tLimMlmScanCnf as it has ieFields followed after this bss
-     * description. Adding a variable after this corrupts the ieFields
-     */
+    tANI_U8                 sessionId;
 } tLimMlmScanCnf, *tpLimMlmScanCnf;
 
 typedef struct sLimScanResult

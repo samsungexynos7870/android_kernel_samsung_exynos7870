@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -53,10 +53,10 @@ enum cnss_cc_src {
 };
 
 static inline void vos_wlan_pci_link_down(void){ return; }
-/*static inline int vos_pcie_shadow_control(struct pci_dev *dev, bool enable)
+static inline int vos_pcie_shadow_control(struct pci_dev *dev, bool enable)
 {
 	return -ENODEV;
-}*/
+}
 
 static inline u8 *vos_get_cnss_wlan_mac_buff(struct device *dev, uint32_t *num)
 {
@@ -579,18 +579,6 @@ static inline int vos_cache_boarddata(unsigned int offset,
 #endif
 
 #if defined(CONFIG_CNSS) && defined(HIF_SDIO)
-#include <linux/version.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
-static inline bool vos_oob_enabled(void)
-{
-	bool enabled = true;
-
-	if (-EINVAL == cnss_wlan_query_oob_status())
-		enabled = false;
-
-	return enabled;
-}
-#else
 static inline bool vos_oob_enabled(void)
 {
 	bool enabled = true;
@@ -600,7 +588,6 @@ static inline bool vos_oob_enabled(void)
 
 	return enabled;
 }
-#endif
 
 static inline int vos_register_oob_irq_handler(oob_irq_handler_t handler,
 		void *pm_oob)

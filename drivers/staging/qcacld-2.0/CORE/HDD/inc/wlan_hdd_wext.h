@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -70,6 +70,9 @@
 /* 012345678 */
 #define WLAN_HDD_UI_SET_BAND_VALUE_OFFSET              8
 
+#ifdef SEC_CONFIG_GRIP_POWER
+#define WLAN_HDD_UI_SET_GRIP_TX_PWR_VALUE_OFFSET       21
+#endif
 typedef enum
 {
    HDD_WLAN_WMM_DIRECTION_UPSTREAM      = 0,
@@ -146,7 +149,7 @@ typedef enum
 } hdd_wlan_wmm_ts_info_ack_policy_e;
 
 /** Maximum Length of WPA/RSN IE */
-#define MAX_WPA_RSN_IE_LEN 255
+#define MAX_WPA_RSN_IE_LEN 40
 
 /** Maximum Number of WEP KEYS */
 #define MAX_WEP_KEYS 4
@@ -346,10 +349,6 @@ typedef struct ccp_freq_chan_map_s{
     v_U32_t chan;
 }hdd_freq_chan_map_t;
 
-struct temperature_info {
-	int temperature;
-};
-
 #define wlan_hdd_get_wps_ie_ptr(ie, ie_len) \
     wlan_hdd_get_vendor_oui_ie_ptr(WPS_OUI_TYPE, WPS_OUI_TYPE_SIZE, ie, ie_len)
 
@@ -431,6 +430,8 @@ extern void *mem_alloc_copy_from_user_helper(const void *wrqu_data, size_t len);
 extern VOS_STATUS wlan_hdd_get_linkspeed_for_peermac(hdd_adapter_t *pAdapter,
                                                      tSirMacAddr macAddress);
 void hdd_clearRoamProfileIe( hdd_adapter_t *pAdapter);
+void hdd_GetClassA_statisticsCB(void *pStats, void *pContext);
+void hdd_GetLink_SpeedCB(tSirLinkSpeedInfo *pLinkSpeed, void *pContext);
 
 VOS_STATUS wlan_hdd_check_ula_done(hdd_adapter_t *pAdapter);
 
@@ -481,7 +482,11 @@ int wlan_hdd_update_phymode(struct net_device *net, tHalHandle hal,
 int process_wma_set_command_twoargs(int sessid, int paramid,
                                     int sval, int ssecval, int vpdev);
 
-void hdd_GetTemperatureCB(int temperature, void *cookie);
-VOS_STATUS wlan_hdd_get_temperature(hdd_adapter_t *adapter_ptr,
+void hdd_GetTemperatureCB(int temperature, void *pContext);
+VOS_STATUS wlan_hdd_get_temperature(hdd_adapter_t *pAdapter,
         union iwreq_data *wrqu, char *extra);
+#ifdef SEC_CONFIG_GRIP_POWER
+int hdd_setGripPwr(struct net_device *dev, u8 set_value);
+int hdd_setGripPwr_helper(struct net_device *dev, const char *command);
+#endif
 #endif // __WEXT_IW_H__

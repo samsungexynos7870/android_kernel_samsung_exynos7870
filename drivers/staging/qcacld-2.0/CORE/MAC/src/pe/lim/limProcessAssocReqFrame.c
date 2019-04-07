@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -235,7 +235,6 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
     tLimMlmStates           mlmPrevState;
     tDot11fIERSN            Dot11fIERSN;
     tDot11fIEWPA            Dot11fIEWPA;
-    tANI_U16                prevAuthSeqno = 0xFFFF;
     tANI_U32 phyMode;
     tHalBitVal qosMode;
     tHalBitVal wsmMode, wmeMode;
@@ -304,8 +303,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
 
     if (NULL != pStaDs)
     {
-        if (pStaDs->PrevAssocSeqno == ((pHdr->seqControl.seqNumHi << 4) |
-                                       (pHdr->seqControl.seqNumLo))) {
+        if (pHdr->fc.retry > 0) {
             /* Ignore the Retry */
             limLog(pMac, LOGE,
                    FL("STA is initiating Assoc Req after ACK lost. "
@@ -384,15 +382,9 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
     if ((psessionEntry->access_policy_vendor_ie) &&
             (psessionEntry->access_policy ==
              LIM_ACCESS_POLICY_RESPOND_IF_IE_IS_PRESENT)) {
-        if (framelen <= LIM_ASSOC_REQ_IE_OFFSET) {
-            limLog(pMac, LOGE, FL("Receive action frame of invalid len %d"),
-                   framelen);
-            return;
-        }
         if (!cfg_get_vendor_ie_ptr_from_oui(pMac,
                     &psessionEntry->access_policy_vendor_ie[2],
-                    3, pBody + LIM_ASSOC_REQ_IE_OFFSET,
-                    framelen - LIM_ASSOC_REQ_IE_OFFSET)) {
+                    3, pBody + LIM_ASSOC_REQ_IE_OFFSET, framelen)) {
             limLog(pMac, LOGE,
                     FL("Vendor ie not present and access policy is %x, Rejected association"),
                     psessionEntry->access_policy);
@@ -753,8 +745,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
             psessionEntry->pLimStartBssReq->privacy &&
             psessionEntry->pLimStartBssReq->rsnIE.length) {
             limLog(pMac, LOG1,
-                   FL("RSN enabled auth, peer(%d, %d) Re/Assoc req from STA: "MAC_ADDRESS_STR),
-                   pAssocReq->rsnPresent,pAssocReq->rsn.length,
+                   FL("RSN enabled auth, Re/Assoc req from STA: "MAC_ADDRESS_STR),
                        MAC_ADDR_ARRAY(pHdr->sa));
             if(pAssocReq->rsnPresent)
             {
@@ -832,7 +823,9 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
                     goto error;
 
                 }
-            } else if (pAssocReq->wpaPresent) {
+            } /* end - if(pAssocReq->rsnPresent) */
+            if((!pAssocReq->rsnPresent) && pAssocReq->wpaPresent)
+            {
                 // Unpack the WPA IE
                 if(pAssocReq->wpa.length)
                 {
@@ -879,7 +872,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
 
                     goto error;
                 }/* end - if(pAssocReq->wpa.length) */
-            }
+            } /* end - if(pAssocReq->wpaPresent) */
         } /* end of if(psessionEntry->pLimStartBssReq->privacy
             && psessionEntry->pLimStartBssReq->rsnIE->length) */
 
@@ -958,10 +951,6 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
 
         /// Delete 'pre-auth' context of STA
         authType = pStaPreAuthContext->authType;
-
-        /// Store the seq number of previous auth frame
-        prevAuthSeqno = pStaPreAuthContext->seqNum;
-
         limDeletePreAuthNode(pMac, pHdr->sa);
 
         // All is well. Assign AID (after else part)
@@ -1197,16 +1186,6 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
 
         goto error;
     }
-    /// Store the previous auth frame's seq no
-    if (prevAuthSeqno != 0xFFFF)
-    {
-        pStaDs->PrevAuthSeqno = prevAuthSeqno;
-    }
-     /// Store the current assoc seq no
-    pStaDs->PrevAssocSeqno = ((pHdr->seqControl.seqNumHi << 4) |
-                              (pHdr->seqControl.seqNumLo));
-    limLog(pMac, LOG1, FL("Prev auth seq no %d Prev Assoc seq no. %d"),
-                          pStaDs->PrevAuthSeqno, pStaDs->PrevAssocSeqno);
 
 
 sendIndToSme:

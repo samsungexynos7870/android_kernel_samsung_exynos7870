@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1008,6 +1008,7 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
     tLimDisassocDeauthCnfReq limDisassocDeauthCnfReq;
     tANI_U8 deferredMsgCnt;
     tSirDFSChannelList    dfschannelList;
+    tANI_U8 deauthMsgCnt;
     tANI_U8 gLimIbssStaLimit;
 
     /* Number of channel switch IEs sent so far */
@@ -1128,7 +1129,6 @@ typedef struct sMacOpenParameters
 
     bool      tx_chain_mask_cck;
     uint16_t  self_gen_frm_pwr;
-    bool keep_dwell_time_passive;
 #ifdef WLAN_FEATURE_LPSS
     bool is_lpass_enabled;
 #endif
@@ -1294,10 +1294,8 @@ typedef struct sAniSirGlobal
     uint8_t  sub20_channelwidth;
     uint8_t  sub20_dynamic_channelwidth;
     uint8_t  sta_sub20_current_channelwidth;
-    bool     sta_change_cc_via_beacon;
     bool max_power_cmd_pending;
     uint32_t sta_auth_retries_for_code17;
-    uint32_t rx_packet_drop_counter;
 } tAniSirGlobal;
 
 typedef enum

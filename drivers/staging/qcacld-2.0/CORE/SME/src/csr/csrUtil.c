@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,9 +44,7 @@
 #include "smeQosInternal.h"
 #include "wlan_qct_wda.h"
 #include "vos_utils.h"
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-#include "limApi.h"
-#endif
+
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
 #include "csrEse.h"
 #endif /* FEATURE_WLAN_ESE && !FEATURE_WLAN_ESE_UPLOAD*/
@@ -979,13 +977,10 @@ v_U16_t csrCheckConcurrentChannelOverlap(tpAniSirGlobal pMac, v_U16_t sap_ch,
              intf_ch = 0;
          }
     }
-    else if (!pMac->roam.configParam.band_switch_enable &&
-             intf_ch && sap_ch!= intf_ch &&
+    else if (intf_ch && sap_ch!= intf_ch &&
              cc_switch_mode == VOS_MCC_TO_SCC_SWITCH_FORCE) {
-             if (!((intf_ch < 14 && sap_ch < 14) ||
-                 (intf_ch > 14 && sap_ch > 14))) {
-                 intf_ch = 0;
-             }
+         if (!((intf_ch < 14 && sap_ch < 14) || (intf_ch > 14 && sap_ch > 14)))
+             intf_ch = 0;
     }else if (intf_ch == sap_ch)
          intf_ch = 0;
 
@@ -1110,7 +1105,6 @@ tANI_BOOLEAN csr_find_sta_session_info(
 	tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
 	tCsrRoamSession *pSession = NULL;
 	v_U8_t i = 0;
-	tpPESession psessionEntry;
 
 	for( i = 0; i < CSR_ROAM_SESSION_MAX; i++ ) {
 		if( !CSR_IS_SESSION_VALID( pMac, i ) )
@@ -1124,21 +1118,8 @@ tANI_BOOLEAN csr_find_sta_session_info(
 				VOS_P2P_CLIENT_MODE)) &&
 			(pSession->connectState ==
 				eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED)) {
-			if(vos_is_ch_switch_with_csa_enabled()){
-				psessionEntry = peFindSessionBySessionId(pMac,
-						pMac->lim.limTimers.gLimChannelSwitchTimer.sessionId);
-				if (psessionEntry && LIM_IS_STA_ROLE(psessionEntry)) {
-					info->och = psessionEntry->gLimChannelSwitch.primaryChannel;
-					smsLog(pMac, LOGP,
-						FL("SAP channel switch with CSA enabled (SAP new ch: %d)"), info->och);
-				}else{
-					info->och =
-						pSession->connectedProfile.operationChannel;
-				}
-			}else{
-				info->och =
-					pSession->connectedProfile.operationChannel;
-			}
+			info->och =
+				pSession->connectedProfile.operationChannel;
 			csrGetChFromHTProfile(pMac,
 				&pSession->connectedProfile.HTProfile,
 				info->och, &info->cfreq, &info->hbw);
@@ -2412,10 +2393,6 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
     tANI_U8 automotive_support_enable =
         (pMac->roam.configParam.conc_custom_rule1 |
          pMac->roam.configParam.conc_custom_rule2);
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-    bool ap_p2pgo_concurrency_enable =
-                 pMac->roam.configParam.ap_p2pgo_concurrency_enable;
-#endif
     tVOS_CON_MODE bss_persona;
     eCsrConnectState connect_state;
 
@@ -2437,27 +2414,13 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                      return eHAL_STATUS_SUCCESS;
 
              case VOS_STA_SAP_MODE:
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-                     if ((VOS_MCC_TO_SCC_SWITCH_FORCE ==
-                             pMac->roam.configParam.cc_switch_mode) &&
-                         (ap_p2pgo_concurrency_enable) &&
-                         (bss_persona == VOS_P2P_GO_MODE) &&
-                         (connect_state !=
-                                eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)) {
-                         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                             FL("Start AP session concurrency with P2P-GO"));
-                         return eHAL_STATUS_SUCCESS;
-                     } else
-#endif
-                     if (((bss_persona == VOS_P2P_GO_MODE) &&
-                             (0 == automotive_support_enable) &&
-                             (connect_state !=
-                                    eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)) ||
-                             ((bss_persona == VOS_IBSS_MODE) &&
-                             (connect_state !=
+                     if (((bss_persona == VOS_P2P_GO_MODE) && (connect_state !=
+                                eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED) &&
+                                (0 == automotive_support_enable)) ||
+                         ((bss_persona == VOS_IBSS_MODE) && (connect_state !=
                                 eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED))) {
-                             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-                                 FL("Can't start multiple beaconing role"));
+                         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                                   FL("Can't start multiple beaconing role"));
                          return eHAL_STATUS_FAILURE;
                      }
                      break;
@@ -2468,20 +2431,8 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                                 FL(" ****P2P GO mode already exists ****"));
                          return eHAL_STATUS_FAILURE;
-                     }
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-                     else if ((VOS_MCC_TO_SCC_SWITCH_FORCE ==
-                                   pMac->roam.configParam.cc_switch_mode) &&
-                               (ap_p2pgo_concurrency_enable) &&
-                               (bss_persona == VOS_STA_SAP_MODE) &&
-                               (connect_state !=
-                                       eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)) {
-                         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                                FL("Start P2P-GO session concurrency with AP"));
-                         return eHAL_STATUS_SUCCESS;
-                     }
-#endif
-                     else if (((bss_persona == VOS_STA_SAP_MODE) &&
+
+                     } else if (((bss_persona == VOS_STA_SAP_MODE) &&
                                  (connect_state !=
                                   eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED) &&
                                  (0 == automotive_support_enable)) ||
@@ -2743,20 +2694,8 @@ eHalStatus csrValidateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U8 channelId,
                         if (pMac->roam.roamSession[sessionId].bssParams.operationChn
                                                         != channelId )
                         {
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-                            if (VOS_MCC_TO_SCC_SWITCH_FORCE ==
-                                            pMac->roam.configParam.cc_switch_mode &&
-                                pMac->roam.configParam.ap_p2pclient_concur_enable)
-                            {
-                                smsLog(pMac, LOG1, FL("SAP + CLIENT for MCC to SCC"));
-                                return eHAL_STATUS_SUCCESS;
-                            } else
-#endif
-                            {
-                                smsLog(pMac, LOGE,
-                                        FL("**** MCC for SAP + CLIENT sessions ****"));
-                                return eHAL_STATUS_SUCCESS;
-                            }
+                            smsLog(pMac, LOGE, FL("***MCC is not enabled for SAP + CLIENT****"));
+                            return eHAL_STATUS_FAILURE;
                         }
                     }
                     else if (pMac->roam.roamSession[sessionId].bssParams.bssPersona
@@ -3309,11 +3248,11 @@ tANI_BOOLEAN csrGetRSNInformation( tHalHandle hHal, tCsrAuthList *pAuthType, eCs
             cMulticastCyphers++;
             vos_mem_copy(MulticastCyphers, pRSNIe->gp_cipher_suite, CSR_RSN_OUI_SIZE);
             cUnicastCyphers = (tANI_U8)(pRSNIe->pwise_cipher_suite_count);
-            cAuthSuites = (tANI_U8)(pRSNIe->akm_suite_cnt);
+            cAuthSuites = (tANI_U8)(pRSNIe->akm_suite_count);
             for(i = 0; i < cAuthSuites && i < CSR_RSN_MAX_AUTH_SUITES; i++)
             {
                 vos_mem_copy((void *)&AuthSuites[i],
-                             (void *)&pRSNIe->akm_suite[i],
+                             (void *)&pRSNIe->akm_suites[i],
                              CSR_RSN_OUI_SIZE);
             }
 
@@ -3735,8 +3674,7 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
 #endif
     tDot11fBeaconIEs *pIesLocal = pIes;
     eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
-    tDot11fIERSN dot11RSNIE;
-    tANI_U32 status;
+
     smsLog(pMac, LOGW, "%s called...", __func__);
 
     do
@@ -3746,24 +3684,6 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
         if( !pIesLocal && (!HAL_STATUS_SUCCESS(csrGetParsedBssDescriptionIEs(pMac, pSirBssDesc, &pIesLocal))) )
         {
             break;
-        }
-
-        memset(&dot11RSNIE, 0, sizeof(tDot11fIERSN));
-        /*
-         *  Use intersection of the RSN cap sent by user space and
-         *  the AP, so that only common capability are enabled.
-         */
-        if(pProfile->nRSNReqIELength && pProfile->pRSNReqIE) {
-            status = dot11fUnpackIeRSN(hHal, pProfile->pRSNReqIE + 2,
-                                       pProfile->nRSNReqIELength - 2, &dot11RSNIE);
-            if (DOT11F_SUCCEEDED(status)) {
-                pIesLocal->RSN.RSN_Cap[0] =
-                        pIesLocal->RSN.RSN_Cap[0] &
-                        dot11RSNIE.RSN_Cap[0];
-                pIesLocal->RSN.RSN_Cap[1] =
-                        pIesLocal->RSN.RSN_Cap[1] &
-                        dot11RSNIE.RSN_Cap[1];
-            }
         }
 
         // See if the cyphers in the Bss description match with the settings in the profile.

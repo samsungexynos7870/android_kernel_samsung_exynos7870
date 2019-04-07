@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -191,7 +191,6 @@ int get_fw_files_for_non_qc_pci_target(struct non_qc_platform_pci_fw_files *pfw_
 			break;
 		case AR6320_REV3_VERSION:
 		case AR6320_REV3_2_VERSION:
-		case QCA9377_REV1_1_VERSION:
 		case QCA9379_REV1_VERSION:
 			memcpy(pfw_files, &FW_FILES_QCA6174_FW_3_0,
 						sizeof(*pfw_files));
@@ -1174,8 +1173,7 @@ static void ramdump_work_handler(struct work_struct *ramdump)
 	if (ramdump_scn->enableFwSelfRecovery) {
 		vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, FALSE);
 #if defined(HIF_SDIO) && defined(WLAN_OPEN_SOURCE)
-		if (dev)
-			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
+		kobject_uevent(&ramdump_scn->adf_dev->dev->kobj, KOBJ_OFFLINE);
 #endif
 		goto out_fail;
 	}
@@ -1210,7 +1208,7 @@ static void ramdump_work_handler(struct work_struct *ramdump)
 
 	printk("%s: RAM dump collecting completed!\n", __func__);
 
-#if (defined(HIF_SDIO) || defined(CONFIG_NON_QC_PLATFORM_PCI)) && !defined(CONFIG_CNSS)
+#if defined(HIF_SDIO) && !defined(CONFIG_CNSS)
 	panic("CNSS Ram dump collected\n");
 #else
 	/* Notify SSR framework the target has crashed. */
@@ -1328,15 +1326,14 @@ void ol_ramdump_handler(struct ol_softc *scn)
 			return;
 		}
 
-		if (scn->enableFwSelfRecovery || scn->enableRamdumpCollection)
-			vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-
 		reg = (A_UINT32 *) (data + 4);
 		print_hex_dump(KERN_DEBUG, " ", DUMP_PREFIX_OFFSET, 16, 4, reg,
 				min_t(A_UINT32, len - 4, FW_REG_DUMP_CNT * 4),
 				false);
 		scn->fw_ram_dumping = 0;
 
+		if (scn->enableFwSelfRecovery || scn->enableRamdumpCollection)
+			vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 	}
 	else if (pattern == FW_REG_PATTERN) {
 		reg = (A_UINT32 *) (data + 4);
@@ -2753,10 +2750,6 @@ int ol_target_coredump(void *inst, void *memoryBlock, u_int32_t blockLength)
 	uint32_t readLen = 0;
 	uint32_t max_count = ol_get_max_section_count(scn);
 
-#ifdef CONFIG_NON_QC_PLATFORM_PCI
-
-	char *fw_ram_seg_name[] = {"DRAM ", "AXI ", "REG ", "IRAM1 ", "IRAM2 "};
-#endif
 	while ((sectionCount < max_count) && (amountRead < blockLength)) {
 		switch (sectionCount) {
 		case 0:
@@ -2807,9 +2800,6 @@ int ol_target_coredump(void *inst, void *memoryBlock, u_int32_t blockLength)
 
 		pr_info("%s: Section:%d Bytes Read:%0x\n", __func__,
 			sectionCount, result);
-#ifdef CONFIG_NON_QC_PLATFORM_PCI
-		printk("\nMemory addr for %s = 0x%p (size: %x)\n",fw_ram_seg_name[sectionCount], bufferLoc, result);
-#endif
 		amountRead += result;
 		bufferLoc += result;
 		sectionCount++;

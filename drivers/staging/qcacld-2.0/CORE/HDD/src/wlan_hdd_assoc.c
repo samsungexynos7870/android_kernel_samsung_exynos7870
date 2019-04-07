@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -74,10 +74,6 @@
 #include "wlan_hdd_tsf.h"
 
 #include "adf_trace.h"
-
-#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
-#include "wlan_hdd_hostapd.h"
-#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
 
 struct ether_addr
 {
@@ -317,17 +313,10 @@ static int hdd_set_beacon_filter(hdd_adapter_t *adapter)
 	int i;
 	uint32_t ie_map[8] = {0};
 	VOS_STATUS vos_status = VOS_STATUS_E_FAILURE;
-	tHalHandle hal_ptr = WLAN_HDD_GET_HAL_CTX(adapter);
-	tpAniSirGlobal mac_ptr = PMAC_STRUCT(hal_ptr);
 
 	for (i = 0; i < ARRAY_SIZE(beacon_filter_table); i++)
 		__set_bit(beacon_filter_table[i],
 			  (unsigned long int *)ie_map);
-
-
-	if (TRUE == mac_ptr->sta_change_cc_via_beacon &&
-	    adapter->device_mode == WLAN_HDD_INFRA_STATION)
-		__set_bit(SIR_MAC_COUNTRY_EID, (unsigned long int *)ie_map);
 
 	vos_status = sme_set_beacon_filter(adapter->sessionId, ie_map);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
@@ -815,9 +804,6 @@ static void hdd_save_bss_info(hdd_adapter_t *adapter,
 	} else {
 		hdd_sta_ctx->conn_info.conn_flag.vht_op_present = false;
 	}
-	/* Cache last connection info */
-	vos_mem_copy(&hdd_sta_ctx->cache_conn_info, &hdd_sta_ctx->conn_info,
-		     sizeof(connection_info_t));
 }
 
 static void
@@ -874,11 +860,15 @@ hdd_connSaveConnectInfo(hdd_adapter_t *pAdapter, tCsrRoamInfo *pRoamInfo,
           pHddStaCtx->conn_info.ucEncryptionType = encryptType;
 
           pHddStaCtx->conn_info.authType =  pRoamInfo->u.pConnectedProfile->AuthType;
+          pHddStaCtx->conn_info.last_auth_type = pHddStaCtx->conn_info.authType;
 
           pHddStaCtx->conn_info.operationChannel = pRoamInfo->u.pConnectedProfile->operationChannel;
 
           // Save the ssid for the connection
           vos_mem_copy( &pHddStaCtx->conn_info.SSID.SSID, &pRoamInfo->u.pConnectedProfile->SSID, sizeof( tSirMacSSid ) );
+          vos_mem_copy(&pHddStaCtx->conn_info.last_ssid.SSID,
+                       &pRoamInfo->u.pConnectedProfile->SSID,
+                       sizeof(tSirMacSSid));
 
           // Save  dot11mode in which STA associated to AP
           pHddStaCtx->conn_info.dot11Mode = pRoamInfo->u.pConnectedProfile->dot11Mode;
@@ -1190,7 +1180,6 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
     int type = -1;
     v_MACADDR_t peerMacAddr;
 
-    hdd_adapter_t *mon_adapter = NULL;
 #if defined (WLAN_FEATURE_VOWIFI_11R)
     // Added to find the auth type on the fly at run time
     // rather than with cfg to see if FT is enabled
@@ -1307,16 +1296,6 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
         spin_unlock_bh(&pHddCtx->bus_bw_lock);
         hdd_start_bus_bw_compute_timer(pAdapter);
 #endif
-        if (pHddCtx->cfg_ini->mon_on_sta_enable &&
-            (pAdapter->device_mode == WLAN_HDD_INFRA_STATION)) {
-            /* monitor mode interface should be ready */
-            mon_adapter = hdd_get_adapter(pHddCtx, WLAN_HDD_MONITOR);
-
-            if (mon_adapter && (WLAN_HDD_ADAPTER_MAGIC == mon_adapter->magic) &&
-                tlshim_get_rxmon_cbk()) {
-               wlan_hdd_monitor_mode_enable(pHddCtx, true);
-           }
-        }
     }
     else if (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState) // IBss Associated
     {
@@ -1372,11 +1351,6 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
         spin_unlock_bh(&pHddCtx->bus_bw_lock);
         hdd_stop_bus_bw_compute_timer(pAdapter);
 #endif
-        if (pHddCtx->cfg_ini->mon_on_sta_enable &&
-            (pAdapter->device_mode == WLAN_HDD_INFRA_STATION) &&
-            (true == pHddCtx->is_mon_enable)) {
-            wlan_hdd_monitor_mode_enable(pHddCtx, false);
-        }
     }
     hdd_dump_concurrency_info(pHddCtx);
 
@@ -1480,10 +1454,10 @@ static void hdd_print_bss_info(hdd_station_ctx_t *hdd_sta_ctx)
 	hddLog(VOS_TRACE_LEVEL_INFO, "dot11mode: %d",
 	       hdd_sta_ctx->conn_info.dot11Mode);
 	hddLog(VOS_TRACE_LEVEL_INFO, "AKM: %d",
-	       hdd_sta_ctx->cache_conn_info.authType);
+	       hdd_sta_ctx->conn_info.last_auth_type);
 	hddLog(VOS_TRACE_LEVEL_INFO, "ssid: %.*s",
-	       hdd_sta_ctx->cache_conn_info.SSID.SSID.length,
-	       hdd_sta_ctx->cache_conn_info.SSID.SSID.ssId);
+	       hdd_sta_ctx->conn_info.last_ssid.SSID.length,
+	       hdd_sta_ctx->conn_info.last_ssid.SSID.ssId);
 	hddLog(VOS_TRACE_LEVEL_INFO, "roam count: %d",
 	       hdd_sta_ctx->conn_info.roam_count);
 	hddLog(VOS_TRACE_LEVEL_INFO, "ant_info: %d",
@@ -1637,21 +1611,6 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                 }
             }
 #endif
-
-#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
-            if((pAdapter->device_mode == WLAN_HDD_INFRA_STATION) &&
-                    vos_is_ch_switch_with_csa_enabled())
-            {
-                struct wlan_sap_csa_info csa_info;
-                hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
-                    "%s: Indicate disconnected event to HostApd",
-                    __func__);
-
-                csa_info.sta_channel = 0;
-                /*Indicate to HostApd about Station interface state change*/
-                hdd_sta_state_sap_notify(pHddCtx, STA_NOTIFY_DISCONNECTED, csa_info);
-            }
-#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
 
             //If the Device Mode is Station
             // and the P2P Client is Connected
@@ -2054,45 +2013,6 @@ static inline int hdd_send_roam_auth_event(hdd_context_t *hdd_ctx,
 }
 #endif
 
-/**
- * hdd_send_roamed_ind() - send roamed indication to cfg80211
- * @dev: network device
- * @bss: cfg80211 roamed bss pointer
- * @req_ie: IEs used in reassociation request
- * @req_ie_len: Length of the @req_ie
- * @resp_ie: IEs received in successful reassociation response
- * @resp_ie_len: Length of @resp_ie
- *
- * Return: none
- */
-#if defined CFG80211_ROAMED_API_UNIFIED || \
-       (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
-static void hdd_send_roamed_ind(struct net_device *dev,
-				struct cfg80211_bss *bss, const uint8_t *req_ie,
-				size_t req_ie_len, const uint8_t *resp_ie,
-				size_t resp_ie_len)
-{
-	struct cfg80211_roam_info info = {0};
-
-	info.bss = bss;
-	info.req_ie = req_ie;
-	info.req_ie_len = req_ie_len;
-	info.resp_ie = resp_ie;
-	info.resp_ie_len = resp_ie_len;
-	cfg80211_roamed(dev, &info, GFP_KERNEL);
-}
-#else
-static inline void hdd_send_roamed_ind(struct net_device *dev,
-				       struct cfg80211_bss *bss,
-				       const uint8_t *req_ie, size_t req_ie_len,
-				       const uint8_t *resp_ie,
-				       size_t resp_ie_len)
-{
-	cfg80211_roamed_bss(dev, bss, req_ie, req_ie_len, resp_ie, resp_ie_len,
-			    GFP_KERNEL);
-}
-#endif
-
 static void hdd_SendReAssocEvent(struct net_device *dev,
                                  hdd_adapter_t *pAdapter,
                                  tCsrRoamInfo *pCsrRoamInfo, v_U8_t *reqRsnIe,
@@ -2185,9 +2105,9 @@ static void hdd_SendReAssocEvent(struct net_device *dev,
     hddLog(LOG2, FL("Req RSN IE:"));
     VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_DEBUG,
        final_req_ie, (ssid_ie_len +reqRsnLength));
-    hdd_send_roamed_ind(dev, bss, final_req_ie,
-                        (ssid_ie_len + reqRsnLength), rspRsnIe,
-                        rspRsnLength);
+    cfg80211_roamed_bss(dev, bss,
+       final_req_ie, (ssid_ie_len + reqRsnLength),
+       rspRsnIe, rspRsnLength, GFP_KERNEL);
 
     hdd_send_roam_auth_event(pHddCtx, pCsrRoamInfo->bssid,
                     reqRsnIe, reqRsnLength, rspRsnIe,
@@ -2231,7 +2151,6 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 			hdd_is_roam_sync_in_progress(roaminfo));
 	hdd_connSetAuthenticated(adapter, VOS_TRUE);
 	if (hddctx->cfg_ini->enablePowersaveOffload &&
-		(false == hddctx->is_mon_enable) &&
 		((WLAN_HDD_INFRA_STATION == adapter->device_mode) ||
 		(WLAN_HDD_P2P_CLIENT == adapter->device_mode))) {
 		sme_PsOffloadEnableDeferredPowerSave(
@@ -2462,20 +2381,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
         wlan_hdd_auto_shutdown_enable(pHddCtx, VOS_FALSE);
 #endif
-#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
-        if (!vos_is_chan_ok_for_dnbs(pHddStaCtx->conn_info.operationChannel)) {
-            hddLog(VOS_TRACE_LEVEL_ERROR,
-                          "%s: chan-%d is not suitable for DNBS", __func__, pHddStaCtx->conn_info.operationChannel);
-            wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_CARRIER_OFF, WLAN_CONTROL_PATH);
-            if (!hddDisconInProgress) {
-                hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Disconnecting...", __func__);
-                sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
-                                    pAdapter->sessionId,
-                                    eCSR_DISCONNECT_REASON_UNSPECIFIED);
-            }
-            return eHAL_STATUS_FAILURE;
-        }
-#endif
         /* validate cfg_ini */
         if (!pHddCtx->cfg_ini) {
                 VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2628,13 +2533,10 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                                pConnectedProfile->SSID.ssId,
                                pRoamInfo->u.
                                pConnectedProfile->SSID.length);
-                        hdd_send_roamed_ind(
-                               dev,
-                               roam_bss,
-                               pFTAssocReq,
-                               assocReqlen,
-                               pFTAssocRsp,
-                               assocRsplen);
+                        cfg80211_roamed_bss(dev, roam_bss,
+                               pFTAssocReq, assocReqlen,
+                               pFTAssocRsp, assocRsplen,
+                               GFP_KERNEL);
                     }
                     if (sme_GetFTPTKState(WLAN_HDD_GET_HAL_CTX(pAdapter),
                                           pAdapter->sessionId))
@@ -4572,8 +4474,6 @@ hdd_smeRoamCallback(void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U32 roamId,
     VOS_STATUS status = VOS_STATUS_SUCCESS;
     hdd_context_t *pHddCtx = NULL;
     struct cfg80211_bss *bss_status;
-    tHalHandle hal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-    tpAniSirGlobal mac = PMAC_STRUCT(hal);
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "CSR Callback: status= %d result= %d roamID=%d",
                     roamStatus, roamResult, roamId );
@@ -4957,10 +4857,6 @@ hdd_smeRoamCallback(void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U32 roamId,
             hdd_ndp_event_handler(pAdapter, pRoamInfo, roamId, roamStatus,
                 roamResult );
             break;
-        case  eCSR_ROAM_STA_CHANNEL_SWITCH:
-            hdd_chan_change_notify(pAdapter, pAdapter->dev,
-                                   pRoamInfo->chan_info.chan_id,
-                                   mac->roam.configParam.phyMode);
         default:
             break;
     }
@@ -5183,8 +5079,8 @@ static tANI_S32 hdd_ProcessGENIE(hdd_adapter_t *pAdapter,
 {
     tHalHandle halHandle = WLAN_HDD_GET_HAL_CTX(pAdapter);
     eHalStatus result;
-    tDot11fIERSN dot11RSNIE = {0};
-    tDot11fIEWPA dot11WPAIE = {0};
+    tDot11fIERSN dot11RSNIE;
+    tDot11fIEWPA dot11WPAIE;
     tANI_U32 i;
     tANI_U32 status;
     tANI_U8 *pRsnIe;
@@ -5213,10 +5109,10 @@ static tANI_S32 hdd_ProcessGENIE(hdd_adapter_t *pAdapter,
         pRsnIe = gen_ie + 2;
         RSNIeLen = gen_ie_len - 2;
         // Unpack the RSN IE
-        status = sme_unpack_rsn_ie(halHandle,
-                                   pRsnIe,
-                                   RSNIeLen,
-                                   &dot11RSNIE);
+        status = dot11fUnpackIeRSN((tpAniSirGlobal) halHandle,
+                            pRsnIe,
+                            RSNIeLen,
+                            &dot11RSNIE);
         if (DOT11F_FAILED(status))
         {
             hddLog(LOGE,
@@ -5224,19 +5120,16 @@ static tANI_S32 hdd_ProcessGENIE(hdd_adapter_t *pAdapter,
                        status);
             return -EINVAL;
         }
-        hddLog(LOG1, FL("%s: gp_cipher_suite_present: %d"),
-                __func__, dot11RSNIE.gp_cipher_suite_present);
-
         // Copy out the encryption and authentication types
         hddLog(LOG1, FL("%s: pairwise cipher suite count: %d"),
                 __func__, dot11RSNIE.pwise_cipher_suite_count );
         hddLog(LOG1, FL("%s: authentication suite count: %d"),
-                __func__, dot11RSNIE.akm_suite_cnt);
+                __func__, dot11RSNIE.akm_suite_count);
         /*Here we have followed the apple base code,
           but probably I suspect we can do something different*/
         //dot11RSNIE.akm_suite_count
         // Just translate the FIRST one
-        *pAuthType =  hdd_TranslateRSNToCsrAuthType(dot11RSNIE.akm_suite[0]);
+        *pAuthType =  hdd_TranslateRSNToCsrAuthType(dot11RSNIE.akm_suites[0]);
         //dot11RSNIE.pwise_cipher_suite_count
         *pEncryptType = hdd_TranslateRSNToCsrEncryptionType(dot11RSNIE.pwise_cipher_suites[0]);
         //dot11RSNIE.gp_cipher_suite_count
@@ -5293,19 +5186,10 @@ static tANI_S32 hdd_ProcessGENIE(hdd_adapter_t *pAdapter,
         pRsnIe = gen_ie + 2 + 4;
         RSNIeLen = gen_ie_len - (2 + 4);
         // Unpack the WPA IE
-        status = dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
+        dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
                             pRsnIe,
                             RSNIeLen,
                             &dot11WPAIE);
-
-        if (DOT11F_FAILED(status))
-        {
-            hddLog(LOGE,
-                   FL("Parse failure in hdd_ProcessGENIE (0x%08x)"),
-                   status);
-            return -EINVAL;
-        }
-
         // Copy out the encryption and authentication types
         hddLog(LOG1, FL("%s: WPA unicast cipher suite count: %d"),
                __func__, dot11WPAIE.unicast_cipher_count );
@@ -5396,7 +5280,7 @@ int hdd_SetGENIEToCsr( hdd_adapter_t *pAdapter, eCsrAuthType *RSNAuthType)
           FL("CSR AuthType = %d, EncryptionType = %d mcEncryptionType = %d"),
            *RSNAuthType, RSNEncryptType, mcRSNEncryptType);
     }
-    return status;
+    return 0;
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
@@ -5436,7 +5320,6 @@ int hdd_set_csr_auth_type ( hdd_adapter_t  *pAdapter, eCsrAuthType RSNAuthType)
     switch( pHddStaCtx->conn_info.authType)
     {
        case eCSR_AUTH_TYPE_OPEN_SYSTEM:
-       case eCSR_AUTH_TYPE_AUTOSWITCH:
 #ifdef FEATURE_WLAN_ESE
        case eCSR_AUTH_TYPE_CCKM_WPA:
        case eCSR_AUTH_TYPE_CCKM_RSN:
@@ -6351,47 +6234,4 @@ int iw_get_ap_address(struct net_device *dev, struct iw_request_info *info,
 	vos_ssr_unprotect(__func__);
 
 	return ret;
-}
-
-hdd_adapter_t *hdd_get_sta_connection_in_progress(hdd_context_t *hdd_ctx)
-{
-	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
-	hdd_adapter_t *adapter = NULL;
-	VOS_STATUS status;
-	hdd_station_ctx_t *hdd_sta_ctx;
-
-	if (!hdd_ctx) {
-		hddLog(LOGE, FL("HDD context is NULL"));
-		return NULL;
-	}
-
-	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
-	while (NULL != adapter_node && VOS_STATUS_SUCCESS == status) {
-		adapter = adapter_node->pAdapter;
-		if (!adapter)
-			goto end;
-
-		hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-		if ((WLAN_HDD_INFRA_STATION == adapter->device_mode) ||
-		    (WLAN_HDD_P2P_CLIENT == adapter->device_mode) ||
-		    (WLAN_HDD_P2P_DEVICE == adapter->device_mode)) {
-			if (eConnectionState_Connecting ==
-			    hdd_sta_ctx->conn_info.connState) {
-				hddLog(LOG1, FL("session_id %d: Connection is in progress"),
-				       adapter->sessionId);
-				return adapter;
-			} else if ((eConnectionState_Associated ==
-				   hdd_sta_ctx->conn_info.connState) &&
-				   sme_is_sta_key_exchange_in_progress(
-				   hdd_ctx->hHal, adapter->sessionId)) {
-				hddLog(LOG1, FL("session_id %d: Key exchange is in progress"),
-				       adapter->sessionId);
-				return adapter;
-			}
-		}
-end:
-		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
-		adapter_node = next;
-	}
-	return NULL;
 }
