@@ -649,6 +649,8 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_KNOX_NCM
+
 /* START_OF_KNOX_NPA */
 /** The function sets the domain name associated with the socket. **/
 static int sock_set_domain_name(struct sock *sk, char __user *optval,
@@ -708,7 +710,6 @@ static int sock_set_dns_pid(struct sock *sk, char __user *optval, int optlen)
 
 	if (optlen < 0)
 		goto out;
-
 	if (optlen == sizeof(pid_t)) {
 		pid_t dns_pid;
 		ret = -EFAULT;
@@ -735,6 +736,7 @@ static int sock_set_dns_pid(struct sock *sk, char __user *optval, int optlen)
 out:
 	return ret;
 }
+#endif
 
 /* END_OF_KNOX_NPA */
 
@@ -786,6 +788,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	if (optname == SO_BINDTODEVICE)
 		return sock_setbindtodevice(sk, optval, optlen);
 
+#ifdef CONFIG_KNOX_NCM
+
 	/* START_OF_KNOX_NPA */
 	if (optname == SO_SET_DOMAIN_NAME)
 		return sock_set_domain_name(sk, optval, optlen);
@@ -794,6 +798,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	if (optname == SO_SET_DNS_PID)
 		return sock_set_dns_pid(sk, optval, optlen);
 	/* END_OF_KNOX_NPA */
+
+#endif
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1488,6 +1494,8 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 {
 	struct sock *sk;
 
+#ifdef CONFIG_KNOX_NCM
+
 	/* START_OF_KNOX_NPA */
 	struct pid *pid_struct = NULL;
 	struct task_struct *task = NULL;
@@ -1499,9 +1507,14 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 	char full_parent_process_name[PROCESS_NAME_LEN_NAP] = {0};
 	/* END_OF_KNOX_NPA */
 
+#endif
+
 	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
 		sk->sk_family = family;
+
+#ifdef CONFIG_KNOX_NCM
+
 		/* START_OF_KNOX_NPA */
 		/* assign values to members of sock structure when npa flag is present */
 		sk->knox_uid = current->cred->uid.val;
@@ -1549,6 +1562,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		 * See comment in struct sock definition to understand
 		 * why we need sk_prot_creator -acme
 		 */
+#endif
 		sk->sk_prot = sk->sk_prot_creator = prot;
 		sock_lock_init(sk);
 		sock_net_set(sk, get_net(net));
