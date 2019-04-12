@@ -72,18 +72,18 @@ static inline int adf_os_mutex_acquire(adf_os_device_t osdev, adf_os_mutex_t *m)
 }
 
 /**
- * adf_semaphore_acquire_timeout() - Take the semaphore before timeout
+ * adf_os_mutex_acquire_timeout() - Take the semaphore before timeout
  * @osdev: osdev handle
  * @m: semaphore to take
  * @timeout: maximum time to try to take the semaphore, unit in ms.
  *
- * Return: int
+ * Return: 0 for success, others for timeout
  */
-static inline int adf_semaphore_acquire_timeout(adf_os_device_t osdev,
-                                               adf_os_mutex_t *m,
-                                               long timeout)
+static inline int adf_os_mutex_acquire_timeout(adf_os_device_t osdev,
+						adf_os_mutex_t *m,
+						long timeout)
 {
-       return __adf_semaphore_acquire_timeout(osdev, m, timeout);
+	return __adf_os_mutex_acquire_timeout(osdev, m, timeout);
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -194,6 +194,9 @@ typedef enum {
     eSAP_ACS_SCAN_SUCCESS_EVENT,
     eSAP_ACS_CHANNEL_SELECTED,
     eSAP_ECSA_CHANGE_CHAN_IND,
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+    eSAP_CHANNEL_SWITCH_NOTIFICATION,
+#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
 } eSapHddEvent;
 
 typedef enum {
@@ -546,7 +549,14 @@ typedef struct sap_Config {
     v_U8_t          channel;         /* Operation channel */
     uint8_t         sec_ch;
     uint16_t         vht_channel_width;
-    uint16_t         ch_width_orig;
+    /* record value of "enum nl80211_chan_width" from usr */
+    uint32_t        ch_width_orig_usr;
+    /* convert to value of "tSirMacHTChannelWidth" per ch_width_orig_usr */
+    tSirMacHTChannelWidth ch_width_orig;
+#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+    uint16_t         ch_width_24g_orig;
+    uint16_t         ch_width_5g_orig;
+#endif
     v_U8_t          max_num_sta;     /* maximum number of STAs in station table */
     v_U8_t          dtim_period;     /* dtim interval */
     v_U8_t          num_accept_mac;
@@ -584,6 +594,8 @@ typedef struct sap_Config {
 #endif
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
     v_U8_t          cc_switch_mode;
+    bool            band_switch_enable;
+    bool            ap_p2pclient_concur_enable;
 #endif
 
     v_U16_t    probeRespIEsBufferLen;
@@ -733,6 +745,9 @@ typedef struct sSapDfsInfo
     bool               dfs_beacon_tx_enhanced;
     uint16_t           reduced_beacon_interval;
     enum sub20_chan_switch_mode  sub20_switch_mode;
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+    v_U8_t              csaSwitchCount;
+#endif
 } tSapDfsInfo;
 
 typedef struct tagSapCtxList
@@ -2514,6 +2529,7 @@ eHalStatus sapRoamSessionCloseCallback(void *pContext);
 #ifdef __cplusplus
  }
 #endif
-
-
+#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
+eHalStatus wlansap_channel_compare(tHalHandle hHal, uint8_t channel, bool *equal);
+#endif
 #endif /* #ifndef WLAN_QCT_WLANSAP_H */

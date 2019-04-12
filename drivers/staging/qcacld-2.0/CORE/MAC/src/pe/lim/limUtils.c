@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5368,7 +5368,12 @@ limIsChannelValidForChannelSwitch(tpAniSirGlobal pMac, tANI_U8 channel)
     tANI_U8  index;
     tANI_U32    validChannelListLen = WNI_CFG_VALID_CHANNEL_LIST_LEN;
     tSirMacChanNum   validChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
-
+#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
+    if (!vos_is_chan_ok_for_dnbs(channel)) {
+        PELOGE(limLog(pMac, LOGE, FL("channel is not valid for dnbs"));)
+        return (eSIR_FALSE);
+    }
+#endif
     if (wlan_cfgGetStr(pMac, WNI_CFG_VALID_CHANNEL_LIST,
           (tANI_U8 *)validChannelList,
           (tANI_U32 *)&validChannelListLen) != eSIR_SUCCESS)
@@ -6200,6 +6205,7 @@ void limHandleDeferMsgError(tpAniSirGlobal pMac, tpSirMsgQ pLimMsg)
 {
     if(SIR_BB_XPORT_MGMT_MSG == pLimMsg->type)
     {
+        lim_decrement_pending_mgmt_count(pMac);
         vos_pkt_return_packet((vos_pkt_t*)pLimMsg->bodyptr);
         pLimMsg->bodyptr = NULL;
     }
@@ -8231,4 +8237,17 @@ bool lim_check_if_vendor_oui_match(tpAniSirGlobal mac_ctx,
         return true;
     else
         return false;
+}
+
+void lim_decrement_pending_mgmt_count(tpAniSirGlobal mac_ctx)
+{
+       adf_os_spin_lock(&mac_ctx->sys.bbt_mgmt_lock);
+       if (!mac_ctx->sys.sys_bbt_pending_mgmt_count) {
+               adf_os_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
+               limLog(mac_ctx, LOGW,
+                       FL("sys_bbt_pending_mgmt_count value is 0"));
+               return;
+       }
+       mac_ctx->sys.sys_bbt_pending_mgmt_count--;
+       adf_os_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
 }

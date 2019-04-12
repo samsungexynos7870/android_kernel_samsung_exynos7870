@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -141,6 +141,115 @@ static void HTT_RX_FRAG_SET_LAST_MSDU(
 #define HTT_FAIL_NOTIFY_BREAK_CHECK(status)  0
 #endif /* CONFIG_HL_SUPPORT */
 
+#define MAX_TARGET_TX_CREDIT    204800
+
+#define CFR_MAGIC_NUM_HEAD      0xDEADBEAF
+#define CFR_MAGIC_NUM_TAIL      0xBEAFDEAD
+
+static void
+htt_populate_n_relay_cfr_data(struct htt_cfr_dump_ind_type_1 *cfr_ind,
+                           struct htt_rfs_cfr_dump *rfs_cfr_dump)
+{
+    int i,j;
+    u32 *cfr_data;
+    u32 msg_len = __le32_to_cpu(cfr_ind->length);
+
+    cfr_data= (u32*)((void *)cfr_ind + sizeof(struct htt_cfr_dump_ind_type_1));
+
+    if (msg_len >  sizeof(rfs_cfr_dump->cfr_dump))
+        msg_len = sizeof(rfs_cfr_dump->cfr_dump);
+
+    for (i=0,j=0;i < msg_len/4; i++,j+=2) {
+        rfs_cfr_dump->cfr_dump[j] = (u16)(cfr_data[i] & 0xFFFF);
+        rfs_cfr_dump->cfr_dump[j+1] = (u16)((cfr_data[i] >> 16) & 0xFFFF);
+#ifdef CFR_DATA_DBG
+        adf_os_print("%d 0x%4x %d 0x%4x\n",j, rfs_cfr_dump->cfr_dump[j], j+1,
+                     rfs_cfr_dump->cfr_dump[j+1]);
+#endif
+    }
+#ifdef WLAN_OPEN_SOURCE
+    if (msg_len)
+        cfr_dump_to_rfs(rfs_cfr_dump->cfr_dump, msg_len);
+#endif /* WLAN_OPEN_SOURCE */
+}
+
+static void
+htt_populate_rfs_cfr_header(struct htt_rfs_cfr_hdr *cfr_hdr,
+                            struct htt_cfr_dump_ind_type_1 *cfr_ind)
+{
+    cfr_hdr->head_magic_num = CFR_MAGIC_NUM_HEAD;
+    memcpy(&cfr_hdr->mac_addr, &cfr_ind->mac_addr, HTT_MAC_ADDR_LEN);
+    cfr_hdr->status = cfr_ind->status;
+    cfr_hdr->capture_bw = cfr_ind->capture_bw;
+    cfr_hdr->channel_bw = cfr_ind->channel_bw;
+    cfr_hdr->capture_mode = cfr_ind->mode;
+    cfr_hdr->capture_type = cfr_ind->cap_type;
+    cfr_hdr->sts_count = cfr_ind->sts_count;
+
+    cfr_hdr->prim20_chan = __le32_to_cpu(cfr_ind->chan.chan_mhz);
+    cfr_hdr->center_freq1 =  __le32_to_cpu(cfr_ind->chan.band_center_freq1);
+    cfr_hdr->center_freq2 =  __le32_to_cpu(cfr_ind->chan.band_center_freq2);
+    cfr_hdr->phy_mode = __le32_to_cpu(cfr_ind->chan.chan_mode);
+
+    cfr_hdr->num_rx_chain = 0; /* TODO */
+
+    cfr_hdr->length = __le32_to_cpu(cfr_ind->length);
+
+    cfr_hdr->timestamp = __le32_to_cpu(cfr_ind->timestamp);
+
+#ifdef WLAN_OPEN_SOURCE
+    cfr_dump_to_rfs(cfr_hdr, sizeof(struct htt_rfs_cfr_hdr));
+#endif /* WLAN_OPEN_SOURCE */
+}
+
+static void htt_peer_cfr_compl_ind(u_int32_t *data)
+{
+    struct htt_rfs_cfr_dump rfs_cfr_dump = { };
+    enum htt_cfr_capture_msg_type cfr_msg_type;
+    struct htt_cfr_dump_compl_ind *cfr_dump_ind;
+    u32 msg_len = 0;
+
+    cfr_dump_ind = (struct htt_cfr_dump_compl_ind *)data;
+
+    cfr_msg_type = __le32_to_cpu(cfr_dump_ind->msg_type);
+
+    switch (cfr_msg_type) {
+    case HTT_PEER_CFR_CAPTURE_MSG_TYPE_LEGACY:
+        {
+            msg_len = __le32_to_cpu(cfr_dump_ind->cfr_dump_legacy.length);
+            /* Skip if msg_len is 0 */
+            if (!msg_len)
+                break;
+
+#ifdef CFR_DATA_DBG
+            /* Discard if no of tones doesnt belong to 20MHz BW */
+            if (msg_len != (54*4)) {
+                if(msg_len)
+                    adf_os_print("WARN: Currently supported 53 tones "
+                                 "in 20MHz got %d\n", msg_len/4);
+            }
+#endif
+            htt_populate_rfs_cfr_header(&rfs_cfr_dump.cfr_hdr,
+                                        &cfr_dump_ind->cfr_dump_legacy);
+
+            htt_populate_n_relay_cfr_data(&cfr_dump_ind->cfr_dump_legacy,
+                                          &rfs_cfr_dump);
+
+            rfs_cfr_dump.tail_magic_num = CFR_MAGIC_NUM_TAIL;
+
+#ifdef WLAN_OPEN_SOURCE
+            cfr_dump_to_rfs(&rfs_cfr_dump.tail_magic_num, sizeof(u32));
+
+            cfr_finalalize_relay();
+#endif /* WLAN_OPEN_SOURCE */
+            break;
+        }
+    default:
+        adf_os_print("Unsupported CFR capture method %d\n",cfr_msg_type);
+        break;
+    }
+}
+
 /* Target to host Msg/event  handler  for low priority messages*/
 void
 htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
@@ -148,9 +257,12 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
     struct htt_pdev_t *pdev = (struct htt_pdev_t *) context;
     u_int32_t *msg_word;
     enum htt_t2h_msg_type msg_type;
+    u_int32_t payload_present;
 
     msg_word = (u_int32_t *) adf_nbuf_data(htt_t2h_msg);
     msg_type = HTT_T2H_MSG_TYPE_GET(*msg_word);
+    payload_present = HTT_T2H_PAYLOAD_PRESENT_GET(*msg_word);
+
     switch (msg_type) {
     case HTT_T2H_MSG_TYPE_VERSION_CONF:
         {
@@ -196,7 +308,7 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
         }
     case  HTT_T2H_MSG_TYPE_RX_OFFLOAD_DELIVER_IND:
         {
-            int msdu_cnt;
+            u_int16_t msdu_cnt;
             msdu_cnt = HTT_RX_OFFLOAD_DELIVER_IND_MSDU_CNT_GET(*msg_word);
             ol_rx_offload_deliver_ind_handler(
                 pdev->txrx_pdev,
@@ -301,6 +413,14 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
             peer_mac_addr = htt_t2h_mac_addr_deswizzle(
                 (u_int8_t *) (msg_word+1), &mac_addr_deswizzle_buf[0]);
 
+            if (peer_id > ol_cfg_max_peer_id(pdev->ctrl_pdev)) {
+                adf_os_print("%s: HTT_T2H_MSG_TYPE_PEER_MAP,"
+                            "invalid peer_id, %u\n",
+                            __FUNCTION__,
+                            peer_id);
+                break;
+            }
+
             ol_rx_peer_map_handler(
                 pdev->txrx_pdev, peer_id, vdev_id, peer_mac_addr, 1/*can tx*/);
             break;
@@ -309,6 +429,14 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
         {
             u_int16_t peer_id;
             peer_id = HTT_RX_PEER_UNMAP_PEER_ID_GET(*msg_word);
+
+            if (peer_id > ol_cfg_max_peer_id(pdev->ctrl_pdev)) {
+                adf_os_print("%s: HTT_T2H_MSG_TYPE_PEER_UNMAP,"
+                            "invalid peer_id, %u\n",
+                            __FUNCTION__,
+                            peer_id);
+                break;
+            }
 
             ol_rx_peer_unmap_handler(pdev->txrx_pdev, peer_id);
             break;
@@ -357,11 +485,10 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
 #if TXRX_STATS_LEVEL != TXRX_STATS_LEVEL_OFF
     case HTT_T2H_MSG_TYPE_STATS_CONF:
         {
-            u_int64_t cookie;
+            u_int8_t cookie;
             u_int8_t *stats_info_list;
 
             cookie = *(msg_word + 1);
-            cookie |= ((u_int64_t) (*(msg_word + 2))) << 32;
 
             stats_info_list = (u_int8_t *) (msg_word + 3);
             htc_pm_runtime_put(pdev->htc_pdev);
@@ -374,7 +501,13 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
         {
             u_int32_t *pl_hdr;
             u_int32_t log_type;
+            uint32_t len = adf_nbuf_len(htt_t2h_msg);
+            struct ol_fw_data pl_fw_data;
+
             pl_hdr = (msg_word + 1);
+            pl_fw_data.data = pl_hdr;
+            pl_fw_data.len = len - sizeof(*msg_word);
+
             log_type = (*(pl_hdr + 1) & ATH_PKTLOG_HDR_LOG_TYPE_MASK) >>
                                             ATH_PKTLOG_HDR_LOG_TYPE_SHIFT;
             if (log_type == PKTLOG_TYPE_TX_CTRL ||
@@ -382,14 +515,14 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
                (log_type) == PKTLOG_TYPE_TX_MSDU_ID ||
                (log_type) == PKTLOG_TYPE_TX_FRM_HDR ||
                (log_type) == PKTLOG_TYPE_TX_VIRT_ADDR) {
-                wdi_event_handler(WDI_EVENT_TX_STATUS, pdev->txrx_pdev, pl_hdr);
+                wdi_event_handler(WDI_EVENT_TX_STATUS, pdev->txrx_pdev, &pl_fw_data);
             } else if ((log_type) == PKTLOG_TYPE_RC_FIND) {
-                wdi_event_handler(WDI_EVENT_RATE_FIND, pdev->txrx_pdev, pl_hdr);
+                wdi_event_handler(WDI_EVENT_RATE_FIND, pdev->txrx_pdev, &pl_fw_data);
             } else if ((log_type) == PKTLOG_TYPE_RC_UPDATE) {
                 wdi_event_handler(
-                    WDI_EVENT_RATE_UPDATE, pdev->txrx_pdev, pl_hdr);
+                    WDI_EVENT_RATE_UPDATE, pdev->txrx_pdev, &pl_fw_data);
             } else if ((log_type) == PKTLOG_TYPE_RX_STAT) {
-                wdi_event_handler(WDI_EVENT_RX_DESC, pdev->txrx_pdev, pl_hdr);
+                wdi_event_handler(WDI_EVENT_RX_DESC, pdev->txrx_pdev, &pl_fw_data);
             }
             break;
         }
@@ -398,11 +531,23 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
     {
         u_int32_t htt_credit_delta_abs;
         int32_t htt_credit_delta;
-        int sign;
+        int sign, old_credit;
+        int delta2 = 0;
 
         htt_credit_delta_abs = HTT_TX_CREDIT_DELTA_ABS_GET(*msg_word);
         sign = HTT_TX_CREDIT_SIGN_BIT_GET(*msg_word) ? -1 : 1;
         htt_credit_delta = sign * htt_credit_delta_abs;
+
+        old_credit = adf_os_atomic_read(&pdev->htt_tx_credit.target_delta);
+        if (((old_credit + htt_credit_delta) > MAX_TARGET_TX_CREDIT) ||
+            ((old_credit + htt_credit_delta) < -MAX_TARGET_TX_CREDIT)) {
+            adf_os_print("%s: invalid credit update,old_credit=%d,"
+                        "htt_credit_delta=%d\n",
+                        __FUNCTION__,
+                        old_credit,
+                        htt_credit_delta);
+            break;
+        }
 
         if (pdev->cfg.is_high_latency &&
             !pdev->cfg.default_tx_comp_req) {
@@ -410,6 +555,39 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
             adf_os_atomic_add(htt_credit_delta,
                               &pdev->htt_tx_credit.target_delta);
             htt_credit_delta = htt_tx_credit_update(pdev);
+
+
+            if (htt_credit_delta >= 0) {
+                if ((adf_os_atomic_read(&pdev->txrx_pdev->target_tx_credit) +
+                    htt_credit_delta) < HTT_MAX_BUS_CREDIT) {
+                    if (adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) > 0) {
+                        delta2 = HTT_MAX_BUS_CREDIT -
+                                adf_os_atomic_read(&pdev->txrx_pdev->target_tx_credit)
+                                - htt_credit_delta;
+                        delta2 = (adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) < delta2) ?
+                                adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) : delta2;
+
+                        adf_os_atomic_add(-delta2, &pdev->htt_tx_credit.target_delta);
+                        adf_os_atomic_add(delta2, &pdev->txrx_pdev->target_tx_credit);
+                        adf_os_atomic_add(-delta2, &pdev->htt_tx_credit.bus_delta);
+                    }
+                }
+            } else {
+                if (adf_os_atomic_read(&pdev->txrx_pdev->target_tx_credit) < HTT_MAX_BUS_CREDIT) {
+                    if (adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) > 0) {
+                        delta2 = HTT_MAX_BUS_CREDIT -
+                                adf_os_atomic_read(&pdev->txrx_pdev->target_tx_credit);
+                        delta2 = (adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) < delta2) ?
+                                adf_os_atomic_read(&pdev->htt_tx_credit.target_delta) : delta2;
+
+                        adf_os_atomic_add(-delta2, &pdev->htt_tx_credit.target_delta);
+                        adf_os_atomic_add(delta2, &pdev->txrx_pdev->target_tx_credit);
+                        adf_os_atomic_add(-delta2, &pdev->htt_tx_credit.bus_delta);
+                    }
+                }
+            }
+
+
             HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
         }
 
@@ -506,10 +684,18 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
             u_int16_t peer_cnt = HTT_PEER_RATE_REPORT_MSG_PEER_COUNT_GET(*msg_word);
             u_int16_t i;
             struct rate_report_t *report, *each;
+            int max_peers;
 
             /* Param sanity check */
             if (peer_cnt == 0) {
                 adf_os_print("RATE REPORT messsage peer_cnt is 0! \n");
+                break;
+            }
+
+            max_peers = ol_cfg_max_peer_id(pdev->ctrl_pdev) + 1;
+            if (peer_cnt > max_peers) {
+                adf_os_print("RATE REPORT msg peer_cnt is larger than %d\n",
+                    max_peers);
                 break;
             }
 
@@ -536,6 +722,30 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
 
             adf_os_mem_free(report);
             break;
+        }
+    case HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND:
+        {
+#ifdef CFR_DATA_DBG
+            int i;
+            struct htt_cfr_dump_ind_type_1 *cfr_dump;
+#endif
+            if (!payload_present)
+                return;
+            msg_word++;
+            htt_peer_cfr_compl_ind(msg_word);
+#ifdef CFR_DATA_DBG
+            msg_word++;
+            cfr_dump = (struct htt_cfr_dump_ind_type_1 *) msg_word;
+            adf_os_print("CFR Dump: Length=%d Counter=%d  Mode=%d BW=%d\n",
+                          cfr_dump->length, cfr_dump->counter, cfr_dump->mode,
+                          cfr_dump->capture_bw);
+            msg_word += sizeof(struct htt_cfr_dump_ind_type_1)/4;
+            for (i=0; i<cfr_dump->length/4; i++) {
+                 adf_os_print("\n%d 0x%04x ",i, (u16)(*(msg_word+i) & 0xFFFF));
+                 adf_os_print("0x%04x ", (u16)((*(msg_word+i) >>16) & 0xFFFF));
+            }
+            adf_os_print("\n");
+#endif
         }
     default:
         break;
@@ -638,6 +848,7 @@ if (adf_os_unlikely(pdev->rx_ring.rx_reset)) {
         }
     case HTT_T2H_MSG_TYPE_TX_COMPL_IND:
         {
+            int old_credit;
             int num_msdus;
             enum htt_tx_status status;
             int msg_len = adf_nbuf_len(htt_t2h_msg);
@@ -695,19 +906,30 @@ if (adf_os_unlikely(pdev->rx_ring.rx_reset)) {
                     break;
                 }
 
-                if (!pdev->cfg.default_tx_comp_req) {
-                    int credit_delta;
-                    HTT_TX_MUTEX_ACQUIRE(&pdev->credit_mutex);
-                    adf_os_atomic_add(num_msdus,
-                        &pdev->htt_tx_credit.target_delta);
-                    credit_delta = htt_tx_credit_update(pdev);
-                    HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
-                    if (credit_delta) {
-                        ol_tx_target_credit_update(pdev->txrx_pdev,
-                                                   credit_delta);
-                    }
+                old_credit = adf_os_atomic_read(&pdev->htt_tx_credit.target_delta);
+                if (((old_credit + num_msdus) > MAX_TARGET_TX_CREDIT) ||
+                    ((old_credit + num_msdus) < -MAX_TARGET_TX_CREDIT)) {
+                    adf_os_print("%s: invalid credit update,old_credit=%d,"
+                                "num_msdus=%d\n",
+                                __FUNCTION__,
+                                old_credit,
+                                num_msdus);
                 } else {
-                    ol_tx_target_credit_update(pdev->txrx_pdev, num_msdus);
+                    if (!pdev->cfg.default_tx_comp_req) {
+                        int credit_delta;
+                        HTT_TX_MUTEX_ACQUIRE(&pdev->credit_mutex);
+                        adf_os_atomic_add(num_msdus,
+                            &pdev->htt_tx_credit.target_delta);
+                        credit_delta = htt_tx_credit_update(pdev);
+                        HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
+                        if (credit_delta) {
+                            ol_tx_target_credit_update(pdev->txrx_pdev,
+                                                       credit_delta);
+                        }
+                    } else {
+                        ol_tx_target_credit_update(pdev->txrx_pdev,
+                                                   num_msdus);
+                    }
                 }
             }
             ol_tx_completion_handler(
@@ -815,6 +1037,11 @@ if (adf_os_unlikely(pdev->rx_ring.rx_reset)) {
                                                peer_id, tid, offload_ind);
             break;
      }
+    case HTT_T2H_MSG_TYPE_MONITOR_MAC_HEADER_IND:
+        {
+            ol_rx_mon_mac_header_handler(pdev->txrx_pdev, htt_t2h_msg);
+            break;
+        }
 
     default:
         htt_t2h_lp_msg_handler(context, htt_t2h_msg);

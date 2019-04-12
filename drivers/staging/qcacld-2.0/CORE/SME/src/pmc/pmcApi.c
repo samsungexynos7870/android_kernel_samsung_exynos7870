@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3591,6 +3591,7 @@ eHalStatus PmcOffloadEnableStaModePowerSave(tHalHandle hHal,
                    FL("Successful Queued Enabling Sta Mode Ps Request"));
 
             pmc->configStaPsEnabled = TRUE;
+            pmc->configDefStaPsEnabled = TRUE;
             return eHAL_STATUS_SUCCESS;
         }
         else
@@ -3626,7 +3627,8 @@ eHalStatus PmcOffloadDisableStaModePowerSave(tHalHandle hHal,
     tpPmcOffloadReqFullPowerEntry power_entry;
     tListElem *pEntry;
 
-    if (pmc->configStaPsEnabled) {
+    if (pmc->configStaPsEnabled ||
+        vos_is_mon_enable()) {
         if (callback_routine) {
             /* Allocate entry for Full Power Cb list. */
             power_entry = vos_mem_malloc(sizeof(*power_entry));

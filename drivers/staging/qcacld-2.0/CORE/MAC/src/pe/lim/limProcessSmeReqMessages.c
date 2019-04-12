@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3408,7 +3408,8 @@ __limProcessSmeDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             return;
     } // end switch (pMac->lim.gLimSystemRole)
 
-    if (smeDeauthReq.reasonCode == eLIM_LINK_MONITORING_DEAUTH)
+    if (smeDeauthReq.reasonCode == eLIM_LINK_MONITORING_DEAUTH &&
+        psessionEntry->limSystemRole == eLIM_STA_ROLE)
     {
         /// Deauthentication is triggered by Link Monitoring
         PELOG1(limLog(pMac, LOG1, FL("**** Lost link with AP ****"));)
@@ -5493,6 +5494,24 @@ __limProcessSmeAddStaSelfReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
    pAddStaSelfParams->nss_5g = pSmeReq->nss_5g;
    pAddStaSelfParams->tx_aggregation_size = pSmeReq->tx_aggregation_size;
    pAddStaSelfParams->rx_aggregation_size = pSmeReq->rx_aggregation_size;
+   pAddStaSelfParams->tx_aggr_sw_retry_threshhold_be =
+                      pSmeReq->tx_aggr_sw_retry_threshhold_be;
+   pAddStaSelfParams->tx_aggr_sw_retry_threshhold_bk =
+                      pSmeReq->tx_aggr_sw_retry_threshhold_bk;
+   pAddStaSelfParams->tx_aggr_sw_retry_threshhold_vi =
+                      pSmeReq->tx_aggr_sw_retry_threshhold_vi;
+   pAddStaSelfParams->tx_aggr_sw_retry_threshhold_vo =
+                      pSmeReq->tx_aggr_sw_retry_threshhold_vo;
+   pAddStaSelfParams->tx_non_aggr_sw_retry_threshhold_be =
+                      pSmeReq->tx_non_aggr_sw_retry_threshhold_be;
+   pAddStaSelfParams->tx_non_aggr_sw_retry_threshhold_bk =
+                      pSmeReq->tx_non_aggr_sw_retry_threshhold_bk;
+   pAddStaSelfParams->tx_non_aggr_sw_retry_threshhold_vi =
+                      pSmeReq->tx_non_aggr_sw_retry_threshhold_vi;
+   pAddStaSelfParams->tx_non_aggr_sw_retry_threshhold_vo =
+                      pSmeReq->tx_non_aggr_sw_retry_threshhold_vo;
+   pAddStaSelfParams->enable_bcast_probe_rsp =
+                      pSmeReq->enable_bcast_probe_rsp;
 
    msg.type = SIR_HAL_ADD_STA_SELF_REQ;
    msg.reserved = 0;
@@ -7228,6 +7247,21 @@ limProcessUpdateAddIEs(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                 tANI_U16 new_length = pUpdateAddIEs->updateIE.ieBufferlength +
                                 psessionEntry->addIeParams.probeRespDataLen;
                 tANI_U8 *new_ptr = vos_mem_malloc(new_length);
+                /* Multiple back to back append commands
+                 * can lead to a huge length.So, check
+                 * for the validity of the length.
+                 */
+                if (psessionEntry->addIeParams.probeRespDataLen >
+                     (USHRT_MAX - pUpdateAddIEs->updateIE.ieBufferlength))
+                {
+                    limLog(pMac, LOGE,
+                           FL("IE Length overflow, curr:%d, new:%d."),
+                           psessionEntry->addIeParams.probeRespDataLen,
+                           pUpdateAddIEs->updateIE.ieBufferlength);
+                    vos_mem_free(pUpdateAddIEs->updateIE.pAdditionIEBuffer);
+                    pUpdateAddIEs->updateIE.pAdditionIEBuffer = NULL;
+                    return;
+                }
                 if (NULL == new_ptr)
                 {
                     limLog(pMac, LOGE, FL("Memory allocation failed."));
@@ -7597,8 +7631,6 @@ limProcessSmeDfsCsaIeRequest(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                      psessionEntry->gLimChannelSwitch.secondarySubBand,
                      psessionEntry);
         }
-
-        psessionEntry->gLimChannelSwitch.switchCount--;
     }
     return;
 }

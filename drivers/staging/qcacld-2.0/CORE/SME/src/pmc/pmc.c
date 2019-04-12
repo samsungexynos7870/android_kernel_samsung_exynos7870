@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2555,6 +2555,7 @@ tANI_BOOLEAN pmcShouldBmpsTimerRun( tpAniSirGlobal pMac )
         pmcLog(pMac, LOG1, FL("No Infra Session. BMPS can't be started"));
         return eANI_BOOLEAN_FALSE;
     }
+
     return eANI_BOOLEAN_TRUE;
 }
 
@@ -3163,6 +3164,7 @@ eHalStatus pmcOffloadDisableStaPsHandler(tpAniSirGlobal pMac,
      * honored
      */
     pmc->configStaPsEnabled = FALSE;
+    pmc->configDefStaPsEnabled = FALSE;
 
     /*
      * Check whether the give session is Infra and in Connected State
@@ -3217,13 +3219,18 @@ void pmcOffloadAutoPsEntryTimerExpired(void *pmcInfo)
 {
     tpPsOffloadPerSessionInfo pmc = (tpPsOffloadPerSessionInfo)pmcInfo;
     tpAniSirGlobal pMac = pmc->pMac;
+    eHalStatus status;
 
     smsLog(pMac, LOG2, FL("Auto PS timer expired"));
 
-    if(eHAL_STATUS_FAILURE == pmcOffloadEnableStaPsHandler(pMac,
-                                                pmc->sessionId))
-    {
+    status = pmcOffloadEnableStaPsHandler(pMac, pmc->sessionId);
+
+    if (eHAL_STATUS_FAILURE == status) {
         smsLog(pMac, LOGE, FL("Auto PS timer expired in wrong state"));
+    }
+    else if ((eHAL_STATUS_SUCCESS == status) ||
+            (eHAL_STATUS_PMC_NOT_NOW == status)) {
+        pmc->configStaPsEnabled = TRUE;
     }
 }
 
@@ -3326,9 +3333,14 @@ eHalStatus pmcOffloadExitPowersaveState(tpAniSirGlobal pMac, tANI_U32 sessionId)
      /* Call Full Power Req Cbs */
      pmcOffloadDoFullPowerCallbacks(pMac, sessionId, eHAL_STATUS_SUCCESS);
 
-     if (pmc->configStaPsEnabled || pmc->configDefStaPsEnabled)
+     if (pmc->configStaPsEnabled || pmc->configDefStaPsEnabled) {
+        if (true == vos_is_mon_enable()) {
+           smsLog(pMac, LOGE, FL("Montior is enabled, skip start StaPsTimer"));
+           return eHAL_STATUS_SUCCESS;
+        }
         pmcOffloadStartAutoStaPsTimer(pMac, sessionId,
                                       pmc->autoPsEntryTimerPeriod);
+        }
      else
         smsLog(pMac, LOGE, FL("Master Sta Ps Disabled"));
      return eHAL_STATUS_SUCCESS;

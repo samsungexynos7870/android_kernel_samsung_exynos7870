@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,7 +44,7 @@
 tANI_U8 limScanHashFunction(tSirMacAddr);
 void    limInitHashTable(tpAniSirGlobal);
 eHalStatus
-   limLookupNaddHashEntry(tpAniSirGlobal, tLimScanResultNode *, tANI_U8, tANI_U8);
+   limLookupNaddHashEntry(tpAniSirGlobal, tLimScanResultNode *, tANI_U8, tANI_U8, tANI_U32);
 void    limDeleteHashEntry(tLimScanResultNode *);
 void    limFlushp2pScanResults(tpAniSirGlobal);
 void    limDeleteCachedScanResults(tpAniSirGlobal);
@@ -54,13 +54,17 @@ void    limReInitScanResults(tpAniSirGlobal);
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 void    limInitLfrHashTable(tpAniSirGlobal);
 eHalStatus
-   limLookupNaddLfrHashEntry(tpAniSirGlobal, tLimScanResultNode *, tANI_U8, tANI_U8);
+   limLookupNaddLfrHashEntry(tpAniSirGlobal, tLimScanResultNode *, tANI_U8, tANI_U8, tANI_U32);
 void    limDeleteLfrHashEntry(tLimScanResultNode *);
 void    limDeleteCachedLfrScanResults(tpAniSirGlobal);
 void    limReInitLfrScanResults(tpAniSirGlobal);
 #endif
 tANI_U32 limDeactivateMinChannelTimerDuringScan(tpAniSirGlobal);
 void    limCheckAndAddBssDescription(tpAniSirGlobal, tpSirProbeRespBeacon, tANI_U8 *, tANI_BOOLEAN, tANI_U8);
+void lim_check_and_change_cc(tpAniSirGlobal mac_ptr,
+			     tpSirProbeRespBeacon beacon_ptr,
+			     tpPESession session_ptr);
+
 #if defined WLAN_FEATURE_VOWIFI
 void    limCollectBssDescription(tpAniSirGlobal,
                                  tSirBssDescription *,

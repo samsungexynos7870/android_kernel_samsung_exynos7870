@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -539,8 +539,11 @@ HIF_PCI_CE_recv_data(struct CE_handle *copyeng, void *ce_context, void *transfer
         adf_os_spin_lock(&pipe_info->completion_freeq_lock);
         compl_state = pipe_info->completion_freeq_head;
 
-        if (!compl_state)
+        if (!compl_state) {
+            adf_os_spin_unlock(&pipe_info->completion_freeq_lock);
             ce_target_reset(sc);
+            break;
+        }
 
         pipe_info->completion_freeq_head = compl_state->next;
         adf_os_spin_unlock(&pipe_info->completion_freeq_lock);
@@ -2009,7 +2012,8 @@ HIF_BMI_recv_data(struct CE_handle *copyeng, void *ce_context, void *transfer_co
 }
 #endif
 
-#define HIF_EXCHANGE_BMI_MSG_TIMEOUT      5000
+/* Timeout for BMI message exchange */
+#define HIF_EXCHANGE_BMI_MSG_TIMEOUT      6000
 int
 HIFExchangeBMIMsg(HIF_DEVICE *hif_device,
                   A_UINT8    *bmi_request,
@@ -2089,11 +2093,12 @@ HIFExchangeBMIMsg(HIF_DEVICE *hif_device,
     /* TBDXXX: handle timeout */
 
     /* Wait for BMI request/response transaction to complete */
-    if (adf_semaphore_acquire_timeout(scn->adf_dev,
-                                      &transaction->bmi_transaction_sem,
-                                      HIF_EXCHANGE_BMI_MSG_TIMEOUT)) {
-        printk("%s:Fatal error, BMI transaction timeout. Please check the HW interface!!",
-               __func__);
+    if (adf_os_mutex_acquire_timeout(scn->adf_dev,
+                                     &transaction->bmi_transaction_sem,
+                                     HIF_EXCHANGE_BMI_MSG_TIMEOUT)) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+                        ("%s:Fatal error, BMI transaction timeout. Please check the HW interface!!",
+                         __func__));
         A_FREE(transaction);
         return -ETIMEDOUT;
     }
@@ -2653,6 +2658,8 @@ HIF_PCIDeviceProbed(hif_handle_t hif_hdl)
                      break;
              }
 
+         } else if (CHIP_ID_VERSION_GET(chip_id) == 0xE) {
+             banks_switched = 9; /* QCA9377 shall use 9 IRAM banks */
          }
          ealloc_value |= ((banks_switched << HI_EARLY_ALLOC_IRAM_BANKS_SHIFT) & HI_EARLY_ALLOC_IRAM_BANKS_MASK);
         }
@@ -2839,6 +2846,9 @@ HIFTargetSleepStateAdjust(A_target_id_t targid,
                 if (tot_delay > PCIE_WAKE_TIMEOUT)
                 {
                     u_int16_t val;
+#ifdef CONFIG_NON_QC_PLATFORM_PCI
+		    u_int16_t devid;
+#endif
                     u_int32_t bar;
 
                     printk("%s: keep_awake_count = %d\n", __func__,
@@ -2849,6 +2859,9 @@ HIFTargetSleepStateAdjust(A_target_id_t targid,
 
                     pci_read_config_word(sc->pdev, PCI_DEVICE_ID, &val);
                     printk("%s: PCI Device ID = 0x%04x\n", __func__, val);
+#ifdef CONFIG_NON_QC_PLATFORM_PCI
+		    devid = val;
+#endif
 
                     pci_read_config_word(sc->pdev, PCI_COMMAND, &val);
                     printk("%s: PCI Command = 0x%04x\n", __func__, val);
@@ -2868,6 +2881,10 @@ HIFTargetSleepStateAdjust(A_target_id_t targid,
 
                     printk("%s:error, can't wakeup target\n", __func__);
                     hif_msm_pcie_debug_info(sc);
+#ifdef CONFIG_NON_QC_PLATFORM_PCI
+		    if (sc->devid != devid)
+			return -EACCES;
+#endif
 
                     if (!vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL)) {
                         sc->recovery = true;

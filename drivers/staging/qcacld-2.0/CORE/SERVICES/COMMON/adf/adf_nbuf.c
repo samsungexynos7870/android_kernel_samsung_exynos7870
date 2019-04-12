@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -198,11 +198,15 @@ __adf_nbuf_alloc(adf_os_device_t osdev, size_t size, int reserve, int align, int
 {
     struct sk_buff *skb;
     unsigned long offset;
+    int flags = GFP_KERNEL;
 
     if(align)
         size += (align - 1);
 
-    skb = dev_alloc_skb(size);
+    if (in_interrupt() || irqs_disabled() || in_atomic())
+        flags = GFP_ATOMIC;
+
+    skb = __netdev_alloc_skb(NULL, size, flags);
 
     if (skb)
        goto skb_cb;
@@ -1223,13 +1227,13 @@ typedef struct adf_nbuf_track_t ADF_NBUF_TRACK;
 
 static ADF_NBUF_TRACK *gp_adf_net_buf_track_tbl[ADF_NET_BUF_TRACK_MAX_SIZE];
 static struct kmem_cache *nbuf_tracking_cache;
-static ADF_NBUF_TRACK *adf_net_buf_track_free_list = NULL;
+static ADF_NBUF_TRACK *adf_net_buf_track_free_list;
 static spinlock_t adf_net_buf_track_free_list_lock;
-static uint32_t adf_net_buf_track_free_list_count = 0;
-static uint32_t adf_net_buf_track_used_list_count = 0;
-static uint32_t adf_net_buf_track_max_used = 0;
-static uint32_t adf_net_buf_track_max_free = 0;
-static uint32_t adf_net_buf_track_max_allocated = 0;
+static uint32_t adf_net_buf_track_free_list_count;
+static uint32_t adf_net_buf_track_used_list_count;
+static uint32_t adf_net_buf_track_max_used;
+static uint32_t adf_net_buf_track_max_free;
+static uint32_t adf_net_buf_track_max_allocated;
 
 /**
  * adf_update_max_used() - update adf_net_buf_track_max_used tracking variable
@@ -1445,7 +1449,7 @@ static void adf_nbuf_track_memory_manager_destroy(void)
 	adf_net_buf_track_used_list_count = 0;
 	adf_net_buf_track_max_used = 0;
 	adf_net_buf_track_max_free = 0;
-	adf_net_buf_track_max_allocated = 0;			  
+	adf_net_buf_track_max_allocated = 0;
 
 	spin_unlock_irqrestore(&adf_net_buf_track_free_list_lock, irq_flag);
 	kmem_cache_destroy(nbuf_tracking_cache);
@@ -1864,6 +1868,57 @@ int adf_nbuf_update_radiotap(struct mon_rx_status *rx_status, adf_nbuf_t nbuf,
 	}
 
 	return rtap_len;
+}
+
+/**
+ * adf_nbuf_construct_radiotap() - fill in the info into radiotap buf
+ *
+ * @rtap_buf: pointer to radiotap buffer
+ * @tsf: timestamp of packet
+ * @rssi_comb: rssi of packet
+ *
+ * Return: length of rtap_len updated.
+ */
+uint16_t adf_nbuf_construct_radiotap(
+		uint8_t *rtap_buf,
+		uint32_t tsf,
+		uint32_t rssi_comb)
+{
+	struct ieee80211_radiotap_header *rthdr =
+		(struct ieee80211_radiotap_header *)rtap_buf;
+	uint32_t rtap_hdr_len = sizeof(struct ieee80211_radiotap_header);
+	uint32_t rtap_len = rtap_hdr_len;
+
+	/* IEEE80211_RADIOTAP_TSFT              __le64       microseconds*/
+	rthdr->it_present = cpu_to_le32(1 << IEEE80211_RADIOTAP_TSFT);
+	put_unaligned_le64((uint64_t)tsf,
+			   (void *)&rtap_buf[rtap_len]);
+	rtap_len += 8;
+
+	/* IEEE80211_RADIOTAP_FLAGS u8*/
+/*	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_FLAGS);
+	rtap_buf[rtap_len] = 0x10;
+	rtap_len += 1; */
+
+	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
+	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
+#define NORMALIZED_TO_NOISE_FLOOR (-96)
+	/*
+	 * rssi_comb is int dB, need to convert it to dBm.
+	 * normalize value to noise floor of -96 dBm
+	 */
+	rtap_buf[rtap_len] = rssi_comb +
+		NORMALIZED_TO_NOISE_FLOOR;
+	rtap_len += 1;
+
+	/* IEEE80211_RADIOTAP_DBM_ANTNOISE */
+	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE);
+	rtap_buf[rtap_len] = NORMALIZED_TO_NOISE_FLOOR;
+	rtap_len += 1;
+
+	rthdr->it_len = cpu_to_le16(rtap_len);
+
+	return rthdr->it_len;
 }
 
 /**

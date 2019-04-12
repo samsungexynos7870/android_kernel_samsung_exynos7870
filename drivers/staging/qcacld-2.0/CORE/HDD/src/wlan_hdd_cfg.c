@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -59,14 +59,9 @@
 #include <csrApi.h>
 #include <pmcApi.h>
 #include <wlan_hdd_misc.h>
+#include <linux/fcntl.h>
+#include <linux/fs.h>
 
-#ifdef SEC_CONFIG_PSM
-unsigned int wlan_hdd_sec_get_psm(unsigned int original_value);
-#endif /* SEC_CONFIG_PSM */
-
-#ifdef SEC_CONFIG_GRIP_POWER
-bool wlan_hdd_sec_get_grip_power(unsigned int *grip_power_2g, unsigned int *grip_power_5g);
-#endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
 static void
 cbNotifySetRoamPrefer5GHz(hdd_context_t *pHddCtx, unsigned long NotifyId)
@@ -1079,6 +1074,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_QOS_WMM_MODE_MIN,
                  CFG_QOS_WMM_MODE_MAX ),
 
+   REG_VARIABLE( CFG_STA_LOCAL_EDCA_FOR_ETSI_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, gStaLocalEDCAEnable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_STA_LOCAL_EDCA_FOR_ETSI_DEFAULT,
+                 CFG_STA_LOCAL_EDCA_FOR_ETSI_MIN,
+                 CFG_STA_LOCAL_EDCA_FOR_ETSI_MAX ),
+
    REG_VARIABLE( CFG_QOS_WMM_80211E_ENABLED_NAME , WLAN_PARAM_Integer,
                  hdd_config_t, b80211eIsEnabled,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -1477,6 +1479,27 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_DEFAULT,
                  CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MIN,
                  CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MAX ),
+
+   REG_VARIABLE( CFG_WLAN_BAND_SWITCH_ENABLE , WLAN_PARAM_Integer,
+                 hdd_config_t, wlan_band_switch_enable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_BAND_SWITCH_ENABLE_DEFAULT,
+                 CFG_WLAN_BAND_SWITCH_ENABLE_MIN,
+                 CFG_WLAN_BAND_SWITCH_ENABLE_MAX ),
+
+   REG_VARIABLE( CFG_WLAN_AP_P2PGO_CONC_ENABLE , WLAN_PARAM_Integer,
+                 hdd_config_t, wlan_ap_p2pgo_conc_enable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_AP_P2PGO_CONC_ENABLE_DEFAULT,
+                 CFG_WLAN_AP_P2PGO_CONC_ENABLE_MIN,
+                 CFG_WLAN_AP_P2PGO_CONC_ENABLE_MAX ),
+
+   REG_VARIABLE( CFG_WLAN_AP_P2PGC_CONC_ENABLE , WLAN_PARAM_Integer,
+                 hdd_config_t, wlan_ap_p2pclient_conc_enable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_AP_P2PGC_CONC_ENABLE_DEFAULT,
+                 CFG_WLAN_AP_P2PGC_CONC_ENABLE_MIN,
+                 CFG_WLAN_AP_P2PGC_CONC_ENABLE_MAX ),
 #endif
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
    REG_VARIABLE( CFG_WLAN_AUTO_SHUTDOWN , WLAN_PARAM_Integer,
@@ -3336,6 +3359,94 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_THERMAL_TEMP_MAX_LEVEL3_MIN,
                  CFG_THERMAL_TEMP_MAX_LEVEL3_MAX ),
 
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_shutdown_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_MIN,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_shutdown_auto_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_MIN,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_RESUME_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_resume_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_WARNING_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_warning_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_suspend_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SAMPLE_RATE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_sample_rate,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SAMPLE_RATE_DEFAULT,
+                 CFG_THERMAL_SAMPLE_RATE_MIN,
+                 CFG_THERMAL_SAMPLE_RATE_MAX),
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
+
+   REG_VARIABLE( CFG_REMOVE_TIME_STAMP_SYNC_CMD_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, remove_time_stamp_sync_cmd,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_DEFAULT,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_MIN,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_MAX),
+
+   /* Runtime DPD Recaliberation INI Parameters BEGINS */
+   REG_VARIABLE( CFG_DPD_RECALIB_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_ENABLE_DEFAULT,
+                 CFG_DPD_RECALIB_ENABLE_MIN,
+                 CFG_DPD_RECALIB_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_delta_degreehigh,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_MIN,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DELTA_DEGREE_LOW_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_delta_degreelow,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_MIN,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_COOLING_TIME_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_cooling_time,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_COOLING_TIME_DEFAULT,
+                 CFG_DPD_RECALIB_COOLING_TIME_MIN,
+                 CFG_DPD_RECALIB_COOLING_TIME_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DURATION_MAX_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_duration_max,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DURATION_MAX_DEFAULT,
+                 CFG_DPD_RECALIB_DURATION_MAX_MIN,
+                 CFG_DPD_RECALIB_DURATION_MAX_MAX),
+   /* DPD Runtime Recaliberation INI Parameters END */
+
   REG_VARIABLE( CFG_SET_TXPOWER_LIMIT2G_NAME , WLAN_PARAM_Integer,
                 hdd_config_t, TxPower2g,
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3549,6 +3660,12 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_ENABLE_PACKET_LOG_DEFAULT,
                  CFG_ENABLE_PACKET_LOG_MIN,
                  CFG_ENABLE_PACKET_LOG_MAX ),
+   REG_VARIABLE( CFG_EDCA_FROM_HOSTAPD,  WLAN_PARAM_Integer,
+                 hdd_config_t, enable_hostapd_edca_local,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+                 CFG_EDCA_FROM_HOSTAPD_DEFAULT,
+                 CFG_EDCA_FROM_HOSTAPD_MIN,
+                 CFG_EDCA_FROM_HOSTAPD_MAX),
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
    REG_VARIABLE( CFG_ROAMING_OFFLOAD_NAME,  WLAN_PARAM_Integer,
@@ -3872,6 +3989,13 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_ENABLE_SIFS_BURST_MIN,
               CFG_ENABLE_SIFS_BURST_MAX ),
 
+   REG_VARIABLE(CFG_KEEP_PASSIVE_DWELL_TIME, WLAN_PARAM_Integer,
+               hdd_config_t, keeppassivedwelltime,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_KEEP_PASSIVE_DWELL_TIME_DEFAULT,
+               CFG_KEEP_PASSIVE_DWELL_TIME_MIN,
+               CFG_KEEP_PASSIVE_DWELL_TIME_MAX),
+
 #ifdef WLAN_FEATURE_LPSS
    REG_VARIABLE(CFG_ENABLE_LPASS_SUPPORT, WLAN_PARAM_Integer,
                hdd_config_t, enablelpasssupport,
@@ -3896,6 +4020,13 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_ENABLE_SELF_RECOVERY_DEFAULT,
               CFG_ENABLE_SELF_RECOVERY_MIN,
               CFG_ENABLE_SELF_RECOVERY_MAX ),
+
+   REG_VARIABLE( CFG_ENABLE_AC_TXQ_OPTIMIZE, WLAN_PARAM_HexInteger,
+              hdd_config_t, enable_ac_txq_optimize,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_ENABLE_AC_TXQ_OPTIMIZE_DEFAULT,
+              CFG_ENABLE_AC_TXQ_OPTIMIZE_MIN,
+              CFG_ENABLE_AC_TXQ_OPTIMIZE_MAX ),
 
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
    REG_VARIABLE(CFG_SAP_SCC_CHAN_AVOIDANCE, WLAN_PARAM_Integer,
@@ -4200,6 +4331,16 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_CONNECT_BLOCK_DURATION_MIN,
               CFG_CONNECT_BLOCK_DURATION_MAX ),
 #endif /* SAP_AUTH_OFFLOAD */
+
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+   REG_VARIABLE( CFG_SAP_CHANNEL_SWITCH_WITH_CSA_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, sap_ch_switch_with_csa,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_DEFAULT,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_MIN,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_MAX ),
+
+#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
 
    REG_VARIABLE(CFG_DOT11P_MODE_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, dot11p_mode,
@@ -4576,6 +4717,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_WOW_PULSE_INTERVAL_HIGH_DEFAULT,
                 CFG_WOW_PULSE_INTERVAL_HIGH_MIN,
                 CFG_WOW_PULSE_INTERVAL_HIGH_MAX),
+
+   REG_VARIABLE(CFG_WOW_PULSE_REPEAT_COUNT_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, wow_pulse_repeat_count,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_WOW_PULSE_REPEAT_COUNT_DEFAULT,
+                CFG_WOW_PULSE_REPEAT_COUNT_MIN,
+                CFG_WOW_PULSE_REPEAT_COUNT_MAX),
 #endif
 
    REG_VARIABLE(CFG_MIB_STATS_ENABLED_NAME, WLAN_PARAM_Integer,
@@ -4679,6 +4827,63 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_RX_AGGREGATION_SIZE_DEFAULT,
                 CFG_RX_AGGREGATION_SIZE_MIN,
                 CFG_RX_AGGREGATION_SIZE_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_be,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BE_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BE_MIN,
+                CFG_TX_AGGR_SW_RETRY_BE_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BK, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_bk,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BK_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BK_MIN,
+                CFG_TX_AGGR_SW_RETRY_BK_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VI, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_vi,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VI_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VI_MIN,
+                CFG_TX_AGGR_SW_RETRY_VI_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VO, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_vo,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VO_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VO_MIN,
+                CFG_TX_AGGR_SW_RETRY_VO_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_be,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_BK, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_bk,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_VI, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_vi,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_VO, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_vo,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_MAX),
+
    REG_VARIABLE(CFG_CREATE_BUG_REPORT_FOR_SCAN, WLAN_PARAM_Integer,
                 hdd_config_t, bug_report_for_scan_results,
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4852,6 +5057,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_ACTIVE_MODE_OFFLOAD_DEFAULT,
                 CFG_ACTIVE_MODE_OFFLOAD_MIN,
                 CFG_ACTIVE_MODE_OFFLOAD_MAX),
+
+   REG_VARIABLE(CFG_STA_CHANGE_COUNTRYCODE_DYN_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, sta_change_cc_via_beacon,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_STA_CHANGE_COUNTRYCODE_DYN_DEFAULT,
+                CFG_STA_CHANGE_COUNTRYCODE_DYN_DISABLE,
+                CFG_STA_CHANGE_COUNTRYCODE_DYN_ENABLE),
 
    REG_VARIABLE(CFG_SIFS_BURST_DURATION_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, sifs_burst_duration,
@@ -5133,6 +5345,48 @@ REG_TABLE_ENTRY g_registry_table[] =
                CFG_OCB_TX_PER_PKT_STATS_ENABLE_MIN,
                CFG_OCB_TX_PER_PKT_STATS_ENABLE_MAX),
 #endif
+
+	REG_VARIABLE(CFG_CCA_THRESHOLD_ENABLE_NAME, WLAN_PARAM_Integer,
+		hdd_config_t, cca_threshold_enable,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_CCA_THRESHOLD_ENABLE_DEFAULT,
+		CFG_CCA_THRESHOLD_ENABLE_MIN,
+		CFG_CCA_THRESHOLD_ENABLE_MAX),
+
+	REG_VARIABLE(CFG_CCA_THRESHOLD_2G_NAME, WLAN_PARAM_Integer,
+		hdd_config_t, cca_threshold_2g,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_CCA_THRESHOLD_2G_DEFAULT,
+		CFG_CCA_THRESHOLD_2G_MIN,
+		CFG_CCA_THRESHOLD_2G_MAX),
+
+	REG_VARIABLE(CFG_CCA_THRESHOLD_5G_NAME, WLAN_PARAM_Integer,
+		hdd_config_t, cca_threshold_5g,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_CCA_THRESHOLD_5G_DEFAULT,
+		CFG_CCA_THRESHOLD_5G_MIN,
+		CFG_CCA_THRESHOLD_5G_MAX),
+
+	REG_VARIABLE(CFG_SKIP_CRASH_INJECT_NAME, WLAN_PARAM_Integer,
+		hdd_config_t, skip_crash_inject,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SKIP_CRASH_INJECT_DEFAULT,
+		CFG_SKIP_CRASH_INJECT_MIN,
+		CFG_SKIP_CRASH_INJECT_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_MONITOR_ON_STA, WLAN_PARAM_Integer,
+		     hdd_config_t, mon_on_sta_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_MONITOR_ON_STA_DEFAULT,
+		     CFG_ENABLE_MONITOR_ON_STA_MIN,
+		     CFG_ENABLE_MONITOR_ON_STA_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_BCAST_PROBE_RESP_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_bcast_probe_rsp,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_MIN,
+		CFG_ENABLE_BCAST_PROBE_RESP_MAX),
 };
 
 
@@ -5234,30 +5488,6 @@ typedef struct
    char *value;
 }tCfgIniEntry;
 
-#ifdef SEC_CONFIG_GRIP_POWER
-#define SEC_GRIPPOWER_FILEPATH	"/etc/firmware/wlan/qca_cld/grippower.info"
-bool wlan_hdd_sec_get_grip_power(unsigned int *grip_power_2g, unsigned int *grip_power_5g)
-{
-    struct file *fp    = NULL;
-    char *filepath     = SEC_GRIPPOWER_FILEPATH;
-    char buf[16]        = {0};
-    int i;
-    bool status      = FALSE;
-    for (i = 0; i < 5; ++i) {
-        fp = filp_open(filepath, O_RDONLY, 0);
-        if (!IS_ERR(fp)) {
-            kernel_read(fp, 0, buf, 5);
-            sscanf(buf, "%d:%d", (unsigned int *)grip_power_2g, (unsigned int *)grip_power_5g);
-            printk("[WIFI] GRIPPOWER: [%u:%u]\n", *grip_power_2g, *grip_power_5g);
-            status = TRUE;
-            break;
-        }
-    }
-    if (fp && !IS_ERR(fp))
-        filp_close(fp, NULL);
-    return status;
-}
-#endif
 static VOS_STATUS hdd_apply_cfg_ini( hdd_context_t * pHddCtx,
     tCfgIniEntry* iniTable, unsigned long entries);
 
@@ -5357,13 +5587,14 @@ VOS_STATUS hdd_parse_config_ini(hdd_context_t* pHddCtx)
    hddLog(LOG1, "%s: qcom_cfg.ini Size %zu", __func__, fw->size);
 
    buffer = (char*)vos_mem_malloc(fw->size + 1);
-   buffer[fw->size] = '\0';
 
    if(NULL == buffer) {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: kmalloc failure",__func__);
       release_firmware(fw);
       return VOS_STATUS_E_FAILURE;
    }
+
+   buffer[fw->size] = '\0';
    pTemp = buffer;
 
    vos_mem_copy((void*)buffer,(void *)fw->data, fw->size);
@@ -5457,6 +5688,9 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAPAutoShutOff] Value = [%u]", pHddCtx->cfg_ini->nAPAutoShutOff);
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gWlanMccToSccSwitchMode] Value = [%u]", pHddCtx->cfg_ini->WlanMccToSccSwitchMode);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gWlanBandSwitchEnable] Value = [%u]", pHddCtx->cfg_ini->wlan_band_switch_enable);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gWlanApP2pGOConcurrencyEnable] Value = [%u]", pHddCtx->cfg_ini->wlan_ap_p2pgo_conc_enable);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gWlanApP2pClientConcurEnable] Value = [%u]", pHddCtx->cfg_ini->wlan_ap_p2pclient_conc_enable);
 #endif
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gWlanAutoShutdown] Value = [%u]", pHddCtx->cfg_ini->WlanAutoShutdown);
@@ -5470,6 +5704,11 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
              "Name = [sap_channel_avoidance] value = [%u]",
              pHddCtx->cfg_ini->sap_channel_avoidance);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
+
+  VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+             "Name = [%s] value = [%u]", CFG_REMOVE_TIME_STAMP_SYNC_CMD_NAME,
+             pHddCtx->cfg_ini->remove_time_stamp_sync_cmd);
+
   VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
              "Name = [%s] value = [%u]", CFG_SAP_P2P_11AC_OVERRIDE_NAME,
              pHddCtx->cfg_ini->sap_p2p_11ac_override);
@@ -5709,11 +5948,7 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [overrideCountryCode] Value = [%s] ",pHddCtx->cfg_ini->overrideCountryCode);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAllowDFSChannelRoam] Value = [%u] ",pHddCtx->cfg_ini->allowDFSChannelRoam);
   hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gMaxConcurrentActiveSessions] Value = [%u] ", pHddCtx->cfg_ini->gMaxConcurrentActiveSessions);
-#ifdef SEC_CONFIG_ANTENNA_CONTROL
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnable2x2] Value = [%u] ",pHddCtx->cfg_ini->enable2x2);
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gSetTxChainmask1x1] Value = [%u] ",pHddCtx->cfg_ini->txchainmask1x1);
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gSetRxChainmask1x1] Value = [%u] ",pHddCtx->cfg_ini->rxchainmask1x1);
-#endif
+
 #ifdef FEATURE_BUS_BANDWIDTH
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
           "Name = [gBusBandwidthHighThreshold] Value = [%u] ",
@@ -5772,6 +6007,11 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
            "Name = [isRoamOffloadEnabled] Value = [%u]",
                    pHddCtx->cfg_ini->isRoamOffloadEnabled);
 #endif
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+           "Name = [gEnableHostapdEdcaLocal] Value = [%u]",
+                   pHddCtx->cfg_ini->enable_hostapd_edca_local);
+
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
            "Name = [gEnableSifsBurst] Value = [%u]",
                    pHddCtx->cfg_ini->enableSifsBurst);
@@ -5785,6 +6025,10 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
            "Name = [gEnableSelfRecovery] Value = [%u]",
                    pHddCtx->cfg_ini->enableSelfRecovery);
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+           "Name = [gEnableAcTxqOptimize] Value = [%u]",
+                   pHddCtx->cfg_ini->enable_ac_txq_optimize);
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "Name = [gEnableSapSuspend] Value = [%u]",
@@ -5842,6 +6086,10 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
           "Name = [gIpaUcStaOffload] Value = [%u] ",
                    pHddCtx->cfg_ini->ipa_uc_sta_offload);
 #endif
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [gSkipCrashInject] Value = [%u] ",
+                   pHddCtx->cfg_ini->skip_crash_inject);
 
 #ifdef DHCP_SERVER_OFFLOAD
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -5912,6 +6160,7 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
         "Name = [sta_auth_retries_for_code17] Value = [%u] ",
          pHddCtx->cfg_ini->sta_auth_retries_for_code17);
+
   hddLog(LOG2, "Name = [gP2PListenDeferInterval] Value = [%u]",
                    pHddCtx->cfg_ini->p2p_listen_defer_interval);
 
@@ -6026,6 +6275,11 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   hddLog(LOG2, "Name = [%s] Value = [%u]",
          CFG_SUB_20_CHANNEL_WIDTH_NAME,
          pHddCtx->cfg_ini->sub_20_channel_width);
+
+  hddLog(LOGE, "Name = [%s] Value = [%u]",
+         CFG_STA_CHANGE_COUNTRYCODE_DYN_NAME ,
+         pHddCtx->cfg_ini->sta_change_cc_via_beacon);
+
 
   hdd_ndp_print_ini_config(pHddCtx);
 
@@ -6230,159 +6484,31 @@ static int parseHexDigit(char c)
   return 0;
 }
 
-/* convert string to 6 bytes mac address
- * 00AA00BB00CC -> 0x00 0xAA 0x00 0xBB 0x00 0xCC
- */
-static void update_mac_from_string(hdd_context_t *pHddCtx, tCfgIniEntry *macTable, int num)
-{
-   int i = 0, j = 0, res = 0;
-   char *candidate = NULL;
-   v_MACADDR_t macaddr[VOS_MAX_CONCURRENCY_PERSONA];
-
-   memset(macaddr, 0, sizeof(macaddr));
-
-   for (i = 0; i < num; i++)
-   {
-      candidate = macTable[i].value;
-      for (j = 0; j < VOS_MAC_ADDR_SIZE; j++) {
-         res = hex2bin(&macaddr[i].bytes[j], &candidate[(j<<1)], 1);
-         if (res < 0)
-            break;
-      }
-      if (res == 0 && !vos_is_macaddr_zero(&macaddr[i])) {
-         vos_mem_copy((v_U8_t *)&pHddCtx->cfg_ini->intfMacAddr[i].bytes[0],
-                      (v_U8_t *)&macaddr[i].bytes[0], VOS_MAC_ADDR_SIZE);
-      }
-   }
-}
-
 /*
  * This function tries to update mac address from cfg file.
  * It overwrites the MAC address if config file exist.
  */
 VOS_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx)
 {
-   int status, i = 0;
-   const struct firmware *fw = NULL;
-   char *line, *buffer = NULL, *temp = NULL;
-   char *name, *value;
-   tCfgIniEntry macTable[VOS_MAX_CONCURRENCY_PERSONA];
-   tSirMacAddr customMacAddr;
+   struct file *fp = NULL;
+   char buf[17];
 
-   VOS_STATUS vos_status = VOS_STATUS_SUCCESS;
+   fp = filp_open("/efs/wifi/.mac.info", O_RDONLY, 0);
+   if (!IS_ERR(fp)) {
+      kernel_read(fp, 0, buf, 17);
+      filp_close(fp, NULL);
 
-   memset(macTable, 0, sizeof(macTable));
-   status = request_firmware(&fw, WLAN_MAC_FILE, pHddCtx->parent_dev);
-
-   if (status)
-   {
-      hddLog(VOS_TRACE_LEVEL_WARN, "%s: request_firmware failed %d",
-             __func__, status);
-      vos_status = VOS_STATUS_E_FAILURE;
-      return vos_status;
-   }
-   if (!fw || !fw->data || !fw->size)
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: invalid firmware", __func__);
-      vos_status = VOS_STATUS_E_INVAL;
-      goto config_exit;
+      sscanf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[0],
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[1],
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[2],
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[3],
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[4],
+         (unsigned int *)&pHddCtx->cfg_ini->intfMacAddr[0].bytes[5]);
    }
 
-   temp = buffer = (char *) vos_mem_malloc(fw->size + 1);
-   if (NULL == buffer) {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: unable to allocate memory",__func__);
-      release_firmware(fw);
-      return VOS_STATUS_E_NOMEM;
-   }
-
-   vos_mem_copy((void*)buffer,(void *)fw->data, fw->size);
-   buffer[fw->size] = '\0';
-
-   /* data format:
-    * Intf0MacAddress=00AA00BB00CC
-    * Intf1MacAddress=00AA00BB00CD
-    * END
-    */
-   while (buffer != NULL)
-   {
-      line = get_next_line(buffer);
-      buffer = i_trim(buffer);
-
-      if (strlen((char *)buffer) == 0 || *buffer == '#') {
-         buffer = line;
-         continue;
-      }
-      if (strncmp(buffer, "END", 3) == 0)
-         break;
-
-      name = buffer;
-      buffer = strchr(buffer, '=');
-      if (buffer) {
-         *buffer++ = '\0';
-         i_trim(name);
-         if (strlen(name) != 0) {
-            buffer = i_trim(buffer);
-            if (strlen(buffer) == 12) {
-               value = buffer;
-               macTable[i].name = name;
-               macTable[i++].value = value;
-               if (i >= VOS_MAX_CONCURRENCY_PERSONA)
-                  break;
-            }
-         }
-      }
-      buffer = line;
-   }
-   if (i <= VOS_MAX_CONCURRENCY_PERSONA) {
-      hddLog(VOS_TRACE_LEVEL_INFO, "%s: %d Mac addresses provided", __func__, i);
-   }
-   else {
-      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: invalid number of Mac address provided, nMac = %d",
-             __func__, i);
-      vos_status = VOS_STATUS_E_INVAL;
-      goto config_exit;
-   }
-
-   update_mac_from_string(pHddCtx, &macTable[0], i);
-
-   vos_mem_copy(&customMacAddr,
-                     &pHddCtx->cfg_ini->intfMacAddr[0].bytes[0],
-                     sizeof(tSirMacAddr));
-   sme_SetCustomMacAddr(customMacAddr);
-
-config_exit:
-   release_firmware(fw);
-   vos_mem_free(temp);
-   return vos_status;
+   return VOS_STATUS_SUCCESS;
 }
-
-#ifdef SEC_CONFIG_PSM
-#define SEC_PSM_FILEPATH		"/data/misc/conn/.psm.info"
-
-unsigned int wlan_hdd_sec_get_psm(unsigned int original_value)
-{
-	struct file *fp		= NULL;
-	char *filepath		= SEC_PSM_FILEPATH;
-	int i;
-	int value = 0;
-
-	for (i = 0; i < 5; ++i) {
-		fp = filp_open(filepath, O_RDONLY, 0);
-		if (!IS_ERR(fp)) {
-			//kernel_read(fp, fp->f_pos, &value, 1);
-			kernel_read(fp, 0, (char*)&value, 1);
-			printk("[WIFI] PSM: [%u]\n", value);
-			if (value == '0')
-				original_value = value - '0';
-			break;
-		}
-	}
-	if (fp && !IS_ERR(fp))
-		filp_close(fp, NULL);
-
-	return original_value;
-}
-#endif /* SEC_CONFIG_PSM */
 
 static VOS_STATUS hdd_apply_cfg_ini( hdd_context_t *pHddCtx, tCfgIniEntry* iniTable, unsigned long entries)
 {
@@ -6401,11 +6527,6 @@ static VOS_STATUS hdd_apply_cfg_ini( hdd_context_t *pHddCtx, tCfgIniEntry* iniTa
    v_U32_t cbOutString;
    int i;
    int rv;
-#ifdef SEC_CONFIG_ANTENNA_CONTROL
-   int status;
-   const struct firmware *fw = NULL;
-   int ant_info = 0;
-#endif
 
    if (MAX_CFG_INI_ITEMS < cRegTableEntries) {
       hddLog(LOGE, FL("MAX_CFG_INI_ITEMS too small, must be at least %ld"),
@@ -6488,22 +6609,6 @@ static VOS_STATUS hdd_apply_cfg_ini( hdd_context_t *pHddCtx, tCfgIniEntry* iniTa
                value = pRegEntry->VarDefault;
             }
          }
-
-#ifdef SEC_CONFIG_PSM
-		 if (!strcmp(pRegEntry->RegName, CFG_ENABLE_IMPS_NAME) || !strcmp(pRegEntry->RegName, CFG_ENABLE_BMPS_NAME)) {
-			 printk("[WIFI] %s: original_value  = %u", pRegEntry->RegName, value);
-			 value = wlan_hdd_sec_get_psm(value);
-			 printk("[WIFI] %s: sec_control_psm = %u", pRegEntry->RegName, value);
-		 }
-		 // newly added for LFR enabling,disabling.
-		 if (!strcmp(pRegEntry->RegName, CFG_LFR_FEATURE_ENABLED_NAME) ||
-				 !strcmp(pRegEntry->RegName, CFG_FAST_TRANSITION_ENABLED_NAME) ||
-				 !strcmp(pRegEntry->RegName, CFG_FW_RSSI_MONITORING_NAME)) {
-			 printk("[WIFI] %s: original_value  = %u", pRegEntry->RegName, value);
-			 value = wlan_hdd_sec_get_psm(value);
-			 printk("[WIFI] %s: sec_control_psm = %u", pRegEntry->RegName, value);
-		 }
-#endif /* SEC_CONFIG_PSM */
 
          // Move the variable into the output field.
          memcpy( pField, &value, pRegEntry->VarSize );
@@ -6642,28 +6747,6 @@ static VOS_STATUS hdd_apply_cfg_ini( hdd_context_t *pHddCtx, tCfgIniEntry* iniTa
       }
    }
 
-#ifdef SEC_CONFIG_ANTENNA_CONTROL
-   status = request_firmware(&fw, WLAN_ANT_INFO_FILE, pHddCtx->parent_dev);
-   if(status)
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: request_firmware failed .ant.info %d\n", __func__, status);
-      goto ant_fail;
-   }
-   if (!fw || !fw->data || !fw->size)
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: invalid .ant.info file\n", __func__);
-      goto ant_fail;
-   }
-   ant_info = (int)fw->data[0] - '0';
-   hddLog(VOS_TRACE_LEVEL_FATAL, "ant.info = %d\n", ant_info);
-   if (ant_info == 1 || ant_info == 2) {
-		pHddCtx->cfg_ini->enable2x2 = 0;
-		pHddCtx->cfg_ini->txchainmask1x1 = ant_info;
-		pHddCtx->cfg_ini->rxchainmask1x1 = ant_info;
-   }
-   ant_fail:
-   release_firmware(fw);
-#endif
    print_hdd_cfg(pHddCtx);
 
    return( ret_status );
@@ -7838,6 +7921,20 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
        hddLog(LOGE, "Could not pass on WNI_CFG_RATE_FOR_TX_MGMT_5G to CCM");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_REMOVE_TIME_SYNC_CMD,
+                    pConfig->remove_time_stamp_sync_cmd, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE) {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_REMOVE_TIME_SYNC_CMD to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_SKIP_CRASH_INJECT,
+                    pConfig->skip_crash_inject, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE) {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_SKIP_CRASH_INJECT to CCM");
+   }
+
    return fStatus;
 }
 
@@ -7937,6 +8034,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 #endif
    smeConfig->csrConfig.Is11eSupportEnabled      = pConfig->b80211eIsEnabled;
    smeConfig->csrConfig.WMMSupportMode           = pConfig->WmmMode;
+   smeConfig->csrConfig.gStaLocalEDCAEnable      = pConfig->gStaLocalEDCAEnable;
    /*
     * -channelBondingMode5GHz is getting updated by SAP
     * so stacbmode will be used for STA connection.
@@ -8117,6 +8215,14 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig->csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
    smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
+   smeConfig->csrConfig.band_switch_enable = pConfig->wlan_band_switch_enable;
+   smeConfig->csrConfig.ap_p2pgo_concurrency_enable =
+                        pConfig->wlan_ap_p2pgo_conc_enable;
+   smeConfig->csrConfig.ap_p2pclient_concur_enable =
+                        pConfig->wlan_ap_p2pclient_conc_enable;
+   smeConfig->csrConfig.ch_width_24g_orig = pConfig->nChannelBondingMode24GHz ?
+                        eHT_CHANNEL_WIDTH_40MHZ : eHT_CHANNEL_WIDTH_20MHZ;
+   smeConfig->csrConfig.ch_width_5g_orig = pConfig->vhtChannelWidth;
 #endif
 
    smeConfig->csrConfig.max_amsdu_num = pConfig->max_amsdu_num;
@@ -8187,6 +8293,22 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
                    pHddCtx->cfg_ini->tx_aggregation_size;
    smeConfig->csrConfig.rx_aggregation_size =
                    pHddCtx->cfg_ini->rx_aggregation_size;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_be =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_be;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_bk =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_bk;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_vi =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_vi;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_vo =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_vo;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_be =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_be;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_bk =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_bk;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_vi =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_vi;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_vo =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_vo;
 
    smeConfig->csrConfig.enable_edca_params =
                         pHddCtx->cfg_ini->enable_edca_params;
@@ -8231,6 +8353,16 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig->csrConfig.sta_auth_retries_for_code17 =
                         pHddCtx->cfg_ini->sta_auth_retries_for_code17;
+
+   smeConfig->sta_change_cc_via_beacon =
+	 pHddCtx->cfg_ini->sta_change_cc_via_beacon;
+
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+   smeConfig->csrConfig.sap_ch_switch_with_csa = pHddCtx->cfg_ini->sap_ch_switch_with_csa;
+#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+
+   smeConfig->csrConfig.enable_bcast_probe_rsp =
+                        pHddCtx->cfg_ini->enable_bcast_probe_rsp;
 
    halStatus = sme_UpdateConfig( pHddCtx->hHal, smeConfig);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -273,37 +273,55 @@ enum qca_nl80211_vendor_subcmds {
     /* NS Offload enable/disable cmd */
     QCA_NL80211_VENDOR_SUBCMD_ND_OFFLOAD = 82,
 
-	QCA_NL80211_VENDOR_SUBCMD_PACKET_FILTER = 83,
-	QCA_NL80211_VENDOR_SUBCMD_GET_BUS_SIZE = 84,
+    QCA_NL80211_VENDOR_SUBCMD_PACKET_FILTER = 83,
+    QCA_NL80211_VENDOR_SUBCMD_GET_BUS_SIZE = 84,
 
-	QCA_NL80211_VENDOR_SUBCMD_GET_WAKE_REASON_STATS = 85,
+    QCA_NL80211_VENDOR_SUBCMD_GET_WAKE_REASON_STATS = 85,
 
-	/* OCB commands */
-	QCA_NL80211_VENDOR_SUBCMD_OCB_SET_CONFIG = 92,
-	QCA_NL80211_VENDOR_SUBCMD_OCB_SET_UTC_TIME = 93,
-	QCA_NL80211_VENDOR_SUBCMD_OCB_START_TIMING_ADVERT = 94,
-	QCA_NL80211_VENDOR_SUBCMD_OCB_STOP_TIMING_ADVERT = 95,
-	QCA_NL80211_VENDOR_SUBCMD_OCB_GET_TSF_TIMER = 96,
-	QCA_NL80211_VENDOR_SUBCMD_DCC_GET_STATS = 97,
-	QCA_NL80211_VENDOR_SUBCMD_DCC_CLEAR_STATS = 98,
-	QCA_NL80211_VENDOR_SUBCMD_DCC_UPDATE_NDL = 99,
-	QCA_NL80211_VENDOR_SUBCMD_DCC_STATS_EVENT = 100,
+    /* OCB commands */
+    QCA_NL80211_VENDOR_SUBCMD_OCB_SET_CONFIG = 92,
+    QCA_NL80211_VENDOR_SUBCMD_OCB_SET_UTC_TIME = 93,
+    QCA_NL80211_VENDOR_SUBCMD_OCB_START_TIMING_ADVERT = 94,
+    QCA_NL80211_VENDOR_SUBCMD_OCB_STOP_TIMING_ADVERT = 95,
+    QCA_NL80211_VENDOR_SUBCMD_OCB_GET_TSF_TIMER = 96,
+    QCA_NL80211_VENDOR_SUBCMD_DCC_GET_STATS = 97,
+    QCA_NL80211_VENDOR_SUBCMD_DCC_CLEAR_STATS = 98,
+    QCA_NL80211_VENDOR_SUBCMD_DCC_UPDATE_NDL = 99,
+    QCA_NL80211_VENDOR_SUBCMD_DCC_STATS_EVENT = 100,
 
-	/* subcommand to get link properties */
-	QCA_NL80211_VENDOR_SUBCMD_LINK_PROPERTIES = 101,
-	QCA_NL80211_VENDOR_SUBCMD_SETBAND = 105,
-	QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE = 109,
-	QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE_DECR_DB = 115,
-	QCA_NL80211_VENDOR_SUBCMD_ACS_POLICY = 116,
-	QCA_NL80211_VENDOR_SUBCMD_STA_CONNECT_ROAM_POLICY = 117,
-	QCA_NL80211_VENDOR_SUBCMD_SET_SAP_CONFIG  = 118,
-	QCA_NL80211_VENDOR_SUBCMD_GET_STATION = 121,
+    /* subcommand to get link properties */
+    QCA_NL80211_VENDOR_SUBCMD_LINK_PROPERTIES = 101,
+    QCA_NL80211_VENDOR_SUBCMD_SETBAND = 105,
+    QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE = 109,
+    QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE_DECR_DB = 115,
+    QCA_NL80211_VENDOR_SUBCMD_ACS_POLICY = 116,
+    QCA_NL80211_VENDOR_SUBCMD_STA_CONNECT_ROAM_POLICY = 117,
+    QCA_NL80211_VENDOR_SUBCMD_SET_SAP_CONFIG  = 118,
+    QCA_NL80211_VENDOR_SUBCMD_GET_STATION = 121,
 
-	/* subcommand for link layer statistics extension */
-	QCA_NL80211_VENDOR_SUBCMD_LL_STATS_EXT = 127,
-	/* subcommand to get chain rssi value */
-	QCA_NL80211_VENDOR_SUBCMD_GET_CHAIN_RSSI = 138,
-	QCA_NL80211_VENDOR_SUBCMD_CHIP_PWRSAVE_FAILURE = 148,
+    /* subcommand for link layer statistics extension */
+    QCA_NL80211_VENDOR_SUBCMD_LL_STATS_EXT = 127,
+    /* subcommand to get chain rssi value */
+    QCA_NL80211_VENDOR_SUBCMD_GET_CHAIN_RSSI = 138,
+    QCA_NL80211_VENDOR_SUBCMD_CHIP_PWRSAVE_FAILURE = 148,
+    /* subcommand to flush peer tids */
+    QCA_NL80211_VENDOR_SUBCMD_PEER_FLUSH_PENDING  = 162,
+    QCA_NL80211_VENDOR_SUBCMD_GET_RROP_INFO = 163,
+    QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS = 164,
+    QCA_NL80211_VENDOR_SUBCMD_WLAN_MAC_INFO = 165,
+    QCA_NL80211_VENDOR_SUBCMD_SET_QDEPTH_THRESH = 166,
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+    /* Thermal Shutdown cmds to protect chip */
+    QCA_NL80211_VENDOR_SUBCMD_THERMAL_CMD = 167,
+    QCA_NL80211_VENDOR_SUBCMD_THERMAL_EVENT = 168,
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
+    /* Wi-Fi test configuration subcommand */
+    QCA_NL80211_VENDOR_SUBCMD_WIFI_TEST_CONFIGURATION = 169,
+    /* Frame filter operations for other BSSs/unassociated STAs */
+    QCA_NL80211_VENDOR_SUBCMD_BSS_FILTER = 170,
+    QCA_NL80211_VENDOR_SUBCMD_NAN_EXT = 171,
+    QCA_NL80211_VENDOR_SUBCMD_ROAM_SCAN_EVENT = 172,
+    QCA_NL80211_VENDOR_SUBCMD_PEER_CFR_CAPTURE_CFG = 173,
 };
 
 /**
@@ -419,6 +437,10 @@ enum qca_nl80211_vendor_subcmds_index {
     QCA_NL80211_VENDOR_SUBCMD_EXTSCAN_PNO_NETWORK_FOUND_INDEX,
     QCA_NL80211_VENDOR_SUBCMD_EXTSCAN_PNO_PASSPOINT_NETWORK_FOUND_INDEX,
 #endif /* FEATURE_WLAN_EXTSCAN */
+
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+    QCA_NL80211_VENDOR_SUBCMD_THERMAL_EVENT_INDEX,
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
 
     /* OCB events */
     QCA_NL80211_VENDOR_SUBCMD_DCC_STATS_EVENT_INDEX,
@@ -1236,6 +1258,7 @@ enum qca_wlan_vendor_attr_ll_stats_results
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
     QCA_WLAN_VENDOR_ATTR_LL_STATS_PAD,
 #endif
+    QCA_WLAN_VENDOR_ATTR_LL_STATS_WMM_AC_PENDING_MSDU = 83,
     /* keep last */
     QCA_WLAN_VENDOR_ATTR_LL_STATS_AFTER_LAST,
     QCA_WLAN_VENDOR_ATTR_LL_STATS_MAX =
@@ -1564,6 +1587,96 @@ enum qca_wlan_vendor_attr_nd_offload {
 		QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_AFTER_LAST - 1,
 };
 
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+/**
+ * enum qca_wlan_vendor_attr_thermal_get_temperature - vendor subcmd attributes
+ * to get chip temperature by user.
+ * enum values are used for NL attributes for data used by
+ * QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_TEMPERATURE command for data used
+ * by QCA_NL80211_VENDOR_SUBCMD_THERMAL_CMD sub command.
+ */
+enum qca_wlan_vendor_attr_thermal_get_temperature {
+	QCA_WLAN_VENDOR_ATTR_THERMAL_GET_TEMPERATURE_INVALID = 0,
+	/* Temperature value (degree Celsius) from driver.
+	 * u32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_GET_TEMPERATURE_DATA,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_GET_TEMPERATURE_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_GET_TEMPERATURE_MAX =
+	QCA_WLAN_VENDOR_ATTR_THERMAL_GET_TEMPERATURE_AFTER_LAST - 1,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_get_thermal_params_rsp - vendor subcmd attributes
+ * to get configuration parameters of thermal shutdown feature. Enum values are
+ * used by QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_PARAMS command for data
+ * used by QCA_NL80211_VENDOR_SUBCMD_THERMAL_CMD sub command.
+ */
+enum qca_wlan_vendor_attr_get_thermal_params_rsp {
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_INVALID = 0,
+	/* Indicate if the thermal shutdown feature is enabled.
+	 * NLA_FLAG attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_SHUTDOWN_EN,
+	/* Indicate if the auto mode is enabled.
+	 * Enable: Driver triggers the suspend/resume action.
+	 * Disable: User space triggers the suspend/resume action.
+	 * NLA_FLAG attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_SHUTDOWN_AUTO_EN,
+	/* Thermal resume threshold (degree Celsius). Issue the resume command
+	 * if the temperature value is lower than this threshold.
+	 * u16 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_RESUME_THRESH,
+	/* Thermal warning threshold (degree Celsius). FW reports temperature
+	 * to driver if it's higher than this threshold.
+	 * u16 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_WARNING_THRESH,
+	/* Thermal suspend threshold (degree Celsius). Issue the suspend command
+	 * if the temperature value is higher than this threshold.
+	 * u16 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_SUSPEND_THRESH,
+	/* FW reports temperature data periodically at this interval (ms).
+	 * u16 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_SAMPLE_RATE,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_MAX =
+	QCA_WLAN_VENDOR_ATTR_GET_THERMAL_PARAMS_RSP_AFTER_LAST - 1,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_thermal_event - vendor subcmd attributes to
+ * report thermal events from driver to user space.
+ * enum values are used for NL attributes for data used by
+ * QCA_NL80211_VENDOR_SUBCMD_THERMAL_EVENT sub command.
+ */
+enum qca_wlan_vendor_attr_thermal_event {
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_INVALID = 0,
+	/* Temperature value (degree Celsius) from driver.
+	 * u32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_TEMPERATURE,
+	/* Indication of resume completion from power save mode.
+	 * NLA_FLAG attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_RESUME_COMPLETE,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_MAX =
+	QCA_WLAN_VENDOR_ATTR_THERMAL_EVENT_AFTER_LAST - 1,
+};
+
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
+
 /**
  * enum qca_wlan_vendor_features - vendor device/driver features
  * @QCA_WLAN_VENDOR_FEATURE_KEY_MGMT_OFFLOAD: Device supports key
@@ -1575,6 +1688,27 @@ enum qca_wlan_vendor_features {
 	QCA_WLAN_VENDOR_FEATURE_KEY_MGMT_OFFLOAD = 0,
 	/* Additional features need to be added above this */
         NUM_QCA_WLAN_VENDOR_FEATURES
+};
+
+/**
+ * enum qca_wlan_vendor_attr_flush_pending - Attributes for
+ * flush pending traffic in firmware.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_PEER_ADDR: Configure peer mac address.
+ * @QCA_WLAN_VENDOR_ATTR_AC: Configure access category the pending
+ *  packets using. It is u8 value with bit0~3 represent AC_BE, AC_BK,
+ *  AC_VI, AC_VO respectively. Set the corresponding bit to 1 to flush
+ *  packets with access category.
+ */
+enum qca_wlan_vendor_attr_flush_pending{
+	QCA_WLAN_VENDOR_ATTR_FLUSH_PENDING_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_PEER_ADDR = 1,
+	QCA_WLAN_VENDOR_ATTR_AC = 2,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_FLUSH_PENDING_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_FLUSH_PENDING_MAX =
+	QCA_WLAN_VENDOR_ATTR_FLUSH_PENDING_AFTER_LAST - 1,
 };
 
 /* Feature defines */
@@ -1850,7 +1984,35 @@ enum qca_wlan_vendor_config {
 	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_DATA_SNR_WEIGHT = 46,
 	/* 32-bit unsigned value to set ack snr weight*/
 	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_ACK_SNR_WEIGHT = 47,
-
+	/*
+	 * 8 bit unsigned value that is set on an AP/GO virtual interface to
+	 * disable operations that would cause the AP/GO to leave its operating
+	 * channel.
+	 *
+	 * This will restrict the scans to the AP/GO operating channel and the
+	 * channels of the other band, if DBS is supported.A STA/CLI interface
+	 * brought up after this setting is enabled, will be restricted to
+	 * connecting to devices only on the AP/GO interface's operating channel
+	 * or on the other band in DBS case. P2P supported channel list is
+	 * modified, to only include AP interface's operating-channel and the
+	 * channels of the other band if DBS is supported.
+	 *
+	 * These restrictions are only applicable as long as the AP/GO interface
+	 * is alive. If the AP/GO interface is brought down then this
+	 * setting/restriction is forgotten.
+	 *
+	 * If this variable is set on an AP/GO interface while a multi-channel
+	 * concurrent session is active, it has no effect on the operation of
+	 * the current interfaces, other than restricting the scan to the AP/GO
+	 * operating channel and the other band channels if DBS is supported.
+	 * However, if the STA is brought down and restarted then the new STA
+	 * connection will either be formed on the AP/GO channel or on the
+	 * other band in a DBS case. This is because of the scan being
+	 * restricted on these channels as mentioned above.
+	 *
+	 * 1-Restrict / 0-Don't restrict offchannel operations.
+	 */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RESTRICT_OFFCHANNEL = 49,
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LAST,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =
@@ -2519,6 +2681,12 @@ enum qca_vendor_attr_txpower_scale_decr_db {
  * @QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_ANT_NF: per antenna NF value
  * @QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_IFACE_RSSI_BEACON: RSSI of beacon
  * @QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_IFACE_SNR_BEACON: SNR of beacon
+ * @QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_REPORT_TIME: u64
+ *    Absolute timestamp from 1970/1/1, unit in ms. After receiving the
+ *    message, user layer APP could call gettimeofday to get another
+ *    timestamp and calculate transfer delay for the message.
+ * @QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_MEASUREMENT_TIME: u32
+ *    Real period for this measurement, unit in us.
  */
 enum qca_wlan_vendor_attr_ll_stats_ext {
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_INVALID = 0,
@@ -2612,9 +2780,119 @@ enum qca_wlan_vendor_attr_ll_stats_ext {
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_IFACE_RSSI_BEACON,
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_IFACE_SNR_BEACON,
 
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_REPORT_TIME,
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_MEASUREMENT_TIME,
+
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_LAST,
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_MAX =
 		QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_LAST - 1,
+};
+
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+/**
+ * qca_wlan_vendor_attr_thermal_cmd_type: Attribute values for
+ * QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_VALUE to the vendor subcmd
+ * QCA_NL80211_VENDOR_SUBCMD_THERMAL_CMD. This represents the
+ * thermal command types sent to driver.
+ * @QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_PARAMS: Request to
+ * get thermal shutdown configuration parameters for display. Parameters
+ * responded from driver are defined in enum
+ * qca_wlan_vendor_attr_get_thermal_params_rsp.
+ * @QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_TEMPERATURE: Request to
+ * get temperature. Host should respond with a temperature data. It is defined
+ * in enum qca_wlan_vendor_attr_thermal_get_temperature.
+ * @QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_SUSPEND: Request to execute thermal
+ * suspend action.
+ * @QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_RESUME: Request to execute thermal
+ * resume action.
+ */
+enum qca_wlan_vendor_attr_thermal_cmd_type {
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_PARAMS,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_GET_TEMPERATURE,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_SUSPEND,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_TYPE_RESUME,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_thermal_cmd - Vendor subcmd attributes to set
+ * cmd value. Used for NL attributes for data used by
+ * QCA_NL80211_VENDOR_SUBCMD_THERMAL_CMD sub command.
+ */
+enum qca_wlan_vendor_attr_thermal_cmd {
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_INVALID = 0,
+	/* The value of command, driver will implement different operations
+	 * according to this value. It uses values defined in
+	 * enum qca_wlan_vendor_attr_thermal_cmd_type.
+	 * u32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_VALUE = 1,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_MAX =
+	QCA_WLAN_VENDOR_ATTR_THERMAL_CMD_AFTER_LAST - 1
+};
+
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
+
+/**
+ * enum qca_wlan_vendor_cfr_method - QCA Vendor CFR methods used by
+ * attribute QCA_WLAN_VENDOR_ATTR_PEER_CFR_METHOD as part of vendor
+ * command QCA_NL80211_VENDOR_SUBCMD_PEER_CFR_CAPTURE_CFG
+ */
+enum qca_wlan_vendor_cfr_method {
+	/* CFR Method using QOS Null frame */
+	QCA_WLAN_VENDOR_CFR_METHOD_QOS_NULL = 0,
+};
+
+/**
+ * enum qca_wlan_vendor_peer_cfr_capture_attr - Used by the vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_PEER_CFR_CAPTURE_CFG to configure PEER
+ * Channel Frequency Response capture parameters and enable Periodic CFR
+ * Capture
+ */
+enum qca_wlan_vendor_peer_cfr_capture_attr {
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_CAPTURE_INVALID = 0,
+	/* 6-byte MAC address of the PEER
+	 * This attribute is mandatory
+	 */
+	QCA_WLAN_VENDOR_ATTR_CFR_PEER_MAC_ADDR = 1,
+	/* Enable PEER CFR Capture, flag attribute
+	 * This attribute is mandatory to Enable Peer CFR Capture
+	 * If this attribute is not present, Peer CFR Capture is disabled
+	 */
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_ENABLE = 2,
+	/* BW of measurement, attribute uses the values in enum nl80211_chan_width
+	 * Supported values: 20, 40, 80, 80+80, 160
+	 * Note that all targets may not support all bandwidths
+	 * u8 attribute. This attribute is mandatory if attribute
+	 * QCA_WLAN_VENDOR_ATTR_PEER_CFR_ENABLE is used
+	 */
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_BANDWIDTH = 3,
+	/* Periodicity of CFR measurement in msec
+	 * Periodicity should be multiple of Base timer
+	 * Current Base timer value supported is 10msecs(default)
+	 * 0 for one shot capture. u32 attribute
+	 * This attribute is mandatory if attribute
+	 * QCA_WLAN_VENDOR_ATTR_PEER_CFR_ENABLE is used
+	 */
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_PERIODICITY = 4,
+	/* Method used to capture Channel Frequency Response
+	 * Attribute uses the value of enum qca_wlan_vendor_cfr_method
+	 * u8 attribute. This attribute is mandatory if attribute
+	 * QCA_WLAN_VENDOR_ATTR_PEER_CFR_ENABLE is used
+	 */
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_METHOD = 5,
+	/* Enable Periodic CFR Capture, flag attribute
+	 * This attribute is mandatory to Enable Periodic CFR Capture
+	 * If this attribute is not present, Periodic CFR Capture is disabled
+	 */
+	QCA_WLAN_VENDOR_ATTR_PERIODIC_CFR_CAPTURE_ENABLE = 6,
+
+	/*Keep last*/
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_MAX =
+	QCA_WLAN_VENDOR_ATTR_PEER_CFR_AFTER_LAST - 1,
 };
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0))
@@ -2739,8 +3017,8 @@ void wlan_hdd_testmode_rx_event(void *buf, size_t buf_len);
 #endif
 
 void hdd_suspend_wlan(void (*callback)(void *callbackContext, boolean suspended),
-                      void *callbackContext);
-void hdd_resume_wlan(void);
+                      void *callbackContext, bool thermal);
+void hdd_resume_wlan(bool thermal);
 
 #if defined(FEATURE_WLAN_CH_AVOID) || defined(FEATURE_WLAN_FORCE_SAP_SCC)
 int wlan_hdd_send_avoid_freq_event(hdd_context_t *pHddCtx,
@@ -2760,9 +3038,17 @@ void hdd_rssi_threshold_breached(void *hddctx,
 
 struct cfg80211_bss* wlan_hdd_cfg80211_update_bss_list(
    hdd_adapter_t *pAdapter, tSirMacAddr bssid);
+int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
+                                   struct cfg80211_wowlan *wow, bool thermal);
 
 int wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
                                    struct cfg80211_wowlan *wow);
+int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy, bool thermal);
+int wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy);
+
+bool hdd_system_suspend_state_set(hdd_context_t *hdd_ctx, bool state);
+int hdd_thermal_suspend_state(hdd_context_t *hdd_ctx);
+
 void wlan_hdd_cfg80211_acs_ch_select_evt(hdd_adapter_t *adapter);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 int wlan_hdd_send_roam_auth_event(hdd_context_t *hdd_ctx_ptr, uint8_t *bssid,
@@ -2855,4 +3141,19 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter);
  * Return: None
  */
 void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work);
+
+/**
+ * wlan_hdd_disconnect() - hdd disconnect api
+ * @pAdapter: Pointer to adapter
+ * @reason: Disconnect reason code
+ *
+ * This function is used to issue a disconnect request to SME
+ *
+ * Return: 0 for success, non-zero for failure
+ */
+int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason);
+
+#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
+int wlan_hdd_send_avoid_freq_for_dnbs(hdd_context_t *hdd_ctx, uint8_t op_chan);
+#endif
 #endif

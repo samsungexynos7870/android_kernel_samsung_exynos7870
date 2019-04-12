@@ -114,7 +114,10 @@
 #define IRAM1_SIZE              0x00080000
 #define IRAM2_LOCATION          0x00a00000
 #define IRAM2_SIZE              0x00040000
-#elif defined(HIF_SDIO)
+#ifdef CONFIG_NON_QC_PLATFORM_PCI
+#define REG_SIZE		0x0007F820
+#endif
+#elif defined(HIF_SDIO) || defined(HIF_USB)
 #define IRAM_LOCATION           0x00980000
 #define IRAM_SIZE               0x000C0000
 #else /* ELSE HIF_PCI */

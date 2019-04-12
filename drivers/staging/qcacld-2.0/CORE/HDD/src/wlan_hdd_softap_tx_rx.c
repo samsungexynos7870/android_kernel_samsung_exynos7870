@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -289,20 +289,20 @@ int __hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 * The TX packets might be dropped for UDP case in the iperf testing.
 * So need to be protected by follow control.
 */
-#ifdef QCA_LL_TX_FLOW_CT
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3,19,0))
         //remove if condition for improving SCC TCP TX KPI
        //if (pAdapter->tx_flow_low_watermark > 0) {
            skb_orphan(skb);
        //}
-#endif
 #else
+#ifdef WLAN_FEATURE_TSF_PLUS
       /*
        * For PTP feature enabled system, need to orphan the socket buffer asap
        * otherwise the latency will become unacceptable
        */
       if (hdd_cfg_is_ptp_opt_enable(hddCtxt))
           skb_orphan(skb);
+#endif
 #endif
 
        if (vos_is_macaddr_broadcast( pDestMacAddress ) ||
@@ -970,8 +970,9 @@ VOS_STATUS hdd_softap_rx_packet_cbk(v_VOID_t *vosContext,
 
       skb = skb_next;
    }
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0))
    pAdapter->dev->last_rx = jiffies;
-
+#endif
    return VOS_STATUS_SUCCESS;
 }
 

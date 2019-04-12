@@ -71,20 +71,20 @@ __adf_os_mutex_acquire(adf_os_device_t osdev, struct semaphore *m)
 }
 
 /**
- * __adf_semaphore_acquire_timeout() - Take the semaphore before timeout
+ * __adf_os_mutex_acquire_timeout() - Take the semaphore before timeout
  * @osdev: os layer device handle
  * @m: semaphore to take
  * @timeout: maximum time to try to take the semaphore. unit in ms.
  *
- * Return: int
+ * Return: 0 for success, others for timeout
  */
-static inline int __adf_semaphore_acquire_timeout(adf_os_device_t osdev,
-                                                 struct semaphore *m,
-                                                 long timeout)
+static inline int __adf_os_mutex_acquire_timeout(adf_os_device_t osdev,
+						 struct semaphore *m,
+						 long timeout)
 {
-       long jiffie_val = msecs_to_jiffies(timeout);
+	long jiffie_val = msecs_to_jiffies(timeout);
 
-       return down_timeout(m, jiffie_val);
+	return down_timeout(m, jiffie_val);
 }
 
 static inline void
