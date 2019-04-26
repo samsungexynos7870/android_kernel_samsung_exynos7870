@@ -111,6 +111,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_HASH_OF_MAPS,
 	BPF_MAP_TYPE_DEVMAP,
 	BPF_MAP_TYPE_DEVMAP_HASH = BPF_MAP_TYPE_DEVMAP + 11,
+	BPF_MAP_TYPE_SK_STORAGE = 21,
 };
 
 enum bpf_prog_type {
@@ -692,6 +693,48 @@ enum bpf_func_id {
 	BPF_FUNC_skb_load_bytes_relative = 68,
 
 	/**
+	 * void *bpf_sk_storage_get(struct bpf_map *map, struct bpf_sock *sk, void *value, u64 flags)
+	 *	Description
+	 *		Get a bpf-local-storage from a sk.
+	 *
+	 *		Logically, it could be thought of getting the value from
+	 *		a *map* with *sk* as the **key**.  From this
+	 *		perspective,  the usage is not much different from
+	 *		**bpf_map_lookup_elem(map, &sk)** except this
+	 *		helper enforces the key must be a **bpf_fullsock()**
+	 *		and the map must be a BPF_MAP_TYPE_SK_STORAGE also.
+	 *
+	 *		Underneath, the value is stored locally at *sk* instead of
+	 *		the map.  The *map* is used as the bpf-local-storage **type**.
+	 *		The bpf-local-storage **type** (i.e. the *map*) is searched
+	 *		against all bpf-local-storages residing at sk.
+	 *
+	 *		An optional *flags* (BPF_SK_STORAGE_GET_F_CREATE) can be
+	 *		used such that a new bpf-local-storage will be
+	 *		created if one does not exist.  *value* can be used
+	 *		together with BPF_SK_STORAGE_GET_F_CREATE to specify
+	 *		the initial value of a bpf-local-storage.  If *value* is
+	 *		NULL, the new bpf-local-storage will be zero initialized.
+	 *	Return
+	 *		A bpf-local-storage pointer is returned on success.
+	 *
+	 *		**NULL** if not found or there was an error in adding
+	 *		a new bpf-local-storage.
+	 */
+        BPF_FUNC_sk_storage_get = 107,
+
+	/**
+	 * int bpf_sk_storage_delete(struct bpf_map *map, struct bpf_sock *sk)
+	 *	Description
+	 *		Delete a bpf-local-storage from a sk.
+	 *	Return
+	 *		0 on success.
+	 *
+	 *		**-ENOENT** if the bpf-local-storage cannot be found.
+	 */
+	BPF_FUNC_sk_storage_delete,
+
+	/**
 	 * u64 bpf_ktime_get_boot_ns(void)
 	 * 	Description
 	 * 		Return the time elapsed since system boot, in nanoseconds.
@@ -741,6 +784,9 @@ enum bpf_func_id {
 #define BPF_F_CURRENT_CPU		BPF_F_INDEX_MASK
 /* BPF_FUNC_perf_event_output for sk_buff input context. */
 #define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
+
+/* BPF_FUNC_sk_storage_get flags */
+#define BPF_SK_STORAGE_GET_F_CREATE	(1ULL << 0)
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
