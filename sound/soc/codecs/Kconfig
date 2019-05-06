@@ -44,6 +44,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS35L32 if I2C
+	select SND_SOC_CS35L40_I2C if I2C
+	select SND_SOC_CS35L40_SPI if SPI_MASTER
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -86,6 +88,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5651 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C
+	select SND_SOC_RT5659 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
@@ -200,6 +203,7 @@ config SND_SOC_WM_ADSP
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
 	default m if SND_SOC_WM2200=m
+	default y if SND_SOC_CS35L40=y
 
 config SND_SOC_AB8500_CODEC
 	tristate
@@ -332,6 +336,10 @@ config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L40
+	tristate "Cirrus Logic CS35L40 CODEC"
+	select SND_SOC_WM_ADSP
+
 config SND_SOC_CS42L51
 	tristate
 
@@ -385,6 +393,9 @@ config SND_SOC_CS42XX8_I2C
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
+
+config SND_SOC_COD3026X
+	tristate
 
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
@@ -504,6 +515,9 @@ config SND_SOC_RT5670
 config SND_SOC_RT5677
 	tristate
 
+config SND_SOC_RT5659
+	tristate
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate "Freescale SGTL5000 CODEC"
@@ -533,6 +547,21 @@ config SND_SOC_SN95031
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
+
+config SND_SOC_EXYNOS_AUDMIXER
+        tristate
+        select REGMAP_MMIO
+        select REGMAP_I2C
+
+config SND_SOC_EXYNOS_AUDMIXER_VER
+	int "Driver version of Exynos Audio Mixer"
+	range 1 2
+	default 2 if SND_SOC_SAMSUNG_UNIVERSAL7870_COD3026X
+	default 1
+	depends on SND_SOC_EXYNOS_AUDMIXER
+	help
+	  Set version 1 for legacy driver
+	  Set version 2 for independent ASoC compliant driver
 
 config SND_SOC_SSM2518
 	tristate
@@ -789,6 +818,15 @@ config SND_SOC_WM9712
 config SND_SOC_WM9713
 	tristate
 
+config SND_SOC_DUMMY_CODEC
+	tristate
+
+config SND_SOC_COD30XX_EXT_ANT
+	bool "ISDB-T External antenna"
+	default n
+	help
+	  Support for ISDB-T External antenna.
+
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -808,5 +846,14 @@ config SND_SOC_ML26124
 config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
 	depends on I2C
+
+config SND_SOC_TFA_LOG_USER_HOST
+	tristate
+
+config SND_SOC_TFA9896
+	tristate "Support TFA9896"
+	default n
+	help
+	TFA9896 driver
 
 endmenu

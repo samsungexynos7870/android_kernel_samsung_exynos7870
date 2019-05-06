@@ -36,6 +36,20 @@ config SCSI
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
 
+config UFS_FMP_DM_CRYPT
+	bool "FMP acceleration for DM_CRYPT"
+	depends on DM_CRYPT && FMP_UFS
+	help
+	  This option accelerates dm-crypt by using the flash
+	  memory protector feature of the UFS controller.
+
+config UFS_FMP_ECRYPT_FS
+	bool "FMP acceleration for eCrypt filesystem"
+	depends on ECRYPT_FS && FMP_UFS
+	help
+	  This option activates flash memory protector of the UFS controller to
+	  accelerate eCryptfs.
+
 config SCSI_DMA
 	bool
 	default n

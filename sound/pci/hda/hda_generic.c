@@ -715,16 +715,6 @@ static void activate_amp(struct hda_codec *codec, hda_nid_t nid, int dir,
 	update_amp(codec, nid, dir, idx, mask, val);
 }
 
-static void check_and_activate_amp(struct hda_codec *codec, hda_nid_t nid,
-				   int dir, int idx, int idx_to_check,
-				   bool enable)
-{
-	/* check whether the given amp is still used by others */
-	if (!enable && is_active_nid(codec, nid, dir, idx_to_check))
-		return;
-	activate_amp(codec, nid, dir, idx, idx_to_check, enable);
-}
-
 static void activate_amp_out(struct hda_codec *codec, struct nid_path *path,
 			     int i, bool enable)
 {

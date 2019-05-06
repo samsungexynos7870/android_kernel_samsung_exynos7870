@@ -1694,6 +1694,9 @@ out:
 	return err;
 }
 
+/* FIXME: will be removed, debugging code for P160223-00802 */
+extern void *memchr_inv(const void *start, int c, size_t bytes);
+
 static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 			   struct msghdr *msg, size_t len,
 			   int flags)
@@ -1720,6 +1723,16 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 #ifdef CONFIG_COMPAT_NETLINK_MESSAGES
 	if (unlikely(skb_shinfo(skb)->frag_list)) {
+		/* FIXME: will be removed, debugging code for P160223-00802 */
+		{
+			char *tmp = (char *)skb_shinfo(skb);
+			if (memchr_inv(tmp, 0x6b, 8) == NULL) {
+				pr_err("POISON_FREE: data_skb:0x%p, data_skb->head:0x%p\n",
+					data_skb, data_skb->head);
+				BUG();
+			}
+		}
+
 		/*
 		 * If this skb has a frag_list, then here that means that we
 		 * will have to use the frag_list skb's data for compat tasks

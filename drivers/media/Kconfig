@@ -80,6 +80,16 @@ config MEDIA_RC_SUPPORT
 
 	  Say Y when you have a TV or an IR device.
 
+config MEDIA_M2M1SHOT
+	bool "Non-streaming m2m media processing (m2m1shot) API"
+	---help---
+	  Enables support for non-steaming m2m media processing API for some
+	  device drivers like JPEG codec.
+
+config MEDIA_M2M1SHOT_TESTDEV
+	depends on MEDIA_M2M1SHOT
+	bool "Test driver for non-streaming m2m media processing (m2m1shot) API"
+
 #
 # Media controller
 #	Selectable only for webcam/grabbers, as other drivers don't use it
@@ -208,5 +218,17 @@ config MEDIA_ATTACH
 source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
+
+#
+# TDMB drivers
+#
+
+source "drivers/media/tdmb/Kconfig"
+
+# ISDBT Drivers
+source "drivers/media/isdbt/Kconfig"
+
+# MTV driver support
+source "drivers/media/mtv/Kconfig"
 
 endif # MEDIA_SUPPORT

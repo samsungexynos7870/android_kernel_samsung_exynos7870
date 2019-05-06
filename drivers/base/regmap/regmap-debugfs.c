@@ -520,7 +520,7 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 		if (IS_ENABLED(REGMAP_ALLOW_WRITE_DEBUGFS))
 			registers_mode = 0600;
 		else
-			registers_mode = 0400;
+			registers_mode = 0404;
 
 		debugfs_create_file("registers", registers_mode, map->debugfs,
 				    map, &regmap_map_fops);

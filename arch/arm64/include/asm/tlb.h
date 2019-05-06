@@ -37,12 +37,21 @@ static inline void __tlb_remove_table(void *_table)
 
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
-	if (tlb->fullmm) {
-		flush_tlb_mm(tlb->mm);
-	} else {
-		struct vm_area_struct vma = { .vm_mm = tlb->mm, };
-		flush_tlb_range(&vma, tlb->start, tlb->end);
-	}
+	struct vm_area_struct vma = { .vm_mm = tlb->mm, };
+
+	/*
+	 * The ASID allocator will either invalidate the ASID or mark
+	 * it as used.
+	 */
+	if (tlb->fullmm)
+		return;
+
+	/*
+	 * The intermediate page table levels are already handled by
+	 * the __(pte|pmd|pud)_free_tlb() functions, so last level
+	 * TLBI is sufficient here.
+	 */
+	__flush_tlb_range(&vma, tlb->start, tlb->end, true);
 }
 
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
@@ -53,16 +62,34 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	tlb_remove_entry(tlb, pte);
 }
 
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
+#if CONFIG_PGTABLE_LEVELS > 2
+#ifndef CONFIG_TIMA_RKP
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 				  unsigned long addr)
 {
 	__flush_tlb_pgtable(tlb->mm, addr);
 	tlb_remove_entry(tlb, virt_to_page(pmdp));
 }
+#else
+static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+				  unsigned long addr)
+{
+	int rkp_do = 0;
+#ifdef CONFIG_KNOX_KAP
+	if (boot_mode_security)
+#endif	//CONFIG_KNOX_KAP
+		rkp_do = 1;
+	if (rkp_do && (unsigned long)pmdp >= (unsigned long)RKP_RBUF_VA && (unsigned long)pmdp < ((unsigned long)RKP_RBUF_VA + TIMA_ROBUF_SIZE))
+		rkp_ro_free((void*)pmdp);
+	else {
+		__flush_tlb_pgtable(tlb->mm, addr);
+		tlb_remove_entry(tlb, virt_to_page(pmdp));
+	}
+}
+#endif
 #endif
 
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 3
 static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
 				  unsigned long addr)
 {

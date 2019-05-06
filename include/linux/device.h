@@ -717,7 +717,6 @@ struct acpi_dev_node {
  * @iommu_group: IOMMU group the device belongs to.
  *
  * @offline_disabled: If set, the device is permanently online.
- * @offline:	Set after successful invocation of bus type's .offline().
  *
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
@@ -795,7 +794,6 @@ struct device {
 	struct iommu_group	*iommu_group;
 
 	bool			offline_disabled:1;
-	bool			offline:1;
 };
 
 static inline struct device *kobj_to_dev(struct kobject *kobj)

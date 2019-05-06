@@ -30,8 +30,6 @@
 #include "core.h"
 #include "host.h"
 
-#define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
-
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
@@ -313,6 +311,7 @@ int mmc_of_parse(struct mmc_host *host)
 	int len, ret;
 	bool cd_cap_invert, cd_gpio_invert = false;
 	bool ro_cap_invert, ro_gpio_invert = false;
+	u32 device_strength;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -448,6 +447,18 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
 	if (of_find_property(np, "mmc-hs400-1_2v", &len))
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
+	if (of_find_property(np, "supports-hs400-enhanced-strobe", NULL))
+		host->caps2 |= MMC_CAP2_STROBE_ENHANCED;
+#if defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
+	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
+	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
+	if (of_find_property(np, "use-broken-voltage", NULL))
+		host->caps2 |= MMC_CAP2_BROKEN_VOLTAGE;
+#endif /*(CONFIG_BCM43454) || (CONFIG_BCM43454_MODULE) || \
+	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE) || \
+	(CONFIG_BCM43456) || (CONFIG_BCM43456_MODULE)*/
+	if (of_find_property(np, "skip-init-mmc-scan", NULL))
+		host->caps2 |= MMC_CAP2_SKIP_INIT_SCAN;
 
 	host->dsr_req = !of_property_read_u32(np, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
@@ -457,6 +468,10 @@ int mmc_of_parse(struct mmc_host *host)
 		host->dsr_req = 0;
 	}
 
+	if (!of_property_read_u32(np, "device_drv", &device_strength))
+		host->device_drv = device_strength << 4;
+	else
+		host->device_drv = MMC_DRIVER_TYPE_0;
 	return 0;
 
 out:
@@ -508,6 +523,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
+	host->wlock_name = kasprintf(GFP_KERNEL,
+			"%s_detect", mmc_hostname(host));
+	wake_lock_init(&host->detect_wake_lock, WAKE_LOCK_SUSPEND,
+			host->wlock_name);
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 #ifdef CONFIG_PM
 	host->pm_notify.notifier_call = mmc_pm_notify;
@@ -558,9 +577,12 @@ int mmc_add_host(struct mmc_host *host)
 	mmc_add_host_debugfs(host);
 #endif
 	mmc_host_clk_sysfs_init(host);
-
+#ifdef CONFIG_BLOCK
+	mmc_latency_hist_sysfs_init(host);
+#endif
 	mmc_start_host(host);
-	register_pm_notifier(&host->pm_notify);
+	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
+		register_pm_notifier(&host->pm_notify);
 
 	return 0;
 }
@@ -577,11 +599,16 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	unregister_pm_notifier(&host->pm_notify);
+	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
+		unregister_pm_notifier(&host->pm_notify);
+
 	mmc_stop_host(host);
 
 #ifdef CONFIG_DEBUG_FS
 	mmc_remove_host_debugfs(host);
+#endif
+#ifdef CONFIG_BLOCK
+	mmc_latency_hist_sysfs_exit(host);
 #endif
 
 	device_del(&host->class_dev);
@@ -604,6 +631,7 @@ void mmc_free_host(struct mmc_host *host)
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);
 	spin_unlock(&mmc_host_lock);
+	wake_lock_destroy(&host->detect_wake_lock);
 
 	put_device(&host->class_dev);
 }

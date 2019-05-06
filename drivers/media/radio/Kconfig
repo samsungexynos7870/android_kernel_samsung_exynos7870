@@ -10,6 +10,8 @@ menuconfig RADIO_ADAPTERS
 	---help---
 	  Say Y here to enable selecting AM/FM radio adapters.
 
+source "drivers/media/radio/si47xx/Kconfig"
+
 if RADIO_ADAPTERS && VIDEO_V4L2
 
 config RADIO_TEA575X
@@ -43,6 +45,12 @@ config RADIO_SI476X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-si476x.
+
+config RADIO_RTC6213N
+	bool "RTC6213N FM Radio Receiver support"
+	depends on I2C && VIDEO_V4L2
+
+source "drivers/media/radio/rtc6213n/Kconfig"
 
 config USB_MR800
 	tristate "AverMedia MR 800 USB FM radio support"

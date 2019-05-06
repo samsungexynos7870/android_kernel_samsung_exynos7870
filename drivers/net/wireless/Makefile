@@ -11,7 +11,7 @@ obj-$(CONFIG_AIRO)		+= airo.o
 obj-$(CONFIG_AIRO_CS)		+= airo_cs.o airo.o
 
 obj-$(CONFIG_ATMEL)             += atmel.o
-obj-$(CONFIG_PCI_ATMEL)         += atmel_pci.o 
+obj-$(CONFIG_PCI_ATMEL)         += atmel_pci.o
 obj-$(CONFIG_PCMCIA_ATMEL)      += atmel_cs.o
 
 obj-$(CONFIG_AT76C50X_USB)      += at76c50x-usb.o
@@ -55,8 +55,88 @@ obj-$(CONFIG_WL_TI)	+= ti/
 
 obj-$(CONFIG_MWIFIEX)	+= mwifiex/
 
+# Android Version Check from Platform source
+ifneq ($(ANDROID_VERSION),)
+MAJOR_VERSION := $(shell echo $(ANDROID_VERSION) | rev | cut -c 5- | rev)
+DHDCFLAGS += -DANDROID_PLATFORM_VERSION=$(MAJOR_VERSION)
+$(warning android version 1: $(ANDROID_VERSION))
+$(warning MAJOR_VERSION version 1: $(MAJOR_VERSION))
+else
+ifneq ($(PLATFORM_VERSION),)
+MAJOR_VERSION := $(shell echo $(PLATFORM_VERSION) | cut -d "." -f 1)
+DHDCFLAGS += -DANDROID_PLATFORM_VERSION=$(MAJOR_VERSION)
+$(warning platform version 2 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 2: $(MAJOR_VERSION))
+endif
+endif
+
+ifneq ($(CONFIG_BCM4343),)
+ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+$(warning platform version 3 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM4343)   += bcmdhd_100_10/
+obj-$(CONFIG_BCM4343) += bcmdhd_100_10/dhd_custom_memprealloc.o
+obj-$(CONFIG_BCM4343) += bcmdhd_100_10/dhd_custom_exynos.o
+else
+$(warning platform version 4 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/
+obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/dhd_custom_exynos.o
+obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
+endif
+endif
+
+ifneq ($(CONFIG_BCM43454),)
+ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+$(warning platform version 3 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43454)   += bcmdhd_100_10/
+obj-$(CONFIG_BCM43454) += bcmdhd_100_10/dhd_custom_memprealloc.o
+obj-$(CONFIG_BCM43454) += bcmdhd_100_10/dhd_custom_exynos.o
+else
+$(warning platform version 4 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/
+obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/dhd_custom_exynos.o
+obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
+endif
+endif
+
+ifneq ($(CONFIG_BCM43455),)
+ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+$(warning platform version 3 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43455)   += bcmdhd_100_10/
+obj-$(CONFIG_BCM43455) += bcmdhd_100_10/dhd_custom_memprealloc.o
+obj-$(CONFIG_BCM43455) += bcmdhd_100_10/dhd_custom_exynos.o
+else
+$(warning platform version 4 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/
+obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/dhd_custom_exynos.o
+obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
+endif
+endif
+
+ifneq ($(CONFIG_BCM43456),)
+ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+$(warning platform version 3 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43456)   += bcmdhd_100_10/
+obj-$(CONFIG_BCM43456) += bcmdhd_100_10/dhd_custom_memprealloc.o
+obj-$(CONFIG_BCM43456) += bcmdhd_100_10/dhd_custom_exynos.o
+else
+$(warning platform version 4 : $(PLATFORM_VERSION))
+$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/
+obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/dhd_custom_exynos.o
+obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
+endif
+endif
 obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
 obj-$(CONFIG_BRCMSMAC)	+= brcm80211/
-
+obj-$(CONFIG_CNSS_SDIO)	+= cnss/cnss_sdio.o
+obj-$(CONFIG_WCNSS_MEM_PRE_ALLOC) += cnss_prealloc.o
+obj-$(CONFIG_QCA_CLD_WLAN)  += qcacld-2.0/
 obj-$(CONFIG_CW1200)	+= cw1200/
 obj-$(CONFIG_RSI_91X)	+= rsi/

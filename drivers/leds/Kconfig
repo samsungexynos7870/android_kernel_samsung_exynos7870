@@ -505,6 +505,93 @@ config LEDS_VERSATILE
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
 
+config LEDS_S2MPB02
+	bool "LED support for the S2MPB02"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the S2MPB02.
+
+config LEDS_S2MU003
+	bool "LED support for the S2MU003"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the S2MU003.
+
+config S2MU003_LEDS_I2C
+	bool "LED support for the S2MU003"
+	depends on LEDS_S2MU003
+	help
+	  This option enables support for the LEDs on the S2MU003.
+
+config LEDS_S2MU005_FLASH
+	bool "LED support for the S2MU005"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the S2MU005.
+
+config LEDS_S2MU005_RGB
+	bool "LED driver for S2MU005 RGB"
+	help
+	  Use LED driver for S2MU005 RGB
+	  If unsure, say N
+	  
+
+config S2MU005_LEDS_I2C
+	bool "LED support for the S2MU005"
+	help
+	  This option enables support for the LEDs on the S2MU005.
+
+config LEDS_SM5705
+	bool "LED support for the SM5705"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the SM5705.
+
+config FLASHLIGHT
+	bool "Flashlight Support"
+	help
+	  This option enables the led sysfs class in /sys/class/flashlight.
+
+config SM_FLASH_LED
+	tristate "Siliconmitus flash LED driver support"
+	depends on FLASHLIGHT
+	help
+	  Say Y here to enable Siliconmitus's flash LED driver HAL architecture
+
+config FLED_SM5703
+	tristate "Siliconmitus SM5703 flash LED driver"
+	depends on SM_FLASH_LED
+	help
+	  A driver for Siliconmitus SM5703 flash LED
+
+config LEDS_SUPPORT_FRONT_FLASH
+	bool "LED support for Front Flash"
+	help
+	  This option enables support for the LEDs.
+
+config LEDS_SUPPORT_FRONT_FLASH_AUTO
+	bool "LED support for Front Flash Auto Mode"
+	help
+	  This option enables support for the LEDs.
+
+config LEDS_RT8547
+	bool "LED support for the RT8547"
+	help
+	  If you say yes here you will get support for
+	  for the RT8547 FLASH led chip.
+
+config LEDS_IRIS_IRLED_KTD2692
+	bool "IRLED support for the KTD2692"
+	help
+	  If you say yes here you will get support for
+	  for the KTD2692 FLASH led chip.
+
+config LEDS_KTD2692
+	bool "LED support for the KTD2692 Flash driver"
+	help
+	  If you say yes here you will get support for
+	  for the KTD2692 FLASH led chip.	  
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

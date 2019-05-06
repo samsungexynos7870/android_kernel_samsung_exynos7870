@@ -90,6 +90,8 @@ format in the sign-off area:
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
+<<<<<<< HEAD
+=======
 Also, some patches may have kernel version prerequisites.  This can be
 specified in the following format in the sign-off area:
 
@@ -100,6 +102,7 @@ specified in the following format in the sign-off area:
 
    For each "-stable" tree starting with the specified version.
 
+>>>>>>> android-3.18
 Following the submission:
 
  - The sender will receive an ACK when the patch has been accepted into the

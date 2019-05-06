@@ -34,19 +34,24 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		__flush_icache_all();
 }
 
+static void sync_icache_aliases(void *kaddr, unsigned long len)
+{
+	unsigned long addr = (unsigned long)kaddr;
+
+	if (icache_is_aliasing()) {
+		__clean_dcache_area_pou(kaddr, len);
+		__flush_icache_all();
+	} else {
+		flush_icache_range(addr, addr + len);
+	}
+}
+
 static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 				unsigned long uaddr, void *kaddr,
 				unsigned long len)
 {
-	if (vma->vm_flags & VM_EXEC) {
-		unsigned long addr = (unsigned long)kaddr;
-		if (icache_is_aliasing()) {
-			__flush_dcache_area(kaddr, len);
-			__flush_icache_all();
-		} else {
-			flush_icache_range(addr, addr + len);
-		}
-	}
+	if (vma->vm_flags & VM_EXEC)
+		sync_icache_aliases(kaddr, len);
 }
 
 /*
@@ -60,14 +65,10 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long uaddr, void *dst, const void *src,
 		       unsigned long len)
 {
-#ifdef CONFIG_SMP
 	preempt_disable();
-#endif
 	memcpy(dst, src, len);
 	flush_ptrace_access(vma, page, uaddr, dst, len);
-#ifdef CONFIG_SMP
 	preempt_enable();
-#endif
 }
 
 void __sync_icache_dcache(pte_t pte, unsigned long addr)
@@ -77,7 +78,6 @@ void __sync_icache_dcache(pte_t pte, unsigned long addr)
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags)) {
 		__flush_dcache_area(page_address(page),
 				PAGE_SIZE << compound_order(page));
-		__flush_icache_all();
 	} else if (icache_is_aivivt()) {
 		__flush_icache_all();
 	}
@@ -98,7 +98,6 @@ EXPORT_SYMBOL(flush_dcache_page);
 /*
  * Additional functions defined in assembly.
  */
-EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

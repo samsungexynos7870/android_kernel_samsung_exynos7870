@@ -174,6 +174,87 @@ config INPUT_APMPOWER
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm-power.
 
+config INPUT_KEYRESET
+	bool "Reset key"
+	depends on INPUT
+	select INPUT_KEYCOMBO
+	---help---
+	  Say Y here if you want to reboot when some keys are pressed;
+
+config GLOVE_TOUCH
+	tristate "Glove touch"
+	help
+	  Say Y here if you want glove touch.
+
+config INPUT_TOUCHSCREEN_TCLM
+	bool "touchscreen tclm"
+	depends on I2C
+	help
+	  Say Y here if you need to use tclm.
+
+	  If unsure, say N.
+
+config INPUT_TOUCHSCREEN_TCLMV2
+	bool "touchscreen tclmv2"
+	depends on I2C
+	help
+	  Say Y here if you need to use tclm.
+
+	  If unsure, say N.
+
+config INPUT_KEYCOMBO
+	tristate "Key combo"
+	depends on INPUT
+	---help---
+	  Say Y here if you want to take action when some keys are pressed;
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keycombo.
+
+config HALL
+	tristate "Enable HALL"
+	default n
+	help
+	  Enable Hall Feature
+
+config HALL_NOTIFIER
+	bool "HALL notifier support"
+	depends on HALL
+	default n
+	help
+	  If you say yes here you will get support for
+	  the HALL status change notification.
+	  
+config SEC_FLIP_WORK_DOUBLE_CHECK
+	tristate "Enable flip work is checked twice"
+	default n
+	help
+	  Enable SEC_FLIP_WORK_DOUBLE_CHECK Feature	 	  
+
+config CHECK_BOOKCOVER_HALL
+	tristate "Enable to check BookCover HALL"
+	default n
+	help
+	  Enable to check BookCover hall detect Feature
+
+config CERTIFY_HALL
+	tristate "Enable CERTIFY HALL"
+	default n
+	help
+	  Enable Certify Hall Feature
+
+config SEC_AUTO_INPUT
+	tristate "Samsung auto input"
+	depends on !SAMSUNG_PRODUCT_SHIP
+	default y
+	help
+	  Say Y here if you use auto input function.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called autoinput.
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"
@@ -185,6 +266,8 @@ source "drivers/input/joystick/Kconfig"
 source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
+
+source "drivers/input/wacom/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 

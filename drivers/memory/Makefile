@@ -13,3 +13,5 @@ obj-$(CONFIG_FSL_IFC)		+= fsl_ifc.o
 obj-$(CONFIG_MVEBU_DEVBUS)	+= mvebu-devbus.o
 obj-$(CONFIG_TEGRA20_MC)	+= tegra20-mc.o
 obj-$(CONFIG_TEGRA30_MC)	+= tegra30-mc.o
+obj-$(CONFIG_EXYNOS_MCOMP)	+= exynos-mcomp.o mcomp_test.o
+obj-$(CONFIG_SAMSUNG_CORE_TEST)	+= core_reg.o

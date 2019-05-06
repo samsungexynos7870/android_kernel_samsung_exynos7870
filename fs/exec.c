@@ -56,6 +56,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
+#include <linux/task_integrity.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -65,6 +66,10 @@
 #include "internal.h"
 
 #include <trace/events/sched.h>
+
+#ifdef CONFIG_SECURITY_DEFEX
+#include <linux/defex.h>
+#endif
 
 int suid_dumpable = 0;
 
@@ -1120,7 +1125,7 @@ EXPORT_SYMBOL(flush_old_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
-	if (inode_permission(file_inode(file), MAY_READ) < 0)
+	if (inode_permission2(file->f_path.mnt, file_inode(file), MAY_READ) < 0)
 		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
 }
 EXPORT_SYMBOL(would_dump);
@@ -1442,7 +1447,8 @@ int search_binary_handler(struct linux_binprm *bprm)
 		if (printable(bprm->buf[0]) && printable(bprm->buf[1]) &&
 		    printable(bprm->buf[2]) && printable(bprm->buf[3]))
 			return retval;
-		if (request_module("binfmt-%04x", *(ushort *)(bprm->buf + 2)) < 0)
+		if (request_module(
+			      "binfmt-%04x", *(ushort *)(bprm->buf + 2)) < 0)
 			return retval;
 		need_retry = false;
 		goto retry;
@@ -1451,6 +1457,132 @@ int search_binary_handler(struct linux_binprm *bprm)
 	return retval;
 }
 EXPORT_SYMBOL(search_binary_handler);
+
+#if defined CONFIG_SEC_RESTRICT_FORK
+#if defined CONFIG_SEC_RESTRICT_ROOTING_LOG
+#define PRINT_LOG(...)	printk(KERN_ERR __VA_ARGS__)
+#else
+#define PRINT_LOG(...)
+#endif	// End of CONFIG_SEC_RESTRICT_ROOTING_LOG
+
+#define CHECK_ROOT_UID(x) (x->cred->uid.val == 0 || x->cred->gid.val == 0 || \
+			x->cred->euid.val == 0 || x->cred->egid.val == 0 || \
+			x->cred->suid.val == 0 || x->cred->sgid.val == 0)
+
+/*  sec_check_execpath
+    return value : give task's exec path is matched or not
+*/
+int sec_check_execpath(struct mm_struct *mm, char *denypath)
+{
+	struct file *exe_file;
+	char *path, *pathbuf = NULL;
+	unsigned int path_length = 0, denypath_length = 0;
+	int ret = 0;
+
+	if (mm == NULL)
+		return 0;
+
+	if (!(exe_file = get_mm_exe_file(mm))) {
+		PRINT_LOG("Cannot get exe from task->mm.\n");
+		goto out_nofile;
+	}
+
+	if (!(pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY))) {
+		PRINT_LOG("failed to kmalloc for pathbuf\n");
+		goto out;
+	}
+
+	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
+	if (IS_ERR(path)) {
+		PRINT_LOG("Error get path..\n");
+		goto out;
+	}
+
+	path_length = strlen(path);
+	denypath_length = strlen(denypath);
+
+	if (!strncmp(path, denypath, (path_length < denypath_length) ?
+				path_length : denypath_length)) {
+		ret = 1;
+	}
+out:
+	fput(exe_file);
+out_nofile:
+	if (pathbuf)
+		kfree(pathbuf);
+
+	return ret;
+}
+EXPORT_SYMBOL(sec_check_execpath);
+
+static int sec_restrict_fork(void)
+{
+	struct cred *shellcred;
+	int ret = 0;
+	struct task_struct *parent_tsk;
+	struct mm_struct *parent_mm = NULL;
+	const struct cred *parent_cred;
+
+	read_lock(&tasklist_lock);
+	parent_tsk = current->parent;
+	if (!parent_tsk) {
+		read_unlock(&tasklist_lock);
+		return 0;
+	}
+
+	get_task_struct(parent_tsk);
+	/* holding on to the task struct is enough so just release
+	 * the tasklist lock here */
+	read_unlock(&tasklist_lock);
+
+	if (current->pid == 1 || parent_tsk->pid == 1)
+		goto out;
+
+	/* get current->parent's mm struct to access it's mm
+	 * and to keep it alive */
+	parent_mm = get_task_mm(parent_tsk);
+
+	if (current->mm == NULL || parent_mm == NULL)
+		goto out;
+
+	if (sec_check_execpath(parent_mm, "/sbin/adbd")) {
+		shellcred = prepare_creds();
+		if (!shellcred) {
+			ret = 1;
+			goto out;
+		}
+
+		shellcred->uid.val = 2000;
+		shellcred->gid.val = 2000;
+		shellcred->euid.val = 2000;
+		shellcred->egid.val = 2000;
+		commit_creds(shellcred);
+		ret = 0;
+		goto out;
+	}
+
+	if (sec_check_execpath(current->mm, "/data/")) {
+		ret = 1;
+		goto out;
+	}
+
+	parent_cred = get_task_cred(parent_tsk);
+	if (!parent_cred)
+		goto out;
+	if (!CHECK_ROOT_UID(parent_tsk))
+	{
+		ret = 1;
+	}
+	put_cred(parent_cred);
+out:
+	if (parent_mm)
+		mmput(parent_mm);
+	put_task_struct(parent_tsk);
+
+	return ret;
+}
+#endif	/* End of CONFIG_SEC_RESTRICT_FORK */
+
 
 static int exec_binprm(struct linux_binprm *bprm)
 {
@@ -1469,6 +1601,8 @@ static int exec_binprm(struct linux_binprm *bprm)
 		trace_sched_process_exec(current, old_pid, bprm);
 		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 		proc_exec_connector(current);
+	} else {
+		task_integrity_delayed_reset(current);
 	}
 
 	return ret;
@@ -1525,6 +1659,15 @@ static int do_execve_common(struct filename *filename,
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out_unmark;
+
+#ifdef CONFIG_SECURITY_DEFEX
+	retval = task_defex_enforce(current, file, -__NR_execve);
+	if (retval < 0) {
+		bprm->file = file;
+		retval = -EPERM;
+		goto out_unmark;
+	}
+#endif
 
 	sched_exec();
 
@@ -1656,6 +1799,17 @@ SYSCALL_DEFINE3(execve,
 		const char __user *const __user *, argv,
 		const char __user *const __user *, envp)
 {
+#if defined CONFIG_SEC_RESTRICT_FORK
+		if(CHECK_ROOT_UID(current)){
+			if(sec_restrict_fork()){
+				PRINT_LOG("Restricted making process. PID = %d(%s) "
+								"PPID = %d(%s)\n",
+				current->pid, current->comm,
+				current->parent->pid, current->parent->comm);
+				return -EACCES;
+			}
+		}
+#endif	// End of CONFIG_SEC_RESTRICT_FORK
 	return do_execve(getname(filename), argv, envp);
 }
 #ifdef CONFIG_COMPAT

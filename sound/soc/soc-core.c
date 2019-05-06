@@ -1117,6 +1117,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 	}
 
 	list_for_each_entry(dai, &component->dai_list, list) {
+		if (dai->playback_widget || dai->capture_widget)
+			continue;
+
 		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
 		if (ret != 0) {
 			dev_err(component->dev,
@@ -2516,6 +2519,34 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
 
+/*
+ * snd_soc_info_volsw_sx - Mixer info callback for SX TLV controls
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to provide information about a single mixer control, or a double
+ * mixer control that spans 2 registers of the SX TLV type. SX TLV controls
+ * have a range that represents both positive and negative values either side
+ * of zero but without a sign bit.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+
+	snd_soc_info_volsw(kcontrol, uinfo);
+	/* Max represents the number of levels in an SX control not the
+	 * maximum value, so add the minimum value back on
+	 */
+	uinfo->value.integer.max += mc->min;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_info_volsw_sx);
+
 /**
  * snd_soc_get_volsw - single mixer get callback
  * @kcontrol: mixer control
@@ -3148,11 +3179,11 @@ int snd_soc_bytes_tlv_callback(struct snd_kcontrol *kcontrol, int op_flag,
 	switch (op_flag) {
 	case SNDRV_CTL_TLV_OP_READ:
 		if (params->get)
-			ret = params->get(tlv, count);
+			ret = params->get(kcontrol, tlv, count);
 		break;
 	case SNDRV_CTL_TLV_OP_WRITE:
 		if (params->put)
-			ret = params->put(tlv, count);
+			ret = params->put(kcontrol, tlv, count);
 		break;
 	}
 	return ret;

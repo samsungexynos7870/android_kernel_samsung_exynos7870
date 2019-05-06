@@ -24,4 +24,7 @@ struct dwc3_platform_data {
 	enum usb_device_speed maximum_speed;
 	enum usb_dr_mode dr_mode;
 	bool tx_fifo_resize;
+	bool adj_sof_accuracy;
+	bool is_not_vbus_pad;
+	bool sparse_transfer_control;
 };

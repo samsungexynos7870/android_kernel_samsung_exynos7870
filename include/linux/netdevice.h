@@ -1709,6 +1709,10 @@ struct net_device {
 	struct lock_class_key *qdisc_tx_busylock;
 	int group;
 	struct pm_qos_request	pm_qos_req;
+
+#ifdef CONFIG_NETPM
+	bool netpm_use;
+#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

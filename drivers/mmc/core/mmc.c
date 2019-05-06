@@ -391,6 +391,38 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 /* Minimum partition switch timeout in milliseconds */
 #define MMC_MIN_PART_SWITCH_TIME	300
 
+/* eMMC 5.0 or later only */
+/*
+ * mmc_merge_ext_csd - merge some ext_csd field to a variable.
+ * @ext_csd : pointer of ext_csd.(1 Byte/field)
+ * @continuous : if you want to merge continuous field, set true.
+ * @count : a number of ext_csd field to merge(=< 8)
+ * @args : list of ext_csd index or first index.
+ */
+static unsigned long long mmc_merge_ext_csd(u8 *ext_csd, bool continuous, int count, ...)
+{
+	unsigned long long merge_ext_csd = 0;
+	va_list args;
+	int i = 0;
+	int index;
+
+	va_start(args, count);
+
+	index = va_arg(args, int);
+	for (i = 0; i < count; i++) {
+		if (continuous) {
+			merge_ext_csd = merge_ext_csd << 8 | ext_csd[index + count - 1 - i];
+		} else {
+			merge_ext_csd = merge_ext_csd << 8 | ext_csd[index];
+			index = va_arg(args, int);
+		}
+	}
+	va_end(args);
+
+	return merge_ext_csd;
+}
+
+
 /*
  * Decode extended CSD.
  */
@@ -602,7 +634,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	if (card->ext_csd.rev >= 6) {
 		card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
 
-		card->ext_csd.generic_cmd6_time = 10 *
+		/* set generic cmd6 timeout unit as 20ms */
+		card->ext_csd.generic_cmd6_time = 20 *
 			ext_csd[EXT_CSD_GENERIC_CMD6_TIME];
 		card->ext_csd.power_off_longtime = 10 *
 			ext_csd[EXT_CSD_POWER_OFF_LONG_TIME];
@@ -633,6 +666,52 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			ext_csd[EXT_CSD_MAX_PACKED_READS];
 	} else {
 		card->ext_csd.data_sector_size = 512;
+	}
+	/* eMMC v5.0 or later */
+	if (card->ext_csd.rev >= 7) {
+		for (idx = 0; idx < MMC_FIRMWARE_LEN ; idx++) {
+			card->ext_csd.fwrev[idx] =
+				ext_csd[EXT_CSD_FIRMWARE_VERSION + MMC_FIRMWARE_LEN - 1 - idx];
+		}
+		if (card->cid.manfid == 0x15 &&
+				ext_csd[EXT_CSD_PRE_EOL_INFO] == 0x0 &&
+				ext_csd[EXT_CSD_DEVICE_VERSION] == 0x0) {
+			/* eMMC : moviNAND VMX device Only */
+			card->ext_csd.smart_info = mmc_merge_ext_csd(ext_csd, false, 8,
+					EXT_CSD_PREv5_LIFE_TIME_EST,
+					EXT_CSD_PREv5_LIFE_TIME_EST,
+					EXT_CSD_PREv5_PRE_EOL_INFO,
+					EXT_CSD_PREv5_OPT_ERASE_SIZE,
+					EXT_CSD_PREv5_OPT_WRITE_SIZE,
+					EXT_CSD_PREv5_CTRL_VERSION,
+					EXT_CSD_HC_ERASE_GRP_SIZE,
+					EXT_CSD_HC_WP_GRP_SIZE);
+			card->ext_csd.fwdate = mmc_merge_ext_csd(ext_csd, false, 1,
+					EXT_CSD_PREv5_FIRMWARE_VERSION);
+		} else {
+			card->ext_csd.smart_info = mmc_merge_ext_csd(ext_csd, false, 8,
+					EXT_CSD_DEVICE_LIFE_TIME_EST_TYPE_B,
+					EXT_CSD_DEVICE_LIFE_TIME_EST_TYPE_A,
+					EXT_CSD_PRE_EOL_INFO,
+					EXT_CSD_OPTIMAL_TRIM_UNIT_SIZE,
+					EXT_CSD_DEVICE_VERSION + 1,
+					EXT_CSD_DEVICE_VERSION,
+					EXT_CSD_HC_ERASE_GRP_SIZE,
+					EXT_CSD_HC_WP_GRP_SIZE);
+			card->ext_csd.fwdate = mmc_merge_ext_csd(ext_csd, true, 8,
+					EXT_CSD_FIRMWARE_VERSION);
+		}
+
+		card->ext_csd.enhanced_strobe_support =
+			ext_csd[EXT_CSD_STORBE_SUPPORT];
+		card->ext_csd.pre_eol_info = ext_csd[EXT_CSD_PRE_EOL_INFO];
+		card->ext_csd.device_life_time_est_typ_a = 
+			ext_csd[EXT_CSD_DEVICE_LIFE_TIME_EST_TYPE_A];
+		card->ext_csd.device_life_time_est_typ_b =
+			ext_csd[EXT_CSD_DEVICE_LIFE_TIME_EST_TYPE_B];
+	} else {		
+		card->ext_csd.device_life_time_est_typ_a = 0;
+		card->ext_csd.device_life_time_est_typ_b = 0;
 	}
 
 out:
@@ -722,6 +801,44 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_MMC_UNIQUE_NUMBER
+static ssize_t mmc_gen_unique_number_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct mmc_card *card = mmc_dev_to_card(dev);
+	char gen_pnm[3];
+	int i;
+
+	switch (card->cid.manfid) {
+		case 0x02:	/* Sandisk	-> [3][4] */
+		case 0x45:
+			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 3);
+			break;
+		case 0x11:	/* Toshiba	-> [1][2] */
+		case 0x90:	/* Hynix */
+			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 1);
+			break;
+		case 0x13:
+		case 0xFE:	/* Micron 	-> [4][5] */
+			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 4);
+			break;
+		case 0x15:	/* Samsung 	-> [0][1] */
+		default:
+			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 0);
+			break;
+	}
+	/* Convert to Captal */
+	for (i = 0 ; i < 2 ; i++)
+	{
+		if (gen_pnm[i] >= 'a' && gen_pnm[i] <= 'z')
+			gen_pnm[i] -= ('a' - 'A');
+	}
+	return sprintf(buf, "C%s%02X%08X%02X\n",
+			gen_pnm, card->cid.prv, card->cid.serial, UNSTUFF_BITS(card->raw_cid, 8, 8));
+}
+#endif
+
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
@@ -735,12 +852,34 @@ MMC_DEV_ATTR(manfid, "0x%06x\n", card->cid.manfid);
 MMC_DEV_ATTR(name, "%s\n", card->cid.prod_name);
 MMC_DEV_ATTR(oemid, "0x%04x\n", card->cid.oemid);
 MMC_DEV_ATTR(prv, "0x%x\n", card->cid.prv);
+MMC_DEV_ATTR(rev, "0x%x\n", card->ext_csd.rev);
+MMC_DEV_ATTR(pre_eol_info, "%02x\n", card->ext_csd.pre_eol_info);
+MMC_DEV_ATTR(life_time, "0x%02x 0x%02x\n",
+	card->ext_csd.device_life_time_est_typ_a,
+	card->ext_csd.device_life_time_est_typ_b);
 MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
 MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 		card->ext_csd.enhanced_area_offset);
 MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
 MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
+MMC_DEV_ATTR(smart, "0x%016llx\n", card->ext_csd.smart_info);
+MMC_DEV_ATTR(fwdate, "0x%016llx\n", card->ext_csd.fwdate);
+MMC_DEV_ATTR(caps, "0x%08x\n", card->host->caps);
+MMC_DEV_ATTR(caps2, "0x%08x\n", card->host->caps2);
+MMC_DEV_ATTR(erase_type, "MMC_CAP_ERASE %s, type %s, SECURE %s, Sanitize %s\n",
+		card->host->caps & MMC_CAP_ERASE ? "enabled" : "disabled",
+		mmc_can_discard(card) ? "DISCARD" :
+		(mmc_can_trim(card) ? "TRIM" : "NORMAL"),
+		(!mmc_can_sanitize(card) && mmc_can_secure_erase_trim(card) &&
+		 !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN)) ?
+		"supportable" : "disabled",
+		(mmc_can_sanitize(card) &&
+		 !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN)) ?
+		"enabled" : "disabled");
+#ifdef CONFIG_MMC_UNIQUE_NUMBER
+static DEVICE_ATTR(unique_number, (S_IRUSR|S_IRGRP), mmc_gen_unique_number_show, NULL);
+#endif
 
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -754,11 +893,22 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_oemid.attr,
 	&dev_attr_prv.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_pre_eol_info.attr,
+	&dev_attr_life_time.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_enhanced_area_offset.attr,
 	&dev_attr_enhanced_area_size.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
+	&dev_attr_smart.attr,
+	&dev_attr_fwdate.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_caps2.attr,
+	&dev_attr_erase_type.attr,
+#ifdef CONFIG_MMC_UNIQUE_NUMBER
+	&dev_attr_unique_number.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(mmc_std);
@@ -969,10 +1119,15 @@ static int mmc_select_bus_width(struct mmc_card *card)
  */
 static int mmc_select_hs(struct mmc_card *card)
 {
+	struct mmc_host *host = card->host;
 	int err;
 
+	if (card->en_strobe_enhanced)
+		mmc_select_bus_width(card);
+
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS,
+			   EXT_CSD_HS_TIMING,
+			   EXT_CSD_TIMING_HS | host->device_drv,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
 	if (!err)
@@ -1055,6 +1210,7 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 static int mmc_select_hs400(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
+	u32 ext_csd_bits;
 	int err = 0;
 
 	/*
@@ -1064,46 +1220,69 @@ static int mmc_select_hs400(struct mmc_card *card)
 	      host->ios.bus_width == MMC_BUS_WIDTH_8))
 		return 0;
 
-	/*
-	 * Before switching to dual data rate operation for HS400,
-	 * it is required to convert from HS200 mode to HS mode.
-	 */
-	mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
-	mmc_set_bus_speed(card);
+	if(card->en_strobe_enhanced) {
+		ext_csd_bits = EXT_CSD_STROBE_ENHANCED_EN;
 
-	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS,
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_BUS_WIDTH,
+			EXT_CSD_DDR_BUS_WIDTH_8 | ext_csd_bits,
+			card->ext_csd.generic_cmd6_time);
+		if (err) {
+			pr_warn("%s: switch to bus width enhanced strobe failed, err:%d\n",
+					mmc_hostname(host), err);
+			return err;
+		}
+
+		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			   EXT_CSD_HS_TIMING,
+			   EXT_CSD_TIMING_HS400 | host->device_drv,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
-	if (err) {
-		pr_err("%s: switch to high-speed from hs200 failed, err:%d\n",
-			mmc_hostname(host), err);
-		return err;
-	}
+		if (err) {
+			pr_warn("%s: switch to hs400 failed, err:%d\n",
+				mmc_hostname(host), err);
+			return err;
+		}
+		mmc_set_timing(host, MMC_TIMING_MMC_HS400_ES);
+	} else {
+		/*
+		 * Before switching to dual data rate operation for HS400,
+		 * it is required to convert from HS200 mode to HS mode.
+		 */
+		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS,
+				   card->ext_csd.generic_cmd6_time,
+				   true, true, true);
+		if (err) {
+			pr_warn("%s: switch to high-speed from hs200 failed, err:%d\n",
+				mmc_hostname(host), err);
+			return err;
+		}
+		mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
+		mmc_set_bus_speed(card);
 
-	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BUS_WIDTH,
 			 EXT_CSD_DDR_BUS_WIDTH_8,
 			 card->ext_csd.generic_cmd6_time);
-	if (err) {
-		pr_err("%s: switch to bus width for hs400 failed, err:%d\n",
-			mmc_hostname(host), err);
-		return err;
-	}
-
-	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS400,
+		if (err) {
+			pr_warn("%s: switch to bus width for hs400 failed, err:%d\n",
+				mmc_hostname(host), err);
+			return err;
+		}
+		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			   EXT_CSD_HS_TIMING,
+			   EXT_CSD_TIMING_HS400 | host->device_drv,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
-	if (err) {
-		pr_err("%s: switch to hs400 failed, err:%d\n",
-			 mmc_hostname(host), err);
-		return err;
+		if (err) {
+			pr_warn("%s: switch to hs400 failed, err:%d\n",
+				mmc_hostname(host), err);
+			return err;
+		}
+		mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	}
-
-	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
-
 	return 0;
 }
 
@@ -1136,7 +1315,8 @@ static int mmc_select_hs200(struct mmc_card *card)
 	err = mmc_select_bus_width(card);
 	if (!IS_ERR_VALUE(err)) {
 		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS200,
+				   EXT_CSD_HS_TIMING,
+				   EXT_CSD_TIMING_HS200 | host->device_drv,
 				   card->ext_csd.generic_cmd6_time,
 				   true, true, true);
 		if (!err)
@@ -1156,11 +1336,14 @@ static int mmc_select_timing(struct mmc_card *card)
 	if ((card->csd.mmca_vsn < CSD_SPEC_VER_4 &&
 	     card->ext_csd.hs_max_dtr == 0))
 		goto bus_speed;
-
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
-		err = mmc_select_hs200(card);
-	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
+	if (card->en_strobe_enhanced) {
 		err = mmc_select_hs(card);
+	} else {
+		if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
+			err = mmc_select_hs200(card);
+		else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
+			err = mmc_select_hs(card);
+	}
 
 	if (err && err != -EBADMSG)
 		return err;
@@ -1228,7 +1411,7 @@ static int mmc_hs200_tuning(struct mmc_card *card)
 	 */
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
 	    host->ios.bus_width == MMC_BUS_WIDTH_8)
-		if (host->ops->prepare_hs400_tuning)
+		if (host->ops->prepare_hs400_tuning && !card->en_strobe_enhanced)
 			host->ops->prepare_hs400_tuning(host, &host->ios);
 
 	return mmc_execute_tuning(card);
@@ -1379,6 +1562,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		mmc_set_erase_size(card);
 	}
 
+	card->en_strobe_enhanced = false;
+
 	/*
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
 	 * bit.  This bit will be lost every time after a reset or power off.
@@ -1444,13 +1629,38 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
+	 * Sequence for Enhanced Strobe
+	 *
+	 * 1. CMD6(BUS_WIDTH) with 8 bit SDR bus
+	 * 2. CMD6(HS_TIMING) with HS mode
+	 * 3. Set timing and clock as HS mode
+	 * 4. CMD6(BUS_WIDTH) with 8 bit DDR bus and enhanced strobe
+	 * 5. CMD6(HS_TIMING) with HS400 mode
+	 * 6. Set timing and clock as HS400 mode and enhanced strobe
+	 * 7. CMD6(POWER_CLASS) with 8 bit DDR bus and MMC_HS200_MAX_DTR
+	 */
+	if (card->ext_csd.enhanced_strobe_support &
+			MMC_STROBE_ENHANCED_SUPPORT) {
+		if (host->caps2 & MMC_CAP2_STROBE_ENHANCED &&
+				host->caps2 & MMC_CAP2_HS400) {
+			card->en_strobe_enhanced = true;
+			pr_warning("%s: STROBE ENHANCED enable\n",
+					mmc_hostname(card->host));
+		}
+	}
+
+	/*
 	 * Select timing interface
 	 */
 	err = mmc_select_timing(card);
 	if (err)
 		goto free_card;
 
-	if (mmc_card_hs200(card)) {
+	if (card->en_strobe_enhanced) {
+		err = mmc_select_hs400(card);
+		if (err)
+			goto err;
+	} else if (mmc_card_hs200(card)) {
 		err = mmc_hs200_tuning(card);
 		if (err)
 			goto free_card;
@@ -1727,6 +1937,9 @@ static int mmc_suspend(struct mmc_host *host)
 {
 	int err;
 
+	if (host->pm_caps & MMC_PM_SKIP_MMC_RESUME_INIT)
+		return 0;
+
 	err = _mmc_suspend(host, true);
 	if (!err) {
 		pm_runtime_disable(&host->card->dev);
@@ -1776,8 +1989,11 @@ static int mmc_shutdown(struct mmc_host *host)
 		!(host->caps2 & MMC_CAP2_FULL_PWR_CYCLE))
 		err = _mmc_resume(host);
 
-	if (!err)
+	if (!err) {
 		err = _mmc_suspend(host, false);
+		if (host->ops->shutdown && !err)
+			host->ops->shutdown(host);
+	}
 
 	return err;
 }
@@ -1788,6 +2004,24 @@ static int mmc_shutdown(struct mmc_host *host)
 static int mmc_resume(struct mmc_host *host)
 {
 	int err = 0;
+	u32 status;
+
+	if (host->pm_caps & MMC_PM_SKIP_MMC_RESUME_INIT) {
+		mmc_claim_host(host);
+		err = mmc_send_status(host->card, &status);
+		mmc_release_host(host);
+
+		if (!err && (R1_CURRENT_STATE(status) == R1_STATE_TRAN)) {
+			return 0;
+		} else {
+			pr_err("%s: status : 0x%x, err : %d doing resume\n",
+					   mmc_hostname(host), status, err);
+			mmc_power_off(host);
+			mmc_card_set_suspended(host->card);
+			err = _mmc_resume(host);
+			return err;
+		}
+	}
 
 	if (!(host->caps & MMC_CAP_RUNTIME_RESUME)) {
 		err = _mmc_resume(host);
