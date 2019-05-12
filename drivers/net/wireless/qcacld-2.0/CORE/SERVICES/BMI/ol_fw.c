@@ -150,13 +150,7 @@ static int ol_get_fw_files_for_target(struct ol_fw_files *pfw_files,
     case QCA9377_REV1_1_VERSION:
 #if defined(CONFIG_WLAN_QCA9377_DUAL_BDF) &&  \
 	(CONFIG_WLAN_QCA9377_DUAL_BDF > 0)
-		if (board_id <= CONFIG_WLAN_QCA9377_DUAL_BDF) {
-			printk(" Hw rev %d: loading the bdwlan30_OLD.bin \n", board_id);
-			memcpy(pfw_files, &FW_FILES_QCA6174_FW_3_0_OLD, sizeof(*pfw_files));
-		} else {
-			printk(" Hw rev %d: loading the bdwlan30.bin \n", board_id);
-			memcpy(pfw_files, &FW_FILES_QCA6174_FW_3_0, sizeof(*pfw_files));
-		}
+		memcpy(pfw_files, &FW_FILES_QCA6174_FW_3_0, sizeof(*pfw_files));
 #else /* CONFIG_WLAN_QCA9377_DUAL_BDF */
             memcpy(pfw_files, &FW_FILES_QCA6174_FW_3_0, sizeof(*pfw_files));
 #endif
