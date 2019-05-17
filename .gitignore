@@ -46,6 +46,7 @@ Module.symvers
 /vmlinuz
 /System.map
 /Module.markers
+/out
 
 #
 # Debian directory (make deb-pkg)
@@ -96,3 +97,9 @@ x509.genkey
 
 # Kconfig presets
 all.config
+
+# Gator Daemon files
+tools/gator/daemon/defaults_xml.h
+tools/gator/daemon/escape
+tools/gator/daemon/events.xml
+tools/gator/daemon/events_xml.h
