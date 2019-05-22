@@ -106,5 +106,6 @@ obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
 obj-$(CONFIG_BRCMSMAC)	+= brcm80211/
 obj-$(CONFIG_CNSS_SDIO)	+= cnss/cnss_sdio.o
 obj-$(CONFIG_WCNSS_MEM_PRE_ALLOC) += cnss_prealloc.o
+obj-$(CONFIG_QCA_CLD_WLAN)  += qcacld-2.0/
 obj-$(CONFIG_CW1200)	+= cw1200/
 obj-$(CONFIG_RSI_91X)	+= rsi/
