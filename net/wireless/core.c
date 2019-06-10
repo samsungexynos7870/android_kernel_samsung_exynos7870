@@ -413,7 +413,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 #if 1 /* 20151217 Temporal patch for page allocation fail when wifi on */
 		vfree(rdev);
 #else
-		kfree(rdev);
+		wiphy_free(&rdev->wiphy);
 #endif
 		return NULL;
 	}
