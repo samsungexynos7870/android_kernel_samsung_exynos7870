@@ -343,21 +343,21 @@
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/SYSTEM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait,verify";
+					fsmgr_flags = "wait";
 				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/VENDOR";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait,verify";
+					fsmgr_flags = "wait";
 				};
 				odm {
 					compatible = "android,odm";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/ODM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait,verify";
+					fsmgr_flags = "wait";
 				};
 			};
 		};
@@ -1437,7 +1437,6 @@
 			id = <0>; /* matching sensor id */
 			fnum = <17>; /* F1_7 : fimc-is-param.h */
 			setfile = "setA";
-			use_initial_ae;	/* for initial AE */
 		};
 	};
 
@@ -1476,7 +1475,6 @@
 			id = <1>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
 			setfile = "setA"; /*EVT 01*/
-			use_initial_ae;	/* for initial AE */
 		};
 	};
 
