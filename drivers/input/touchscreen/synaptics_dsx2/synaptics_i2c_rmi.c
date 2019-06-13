@@ -3843,11 +3843,6 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 	int retval;
 	struct synaptics_rmi4_data *rmi4_data = NULL;
 
-	if (bootmode == 2) {
-		input_err(true, &client->dev, "%s : Do not load driver due to : device entered recovery mode %d\n",
-			__func__, bootmode);
-		return -ENODEV;
-	}
 
 	if (lpcharge == 1) {
 		input_err(true, &client->dev, "%s : Do not load driver due to : lpm %d\n",
