@@ -915,4 +915,14 @@ struct bpf_sock_addr_kern {
 	void *t_ctx;	/* Attach type specific context. */
 };
 
+struct bpf_sockopt_kern {
+	struct sock	*sk;
+	u8		*optval;
+	u8		*optval_end;
+	s32		level;
+	s32		optname;
+	s32		optlen;
+	s32		retval;
+};
+
 #endif /* __LINUX_FILTER_H__ */

@@ -15,6 +15,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf-cgroup.h>
 #include <net/sock.h>
+#include <net/bpf_sk_storage.h>
 
 DEFINE_STATIC_KEY_FALSE(cgroup_bpf_enabled_key);
 EXPORT_SYMBOL(cgroup_bpf_enabled_key);
@@ -469,6 +470,178 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	return ret == 1 ? 0 : -EPERM;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_addr);
+
+static bool __cgroup_bpf_prog_array_is_empty(struct cgroup *cgrp,
+					     enum bpf_attach_type attach_type)
+{
+	struct bpf_prog_array *prog_array;
+	bool empty;
+
+	rcu_read_lock();
+	prog_array = rcu_dereference(cgrp->bpf.effective[attach_type]);
+	empty = bpf_prog_array_is_empty(prog_array);
+	rcu_read_unlock();
+	return empty;
+}
+
+static int sockopt_alloc_buf(struct bpf_sockopt_kern *ctx, int max_optlen)
+{
+	if (unlikely(max_optlen > PAGE_SIZE) || max_optlen < 0)
+		return -EINVAL;
+
+	ctx->optval = kzalloc(max_optlen, GFP_USER);
+	if (!ctx->optval)
+		return -ENOMEM;
+
+	ctx->optval_end = ctx->optval + max_optlen;
+	ctx->optlen = max_optlen;
+	return 0;
+}
+
+static void sockopt_free_buf(struct bpf_sockopt_kern *ctx)
+{
+	kfree(ctx->optval);
+}
+
+int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
+				       int *optname, char __user *optval,
+				       int *optlen, char **kernel_optval)
+{
+	struct cgroup *cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
+	struct bpf_sockopt_kern ctx = {
+		.sk = sk,
+		.level = *level,
+		.optname = *optname,
+	};
+	int ret;
+
+	/* Opportunistic check to see whether we have any BPF program
+	 * attached to the hook so we don't waste time allocating
+	 * memory and locking the socket.
+	 */
+	if (__cgroup_bpf_prog_array_is_empty(cgrp, BPF_CGROUP_SETSOCKOPT))
+		return 0;
+
+	ret = sockopt_alloc_buf(&ctx, *optlen);
+	if (ret)
+		return ret;
+
+	if (copy_from_user(ctx.optval, optval, *optlen) != 0) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	lock_sock(sk);
+	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[BPF_CGROUP_SETSOCKOPT],
+				 &ctx, BPF_PROG_RUN);
+	release_sock(sk);
+	if (!ret) {
+		ret = -EPERM;
+		goto out;
+	}
+	if (ctx.optlen == -1) {
+		/* optlen set to -1, bypass kernel */
+		ret = 1;
+	} else if (ctx.optlen > *optlen || ctx.optlen < -1) {
+		/* optlen is out of bounds */
+		ret = -EFAULT;
+	} else {
+		/* optlen within bounds, run kernel handler */
+		ret = 0;
+		/* export any potential modifications */
+		*level = ctx.level;
+		*optname = ctx.optname;
+		*optlen = ctx.optlen;
+		*kernel_optval = ctx.optval;
+	}
+out:
+	if (ret)
+		sockopt_free_buf(&ctx);
+	return ret;
+}
+
+EXPORT_SYMBOL(__cgroup_bpf_run_filter_setsockopt);
+int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
+				       int optname, char __user *optval,
+				       int __user *optlen, int max_optlen,
+				       int retval)
+{
+	struct cgroup *cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
+	struct bpf_sockopt_kern ctx = {
+		.sk = sk,
+		.level = level,
+		.optname = optname,
+		.retval = retval,
+	};
+	int ret;
+
+	/* Opportunistic check to see whether we have any BPF program
+	 * attached to the hook so we don't waste time allocating
+	 * memory and locking the socket.
+	 */
+	if (!cgroup_bpf_enabled ||
+	    __cgroup_bpf_prog_array_is_empty(cgrp, BPF_CGROUP_GETSOCKOPT))
+		return retval;
+
+	ret = sockopt_alloc_buf(&ctx, max_optlen);
+	if (ret)
+		return ret;
+
+	if (!retval) {
+		/* If kernel getsockopt finished successfully,
+		 * copy whatever was returned to the user back
+		 * into our temporary buffer. Set optlen to the
+		 * one that kernel returned as well to let
+		 * BPF programs inspect the value.
+		 */
+		if (get_user(ctx.optlen, optlen)) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		if (ctx.optlen > max_optlen)
+			ctx.optlen = max_optlen;
+
+		if (copy_from_user(ctx.optval, optval, ctx.optlen) != 0) {
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+
+	lock_sock(sk);
+	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[BPF_CGROUP_GETSOCKOPT],
+				 &ctx, BPF_PROG_RUN);
+	release_sock(sk);
+	if (!ret) {
+		ret = -EPERM;
+		goto out;
+	}
+
+	if (ctx.optlen > max_optlen) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	/* BPF programs only allowed to set retval to 0, not some
+	 * arbitrary value.
+	 */
+	if (ctx.retval != 0 && ctx.retval != retval) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (copy_to_user(optval, ctx.optval, ctx.optlen) ||
+	    put_user(ctx.optlen, optlen)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = ctx.retval;
+out:
+	sockopt_free_buf(&ctx);
+	return ret;
+}
+EXPORT_SYMBOL(__cgroup_bpf_run_filter_getsockopt);
 
 /**
  * __cgroup_bpf_run_filter_sk() - Run a program on a sock

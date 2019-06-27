@@ -1461,6 +1461,16 @@ void bpf_prog_array_free(struct bpf_prog_array __rcu *progs)
 	kfree_rcu(progs, rcu);
 }
 
+bool bpf_prog_array_is_empty(struct bpf_prog_array __rcu *progs)
+{
+	struct bpf_prog **prog = progs->progs;
+	for (; *prog; prog++)
+		if (prog != &dummy_bpf_prog.prog)
+				return false;
+
+	return true;
+}
+
 void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
 				struct bpf_prog *old_prog)
 {
