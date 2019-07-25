@@ -1006,6 +1006,8 @@ static int patch_conexant_auto(struct hda_codec *codec)
  */
 
 static const struct hda_codec_preset snd_hda_preset_conexant[] = {
+	{ .id = 0x14f11f86, .name = "CX8070",
+	  .patch = patch_conexant_auto },
 	{ .id = 0x14f12008, .name = "CX8200",
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
