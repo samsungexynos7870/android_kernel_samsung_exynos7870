@@ -827,6 +827,8 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 	bio->bi_phys_segments++;
  done:
 	bio->bi_iter.bi_size += len;
+	if (!bio_flagged(bio, BIO_WORKINGSET) && unlikely(PageWorkingset(page)))
+		bio->bi_flags |= (1 << BIO_WORKINGSET);
 	return len;
 }
 

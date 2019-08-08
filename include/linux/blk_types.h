@@ -136,13 +136,14 @@ struct bio {
 #endif
 
 #define BIO_BYPASS	13
+#define BIO_WORKINGSET	14	/* contains userspace workingset pages */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
  * BIO_POOL_IDX()
  */
-#define BIO_RESET_BITS	14	/* should be larger then BIO_BYPASS */
-#define BIO_OWNS_VEC	14	/* bio_free() should free bvec */
+#define BIO_RESET_BITS	15	/* should be larger then BIO_WORKINGSET */
+#define BIO_OWNS_VEC	15	/* bio_free() should free bvec */
 
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 

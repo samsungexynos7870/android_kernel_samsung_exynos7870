@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
+#include <linux/psi.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -1937,6 +1938,9 @@ EXPORT_SYMBOL(generic_make_request);
  */
 void submit_bio(int rw, struct bio *bio)
 {
+	bool workingset_read = false;
+	unsigned long pflags;
+
 	bio->bi_rw |= rw;
 
 	/*
@@ -1954,6 +1958,8 @@ void submit_bio(int rw, struct bio *bio)
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
+			if (bio_flagged(bio, BIO_WORKINGSET))
+				workingset_read = true;
 			task_io_account_read(bio->bi_iter.bi_size);
 			count_vm_events(PGPGIN, count);
 		}
@@ -1969,7 +1975,19 @@ void submit_bio(int rw, struct bio *bio)
 		}
 	}
 
+	/*
+	 * If we're reading data that is part of the userspace
+	 * workingset, count submission time as memory stall. When the
+	 * device is congested, or the submitting cgroup IO-throttled,
+	 * submission can be a significant part of overall IO time.
+	 */
+	if (workingset_read)
+		psi_memstall_enter(&pflags);
+
 	generic_make_request(bio);
+
+	if (workingset_read)
+		psi_memstall_leave(&pflags);
 }
 EXPORT_SYMBOL(submit_bio);
 
