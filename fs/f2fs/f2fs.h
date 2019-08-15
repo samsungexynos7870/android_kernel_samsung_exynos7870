@@ -3751,7 +3751,7 @@ static inline bool f2fs_force_buffered_io(struct inode *inode, int rw)
 	if (test_opt(sbi, LFS) && (rw == WRITE))
 		return true;
 	if (is_sbi_flag_set(F2FS_I_SB(inode), SBI_CP_DISABLED) &&
-					!(inode->i_flags & S_SWAPFILE))
+					!IS_SWAPFILE(inode))
 		return true;
 
 	return false;
