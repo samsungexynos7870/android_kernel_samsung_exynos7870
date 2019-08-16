@@ -14,8 +14,6 @@
 #include <asm/cacheflush.h>
 #include <linux/bpf.h>
 
-int bpf_jit_enable __read_mostly;
-
 /*
  * assembly code in arch/x86/net/bpf_jit.S
  */
