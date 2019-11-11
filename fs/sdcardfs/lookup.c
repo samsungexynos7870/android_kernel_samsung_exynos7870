@@ -20,7 +20,6 @@
 
 #include "sdcardfs.h"
 #include "linux/delay.h"
-#include "internal.h"
 
 /* The dentry cache is just so we have properly sized dentries */
 static struct kmem_cache *sdcardfs_dentry_cachep;
@@ -196,7 +195,7 @@ static struct dentry *__sdcardfs_interpose(struct dentry *dentry,
 		goto out;
 	}
 
-	ret_dentry = d_materialise_unique(dentry, inode);
+	ret_dentry = d_splice_alias(inode, dentry);
 	dentry = ret_dentry ?: dentry;
 	if (!IS_ERR(dentry))
 		update_derived_permission_lock(dentry);
@@ -258,6 +257,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	struct dentry *lower_dentry;
 	const struct qstr *name;
 	struct path lower_path;
+	struct qstr dname;
 	struct dentry *ret_dentry = NULL;
 	struct sdcardfs_sb_info *sbi;
 
@@ -362,12 +362,22 @@ put_name:
 	if (err && err != -ENOENT)
 		goto out;
 
-	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
-	lower_dentry = lookup_one_len(dentry->d_name.name, lower_dir_dentry, 
-			dentry->d_name.len);
-	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
-	if (unlikely(IS_ERR(lower_dentry))) {
-		err =  PTR_ERR(lower_dentry);
+	/* instatiate a new negative dentry */
+	dname.name = name->name;
+	dname.len = name->len;
+
+	/* See if the low-level filesystem might want
+	 * to use its own hash
+	 */
+	lower_dentry = d_hash_and_lookup(lower_dir_dentry, &dname);
+	if (IS_ERR(lower_dentry))
+		return lower_dentry;
+	if (!lower_dentry) {
+		/* We called vfs_path_lookup earlier, and did not get a negative
+		 * dentry then. Don't confuse the lower filesystem by forcing
+		 * one on it now...
+		 */
+		err = -ENOENT;
 		goto out;
 	}
 
