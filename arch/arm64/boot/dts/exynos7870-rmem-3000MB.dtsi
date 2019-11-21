@@ -83,7 +83,7 @@
 			compatible = "exynos8890-ion,vscaler";
 			secure;
 			reusable;
-			reg = <0x0 0x87800000 0x1800000>;
+			reg = <0x0 0x87800000 0x1C00000>;
 			id = <6>;
 			compat-id = <28>;
 		};
