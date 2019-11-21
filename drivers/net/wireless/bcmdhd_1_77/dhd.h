@@ -2141,14 +2141,7 @@ extern char fw_path2[MOD_PARAM_PATHLEN];
 #endif
 
 #if defined(ANDROID_PLATFORM_VERSION)
-#if (ANDROID_PLATFORM_VERSION < 7)
-#define DHD_LEGACY_FILE_PATH
-#define VENDOR_PATH "/system"
-#elif (ANDROID_PLATFORM_VERSION == 7)
-#define VENDOR_PATH "/system"
-#elif (ANDROID_PLATFORM_VERSION >= 8)
 #define VENDOR_PATH "/vendor"
-#endif /* ANDROID_PLATFORM_VERSION < 7 */
 #else
 #define VENDOR_PATH ""
 #endif /* ANDROID_PLATFORM_VERSION */
