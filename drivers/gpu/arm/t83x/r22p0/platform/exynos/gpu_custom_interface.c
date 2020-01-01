@@ -36,7 +36,7 @@
 #ifdef CONFIG_SOC_EXYNOS7870
 #define GPU_MAX_VOLT		1000000
 #define GPU_MIN_VOLT		700000
-#define GPU_VOLT_STEP		6250
+#define GPU_VOLT_STEP		1000
 #else
 #error "Please define gpu voltage ranges for current SoC."
 #endif
