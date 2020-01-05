@@ -4655,11 +4655,6 @@ CONFIG_HAVE_ARCH_KGDB=y
 # CONFIG_DEBUG_RODATA is not set
 
 #
-# Samsung Rooting Restriction Feature
-#
-# CONFIG_SEC_RESTRICT_ROOTING is not set
-
-#
 # Security options
 #
 CONFIG_KEYS=y
