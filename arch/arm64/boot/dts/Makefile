@@ -1,9 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-dtb-y +=  exynos7870-a3y17lte_eur_open_00.dtb
-dtb-y +=  exynos7870-a3y17lte_eur_open_01.dtb
-dtb-y +=  exynos7870-a3y17lte_eur_open_02.dtb
-dtb-y +=  exynos7870-a3y17lte_eur_open_03.dtb
-
 dtb-$(CONFIG_ARCH_THUNDER) += thunder-88xx.dtb
 dtb-$(CONFIG_ARCH_VEXPRESS) += rtsm_ve-aemv8a.dtb foundation-v8.dtb
 dtb-$(CONFIG_ARCH_XGENE) += apm-mustang.dtb
