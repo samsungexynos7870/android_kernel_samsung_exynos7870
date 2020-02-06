@@ -1277,7 +1277,7 @@
 #define RT5659_PLL1_PD_1			(0x0 << 3)
 #define RT5659_PLL1_PD_2			(0x1 << 3)
 
-#define RT5659_PLL_INP_MAX			40000000
+#define RT5659_PLL_INP_MAX			50000000
 #define RT5659_PLL_INP_MIN			256000
 /* PLL M/N/K Code Control 1 (0x0081) */
 #define RT5659_PLL_N_MAX			0x001ff
