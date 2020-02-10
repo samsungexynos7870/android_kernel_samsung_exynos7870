@@ -2235,8 +2235,12 @@ int ext4_insert_dentry(struct inode *dir,
 static inline void ext4_update_dx_flag(struct inode *inode)
 {
 	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-				     EXT4_FEATURE_COMPAT_DIR_INDEX))
+				     EXT4_FEATURE_COMPAT_DIR_INDEX)) {
+		/* ext4_iget() should have caught this... */
+		WARN_ON_ONCE(EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
+							EXT4_FEATURE_RO_COMPAT_METADATA_CSUM));
 		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
+	}
 }
 static unsigned char ext4_filetype_table[] = {
 	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
