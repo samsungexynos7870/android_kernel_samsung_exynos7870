@@ -3191,7 +3191,7 @@ void f2fs_destroy_post_read_processing(void)
 
 int __init f2fs_init_bio_entry_cache(void)
 {
-	bio_entry_slab = f2fs_kmem_cache_create("bio_entry_slab",
+	bio_entry_slab = f2fs_kmem_cache_create("f2fs_bio_entry_slab",
 			sizeof(struct bio_entry));
 	if (!bio_entry_slab)
 		return -ENOMEM;
