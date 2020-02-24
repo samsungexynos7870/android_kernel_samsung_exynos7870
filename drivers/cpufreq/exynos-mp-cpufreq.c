@@ -60,7 +60,7 @@
 #define CL1_MIN_VOLT		500000
 #define CL_MAX_VOLT(cl)		(cl == CL_ZERO ? CL0_MAX_VOLT : CL1_MAX_VOLT)
 #define CL_MIN_VOLT(cl)		(cl == CL_ZERO ? CL0_MIN_VOLT : CL1_MIN_VOLT)
-#define CL_VOLT_STEP		1000
+#define CL_VOLT_STEP		1
 #else
 #error "Please define core voltage ranges for current SoC."
 #endif
