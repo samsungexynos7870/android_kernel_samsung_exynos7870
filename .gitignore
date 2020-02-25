@@ -23,7 +23,6 @@
 *.symtypes
 *.order
 *.elf
-*.bin
 *.gz
 *.bz2
 *.lzma
@@ -32,7 +31,6 @@
 *.lzo
 *.patch
 *.gcno
-modules.builtin
 Module.symvers
 *.dwo
 
