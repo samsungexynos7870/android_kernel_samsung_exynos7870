@@ -1415,6 +1415,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->default_timer_slack_ns = current->timer_slack_ns;
 
 #ifdef CONFIG_PSI
+	p->in_memstall = 0;
 	p->psi_flags = 0;
 #endif
 
