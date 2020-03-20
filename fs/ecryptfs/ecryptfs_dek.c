@@ -314,7 +314,7 @@ static int ecryptfs_update_crypt_flag(struct dentry *dentry, enum sdp_op operati
 
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
 	mount_crypt_stat = &ecryptfs_superblock_to_private(dentry->d_sb)->mount_crypt_stat;
-	if (!(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED))
+	if (!(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED)) {
 		ecryptfs_init_crypt_stat(crypt_stat);
 	inode = dentry->d_inode;
 	lower_inode = ecryptfs_inode_to_lower(inode);
@@ -323,11 +323,15 @@ static int ecryptfs_update_crypt_flag(struct dentry *dentry, enum sdp_op operati
      * To update metadata we need to make sure keysig_list contains fekek.
      * Because our EDEK is stored along with key for protected file.
      */
-    if(list_empty(&crypt_stat->keysig_list))
+    }
+
+    if(list_empty(&crypt_stat->keysig_list)) {
         ecryptfs_dek_copy_mount_wide_sigs_to_inode_sigs(crypt_stat, mount_crypt_stat);
 
 	mutex_lock(&crypt_stat->cs_mutex);
 	rc = ecryptfs_get_lower_file(dentry, inode);
+    }
+
 	if (rc) {
 		mutex_unlock(&crypt_stat->cs_mutex);
 		DEK_LOGE("ecryptfs_get_lower_file rc=%d\n", rc);
