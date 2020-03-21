@@ -1017,6 +1017,20 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7561U_PID) },
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7563U_PID) },
 	{ USB_DEVICE(WICED_VID, WICED_USB20706V2_PID) },
+	{ USB_DEVICE(TI_VID, TI_CC3200_LAUNCHPAD_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(CYPRESS_VID, CYPRESS_WICED_BT_USB_PID) },
+	{ USB_DEVICE(CYPRESS_VID, CYPRESS_WICED_WL_USB_PID) },
+	{ USB_DEVICE(AIRBUS_DS_VID, AIRBUS_DS_P8GR) },
+	/* EZPrototypes devices */
+	{ USB_DEVICE(EZPROTOTYPES_VID, HJELMSLUND_USB485_ISO_PID) },
+	{ USB_DEVICE_INTERFACE_NUMBER(UNJO_VID, UNJO_ISODEBUG_V1_PID, 1) },
+	/* Sienna devices */
+	{ USB_DEVICE(FTDI_VID, FTDI_SIENNA_PID) },
+	{ USB_DEVICE(ECHELON_VID, ECHELON_U20_PID) },
+	/* U-Blox devices */
+	{ USB_DEVICE(UBLOX_VID, UBLOX_C099F9P_ZED_PID) },
+	{ USB_DEVICE(UBLOX_VID, UBLOX_C099F9P_ODIN_PID) },
 	{ }					/* Terminating entry */
 };
 
@@ -1813,8 +1827,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	mutex_init(&priv->cfg_lock);
 
-	priv->flags = ASYNC_LOW_LATENCY;
-
 	if (quirk && quirk->port_probe)
 		quirk->port_probe(priv);
 
@@ -2079,6 +2091,20 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		priv->prev_status = status;
 	}
 
+	/* save if the transmitter is empty or not */
+	if (packet[1] & FTDI_RS_TEMT)
+		priv->transmit_empty = 1;
+	else
+		priv->transmit_empty = 0;
+
+	len -= 2;
+	if (!len)
+		return 0;	/* status only */
+
+	/*
+	 * Break and error status must only be processed for packets with
+	 * data payload to avoid over-reporting.
+	 */
 	flag = TTY_NORMAL;
 	if (packet[1] & FTDI_RS_ERR_MASK) {
 		/* Break takes precedence over parity, which takes precedence
@@ -2101,15 +2127,6 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		}
 	}
 
-	/* save if the transmitter is empty or not */
-	if (packet[1] & FTDI_RS_TEMT)
-		priv->transmit_empty = 1;
-	else
-		priv->transmit_empty = 0;
-
-	len -= 2;
-	if (!len)
-		return 0;	/* status only */
 	port->icount.rx += len;
 	ch = packet + 2;
 
@@ -2440,8 +2457,12 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 			FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
 			0, priv->interface,
 			buf, len, WDR_TIMEOUT);
-	if (ret < 0) {
+
+	/* NOTE: We allow short responses and handle that below. */
+	if (ret < 1) {
 		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
 		ret = usb_translate_errors(ret);
 		goto out;
 	}
