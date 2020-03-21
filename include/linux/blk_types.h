@@ -128,13 +128,6 @@ struct bio {
 #define BIO_QUIET	9	/* Make BIO Quiet */
 #define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
 
-#ifdef CONFIG_JOURNAL_DATA_TAG
-/* XXX Be carefull not to touch BIO_RESET_BITS */
-#define BIO_JOURNAL    11      /* bio contains journal data */
-#define BIO_JMETA      12      /* bio contains metadata */
-#define BIO_JOURNAL_TAG_MASK   ((1UL << BIO_JOURNAL) | (1UL << BIO_JMETA))
-#endif
-
 #define BIO_BYPASS	13
 
 /*

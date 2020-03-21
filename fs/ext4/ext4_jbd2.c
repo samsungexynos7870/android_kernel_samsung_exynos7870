@@ -258,9 +258,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 
 	might_sleep();
 
-#ifndef CONFIG_JOURNAL_DATA_TAG
 	set_buffer_meta(bh);
-#endif
 	set_buffer_prio(bh);
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_dirty_metadata(handle, bh);
