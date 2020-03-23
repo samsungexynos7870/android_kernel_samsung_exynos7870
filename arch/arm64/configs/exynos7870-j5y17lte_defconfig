@@ -463,7 +463,7 @@ CONFIG_CMDLINE_EXTEND=y
 # CONFIG_TIMA_TEST_INFRA is not set
 CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y
 CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES="exynos7870-j5y17lte_eur_open_00 exynos7870-j5y17lte_eur_open_01 exynos7870-j5y17lte_eur_open_02 exynos7870-j5y17lte_eur_open_03 exynos7870-j5y17lte_eur_open_05 exynos7870-j5y17lte_eur_open_07"
-# CONFIG_EXYNOS_DTBTOOL is not set
+CONFIG_EXYNOS_DTBTOOL=y
 
 #
 # Userspace binary formats
