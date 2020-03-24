@@ -439,10 +439,6 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = aureon_51_2_map,
 	},
 	{
-		.id = USB_ID(0x0bda, 0x4014),
-		.map = dell_alc4020_map,
-	},
-	{
 		.id = USB_ID(0x13e5, 0x0001),
 		.map = scratch_live_map,
 		.ignore_ctl_error = 1,
@@ -450,11 +446,6 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x200c, 0x1018),
 		.map = ebox44_map,
-	},
-	{
-		/* MAYA44 USB+ */
-		.id = USB_ID(0x2573, 0x0008),
-		.map = maya44_map,
 	},
 	{
 		/* KEF X300A */

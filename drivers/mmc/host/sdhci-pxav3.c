@@ -342,15 +342,6 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host->clk = clk;
 	clk_prepare_enable(clk);
 
-	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
-		ret = armada_38x_quirks(pdev, host);
-		if (ret < 0)
-			goto err_clk_get;
-		ret = mv_conf_mbus_windows(pdev, mv_mbus_dram_info());
-		if (ret < 0)
-			goto err_mbus_win;
-	}
-
 	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
 	if (match) {
 		ret = mmc_of_parse(host->mmc);

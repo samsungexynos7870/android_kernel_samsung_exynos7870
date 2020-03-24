@@ -32,6 +32,42 @@ int sysctl_tcp_retries2 __read_mostly = TCP_RETR2;
 int sysctl_tcp_orphan_retries __read_mostly;
 int sysctl_tcp_thin_linear_timeouts __read_mostly;
 
+static void tcp_write_timer(unsigned long);
+static void tcp_delack_timer(unsigned long);
+static void tcp_keepalive_timer(unsigned long data);
+
+/*Function to reset tcp_ack related sysctl on resetting master control */
+void set_tcp_default(void)
+{
+	sysctl_tcp_delack_seg	= TCP_DELACK_SEG;
+}
+
+/*sysctl handler for tcp_ack realted master control */
+int tcp_proc_delayed_ack_control(struct ctl_table *table, int write,
+			void __user *buffer, size_t *length, loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+
+	/* The ret value will be 0 if the input validation is successful
+	 * and the values are written to sysctl table. If not, the stack
+	 * will continue to work with currently configured values
+	 */
+	return ret;
+}
+
+/*sysctl handler for tcp_ack realted master control */
+int tcp_use_userconfig_sysctl_handler(struct ctl_table *table, int write,
+			void __user *buffer, size_t *length, loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+
+	if (write && ret == 0) {
+		if (!sysctl_tcp_use_userconfig)
+			set_tcp_default();
+	}
+	return ret;
+}
+
 static void tcp_write_err(struct sock *sk)
 {
 	sk->sk_err = sk->sk_err_soft ? : ETIMEDOUT;
@@ -116,6 +152,8 @@ static int tcp_orphan_retries(struct sock *sk, int alive)
 
 static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 {
+	struct net *net = sock_net(sk);
+
 	/* Black hole detection */
 	if (sysctl_tcp_mtu_probing) {
 		if (!icsk->icsk_mtup.enabled) {
@@ -128,6 +166,7 @@ static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low) >> 1;
 			mss = min(sysctl_tcp_base_mss, mss);
 			mss = max(mss, 68 - tp->tcp_header_len);
+			mss = max(mss, net->ipv4.sysctl_tcp_min_snd_mss);
 			icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
 			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		}

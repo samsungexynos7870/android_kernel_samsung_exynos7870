@@ -1,8 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on PLAT_SAMSUNG
-	depends on S3C64XX_PL080 || !ARCH_S3C64XX
-	depends on S3C24XX_DMAC || !ARCH_S3C24XX
+	depends on SOC_SAMSUNG
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -32,6 +30,29 @@ config SND_SAMSUNG_SPDIF
 
 config SND_SAMSUNG_I2S
 	tristate
+
+config SND_SAMSUNG_COMPR
+	tristate
+
+config SND_SAMSUNG_AUDSS
+	tristate
+
+config SND_SAMSUNG_XYREF
+	tristate
+
+config SND_ESA_SA_EFFECT
+	tristate "Use Sound Alive Effect"
+	depends on SND_SAMSUNG_COMPR
+	default y
+	help
+		Say Y if you want to add support for Sound Alive.
+
+config SND_SAMSUNG_IOMMU
+	tristate "IOMMU support for Samsung Audio sub system"
+	depends on SND_SOC_SAMSUNG && SND_SAMSUNG_AUDSS
+	help
+		Say Y if you want to add support for iommu.
+
 
 config SND_SOC_SAMSUNG_NEO1973_WM8753
 	tristate "Audio support for Openmoko Neo1973 Smartphones (GTA02)"
@@ -239,3 +260,107 @@ config SND_SOC_ODROIDX2
 	select SND_SAMSUNG_I2S
 	help
 	  Say Y here to enable audio support for the Odroid-X2/U3.
+
+config SND_SOC_SAMSUNG_ESPRESSO8890_WM5110
+	tristate "SoC I2S Audio support for WM5110 on ESPRESSO8890"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SAMSUNG_AUDSS
+	select SND_SAMSUNG_IOMMU
+	select SND_SOC_DUMMY_CODEC
+	select SND_SOC_WM5110
+	select MFD_WM5110
+	select MFD_ARIZONA
+	select MFD_ARIZONA_SPI
+	select REGULATOR_ARIZONA
+	select GPIO_ARIZONA
+	select SWITCH
+	select SWITCH_ARIZONA
+	help
+	  Say Y if you want to add support for SoC audio on the ESPRESSO8890.
+
+config SND_SOC_SAMSUNG_UNIVERSAL8890_DUMMY
+	tristate "SoC I2S Audio support for DUMMY on UNIVERSAL8890"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SAMSUNG_AUDSS
+	select SND_SAMSUNG_IOMMU
+	select SND_SOC_DUMMY_CODEC
+	help
+	  Say Y if you want to add support for SoC audio on the UNIVERSAL8890.
+
+config SND_SOC_SAMSUNG_SMDK7870_COD3026X
+	tristate "SoC I2S Audio support for COD3026X on SMDK7870"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SAMSUNG_AUDSS
+	select SND_SOC_DUMMY_CODEC
+	select SND_SOC_COD3026X
+	select SND_SOC_EXYNOS_AUDMIXER
+	help
+	Say Y if you want to add support for SoC audio on the smdk7870 board.
+
+config SND_SOC_SAMSUNG_UNIVERSAL7870_COD3026X
+        tristate "SoC I2S Audio support for COD3026X on UNIVERSAL7870"
+        depends on SND_SOC_SAMSUNG
+        select SND_SAMSUNG_I2S
+        select SND_SAMSUNG_AUDSS
+        select SND_SOC_DUMMY_CODEC
+        select SND_SOC_COD3026X
+        select SND_SOC_EXYNOS_AUDMIXER
+        help
+        Say Y if you want to add support for SoC audio on the universal7870 board.
+
+config SND_SOC_SAMSUNG_UNIVERSAL7870_RT5659
+        tristate "SoC I2S Audio support for RT5659 on UNIVERSAL7870"
+        depends on SND_SOC_SAMSUNG
+        select SND_SAMSUNG_I2S
+        select SND_SAMSUNG_AUDSS
+        select SND_SOC_DUMMY_CODEC
+        select SND_SOC_RT5659
+        select SND_SOC_EXYNOS_AUDMIXER
+        help
+        Say Y if you want to add support for SoC audio on the universal7870 board.
+
+config SND_SOC_SAMSUNG_VERBOSE_DEBUG
+	tristate "Enable verbose debugging of Audio on Samsung Platforms"
+
+config SND_SOC_I2S_TXSLOT_NUMBER
+	int "Number of tx slots including audio sample"
+	depends on SND_SAMSUNG_I2S && SND_SAMSUNG_AUDSS
+	default 2
+	help
+	  An audio sample is included in a slot in the I2S. Thus, slot number will be 2
+	  in the stereo audio transmission, so it's default number. In the TDM mode,
+	  you have to change number of slot for transmitting more slots.
+
+config SND_SOC_I2S_RXSLOT_NUMBER
+	int "Number of rx slots including audio sample"
+	depends on SND_SAMSUNG_I2S && SND_SAMSUNG_AUDSS
+	default 2
+	help
+	  An audio sample is included in a slot in the I2S. Thus, slot number will be 2
+	  in the stereo audio transmission, so it's default number. In the TDM mode,
+	  you have to change number of slot for receiving more slots.
+
+config SND_SOC_I2S_1840_TDM
+	bool "Enable TDM mode on Universal7890"
+	depends on SND_SAMSUNG_AUDSS && SND_SOC_SAMSUNG_ZERO_CLEARWATER
+	default n
+	help
+	  Say Y if you want to add support for I2S TDM on the Universal7890
+
+config SND_SOC_SEC_HS_SYSFS
+	bool "EarJack & BTN adc sysfs KSND"
+	depends on SND_SOC_COD3026X
+	default n
+	help
+	  This is sysfs for headset driver jack type and
+	  btn type adc values.
+
+config SND_SOC_TFA_LOG
+	tristate "TFA9890 Bigdata logging driver"  
+	select SND_SOC_TFA_LOG_USER_HOST
+
+# For support SEIREN audio
+source "sound/soc/samsung/seiren/Kconfig"

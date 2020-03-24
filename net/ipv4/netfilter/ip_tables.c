@@ -822,7 +822,7 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 		if (strcmp(ipt_get_target(iter)->u.user.name,
 		    XT_ERROR_TARGET) == 0)
 			++newinfo->stacksize;
-	}
+		}
 
 	ret = -EINVAL;
 	if (i != repl->num_entries) {

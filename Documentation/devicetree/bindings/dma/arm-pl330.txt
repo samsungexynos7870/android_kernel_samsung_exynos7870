@@ -16,6 +16,12 @@ Optional properties:
   - dma-channels: contains the total number of DMA channels supported by the DMAC
   - dma-requests: contains the total number of DMA requests supported by the DMAC
 
+Samsung's ADMA specific properties:
+  - reset-reg: Address of the register used to reset ADMA block
+  - reset-bit: The bit in the register used to reset ADMA block
+  - reset-high: If present, the ADMA block is reset when bit is 1 and then 0. If
+    this property is absent, the ADMA block is reset when bit is 0 and then 1.
+
 Example:
 
 	pdma0: pdma@12680000 {

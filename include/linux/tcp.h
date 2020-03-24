@@ -283,6 +283,19 @@ struct tcp_sock {
 
 	int			linger2;
 
+/* Network Pacemaker */
+#ifdef CONFIG_NETPM
+	u8 netpm_netif;
+	u8 netpm_rbuf_flag;
+	u32 netpm_rtt_min;
+	u32 netpm_srtt;
+	u32 netpm_rttvar;
+	int netpm_cwnd_est;
+	int netpm_tcp_rmem_max;
+	int netpm_max_tput;
+	int netpm_rmem_max_curbdp;
+#endif
+
 /* Receiver side RTT estimation */
 	struct {
 		u32	rtt;
@@ -382,5 +395,8 @@ static inline int fastopen_init_queue(struct sock *sk, int backlog)
 	queue->fastopenq->max_qlen = backlog;
 	return 0;
 }
+
+int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
+		  int shiftlen);
 
 #endif	/* _LINUX_TCP_H */

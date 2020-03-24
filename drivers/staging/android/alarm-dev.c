@@ -255,6 +255,9 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	struct timespec ts;
 	int rv;
+#if defined(CONFIG_RTC_ALARM_BOOT)
+	char bootalarm_data[14];
+#endif
 
 	switch (ANDROID_ALARM_BASE_CMD(cmd)) {
 	case ANDROID_ALARM_SET_AND_WAIT(0):
@@ -263,6 +266,17 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&ts, (void __user *)arg, sizeof(ts)))
 			return -EFAULT;
 		break;
+#if defined(CONFIG_RTC_ALARM_BOOT)
+	case ANDROID_ALARM_SET_ALARM_BOOT:
+		if (copy_from_user(bootalarm_data, (void __user *)arg, 14)) {
+			return -EFAULT;
+		}
+		rv = alarm_set_alarm_boot(bootalarm_data);
+		alarm_opened = 1;
+		return rv;
+
+		break;
+#endif
 	}
 
 	rv = alarm_do_ioctl(file, cmd, &ts);
@@ -286,6 +300,9 @@ static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
 
 	struct timespec ts;
 	int rv;
+#if defined(CONFIG_RTC_ALARM_BOOT)
+	char bootalarm_data[14];
+#endif
 
 	switch (ANDROID_ALARM_BASE_CMD(cmd)) {
 	case ANDROID_ALARM_SET_AND_WAIT_COMPAT(0):
@@ -297,6 +314,16 @@ static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
 	case ANDROID_ALARM_GET_TIME_COMPAT(0):
 		cmd = ANDROID_ALARM_COMPAT_TO_NORM(cmd);
 		break;
+#if defined(CONFIG_RTC_ALARM_BOOT)
+	case ANDROID_ALARM_SET_ALARM_BOOT_COMPAT:
+		if (copy_from_user(bootalarm_data, (void __user *)arg, 14)) {
+			return -EFAULT;
+		}
+
+		rv = alarm_set_alarm_boot(bootalarm_data);
+		alarm_opened = 1;
+		return rv;
+#endif
 	}
 
 	rv = alarm_do_ioctl(file, cmd, &ts);

@@ -26,9 +26,9 @@
 
 int can_do_mlock(void)
 {
-	if (capable(CAP_IPC_LOCK))
-		return 1;
 	if (rlimit(RLIMIT_MEMLOCK) != 0)
+		return 1;
+	if (capable(CAP_IPC_LOCK))
 		return 1;
 	return 0;
 }
@@ -567,7 +567,8 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
-			  vma->vm_file, pgoff, vma_policy(vma));
+			  vma->vm_file, pgoff, vma_policy(vma),
+			  vma_get_anon_name(vma));
 	if (*prev) {
 		vma = *prev;
 		goto success;

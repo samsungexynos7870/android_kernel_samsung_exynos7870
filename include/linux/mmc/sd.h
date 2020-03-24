@@ -91,4 +91,10 @@
 #define SD_SWITCH_ACCESS_DEF	0
 #define SD_SWITCH_ACCESS_HS	1
 
+/*
+ * Specific sdcard CID
+ */
+#define abnormal_sd_cid0 0x03534453
+#define abnormal_sd_cid1 0x44333247
+
 #endif /* LINUX_MMC_SD_H */

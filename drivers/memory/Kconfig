@@ -4,8 +4,16 @@
 
 menuconfig MEMORY
 	bool "Memory Controller drivers"
+	default y
 
 if MEMORY
+
+config EXYNOS_MCOMP
+	bool "Exynos memory compressor"
+	default y
+	depends on ARCH_EXYNOS
+	help
+	  Memory compressor
 
 config ATMEL_SDRAMC
 	bool "Atmel (Multi-port DDR-)SDRAM Controller"

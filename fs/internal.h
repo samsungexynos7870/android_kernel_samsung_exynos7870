@@ -44,6 +44,14 @@ extern void guard_bio_eod(int rw, struct bio *bio);
  */
 extern void __init chrdev_init(void);
 
+#ifdef CONFIG_PROC_DLOG
+/*
+ * dlog_hook.c
+ */
+void dlog_hook(struct dentry *, struct inode *, struct path *);
+void dlog_hook_rmdir(struct dentry *, struct path *);
+#endif
+
 /*
  * namei.c
  */
@@ -83,9 +91,11 @@ extern struct file *get_empty_filp(void);
  * super.c
  */
 extern int do_remount_sb(struct super_block *, int, void *, int);
+extern int do_remount_sb2(struct vfsmount *, struct super_block *, int,
+								void *, int);
 extern bool grab_super_passive(struct super_block *sb);
 extern struct dentry *mount_fs(struct file_system_type *,
-			       int, const char *, void *);
+			       int, const char *, struct vfsmount *, void *);
 extern struct super_block *user_get_super(dev_t);
 
 /*
@@ -122,7 +132,6 @@ extern void inode_add_lru(struct inode *inode);
 extern void inode_wb_list_del(struct inode *inode);
 
 extern long get_nr_dirty_inodes(void);
-extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);
 
 /*

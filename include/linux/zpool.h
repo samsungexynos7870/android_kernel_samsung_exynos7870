@@ -32,11 +32,14 @@ enum zpool_mapmode {
 	ZPOOL_MM_RW, /* normal read-write mapping */
 	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
 	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
-
+#ifdef CONFIG_ZSWAP_SAME_PAGE_SHARING
+	ZPOOL_MM_RO_NOWAIT, /*read-only (no wait if the handle is busy*/
+#endif
 	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
 };
 
-struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops);
+struct zpool *zpool_create_pool(char *type, char *name,
+			gfp_t gfp, struct zpool_ops *ops);
 
 char *zpool_get_type(struct zpool *pool);
 
@@ -57,6 +60,9 @@ void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
 
 u64 zpool_get_total_size(struct zpool *pool);
 
+unsigned long zpool_compact(struct zpool *pool);
+
+bool zpool_compactable(struct zpool *pool, unsigned int pages);
 
 /**
  * struct zpool_driver - driver implementation for zpool
@@ -80,7 +86,7 @@ struct zpool_driver {
 	atomic_t refcount;
 	struct list_head list;
 
-	void *(*create)(gfp_t gfp, struct zpool_ops *ops);
+	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops);
 	void (*destroy)(void *pool);
 
 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
@@ -93,6 +99,10 @@ struct zpool_driver {
 	void *(*map)(void *pool, unsigned long handle,
 				enum zpool_mapmode mm);
 	void (*unmap)(void *pool, unsigned long handle);
+
+	unsigned long (*compact)(void *pool);
+
+	bool (*compactable)(void *pool, unsigned int pages);
 
 	u64 (*total_size)(void *pool);
 };

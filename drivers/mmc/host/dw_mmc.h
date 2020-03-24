@@ -14,7 +14,18 @@
 #ifndef _DW_MMC_H_
 #define _DW_MMC_H_
 
+#define DW_MMC_MAX_TRANSFER_SIZE	4096
+#define DW_MMC_SECTOR_SIZE		512
+
+#ifdef CONFIG_MMC_DW_FMP_DM_CRYPT
+#define MMC_DW_IDMAC_MULTIPLIER	\
+	(DW_MMC_MAX_TRANSFER_SIZE / DW_MMC_SECTOR_SIZE)
+#else
+#define MMC_DW_IDMAC_MULTIPLIER	1
+#endif
+
 #define DW_MMC_240A		0x240a
+#define DW_MMC_260A		0x260a
 
 #define SDMMC_CTRL		0x000
 #define SDMMC_PWREN		0x004
@@ -53,7 +64,9 @@
 #define SDMMC_IDINTEN		0x090
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
+#define SDMMC_RESP_TAT		0x0AC
 #define SDMMC_CDTHRCTL		0x100
+#define SDMMC_EMMC_DDR_REG	0x10C
 #define SDMMC_DATA(x)		(x)
 
 /*
@@ -137,6 +150,9 @@
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
 					 ((r) & 0xFFF) << 16 | \
 					 ((t) & 0xFFF))
+
+#define SDMMC_FIFOTH_DMA_MULTI_TRANS_SIZE	28
+#define SDMMC_FIFOTH_RX_WMARK		16
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -164,6 +180,9 @@
 #define mci_writel(dev, reg, value)			\
 	__raw_writel((value), (dev)->regs + SDMMC_##reg)
 
+/* timeout */
+#define dw_mci_set_timeout(host, value)	mci_writel(host, TMOUT, value)
+
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
 	__raw_readw((dev)->regs + SDMMC_##reg)
@@ -172,10 +191,25 @@
 
 /* 64-bit FIFO access macros */
 #ifdef readq
+#ifdef CONFIG_MMC_DW_FORCE_32BIT_SFR_RW
+#define mci_readq(dev, reg) ({\
+		u64 __ret = 0;\
+		u32* ptr = (u32*)&__ret;\
+		*ptr++ = __raw_readl((dev)->regs + SDMMC_##reg);\
+		*ptr = __raw_readl((dev)->regs + SDMMC_##reg + 0x4);\
+		__ret;\
+	})
+#define mci_writeq(dev, reg, value) ({\
+		u32 *ptr = (u32*)&(value);\
+		__raw_writel(*ptr++, (dev)->regs + SDMMC_##reg);\
+		__raw_writel(*ptr, (dev)->regs + SDMMC_##reg + 0x4);\
+	})
+#else
 #define mci_readq(dev, reg)			\
 	__raw_readq((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
 	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
+#endif /* CONFIG_MMC_DW_FORCE_32BIT_SFR_RW */
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
@@ -191,56 +225,39 @@
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
 #endif
 
+/*
+ * platform-dependent miscellaneous control
+ *
+ * Input arguments for platform-dependent control may be different
+ * for each one, respectively. If we would add functions like them
+ * whenever we need to do that, this common header file(dw_mmc.h)
+ * will be modified so frequently.
+ * The following enumeration type is to minimize an amount of changes
+ * of common files.
+ */
+
+enum dw_mci_misc_control {
+	CTRL_RESTORE_CLKSEL = 0,
+	CTRL_REQUEST_EXT_IRQ,
+	CTRL_CHECK_CD,
+	CTRL_SET_ETC_GPIO,
+	CTRL_ADD_SYSFS,
+};
+
+#define SDMMC_DATA_TMOUT_SHIFT		11
+#define SDMMC_RESP_TMOUT		0xFF
+#define SDMMC_DATA_TMOUT_CRT		8
+#define SDMMC_DATA_TMOUT_EXT		0x7
+#define SDMMC_DATA_TMOUT_EXT_SHIFT	8
+
+extern u32 dw_mci_calc_timeout(struct dw_mci *host);
+
 extern int dw_mci_probe(struct dw_mci *host);
 extern void dw_mci_remove(struct dw_mci *host);
 #ifdef CONFIG_PM_SLEEP
 extern int dw_mci_suspend(struct dw_mci *host);
 extern int dw_mci_resume(struct dw_mci *host);
 #endif
-
-/**
- * struct dw_mci_slot - MMC slot state
- * @mmc: The mmc_host representing this slot.
- * @host: The MMC controller this slot is using.
- * @quirks: Slot-level quirks (DW_MCI_SLOT_QUIRK_XXX)
- * @ctype: Card type for this slot.
- * @mrq: mmc_request currently being processed or waiting to be
- *	processed, or NULL when the slot is idle.
- * @queue_node: List node for placing this node in the @queue list of
- *	&struct dw_mci.
- * @clock: Clock rate configured by set_ios(). Protected by host->lock.
- * @__clk_old: The last updated clock with reflecting clock divider.
- *	Keeping track of this helps us to avoid spamming the console
- *	with CONFIG_MMC_CLKGATE.
- * @flags: Random state bits associated with the slot.
- * @id: Number of this slot.
- * @last_detect_state: Most recently observed card detect state.
- */
-struct dw_mci_slot {
-	struct mmc_host		*mmc;
-	struct dw_mci		*host;
-
-	int			quirks;
-
-	u32			ctype;
-
-	struct mmc_request	*mrq;
-	struct list_head	queue_node;
-
-	unsigned int		clock;
-	unsigned int		__clk_old;
-
-	unsigned long		flags;
-#define DW_MMC_CARD_PRESENT	0
-#define DW_MMC_CARD_NEED_INIT	1
-	int			id;
-	int			last_detect_state;
-};
-
-struct dw_mci_tuning_data {
-	const u8 *blk_pattern;
-	unsigned int blksz;
-};
 
 /**
  * dw_mci driver data - dw-mshc implementation specific driver data.
@@ -251,6 +268,7 @@ struct dw_mci_tuning_data {
  * @set_ios: handle bus specific extensions.
  * @parse_dt: parse implementation specific device tree properties.
  * @execute_tuning: implementation specific tuning procedure.
+ * @cfg_smu: to configure security management unit
  *
  * Provide controller implementation specific extensions. The usage of this
  * data structure is fully optional and usage of each member in this structure
@@ -265,5 +283,66 @@ struct dw_mci_drv_data {
 	int		(*parse_dt)(struct dw_mci *host);
 	int		(*execute_tuning)(struct dw_mci_slot *slot, u32 opcode,
 					struct dw_mci_tuning_data *tuning_data);
+	void            (*cfg_smu)(struct dw_mci *host);
+	int             (*misc_control)(struct dw_mci *host,
+				enum dw_mci_misc_control control, void *priv);
+};
+
+struct dw_mci_sfe_ram_dump {
+	u32			contrl;
+	u32			pwren;
+	u32			clkdiv;
+	u32			clkena;
+	u32			clksrc;
+	u32			tmout;
+	u32			ctype;
+	u32			blksiz;
+	u32			bytcnt;
+	u32			intmask;
+	u32			cmdarg;
+	u32			cmd;
+	u32		       	mintsts;
+	u32			rintsts;
+	u32			status;
+	u32			fifoth;
+	u32			tcbcnt;
+	u32			tbbcnt;
+	u32			debnce;
+	u32			uhs_reg;
+	u32			bmod;
+	u32			pldmnd;
+	u32			dbaddrl;
+	u32			dbaddru;
+	u32			dscaddrl;
+	u32			dscaddru;
+	u32			bufaddru;
+	u32			dbaddr;
+	u32			dscaddr;
+	u32			bufaddr;
+	u32			clksel;
+	u32			idsts64;
+	u32			idinten64;
+	u32			force_clk_stop;
+	u32			cdthrctl;
+	u32			ddr200_rdqs_en;
+	u32			ddr200_acync_fifo_ctrl;
+	u32			ddr200_dline_ctrl;
+	u32			fmp_emmcp_base;
+	u32			mpsecurity;
+	u32			mpstat;
+	u32			mpsbegin;
+	u32			mpsend;
+	u32			mpsctrl;
+	u32			cmd_status;
+	u32			data_status;
+	unsigned long		pending_events;
+	unsigned long		completed_events;
+	u32			host_state;
+	u32			cmd_index;
+	u32			fifo_count;
+	u32			data_busy;
+	u32			data_3_state;
+	u32			fifo_tx_watermark;
+	u32			fifo_rx_watermark;
 };
 #endif /* _DW_MMC_H_ */

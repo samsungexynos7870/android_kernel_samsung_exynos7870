@@ -212,6 +212,17 @@ config BATTERY_MAX17042
 	  with MAX17042. This driver also supports max17047/50 chips which are
 	  improved version of max17042.
 
+config BATTERY_ANDROID
+        tristate "Battery driver for Android"
+        help
+          Say Y to enable generic support for battery charging according
+          to common Android policies.
+          This driver adds periodic battery level and health monitoring,
+          kernel log reporting and other debugging features, common board
+          battery file glue logic for battery/case temperature sensors,
+          etc.
+
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
@@ -367,6 +378,42 @@ config CHARGER_BQ24735
 	depends on I2C && GPIOLIB
 	help
 	  Say Y to enable support for the TI BQ24735 battery charger.
+
+config SEC_CHARGER_S2MU003
+	tristate "Samsung S2MU003 charger driver"
+	depends on MFD_S2MU003 && I2C
+	help
+	  Say Y here to enable support for the Samsung S2MU003
+	  battery charger can supoprt PMIC, FLED, Fuel-gauge.
+
+config SEC_FUELGAUGE_S2MU003
+	tristate "Samsung S2MU003 fuel gauge driver"
+	depends on MFD_S2MU003 && I2C
+	help
+	  Say Y here to enable support for the Samsung S2MU003
+	  fuel-gauge driver which can support only voltage-tracking mode.
+
+config SEC_CHARGER_S2MU005
+	tristate "Samsung S2MU005 charger driver"
+	depends on MFD_S2MU005 && I2C
+	help
+	  Say Y here to enable support for the Samsung S2MU005
+	  battery charger can supoprt PMIC, FLED, Fuel-gauge.
+
+config SEC_FUELGAUGE_S2MU005
+	tristate "Samsung S2MU005 fuel gauge driver"
+	depends on MFD_S2MU005 && I2C
+	help
+	  Say Y here to enable support for the Samsung S2MU003
+	  fuel-gauge driver which can support only voltage-tracking mode.
+
+config FUELGAUGE_MAX17058_POWER
+	tristate "MAX17058 fuel gauge driver"
+	default n
+	depends on I2C
+	help
+	 Say Y to include support
+	 for MAXIM MAX17058 fuel gauge driver.
 
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"

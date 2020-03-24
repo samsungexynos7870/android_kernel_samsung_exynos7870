@@ -1033,6 +1033,23 @@ config RTC_DRV_S3C
 	  This driver can also be build as a module. If so, the module
 	  will be called rtc-s3c.
 
+config RTC_DRV_SEC
+	tristate "Samsung PMIC series RTC"
+	depends on MFD_SEC_CORE
+	help
+	  If you say yes here you will get support for the
+	  RTC of Samsung PMIC series.
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sec.
+
+config RTC_ALARM_BOOT
+	bool "Android alarm boot function"
+	depends on RTC_DRV_SEC
+	default n
+	help
+	  This is for alarm booting function. This feature is only used in
+	  Chinese models.
+
 config RTC_DRV_EP93XX
 	tristate "Cirrus Logic EP93XX"
 	depends on ARCH_EP93XX
@@ -1414,6 +1431,13 @@ config RTC_DRV_XGENE
 
 comment "HID Sensor RTC drivers"
 
+config S2MU005_ACOK_NOTIFY
+	tristate "notify charger interrupt by PMIC"
+	default n
+	help
+	  Say Y to include support
+	  for S.LSI S2MU005 fuel gauge driver.
+	  
 config RTC_DRV_HID_SENSOR_TIME
 	tristate "HID Sensor Time"
 	depends on USB_HID

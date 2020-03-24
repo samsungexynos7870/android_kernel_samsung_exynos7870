@@ -794,7 +794,7 @@ void rfkill_resume_polling(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_resume_polling);
 
-static int rfkill_suspend(struct device *dev, pm_message_t state)
+static __maybe_unused int rfkill_suspend(struct device *dev, pm_message_t state)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
@@ -803,7 +803,7 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int rfkill_resume(struct device *dev)
+static __maybe_unused int rfkill_resume(struct device *dev)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 	bool cur;
@@ -818,13 +818,14 @@ static int rfkill_resume(struct device *dev)
 	return 0;
 }
 
+
 static struct class rfkill_class = {
 	.name		= "rfkill",
 	.dev_release	= rfkill_release,
 	.dev_groups	= rfkill_dev_groups,
 	.dev_uevent	= rfkill_dev_uevent,
-	.suspend	= rfkill_suspend,
-	.resume		= rfkill_resume,
+	.suspend	= IS_ENABLED(CONFIG_RFKILL_PM) ? rfkill_suspend : NULL,
+	.resume		= IS_ENABLED(CONFIG_RFKILL_PM) ? rfkill_resume : NULL,
 };
 
 bool rfkill_blocked(struct rfkill *rfkill)

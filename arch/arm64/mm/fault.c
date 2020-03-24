@@ -29,15 +29,23 @@
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
+#include <linux/exynos-ss.h>
 
+#include <asm/cpufeature.h>
 #include <asm/exception.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#ifdef CONFIG_SEC_DEBUG
+#include <linux/sec_debug.h>
+#endif
 
+static int safe_fault_in_progress = 0;
 static const char *fault_name(unsigned int esr);
+extern void exynos_ss_panic_handler_safe(struct pt_regs *regs);
 
 /*
  * Dump out the page tables associated with 'addr' in mm 'mm'.
@@ -79,6 +87,24 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	printk("\n");
 }
 
+static int __do_kernel_fault_safe(struct mm_struct *mm, unsigned long addr,
+		unsigned int esr, struct pt_regs *regs)
+{
+	safe_fault_in_progress = 0xFAFADEAD;
+
+	exynos_ss_panic_handler_safe(regs);
+	exynos_ss_printkl(safe_fault_in_progress,safe_fault_in_progress);
+	while(1)
+		wfi();
+
+	return 0;
+}
+
+static bool is_el1_instruction_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
+}
+
 /*
  * The kernel tried to access some page that wasn't present.
  */
@@ -87,15 +113,25 @@ static void __do_kernel_fault(struct mm_struct *mm, unsigned long addr,
 {
 	/*
 	 * Are we prepared to handle this kernel fault?
+	 * We are almost certainly not prepared to handle instruction faults.
 	 */
-	if (fixup_exception(regs))
+	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
+	if (safe_fault_in_progress) {
+		exynos_ss_printkl(safe_fault_in_progress, safe_fault_in_progress);
+		return;
+	}
 
 	/*
 	 * No handler, we'll have to terminate things with extreme prejudice.
 	 */
 	bust_spinlocks(1);
-	pr_alert("Unable to handle kernel %s at virtual address %08lx\n",
+
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	sec_debug_set_extra_info_fault(addr, regs);
+#endif
+
+	pr_auto(ASL1, "Unable to handle kernel %s at virtual address %08lx\n",
 		 (addr < PAGE_SIZE) ? "NULL pointer dereference" :
 		 "paging request", addr);
 
@@ -151,8 +187,6 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
-#define ESR_LNX_EXEC		(1 << 24)
-
 static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
 			   unsigned int mm_flags, unsigned long vm_flags,
 			   struct task_struct *tsk)
@@ -191,6 +225,26 @@ out:
 	return fault;
 }
 
+static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs)
+{
+	unsigned int ec       = ESR_ELx_EC(esr);
+	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
+
+	if (ec != ESR_ELx_EC_DABT_CUR && ec != ESR_ELx_EC_IABT_CUR)
+		return false;
+
+	if (system_uses_ttbr0_pan())
+		return fsc_type == ESR_ELx_FSC_FAULT &&
+			(regs->pstate & PSR_PAN_BIT);
+	else
+		return fsc_type == ESR_ELx_FSC_PERM;
+}
+
+static bool is_el0_instruction_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
+}
+
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 				   struct pt_regs *regs)
 {
@@ -217,11 +271,23 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
 
-	if (esr & ESR_LNX_EXEC) {
+	if (is_el0_instruction_abort(esr)) {
 		vm_flags = VM_EXEC;
-	} else if ((esr & ESR_EL1_WRITE) && !(esr & ESR_EL1_CM)) {
+	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
+	}
+
+	if (addr < USER_DS && is_permission_fault(esr, regs)) {
+		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
+		if (regs->orig_addr_limit == KERNEL_DS)
+			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
+
+		if (is_el1_instruction_abort(esr))
+			die("Attempting to execute userspace memory", regs, esr);
+
+		if (!search_exception_tables(regs->pc))
+			panic("Accessing user space memory outside uaccess.h routines");
 	}
 
 	/*
@@ -359,6 +425,10 @@ static int __kprobes do_translation_fault(unsigned long addr,
 					  unsigned int esr,
 					  struct pt_regs *regs)
 {
+	/* We may have invalid '*current' due to a stack overflow. */
+	if (!virt_addr_valid(current_thread_info()) || !virt_addr_valid(current))
+		__do_kernel_fault_safe(NULL, addr, esr, regs);
+
 	if (addr < TASK_SIZE)
 		return do_page_fault(addr, esr, regs);
 
@@ -374,7 +444,7 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	return 1;
 }
 
-static struct fault_info {
+static const struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr, struct pt_regs *regs);
 	int	sig;
 	int	code;
@@ -464,14 +534,22 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 	if (!inf->fn(addr, esr, regs))
 		return;
 
-	pr_alert("Unhandled fault: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	if (show_unhandled_signals && unhandled_signal(current, inf->sig) &&
+	    printk_ratelimit()) {
+		pr_auto(ASL1, "Unhandled fault: %s (0x%08x) at 0x%016lx -- %s\n",
+			inf->name, esr, addr, esr_get_class_string(esr));
+	}
+
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	if (!user_mode(regs))
+		sec_debug_set_extra_info_fault(addr, regs);
+#endif
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, esr);
+	arm64_notify_die("Oops - Data abort", regs, &info, esr);
 }
 
 /*
@@ -482,6 +560,13 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 					   struct pt_regs *regs)
 {
 	struct siginfo info;
+
+#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+	if (!user_mode(regs)) {
+		sec_debug_set_extra_info_fault(addr, regs);
+		sec_debug_set_extra_info_esr(esr);
+	}
+#endif
 
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
@@ -523,14 +608,36 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	if (!inf->fn(addr, esr, regs))
 		return 1;
 
-	pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	if (show_unhandled_signals && unhandled_signal(current, inf->sig) &&
+	    printk_ratelimit())
+		pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
+			 inf->name, esr, addr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, 0);
+	arm64_notify_die("Oops - Debug exception", regs, &info, 0);
 
 	return 0;
 }
+
+#ifdef CONFIG_ARM64_PAN
+void cpu_enable_pan(void *__unused)
+{
+	config_sctlr_el1(SCTLR_EL1_SPAN, 0);
+}
+#endif /* CONFIG_ARM64_PAN */
+
+#ifdef CONFIG_ARM64_UAO
+/*
+ * Kernel threads have fs=KERNEL_DS by default, and don't need to call
+ * set_fs(), devtmpfs in particular relies on this behaviour.
+ * We need to enable the feature at runtime (instead of adding it to
+ * PSR_MODE_EL1h) as the feature may not be implemented by the cpu.
+ */
+void cpu_enable_uao(void *__unused)
+{
+	asm(SET_PSTATE_UAO(1));
+}
+#endif /* CONFIG_ARM64_UAO */

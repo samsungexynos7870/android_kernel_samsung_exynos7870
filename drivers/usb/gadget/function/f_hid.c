@@ -219,13 +219,18 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	 * call, taking into account its current read position.
 	 */
 	if (list->pos == req->actual) {
-		kfree(list);
+ 		kfree(list);
 
 		req->length = hidg->report_length;
 		ret = usb_ep_queue(hidg->out_ep, req, GFP_KERNEL);
 		if (ret < 0) {
 			free_ep_req(hidg->out_ep, req);
-			return ret;
+ 			return ret;
+		}
+	} else {
+
+		if (ret < 0) {
+			free_ep_req(hidg->out_ep, req);
 		}
 	} else {
 		spin_lock_irqsave(&hidg->spinlock, flags);
@@ -385,8 +390,9 @@ static int hidg_setup(struct usb_function *f,
 	value	= __le16_to_cpu(ctrl->wValue);
 	length	= __le16_to_cpu(ctrl->wLength);
 
-	VDBG(cdev, "hid_setup crtl_request : bRequestType:0x%x bRequest:0x%x "
-		"Value:0x%x\n", ctrl->bRequestType, ctrl->bRequest, value);
+	VDBG(cdev,
+	     "%s crtl_request : bRequestType:0x%x bRequest:0x%x Value:0x%x\n",
+	     __func__, ctrl->bRequestType, ctrl->bRequest, value);
 
 	switch ((ctrl->bRequestType << 8) | ctrl->bRequest) {
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
@@ -475,13 +481,13 @@ static void hidg_disable(struct usb_function *f)
 	usb_ep_disable(hidg->out_ep);
 	hidg->out_ep->driver_data = NULL;
 
-	spin_lock_irqsave(&hidg->spinlock, flags);
+	spin_lock_irqsave(&hidg->read_spinlock, flags);
 	list_for_each_entry_safe(list, next, &hidg->completed_out_req, list) {
 		free_ep_req(hidg->out_ep, list->req);
 		list_del(&list->list);
 		kfree(list);
 	}
-	spin_unlock_irqrestore(&hidg->spinlock, flags);
+	spin_unlock_irqrestore(&hidg->read_spinlock, flags);
 }
 
 static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)

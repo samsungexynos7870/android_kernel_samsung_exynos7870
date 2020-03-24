@@ -180,6 +180,7 @@ struct usb_interface {
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
+	atomic_t pm_usage_cnt;		/* usage counter for autosuspend */
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
@@ -1218,6 +1219,9 @@ extern int usb_disabled(void);
 
 /* The following flags are used internally by usbcore and HCDs */
 #define URB_DIR_IN		0x0200	/* Transfer from device to host */
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+#define URB_HCD_DRIVER_TEST	0x0400  /* Do NOT hand back or free this URB. */
+#endif
 #define URB_DIR_OUT		0
 #define URB_DIR_MASK		URB_DIR_IN
 

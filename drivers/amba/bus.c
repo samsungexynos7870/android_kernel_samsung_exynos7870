@@ -18,10 +18,65 @@
 #include <linux/pm_domain.h>
 #include <linux/amba/bus.h>
 #include <linux/sizes.h>
+#include <linux/of.h>
 
 #include <asm/irq.h>
 
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
+
+static void adma_hw_reset(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	unsigned int reg;
+	void __iomem *lpass_dma_reset;
+	unsigned int dma_reset_reg;
+	unsigned int dma_reset_bit;
+	unsigned int dma_reset_mask;
+	bool is_dma_reset_high = false;
+
+	if (of_find_property(np, "samsung,reset-reg", NULL)) {
+		if (of_property_read_u32(np, "samsung,reset-reg",
+					&dma_reset_reg)) {
+			dev_err(dev, "samsung,reset-reg has invalid value\n");
+			return;
+		}
+		if (of_property_read_u32(np, "samsung,reset-bit",
+					&dma_reset_bit)) {
+			dev_err(dev, "samsung,reset-reg has invalid value\n");
+			return;
+		}
+		if (of_find_property(np, "samsung,reset-high", NULL))
+			is_dma_reset_high = true;
+	} else {
+		dev_err(dev, "%s: No reset information found\n", __func__);
+		return;
+	}
+
+	dma_reset_mask = BIT(dma_reset_bit);
+
+	/*
+	 * Audio DMA block needs to be reset after system boot up, before we can
+	 * start using this IP. Doing that for Exynos3475 right now. The reset
+	 * sequence is different for different SoCs.
+	 */
+	lpass_dma_reset = ioremap(dma_reset_reg, SZ_32);
+
+	reg = __raw_readl(lpass_dma_reset);
+
+	if (is_dma_reset_high)
+		reg |= dma_reset_mask;
+	else
+		reg &= ~dma_reset_mask;
+	__raw_writel(reg, lpass_dma_reset);
+
+	if (is_dma_reset_high)
+		reg &= ~dma_reset_mask;
+	else
+		reg |= dma_reset_mask;
+	__raw_writel(reg, lpass_dma_reset);
+
+	iounmap(lpass_dma_reset);
+}
 
 static const struct amba_id *
 amba_lookup(const struct amba_id *table, struct amba_device *dev)
@@ -299,6 +354,9 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 
 	WARN_ON(dev->irq[0] == (unsigned int)-1);
 	WARN_ON(dev->irq[1] == (unsigned int)-1);
+
+	if (strstr(dev_name(&dev->dev), "adma"))
+		adma_hw_reset(&dev->dev);
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)

@@ -13,5 +13,8 @@ obj-$(CONFIG_NFC_MRVL)		+= nfcmrvl/
 obj-$(CONFIG_NFC_TRF7970A)	+= trf7970a.o
 obj-$(CONFIG_NFC_ST21NFCA)  	+= st21nfca/
 obj-$(CONFIG_NFC_ST21NFCB)	+= st21nfcb/
+obj-$(CONFIG_SEC_NFC)		+= sec_nfc.o
+obj-$(CONFIG_ESE_P3_LSI)        += ese_p3.o
+obj-$(CONFIG_NFC_FELICA)        += bu80003gul.o
 
 ccflags-$(CONFIG_NFC_DEBUG) := -DDEBUG

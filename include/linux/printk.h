@@ -18,6 +18,9 @@ static inline int printk_get_level(const char *buffer)
 	if (buffer[0] == KERN_SOH_ASCII && buffer[1]) {
 		switch (buffer[1]) {
 		case '0' ... '7':
+#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
+		case 'B' ... 'J':
+#endif
 		case 'd':	/* KERN_DEFAULT */
 			return buffer[1];
 		}
@@ -236,8 +239,15 @@ extern asmlinkage void dump_stack(void) __cold;
 	printk(KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_crit(fmt, ...) \
 	printk(KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
+#if defined(CONFIG_SEC_BAT_AUT) && !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+#define BAT_AUTOMAION_TEST_PREFIX_ERR "<3>@BATAUTERR@"
+#define BAT_AUTOMAION_TEST_PREFIX_WARN "<3>@BATAUTWARN@"
+#define pr_err(fmt, ...) \
+	printk(BAT_AUTOMAION_TEST_PREFIX_ERR pr_fmt(fmt), ##__VA_ARGS__)
+#else
 #define pr_err(fmt, ...) \
 	printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
+#endif
 #define pr_warning(fmt, ...) \
 	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn pr_warning
@@ -247,6 +257,31 @@ extern asmlinkage void dump_stack(void) __cold;
 	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
+
+#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
+#define pr_auto(index, fmt, ...) \
+	printk(KERN_AUTO index pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_auto_disable(index) \
+	sec_debug_auto_summary_log_disable(index)
+#define pr_auto_once(index) \
+	sec_debug_auto_summary_log_once(index)
+
+#define ASL1	KERN_AUTO1
+#define ASL2	KERN_AUTO2
+#define ASL3	KERN_AUTO3
+#define ASL4	KERN_AUTO4
+#define ASL5	KERN_AUTO5
+#define ASL6	KERN_AUTO6
+#define ASL7	KERN_AUTO7
+#define ASL8	KERN_AUTO8
+#define ASL9	KERN_AUTO9
+
+#else
+#define pr_auto(level, fmt, ...) \
+	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_auto_disable(index)
+#define pr_auto_once(index)
+#endif
 
 /* pr_devel() should produce zero code unless DEBUG is defined */
 #ifdef DEBUG

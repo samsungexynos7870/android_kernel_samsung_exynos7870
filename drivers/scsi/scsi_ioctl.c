@@ -22,6 +22,7 @@
 #include <scsi/scsi_ioctl.h>
 #include <scsi/sg.h>
 #include <scsi/scsi_dbg.h>
+#include <linux/compat.h>
 
 #include "scsi_logging.h"
 
@@ -136,6 +137,79 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 	return result;
 }
 
+
+static int ioctl_secu_prot_command(struct scsi_device *sdev, char *cmd,
+					int prot_in_out, void __user *arg,
+					int timeout, int retries)
+{
+	int result, dma_direction;
+	struct scsi_sense_hdr sshdr;
+	unsigned char *buf;
+	unsigned int bufflen;
+	Scsi_Ioctl_Command __user *s_ioc_arg;
+
+	SCSI_LOG_IOCTL(1, printk("Trying ioctl with scsi command %d\n", *cmd));
+
+	s_ioc_arg = (Scsi_Ioctl_Command *)kmalloc(sizeof(*s_ioc_arg), GFP_KERNEL);
+	if (!s_ioc_arg) {
+		printk(KERN_INFO "%s kmalloc faild\n", __func__);
+		return -EFAULT;
+	}
+
+
+	if (copy_from_user(s_ioc_arg, arg, sizeof(*s_ioc_arg))) {
+		printk(KERN_INFO "Argument copy faild\n");
+		result = -EFAULT;
+		goto err_pre_buf_alloc;
+	}
+	if (prot_in_out == SCSI_IOCTL_SECURITY_PROTOCOL_IN) {
+		dma_direction = DMA_FROM_DEVICE;
+		bufflen = s_ioc_arg->inlen;
+		buf = kzalloc(bufflen, GFP_KERNEL);
+	} else if (prot_in_out == SCSI_IOCTL_SECURITY_PROTOCOL_OUT) {
+		dma_direction = DMA_TO_DEVICE;
+		bufflen = s_ioc_arg->outlen;
+		buf = kzalloc(bufflen, GFP_KERNEL);
+		if (copy_from_user(buf, arg + sizeof(*s_ioc_arg), s_ioc_arg->outlen)) {
+			printk(KERN_INFO "copy_from_user failed\n");
+			result = -EFAULT;
+			goto err_post_buf_alloc;
+		}
+	} else {
+		sdev_printk(KERN_INFO, sdev,
+				"DMA direction not set!! %d\n", dma_direction);
+		result = -EFAULT;
+		goto err_pre_buf_alloc;
+	}
+
+	result = scsi_execute_req(sdev, cmd, dma_direction, buf, bufflen,
+				  &sshdr, timeout, retries, NULL);
+
+	if (prot_in_out == SCSI_IOCTL_SECURITY_PROTOCOL_IN) {
+		if (copy_to_user(arg + sizeof(*s_ioc_arg), buf, s_ioc_arg->inlen)) {
+			printk(KERN_INFO "copy_to_user failed\n");
+			result = -EFAULT;
+			goto err_post_buf_alloc;
+		}
+	}
+	SCSI_LOG_IOCTL(2, printk("Ioctl returned  0x%x\n", result));
+
+	if ((driver_byte(result) & DRIVER_SENSE) &&
+	    (scsi_sense_valid(&sshdr))) {
+		sdev_printk(KERN_INFO, sdev,
+			    "ioctl_secu_prot_command return code = %x\n",
+			    result);
+		scsi_print_sense_hdr("   ", &sshdr);
+	}
+
+err_post_buf_alloc:
+	kfree(buf);
+err_pre_buf_alloc:
+	kfree(s_ioc_arg);
+	SCSI_LOG_IOCTL(2, printk("IOCTL Releasing command\n"));
+	return result;
+}
+
 int scsi_set_medium_removal(struct scsi_device *sdev, char state)
 {
 	char scsi_cmd[MAX_COMMAND_SIZE];
@@ -204,6 +278,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	if (!sdev)
 		return -ENXIO;
 
+	memset(scsi_cmd, 0x0, MAX_COMMAND_SIZE);
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
 	 * else try and use this device.  Also, if error recovery fails, it
@@ -271,7 +346,35 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 		scsi_cmd[4] = 0;
 		return ioctl_internal_command(sdev, scsi_cmd,
 				     START_STOP_TIMEOUT, NORMAL_RETRIES);
-        case SCSI_IOCTL_GET_PCI:
+	case SCSI_IOCTL_SECURITY_PROTOCOL_IN:
+	case SCSI_IOCTL_SECURITY_PROTOCOL_OUT:
+		{
+			unsigned short prot_spec;
+			unsigned long t_len;
+
+			prot_spec = SECU_PROT_SPEC_CERT_DATA;
+			t_len = sdev->sector_size;
+
+			scsi_cmd[0] = (cmd == SCSI_IOCTL_SECURITY_PROTOCOL_IN) ?
+				SECURITY_PROTOCOL_IN :
+				SECURITY_PROTOCOL_OUT;
+			scsi_cmd[1] = SECU_PROT_UFS;
+			scsi_cmd[2] = ((unsigned char)(prot_spec >> 8)) & 0xff;
+			scsi_cmd[3] = ((unsigned char)(prot_spec)) & 0xff;
+			scsi_cmd[4] = 0;
+			scsi_cmd[5] = 0;
+			scsi_cmd[6] = ((unsigned char)(t_len >> 24)) & 0xff;
+			scsi_cmd[7] = ((unsigned char)(t_len >> 16)) & 0xff;
+			scsi_cmd[8] = ((unsigned char)(t_len >> 8)) & 0xff;
+			scsi_cmd[9] = (unsigned char)t_len & 0xff;
+			scsi_cmd[10] = 0;
+			scsi_cmd[11] = 0;
+			return ioctl_secu_prot_command(sdev, scsi_cmd,
+					cmd, arg,
+					START_STOP_TIMEOUT, NORMAL_RETRIES);
+		}
+
+	case SCSI_IOCTL_GET_PCI:
                 return scsi_ioctl_get_pci(sdev, arg);
 	default:
 		if (sdev->host->hostt->ioctl)

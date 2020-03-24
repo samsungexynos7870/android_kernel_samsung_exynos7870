@@ -87,6 +87,8 @@
 #include <linux/slab.h>
 #include <linux/flex_array.h>
 #include <linux/posix-timers.h>
+#include <linux/task_integrity.h>
+#include <linux/proca.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -213,7 +215,7 @@ static int proc_pid_cmdline(struct seq_file *m, struct pid_namespace *ns,
 static int proc_pid_auxv(struct seq_file *m, struct pid_namespace *ns,
 			 struct pid *pid, struct task_struct *task)
 {
-	struct mm_struct *mm = mm_access(task, PTRACE_MODE_READ_FSCREDS);
+	struct mm_struct *mm = mm_access(task, PTRACE_MODE_READ);
 	if (mm && !IS_ERR(mm)) {
 		unsigned int nwords = 0;
 		do {
@@ -241,7 +243,7 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 	wchan = get_wchan(task);
 
 	if (lookup_symbol_name(wchan, symname) < 0)
-		if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
+		if (!ptrace_may_access(task, PTRACE_MODE_READ))
 			return 0;
 		else
 			return seq_printf(m, "%lu", wchan);
@@ -255,7 +257,7 @@ static int lock_trace(struct task_struct *task)
 	int err = mutex_lock_killable(&task->signal->cred_guard_mutex);
 	if (err)
 		return err;
-	if (!ptrace_may_access(task, PTRACE_MODE_ATTACH_FSCREDS)) {
+	if (!ptrace_may_access(task, PTRACE_MODE_ATTACH)) {
 		mutex_unlock(&task->signal->cred_guard_mutex);
 		return -EPERM;
 	}
@@ -512,7 +514,7 @@ static int proc_fd_access_allowed(struct inode *inode)
 	 */
 	task = get_proc_task(inode);
 	if (task) {
-		allowed = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS);
+		allowed = ptrace_may_access(task, PTRACE_MODE_READ);
 		put_task_struct(task);
 	}
 	return allowed;
@@ -547,7 +549,7 @@ static bool has_pid_permissions(struct pid_namespace *pid,
 		return true;
 	if (in_group_p(pid->pid_gid))
 		return true;
-	return ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS);
+	return ptrace_may_access(task, PTRACE_MODE_READ);
 }
 
 
@@ -624,7 +626,7 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
 	struct mm_struct *mm = ERR_PTR(-ESRCH);
 
 	if (task) {
-		mm = mm_access(task, mode | PTRACE_MODE_FSCREDS);
+		mm = mm_access(task, mode);
 		put_task_struct(task);
 
 		if (!IS_ERR_OR_NULL(mm)) {
@@ -1712,7 +1714,7 @@ static int map_files_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (!task)
 		goto out_notask;
 
-	mm = mm_access(task, PTRACE_MODE_READ_FSCREDS);
+	mm = mm_access(task, PTRACE_MODE_READ);
 	if (IS_ERR_OR_NULL(mm))
 		goto out;
 
@@ -1844,7 +1846,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 		goto out;
 
 	result = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	result = -ENOENT;
@@ -1901,7 +1903,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 		goto out;
 
 	ret = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	ret = 0;
@@ -2380,7 +2382,7 @@ static int do_io_accounting(struct task_struct *task, struct seq_file *m, int wh
 	if (result)
 		return result;
 
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)) {
+	if (!ptrace_may_access(task, PTRACE_MODE_READ)) {
 		result = -EACCES;
 		goto out_unlock;
 	}
@@ -2559,6 +2561,236 @@ static const struct file_operations proc_setgroups_operations = {
 };
 #endif /* CONFIG_USER_NS */
 
+#ifdef CONFIG_FIVE
+static int proc_integrity_value_read(struct seq_file *m,
+		struct pid_namespace *ns, struct pid *pid,
+		struct task_struct *task)
+{
+	seq_printf(m, "%x\n", task_integrity_user_read(task->integrity));
+	return 0;
+}
+
+static int proc_integrity_label_read(struct seq_file *m,
+				struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task)
+{
+	struct integrity_label *l;
+
+	spin_lock(&task->integrity->value_lock);
+	l = task->integrity->label;
+	spin_unlock(&task->integrity->value_lock);
+
+	if (l) {
+		size_t remaining_len;
+		char *buffer = NULL;
+		size_t data_len = l->len * 2;
+
+		seq_printf(m, "%zu\n", data_len);
+		remaining_len = seq_get_buf(m, &buffer);
+
+		if (data_len && remaining_len > 1) {
+			size_t size = min(data_len, remaining_len);
+
+			bin2hex(buffer, l->data, size / 2);
+			seq_commit(m, size);
+		}
+	} else {
+		seq_printf(m, "%d\n", -1);
+	}
+
+	return 0;
+}
+
+static int proc_integrity_reset_cause(struct seq_file *m,
+				struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task)
+{
+	if (task->integrity->reset_cause)
+		seq_printf(m, "%s\n", tint_reset_cause_to_string(
+			task->integrity->reset_cause));
+	else
+		seq_printf(m, "%s", "");
+	return 0;
+}
+
+static int proc_integrity_reset_file(struct seq_file *m,
+				struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task)
+{
+	char *tmp = NULL;
+	char *pathname;
+
+	if (!task->integrity->reset_file) {
+		seq_printf(m, "%s", "");
+		return 0;
+	}
+
+	tmp = (char *)__get_free_page(GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	pathname = d_path(&task->integrity->reset_file->f_path, tmp, PAGE_SIZE);
+	if (IS_ERR(pathname))
+		goto out;
+
+	seq_printf(m, "%s\n", pathname);
+
+ out:
+	free_page((unsigned long)tmp);
+
+	return 0;
+}
+
+#ifdef CONFIG_PROCA_DEBUG
+static int proc_get_proca_cert(struct seq_file *m,
+		struct pid_namespace *ns, struct pid *pid,
+		struct task_struct *task)
+{
+	const char *cert;
+	size_t cert_size;
+
+	if (!proca_get_task_cert(task, &cert, &cert_size)) {
+		size_t remaining_len;
+		char *buffer = NULL;
+		size_t data_len = cert_size * 2;
+
+		seq_printf(m, "%zu\n", data_len);
+		remaining_len = seq_get_buf(m, &buffer);
+
+		if (data_len && remaining_len > 1) {
+			size_t size = min(data_len, remaining_len);
+
+			bin2hex(buffer, cert, size / 2);
+			seq_commit(m, size);
+			seq_putc(m, '\n');
+		}
+	} else {
+		seq_printf(m, "%d\n", -1);
+	}
+
+	return 0;
+}
+#endif
+
+static const struct pid_entry integrity_dir_stuff[] = {
+	ONE("value", S_IRUGO, proc_integrity_value_read),
+	ONE("label", S_IRUGO, proc_integrity_label_read),
+	ONE("reset_cause", S_IRUGO, proc_integrity_reset_cause),
+	ONE("reset_file", S_IRUGO, proc_integrity_reset_file),
+#ifdef CONFIG_PROCA_DEBUG
+	ONE("proca_certificate", S_IRUGO, proc_get_proca_cert),
+#endif
+};
+
+static int
+proc_integrity_instantiate(struct inode *dir, struct dentry *dentry,
+			struct task_struct *task, const void *ptr)
+{
+	const struct pid_entry *p = ptr;
+	struct inode *inode;
+	struct proc_inode *ei;
+
+	inode = proc_pid_make_inode(dir->i_sb, task);
+	if (!inode)
+		goto out;
+
+	ei = PROC_I(inode);
+	inode->i_mode = p->mode;
+	if (S_ISDIR(inode->i_mode))
+		set_nlink(inode, 2);	/* Use getattr to fix if necessary */
+	if (p->iop)
+		inode->i_op = p->iop;
+	if (p->fop)
+		inode->i_fop = p->fop;
+	ei->op = p->op;
+	d_set_d_op(dentry, &pid_dentry_operations);
+	d_add(dentry, inode);
+	/* Close the race of the process dying before we return the dentry */
+	if (pid_revalidate(dentry, 0))
+		return 0;
+out:
+	return -ENOENT;
+}
+
+static struct dentry *proc_integrity_lookup_common(struct inode *dir,
+		struct dentry *dentry, const struct pid_entry *ents,
+		unsigned int nents)
+{
+	int error = -ENOENT;
+	struct task_struct *task = get_proc_task(dir);
+	const struct pid_entry *p, *last;
+
+	if (!task)
+		goto out_no_task;
+
+	last = &ents[nents - 1];
+	for (p = ents; p <= last; ++p) {
+		if (p->len != dentry->d_name.len)
+			continue;
+		if (!memcmp(dentry->d_name.name, p->name, p->len))
+			break;
+	}
+	if (p > last)
+		goto out;
+
+	error = proc_integrity_instantiate(dir, dentry, task, p);
+out:
+	put_task_struct(task);
+out_no_task:
+	return ERR_PTR(error);
+}
+
+static struct dentry *proc_integrity_lookup(struct inode *dir,
+		struct dentry *dentry, unsigned int flags)
+{
+	return proc_integrity_lookup_common(dir, dentry,
+			integrity_dir_stuff, ARRAY_SIZE(integrity_dir_stuff));
+}
+
+static int proc_integrity_readdir_common(struct file *file,
+		struct dir_context *ctx, const struct pid_entry *ents,
+		unsigned int nents)
+{
+	struct task_struct *task = get_proc_task(file_inode(file));
+	const struct pid_entry *p;
+
+	if (!task)
+		return -ENOENT;
+
+	if (!dir_emit_dots(file, ctx))
+		goto out;
+
+	if (ctx->pos >= nents + 2)
+		goto out;
+
+	for (p = ents + (ctx->pos - 2); p <= ents + nents - 1; ++p) {
+		if (!proc_fill_cache(file, ctx, p->name, p->len,
+				proc_integrity_instantiate, task, p))
+			break;
+		++(ctx->pos);
+	}
+out:
+	put_task_struct(task);
+	return 0;
+}
+
+static int proc_integrity_readdir(struct file *file, struct dir_context *ctx)
+{
+	return proc_integrity_readdir_common(file, ctx, integrity_dir_stuff,
+			ARRAY_SIZE(integrity_dir_stuff));
+}
+
+static const struct inode_operations proc_integrity_inode_operations = {
+	.lookup = proc_integrity_lookup,
+};
+
+static const struct file_operations proc_integrity_operations = {
+	.read = generic_read_dir,
+	.iterate = proc_integrity_readdir,
+	.llseek = default_llseek,
+};
+#endif
+
 static int proc_pid_personality(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task)
 {
@@ -2605,6 +2837,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	ONE("cmdline",    S_IRUGO, proc_pid_cmdline),
 	ONE("stat",       S_IRUGO, proc_tgid_stat),
 	ONE("statm",      S_IRUGO, proc_pid_statm),
+	ONE("statlmkd",      S_IRUGO, proc_pid_statlmkd),
 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
 #ifdef CONFIG_NUMA
 	REG("numa_maps",  S_IRUGO, proc_pid_numa_maps_operations),
@@ -2619,6 +2852,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+	REG("smaps_simple", S_IRUGO, proc_pid_smaps_simple_operations),
 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
@@ -2669,6 +2903,10 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	REG("timers",	  S_IRUGO, proc_timers_operations),
+#endif
+#ifdef CONFIG_FIVE
+	DIR("integrity", S_IRUGO|S_IXUGO, proc_integrity_inode_operations,
+			proc_integrity_operations),
 #endif
 };
 
@@ -2924,6 +3162,44 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
+ * proc_tid_comm_permission is a special permission function exclusively
+ * used for the node /proc/<pid>/task/<tid>/comm.
+ * It bypasses generic permission checks in the case where a task of the same
+ * task group attempts to access the node.
+ * The rational behind this is that glibc and bionic access this node for
+ * cross thread naming (pthread_set/getname_np(!self)). However, if
+ * PR_SET_DUMPABLE gets set to 0 this node among others becomes uid=0 gid=0,
+ * which locks out the cross thread naming implementation.
+ * This function makes sure that the node is always accessible for members of
+ * same thread group.
+ */
+static int proc_tid_comm_permission(struct inode *inode, int mask)
+{
+	bool is_same_tgroup;
+	struct task_struct *task;
+
+	task = get_proc_task(inode);
+	if (!task)
+		return -ESRCH;
+	is_same_tgroup = same_thread_group(current, task);
+	put_task_struct(task);
+
+	if (likely(is_same_tgroup && !(mask & MAY_EXEC))) {
+		/* This file (/proc/<pid>/task/<tid>/comm) can always be
+		 * read or written by the members of the corresponding
+		 * thread group.
+		 */
+		return 0;
+	}
+
+	return generic_permission(inode, mask);
+}
+
+static const struct inode_operations proc_tid_comm_inode_operations = {
+		.permission = proc_tid_comm_permission,
+};
+
+/*
  * Tasks
  */
 static const struct pid_entry tid_base_stuff[] = {
@@ -2941,13 +3217,16 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
-	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
+	NOD("comm",      S_IFREG|S_IRUGO|S_IWUSR,
+			 &proc_tid_comm_inode_operations,
+			 &proc_pid_set_comm_operations, {}),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	ONE("syscall",   S_IRUSR, proc_pid_syscall),
 #endif
 	ONE("cmdline",   S_IRUGO, proc_pid_cmdline),
 	ONE("stat",      S_IRUGO, proc_tid_stat),
 	ONE("statm",     S_IRUGO, proc_pid_statm),
+	ONE("statlmkd",      S_IRUGO, proc_pid_statlmkd),
 	REG("maps",      S_IRUGO, proc_tid_maps_operations),
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	REG("children",  S_IRUGO, proc_tid_children_operations),

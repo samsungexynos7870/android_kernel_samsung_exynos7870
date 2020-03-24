@@ -1991,7 +1991,6 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		goto err_out;
 	}
 	b->bridge = get_device(&bridge->dev);
-	device_enable_async_suspend(b->bridge);
 	pci_set_bus_of_node(b);
 
 	if (!parent)

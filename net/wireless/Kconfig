@@ -1,5 +1,5 @@
 config WIRELESS_EXT
-	bool
+	def_bool y
 
 config WEXT_CORE
 	def_bool y
@@ -14,7 +14,7 @@ config WEXT_SPY
 	bool
 
 config WEXT_PRIV
-	bool
+	def_bool y
 
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"
@@ -178,9 +178,36 @@ config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility"
 	depends on CFG80211
 	select WEXT_CORE
+	default y
 	help
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
+
+config CONFIG_WLAN_SEC_REGULATORY_POLICY
+	bool "whether to use the db.txt_old or not"
+    	default n 
+	  
+config WIRELESS_EXT_SYSFS
+	bool "Wireless extensions sysfs files"
+	depends on WEXT_CORE && SYSFS
+	help
+	  This option enables the deprecated wireless statistics
+	  files in /sys/class/net/*/wireless/. The same information
+	  is available via the ioctls as well.
+
+	  Say N. If you know you have ancient tools requiring it,
+	  like very old versions of hal (prior to 0.5.12 release),
+	  say Y and update the tools as soon as possible as this
+	  option will be removed soon.
+
+config CFG80211_REG_NOT_UPDATED
+	bool "Do not update Regulatory configuration"
+	depends on CFG80211
+	default n
+	help
+	  Regulation should not updated even if device found other country
+	  Access Point Beacon once since device should find around other
+	  Access Points.
 
 config LIB80211
 	tristate
@@ -209,3 +236,23 @@ config LIB80211_DEBUG
 	  from lib80211.
 
 	  If unsure, say N.
+
+config CFG80211_ALLOW_RECONNECT
+	bool "Allow reconnect while already connected"
+	depends on CFG80211
+	default n
+	help
+	  cfg80211 stack doesn't allow to connect if you are already
+	  connected. This option allows to make a connection in this case.
+
+	  Select this option ONLY for wlan drivers that are specifically
+	  built for such purposes.
+
+config CFG80211_REG_NOT_UPDATED
+	bool "Do not update Regulatory configuration"
+	depends on CFG80211
+	default n
+	help
+	  Regulation should not updated even if device found other country
+	  Access Point Beacon once since device should find around other
+	  Access Points.
