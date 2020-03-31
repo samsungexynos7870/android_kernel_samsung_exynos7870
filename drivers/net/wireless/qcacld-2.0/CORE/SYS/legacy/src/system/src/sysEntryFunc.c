@@ -179,7 +179,9 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
 
             if (subType == SIR_MAC_MGMT_DEAUTH)
             {
+#ifdef WLAN_DEBUG
                 tpSirMacMgmtHdr pMacHdr = WDA_GET_RX_MAC_HEADER(pBd);
+#endif
                 PELOGE(sysLog( pMac, LOGE,
                        FL("DEAUTH frame allowed: "
                        "da: " MAC_ADDRESS_STR ", "
@@ -193,7 +195,9 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
             }
             if (subType == SIR_MAC_MGMT_DISASSOC)
             {
+#ifdef WLAN_DEBUG
                 tpSirMacMgmtHdr pMacHdr = WDA_GET_RX_MAC_HEADER(pBd);
+#endif
                 PELOGE(sysLog( pMac, LOGE,
                        FL("DISASSOC frame allowed: "
                        "da: " MAC_ADDRESS_STR ", "

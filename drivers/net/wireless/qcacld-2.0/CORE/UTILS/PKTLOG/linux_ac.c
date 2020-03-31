@@ -654,7 +654,9 @@ int pktlog_send_per_pkt_stats_to_user(void)
 		}
 
 		vos_mem_zero(pktlog, VOS_LOG_PKT_LOG_SIZE);
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 		vos_log_set_code(pktlog, LOG_WLAN_PKT_LOG_INFO_C);
+#endif
 
 		pktlog->buf_len = 0;
 		pktlog->version = VERSION_LOG_WLAN_PKT_LOG_INFO_C;
@@ -700,8 +702,10 @@ int pktlog_send_per_pkt_stats_to_user(void)
 		/* Data will include message index/seq number and buf length */
 		pktlog->buf_len = ret_val;
 		if (ret_val) {
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 			vos_log_set_length(pktlog, ret_val +
 					   sizeof(struct vos_log_pktlog_info));
+#endif
 			pktlog->seq_no = pl_info->buf->msg_index++;
 			WLAN_VOS_DIAG_LOG_REPORT(pktlog);
 		} else {

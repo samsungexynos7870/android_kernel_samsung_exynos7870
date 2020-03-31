@@ -192,6 +192,7 @@ static void transport_thread(hdd_adapter_t *pAdapter)
  * Return: true (1) if packet is EAPOL
  *
  */
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 static bool wlan_hdd_is_eapol(struct sk_buff *skb)
 {
 	uint16_t ether_type;
@@ -211,6 +212,7 @@ static bool wlan_hdd_is_eapol(struct sk_buff *skb)
 		return false;
 	}
 }
+#endif
 
 /**
  * wlan_hdd_is_wai() - Check if frame is EAPOL or WAPI
@@ -1111,7 +1113,9 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx, v_MACADDR_t *pMacAdd
  */
 static void __hdd_tx_timeout(struct net_device *dev)
 {
+#ifdef WLAN_DEBUG
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+#endif
    struct netdev_queue *txq;
    int i = 0;
 

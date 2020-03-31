@@ -3932,6 +3932,7 @@ int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
 }
 #endif /* WLAN_OPEN_SOURCE */
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 static void
 cnss_diag_event_report(A_UINT16 event_Id, A_UINT16 length, void *pPayload)
 {
@@ -3957,6 +3958,7 @@ cnss_diag_event_report(A_UINT16 event_Id, A_UINT16 length, void *pPayload)
     return;
 
 }
+#endif
 
 static void cnss_diag_send_driver_loaded(void)
 {
@@ -3966,8 +3968,10 @@ static void cnss_diag_send_driver_loaded(void)
         strlcpy(&wlan_bringup_status.driverVersion[0], QWLAN_VERSIONSTR,
                     sizeof(wlan_bringup_status.driverVersion));
         wlan_bringup_status.wlanStatus = DIAG_WLAN_DRIVER_LOADED;
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
         cnss_diag_event_report(EVENT_WLAN_BRINGUP_STATUS,
                       sizeof(wlan_bringup_status), &wlan_bringup_status);
+#endif
         senddriverstatus = FALSE;
     }
     else
@@ -3981,8 +3985,10 @@ static void cnss_diag_send_driver_unloaded(void)
     memset(&wlan_bringup_status, 0,
            sizeof(vos_event_wlan_bringup_status_payload_type));
     wlan_bringup_status.wlanStatus = DIAG_WLAN_DRIVER_UNLOADED;
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
     cnss_diag_event_report(EVENT_WLAN_BRINGUP_STATUS,
         sizeof(wlan_bringup_status), &wlan_bringup_status);
+#endif
 }
 /**---------------------------------------------------------------------------
   \brief cnss_diag_msg_callback() - Call back invoked by netlink service
