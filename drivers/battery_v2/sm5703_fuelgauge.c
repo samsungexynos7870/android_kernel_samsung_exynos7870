@@ -113,61 +113,6 @@ static void sm5703_pr_ver_info(struct i2c_client *client)
 }
 #endif
 
-static void sm5703_fg_test_read(struct i2c_client *client)
-{
-	int ret, ret1, ret2, ret3, ret4;
-
-	ret = sm5703_fg_i2c_read_word(client, 0x30);
-	dev_info(&client->dev, "%s: sm5703 FG 0x30 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x31);
-	dev_info(&client->dev, "%s: sm5703 FG 0x31 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x32);
-	dev_info(&client->dev, "%s: sm5703 FG 0x32 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x33);
-	dev_info(&client->dev, "%s: sm5703 FG 0x33 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x34);
-	dev_info(&client->dev, "%s: sm5703 FG 0x34 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x35);
-	dev_info(&client->dev, "%s: sm5703 FG 0x35 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x36);
-	dev_info(&client->dev, "%s: sm5703 FG 0x36 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x37);
-	dev_info(&client->dev, "%s: sm5703 FG 0x37 = 0x%x \n", __func__, ret);
-
-	ret = sm5703_fg_i2c_read_word(client, 0x40);
-	dev_info(&client->dev, "%s: sm5703 FG 0x40 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x41);
-	dev_info(&client->dev, "%s: sm5703 FG 0x41 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x42);
-	dev_info(&client->dev, "%s: sm5703 FG 0x42 = 0x%x \n", __func__, ret);
-	ret = sm5703_fg_i2c_read_word(client, 0x43);
-	dev_info(&client->dev, "%s: sm5703 FG 0x43 = 0x%x \n", __func__, ret);
-
-	ret1 = sm5703_fg_i2c_read_word(client, 0xAC);
-	ret2 = sm5703_fg_i2c_read_word(client, 0xAD);
-	ret3 = sm5703_fg_i2c_read_word(client, 0xAE);
-	ret4 = sm5703_fg_i2c_read_word(client, 0xAF);
-	pr_info("0xAC=0x%04x, 0xAD=0x%04x, 0xAE=0x%04x, 0xAF=0x%04x \n", ret1, ret2, ret3, ret4);
-
-	ret1 = sm5703_fg_i2c_read_word(client, 0xBC);
-	ret2 = sm5703_fg_i2c_read_word(client, 0xBD);
-	ret3 = sm5703_fg_i2c_read_word(client, 0xBE);
-	ret4 = sm5703_fg_i2c_read_word(client, 0xBF);
-	pr_info("0xBC=0x%04x, 0xBD=0x%04x, 0xBE=0x%04x, 0xBF=0x%04x \n", ret1, ret2, ret3, ret4);
-
-	ret1 = sm5703_fg_i2c_read_word(client, 0xCC);
-	ret2 = sm5703_fg_i2c_read_word(client, 0xCD);
-	ret3 = sm5703_fg_i2c_read_word(client, 0xCE);
-	ret4 = sm5703_fg_i2c_read_word(client, 0xCF);
-	pr_info("0xCC=0x%04x, 0xCD=0x%04x, 0xCE=0x%04x, 0xCF=0x%04x \n", ret1, ret2, ret3, ret4);
-
-	ret1 = sm5703_fg_i2c_read_word(client, 0x85);
-	ret2 = sm5703_fg_i2c_read_word(client, 0x86);
-	ret3 = sm5703_fg_i2c_read_word(client, 0x87);
-	ret4 = sm5703_fg_i2c_read_word(client, 0x28);
-	pr_info("0x85=0x%04x, 0x86=0x%04x, 0x87=0x%04x, 0x28=0x%04x \n", ret1, ret2, ret3, ret4);
-}
-
 static int sm5703_get_temperature(struct sm5703_fuelgauge_data *fuelgauge)
 {
 	int ret;
@@ -285,9 +230,6 @@ static u32 sm5703_get_soc(struct sm5703_fuelgauge_data *fuelgauge)
 	fuelgauge->info.batt_soc = soc;
 
 	dev_info(&fuelgauge->i2c->dev, "%s: read = 0x%x, soc = %d\n", __func__, ret, soc);
-
-	/* temp for SM5703 FG debug */
-	sm5703_fg_test_read(fuelgauge->i2c);
 
 	return soc;
 }
