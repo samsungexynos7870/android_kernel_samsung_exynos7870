@@ -553,8 +553,8 @@ static int rfcomm_sock_getname(struct socket *sock, struct sockaddr *addr, int *
 	return 0;
 }
 
-static int rfcomm_sock_sendmsg(struct socket *sock, struct msghdr *msg,
-			       size_t len)
+static int rfcomm_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
+			       struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct rfcomm_dlc *d = rfcomm_pi(sk)->dlc;
@@ -619,8 +619,8 @@ done:
 	return sent;
 }
 
-static int rfcomm_sock_recvmsg(struct socket *sock, struct msghdr *msg,
-			       size_t size, int flags)
+static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
+			       struct msghdr *msg, size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct rfcomm_dlc *d = rfcomm_pi(sk)->dlc;
@@ -631,7 +631,7 @@ static int rfcomm_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		return 0;
 	}
 
-	len = bt_sock_stream_recvmsg(sock, msg, size, flags);
+	len = bt_sock_stream_recvmsg(iocb, sock, msg, size, flags);
 
 	lock_sock(sk);
 	if (!(flags & MSG_PEEK) && len > 0)
