@@ -620,7 +620,7 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 
 	memset(&msg, 0, sizeof(msg));
 
-	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, iv, 2, 1 + len);
+	iov_iter_init(&msg.msg_iter, WRITE, (struct iovec *)iv, 2, 1 + len);
 
 	l2cap_chan_send(chan, &msg, 1 + len);
 
@@ -3114,6 +3114,7 @@ static const struct l2cap_ops smp_chan_ops = {
 	.suspend		= l2cap_chan_no_suspend,
 	.set_shutdown		= l2cap_chan_no_set_shutdown,
 	.get_sndtimeo		= l2cap_chan_no_get_sndtimeo,
+	.memcpy_fromiovec	= l2cap_chan_no_memcpy_fromiovec,
 };
 
 static inline struct l2cap_chan *smp_new_conn_cb(struct l2cap_chan *pchan)
@@ -3162,6 +3163,7 @@ static const struct l2cap_ops smp_root_chan_ops = {
 	.resume			= l2cap_chan_no_resume,
 	.set_shutdown		= l2cap_chan_no_set_shutdown,
 	.get_sndtimeo		= l2cap_chan_no_get_sndtimeo,
+	.memcpy_fromiovec	= l2cap_chan_no_memcpy_fromiovec,
 };
 
 static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
