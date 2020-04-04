@@ -31,6 +31,7 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 
+#include <linux/mmc/host.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
 
@@ -194,21 +195,15 @@ static int btsdio_open(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	sdio_claim_host(data->func);
 
 	err = sdio_enable_func(data->func);
-	if (err < 0) {
-		clear_bit(HCI_RUNNING, &hdev->flags);
+	if (err < 0)
 		goto release;
-	}
 
 	err = sdio_claim_irq(data->func, btsdio_interrupt);
 	if (err < 0) {
 		sdio_disable_func(data->func);
-		clear_bit(HCI_RUNNING, &hdev->flags);
 		goto release;
 	}
 
@@ -228,9 +223,6 @@ static int btsdio_close(struct hci_dev *hdev)
 	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	sdio_claim_host(data->func);
 
@@ -260,9 +252,6 @@ static int btsdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -302,6 +291,14 @@ static int btsdio_probe(struct sdio_func *func,
 		BT_DBG("code 0x%x size %d", tuple->code, tuple->size);
 		tuple = tuple->next;
 	}
+
+	/* BCM43341 devices soldered onto the PCB (non-removable) use an
+	 * uart connection for bluetooth, ignore the BT SDIO interface.
+	 */
+	if (func->vendor == SDIO_VENDOR_ID_BROADCOM &&
+	    func->device == SDIO_DEVICE_ID_BROADCOM_43341 &&
+	    !mmc_card_is_removable(func->card->host))
+		return -ENODEV;
 
 	data = devm_kzalloc(&func->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
