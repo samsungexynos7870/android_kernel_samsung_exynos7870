@@ -63,7 +63,8 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *dat
 
 	memset(&msg, 0, sizeof(msg));
 
-	iov_iter_init(&msg.msg_iter, WRITE, (struct iovec *)&iv, 1, total_len);
+	msg.msg_iov = (struct iovec *) &iv;
+	msg.msg_iovlen = 1;
 
 	l2cap_chan_send(chan, &msg, total_len);
 
