@@ -2653,7 +2653,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	unsigned long did_some_progress;
 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
 	bool deferred_compaction = false;
-	int contended_compaction = COMPACT_CONTENDED_NONE;
+	int i, contended_compaction = COMPACT_CONTENDED_NONE;
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -2866,14 +2866,16 @@ rebalance:
 		 * direct reclaim and reclaim/compaction depends on compaction
 		 * being called after reclaim so call directly if necessary
 		 */
-		page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
-					high_zoneidx, nodemask, alloc_flags,
-					preferred_zone,
-					classzone_idx, migratetype,
-					migration_mode, &contended_compaction,
-					&deferred_compaction);
-		if (page)
-			goto got_pg;
+		for (i = order ? 4 : 0; i > 0; i--) {
+			page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
+						high_zoneidx, nodemask, alloc_flags,
+						preferred_zone,
+						classzone_idx, migratetype,
+						migration_mode, &contended_compaction,
+						&deferred_compaction);
+			if (page)
+				goto got_pg;
+		}
 	}
 
 nopage:
