@@ -829,8 +829,10 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		return -EINVAL;
 	}
 
-	if (hp->dxfer_len >= SZ_256M)
+	if (hp->dxfer_len >= SZ_256M) {
+		sg_remove_request(sfp, srp);
 		return -EINVAL;
+	}
 
 	k = sg_start_req(srp, cmnd);
 	if (k) {
