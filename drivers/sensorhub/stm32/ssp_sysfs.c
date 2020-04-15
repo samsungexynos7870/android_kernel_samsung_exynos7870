@@ -61,15 +61,9 @@ static void enable_sensor(struct ssp_data *data,
 			set_proximity_threshold(data);
 			ssp_infof("send threshold hi %d, low %d \n", data->uProxHiThresh, data->uProxLoThresh);
 		}
-#if ANDROID_VERSION >= 80000
 		else if(type == SENSOR_TYPE_LIGHT || type == SENSOR_TYPE_LIGHT_CCT) {
 			data->light_log_cnt = 0;
 		}
-#else
-		else if(type == SENSOR_TYPE_LIGHT) {
-			data->light_log_cnt = 0;
-		}
-#endif
 		memcpy(&uBuf[0], &ms_delay, 4);
 		memcpy(&uBuf[4], &batch_latency, 4);
 		uBuf[8] = batch_options;

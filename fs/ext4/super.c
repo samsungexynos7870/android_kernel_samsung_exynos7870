@@ -4412,15 +4412,12 @@ no_journal:
 
 	ext4_clamp_want_extra_isize(sb);
 
-#if ANDROID_VERSION < 80000
-	atomic64_set(&sbi->s_r_blocks_count, ext4_r_blocks_count(es));
-#else
 #define ANDROID_M_R_BLOCKS_COUNT	(1280)
 	if (le32_to_cpu(sbi->s_es->s_sec_magic) == EXT4_SEC_DATA_MAGIC ||
 			strncmp(es->s_volume_name, "data", 4) == 0)
 		atomic64_set(&sbi->s_r_blocks_count, ext4_r_blocks_count(es) ? :
 				ANDROID_M_R_BLOCKS_COUNT);
-#endif
+
 	if (atomic64_read(&sbi->s_r_blocks_count))
 		ext4_msg(sb, KERN_INFO, "Root reserved blocks %ld",
 				atomic64_read(&sbi->s_r_blocks_count));
@@ -4453,7 +4450,7 @@ no_journal:
 	}
 
 	block = ext4_count_free_clusters(sb);
-	ext4_free_blocks_count_set(sbi->s_es, 
+	ext4_free_blocks_count_set(sbi->s_es,
 				   EXT4_C2B(sbi, block));
 	ext4_superblock_csum_set(sb);
 	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,

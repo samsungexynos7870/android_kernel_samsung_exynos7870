@@ -13,28 +13,16 @@
 #
 
 
-config DDK_VERSION_OS
-	string "version"
-	default ANDROID_MAJOR_VERSION
-	help
-	  Android OS major version
-
 menuconfig MALI_T83X
-	tristate "Mali-T83X support"
-	default y
+	tristate "Mali-T83X GPU support"
 	help
 	  Enable this option to build support for the ARM Mali-T83X GPU.
 	  To compile this driver as a module, choose M here:
 	  this will generate a single module, called mali_kbase.
 
 choice
-	prompt "version Configuration"
+	prompt "Version configuration"
 	depends on MALI_T83X
-	default MALI_R12P0 if DDK_VERSION_OS = "m"
-	default MALI_R15P0 if DDK_VERSION_OS = "n"
-	default MALI_R22P0 if DDK_VERSION_OS = "o"
-	default MALI_R28P0 if DDK_VERSION_OS = "p"
-	
 	help
 	  Select the gpu support version.
 

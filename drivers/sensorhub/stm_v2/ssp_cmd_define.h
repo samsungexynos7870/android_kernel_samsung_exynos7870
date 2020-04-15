@@ -32,14 +32,9 @@
 #define SENSOR_TYPE_PROXIMITY_RAW                   (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 2)
 #define SENSOR_TYPE_GEOMAGNETIC_POWER               (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 3)
 #define SENSOR_TYPE_INTERRUPT_GYRO                  (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 4)
-#if ANDROID_VERSION >= 80000
 #define SENSOR_TYPE_SCONTEXT                        (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 5)
 #define SENSOR_TYPE_MOBEAM                          (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 6)
 #define SENSOR_TYPE_MAX                             (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 7)
-#else
-#define SENSOR_TYPE_MOBEAM                          (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 5)
-#define SENSOR_TYPE_MAX                             (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 6)
-#endif
 #define LEGACY_SENSOR_MAX                           (SENSOR_TYPE_MAX)
 #define LEGACY_SENSOR_COUNT                         (LEGACY_SENSOR_MAX)
 

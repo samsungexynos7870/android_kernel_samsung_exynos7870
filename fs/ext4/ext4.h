@@ -3076,27 +3076,19 @@ extern struct mutex ext4__aio_mutex[EXT4_WQ_HASH_SZ];
 extern int ext4_resize_begin(struct super_block *sb);
 extern void ext4_resize_end(struct super_block *sb);
 
-static inline bool ext4_android_claim_sec_r_blocks(unsigned int flags) {
+static inline bool ext4_android_claim_sec_r_blocks(unsigned int flags)
+{
 	if (flags & EXT4_MB_USE_EXTRA_ROOT_BLOCKS)
 		return true;
-
-#if ANDROID_VERSION < 90000
-	if (in_group_p(AID_USE_SEC_RESERVED))
-		return true;
-#endif
 
 	return false;
 }
 
-static inline bool ext4_android_claim_r_blocks(struct ext4_sb_info *sbi) {
-#if ANDROID_VERSION < 90000
-	if (in_group_p(AID_USE_ROOT_RESERVED))
-		return true;
-#else
-	/* for P upgrade without factory reset */
+static inline bool ext4_android_claim_r_blocks(struct ext4_sb_info *sbi)
+{
 	if (gid_eq(sbi->s_resgid, AID_USE_ROOT_RESERVED))
 		return true;
-#endif
+
 	return false;
 }
 

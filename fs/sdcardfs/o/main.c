@@ -66,12 +66,8 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 	vfsopts->gid = 0;
 	/* by default, 0MB is reserved */
 	opts->reserved_mb = 0;
-#if ANDROID_VERSION > 80000
 	/* by default, gid derivation is off */
 	opts->gid_derivation = false;
-#else
-	opts->gid_derivation = true;
-#endif
 
 	*debug = 0;
 

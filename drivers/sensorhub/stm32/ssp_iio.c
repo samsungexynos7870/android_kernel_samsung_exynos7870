@@ -51,12 +51,10 @@ static void init_sensorlist(struct ssp_data *data)
 		SENSOR_INFO_PROXIMITY_RAW,
 		SENSOR_INFO_GEOMAGNETIC_POWER,
 		SENSOR_INFO_INTERRUPT_GYRO,
-#if ANDROID_VERSION >= 80000
 		SENSOR_INFO_SCONTEXT,
 		SENSOR_INFO_UNKNOWN,
 		SENSOR_INFO_LIGHT_CCT,
-#endif
-};	
+};
 
 	memcpy(&data->info, sensorinfo, sizeof(data->info));
 }
@@ -158,7 +156,6 @@ void report_sensor_data(struct ssp_data *data, int type,
 			data->light_log_cnt++;
 		}
 	}
-#if ANDROID_VERSION >= 80000
 	else if (type == SENSOR_TYPE_LIGHT_CCT) {
 		event->a_gain &= 0x03;
 		if (data->light_log_cnt < 3) {
@@ -170,7 +167,6 @@ void report_sensor_data(struct ssp_data *data, int type,
 			data->light_log_cnt++;
 		}
 	}
-#endif
 	else if (type == SENSOR_TYPE_STEP_COUNTER) {
 		data->buf[type].step_total += event->step_diff;
 	}
@@ -207,7 +203,6 @@ void report_meta_data(struct ssp_data *data, struct sensor_value *s)
 			data->info[s->meta_data.sensor].report_data_len);
 	kfree(meta_event);
 }
-#if ANDROID_VERSION >= 80000
 void report_scontext_data(struct ssp_data *data, char *data_buf, u32 length)
 {
 	char buf[SCONTEXT_HEADER_LEN + SCONTEXT_DATA_LEN] = {0, };
@@ -281,7 +276,6 @@ void report_scontext_notice_data(struct ssp_data *data, char notice)
 
 	report_scontext_data(data, notice_buf, len);
 }
-#endif
 
 static void *init_indio_device(struct ssp_data *data,
 			const struct iio_info *info,

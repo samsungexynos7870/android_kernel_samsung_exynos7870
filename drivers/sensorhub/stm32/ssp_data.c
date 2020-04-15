@@ -101,11 +101,7 @@ void refresh_task(struct work_struct *work)
 	data->cnt_reset++;
 	if (initialize_mcu(data) > 0) {
 		sync_sensor_state(data);
-#if ANDROID_VERSION >= 80000
 		report_scontext_notice_data(data, MSG2SSP_AP_STATUS_RESET);
-#else
-		ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_RESET);
-#endif
 		if (data->uLastAPState != 0)
 			ssp_send_cmd(data, data->uLastAPState, 0);
 		if (data->uLastResumeState != 0)

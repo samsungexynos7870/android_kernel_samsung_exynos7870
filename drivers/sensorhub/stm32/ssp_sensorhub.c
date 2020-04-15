@@ -320,81 +320,14 @@ static void ssp_sensorhub_report_big_library(
 	wake_lock_timeout(&hub_data->sensorhub_wake_lock, WAKE_LOCK_TIMEOUT);
 }
 
-#if ANDROID_VERSION < 80000
-static int ssp_sensorhub_list(struct ssp_sensorhub_data *hub_data,
-				char *dataframe, int length)
-{
-	struct sensorhub_event *event;
-	int ret = 0;
-
-	if (unlikely(length <= 0 || length >= PAGE_SIZE)) {
-		ssp_errf("library length err(%d)", length);
-		return -EINVAL;
-	}
-
-	ssp_sensorhub_log(__func__, dataframe, length);
-
-	/* overwrite new event if list is full */
-	if (unlikely(kfifo_is_full(&hub_data->fifo))) {
-		ret = kfifo_out(&hub_data->fifo, &event, sizeof(void *));
-		if (unlikely(ret != sizeof(void *))) {
-			ssp_errf("kfifo out err(%d)", ret);
-			return -EIO;
-		}
-		ssp_infof("overwrite event");
-	}
-
-	/* allocate memory for new event */
-	kfree(hub_data->events[hub_data->event_number].library_data);
-	hub_data->events[hub_data->event_number].library_data
-		= kzalloc(length * sizeof(char), GFP_ATOMIC);
-	if (unlikely(!hub_data->events[hub_data->event_number].library_data)) {
-		ssp_errf("allocate memory for library err");
-		return -ENOMEM;
-	}
-
-	/* copy new event into memory */
-	memcpy(hub_data->events[hub_data->event_number].library_data,
-		dataframe, length);
-	hub_data->events[hub_data->event_number].library_length = length;
-
-	/* add new event into the end of list */
-	event = &hub_data->events[hub_data->event_number];
-	ret = kfifo_in(&hub_data->fifo, &event, sizeof(void *));
-	if (unlikely(ret != sizeof(void *))) {
-		ssp_errf("kfifo in err(%d)", ret);
-		return -EIO;
-	}
-
-	/* not to overflow max list capacity */
-	if (hub_data->event_number++ >= LIST_SIZE - 1)
-		hub_data->event_number = 0;
-
-	return kfifo_len(&hub_data->fifo) / sizeof(void *);
-}
-#endif
-
 int ssp_sensorhub_handle_data(struct ssp_data *ssp_data, char *dataframe,
 				int start, int end)
 {
 	int ret = 0;
 
-#if ANDROID_VERSION >= 80000
 	ssp_infof("");
 	report_scontext_data(ssp_data, dataframe+start, end-start);
-#else
-	struct ssp_sensorhub_data *hub_data = ssp_data->hub_data;
 
-	/* add new sensorhub event into list */
-	spin_lock_bh(&hub_data->sensorhub_lock);
-	ret = ssp_sensorhub_list(hub_data, dataframe+start, end-start);
-	spin_unlock_bh(&hub_data->sensorhub_lock);
-
-	if (ret < 0)
-		ssp_errf("sensorhub list err(%d)", ret);
-	else
-		wake_up(&hub_data->sensorhub_wq);
-#endif
 	return ret;
 }
 
