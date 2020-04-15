@@ -23,6 +23,7 @@ menuconfig MALI_T83X
 choice
 	prompt "Version configuration"
 	depends on MALI_T83X
+	default MALI_R22P0
 	help
 	  Select the gpu support version.
 
