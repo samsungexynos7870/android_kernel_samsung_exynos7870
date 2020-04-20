@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -396,33 +396,34 @@ __pktlog_enable(struct ol_softc *scn, int32_t log_state)
 
 int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 {
-       struct ol_pktlog_dev_t *pl_dev;
-       struct ath_pktlog_info *pl_info;
-       int error;
+	struct ol_pktlog_dev_t *pl_dev;
+	struct ath_pktlog_info *pl_info;
+	int error;
 
-       if (!scn) {
-               printk("%s: Invalid scn context\n", __func__);
-               ASSERT(0);
-               return A_ERROR;
-       }
+	if (!scn) {
+		printk("%s: Invalid scn context\n", __func__);
+		ASSERT(0);
+		return A_ERROR;
+	}
 
-       pl_dev = scn->pdev_txrx_handle->pl_dev;
-       if (!pl_dev) {
-               printk("%s: Invalid pktlog context\n", __func__);
-               ASSERT(0);
-               return A_ERROR;
-       }
+	pl_dev = scn->pdev_txrx_handle->pl_dev;
+	if (!pl_dev) {
+		printk("%s: Invalid pktlog context\n", __func__);
+		ASSERT(0);
+		return A_ERROR;
+	}
 
-       pl_info = pl_dev->pl_info;
+	pl_info = pl_dev->pl_info;
 
-       if (!pl_info)
-               return 0;
+	if (!pl_info)
+		return 0;
 
-       mutex_lock(&pl_info->pktlog_mutex);
-       error = __pktlog_enable(scn, log_state);
-       mutex_unlock(&pl_info->pktlog_mutex);
-       return error;
+	mutex_lock(&pl_info->pktlog_mutex);
+	error = __pktlog_enable(scn, log_state);
+	mutex_unlock(&pl_info->pktlog_mutex);
+	return error;
 }
+
 
 static int
 __pktlog_setsize(struct ol_softc *scn, int32_t size)

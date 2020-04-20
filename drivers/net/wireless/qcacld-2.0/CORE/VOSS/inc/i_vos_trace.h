@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -94,14 +94,23 @@ void vos_trace_set_module_trace_level(VOS_MODULE_ID module, uint32_t level);
 #define VOS_TRACE vos_trace_msg
 #define VOS_TRACE_HEX_DUMP vos_trace_hex_dump
 #else
-#define VOS_TRACE(arg...)
-#define VOS_TRACE_HEX_DUMP(arg...)
+static inline void __printf(3, 4) no_vos_trace_msg(VOS_MODULE_ID module, VOS_TRACE_LEVEL level,
+		   char *str_format, ...)
+{
+}
+static inline void no_vos_trace_hex_dump(VOS_MODULE_ID module, VOS_TRACE_LEVEL level,
+			void *data, int buf_len)
+{
+}
+#define VOS_TRACE no_vos_trace_msg
+#define VOS_TRACE_HEX_DUMP no_vos_trace_hex_dump
 #endif
 
 
 void __printf(3,4) vos_snprintf(char *strBuffer, unsigned  int size,
                                 char *strFormat, ...);
 #define VOS_SNPRINTF vos_snprintf
+#define vos_scnprintf scnprintf
 
 #ifdef VOS_ENABLE_TRACING
 
@@ -126,8 +135,8 @@ void __printf(3,4) vos_snprintf(char *strBuffer, unsigned  int size,
 #endif
 
 #ifdef PANIC_ON_BUG
-#ifdef CONFIG_X86
-/* BUG_ON does not call panic on x86,so call panic directly */
+#if defined(CONFIG_X86) || defined(MDM_PLATFORM)
+/* BUG_ON does not call panic on x86 and mdm9607, so call panic directly */
 #define VOS_BUG( _condition ) do {                                      \
         if ( ! ( _condition ) )                                         \
         {                                                               \

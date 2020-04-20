@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -30,6 +30,7 @@
 #include <adf_os_time.h>      /* adf_os_ticks, etc. */
 #include <adf_nbuf.h>         /* adf_nbuf_t */
 #include <adf_net_types.h>    /* ADF_NBUF_TX_EXT_TID_INVALID */
+#include "adf_trace.h"
 
 #include <queue.h>            /* TAILQ */
 #ifdef QCA_COMPUTE_TX_DELAY
@@ -59,6 +60,7 @@
 #endif
 #include <ol_tx_queue.h>
 #include <ol_txrx.h>
+#include <pktlog_ac_fmt.h>
 
 #ifdef TX_CREDIT_RECLAIM_SUPPORT
 
@@ -217,6 +219,11 @@ ol_tx_send(
 
     msdu_credit_consumed = ol_tx_send_base(pdev, tx_desc, msdu);
     id = ol_tx_desc_id(pdev, tx_desc);
+    NBUF_UPDATE_TX_PKT_COUNT(msdu, NBUF_TX_PKT_TXRX);
+    DPTRACE(adf_dp_trace_ptr(msdu, ADF_DP_TRACE_TXRX_PACKET_PTR_RECORD,
+                adf_nbuf_data_addr(msdu),
+                sizeof(adf_nbuf_data(msdu)), tx_desc->id, 0));
+
     failed = htt_tx_send_std(pdev->htt_pdev, msdu, id);
     if (adf_os_unlikely(failed)) {
         OL_TX_TARGET_CREDIT_INCR_INT(pdev, msdu_credit_consumed);
@@ -262,6 +269,7 @@ ol_tx_send_nonstd(
 
     msdu_credit_consumed = ol_tx_send_base(pdev, tx_desc, msdu);
     id = ol_tx_desc_id(pdev, tx_desc);
+    NBUF_UPDATE_TX_PKT_COUNT(msdu, NBUF_TX_PKT_TXRX);
     failed = htt_tx_send_nonstd(
         pdev->htt_pdev, msdu, id, pkt_type);
     if (failed) {
@@ -544,20 +552,30 @@ ol_tx_completion_handler(
     trace_str = (status) ? "OT:C:F:" : "OT:C:S:";
     for (i = 0; i < num_msdus; i++) {
         tx_desc_id = desc_ids[i];
-        if (tx_desc_id >= pdev->tx_desc.pool_size) {
-            TXRX_PRINT(TXRX_PRINT_LEVEL_WARN,
-                    "%s: drop due to invalid msdu id = %x\n",
-                    __func__, tx_desc_id);
-            continue;
-        }
-        tx_desc = td_array[tx_desc_id].tx_desc;
-        adf_os_assert(tx_desc);
-        tx_desc->status = status;
-        netbuf = tx_desc->netbuf;
+	if (tx_desc_id >= pdev->tx_desc.pool_size) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_WARN,
+			   "%s: drop due to invalid msdu id = %x\n",
+			   __func__, tx_desc_id);
+		continue;
+	}
 
+	tx_desc = td_array[tx_desc_id].tx_desc;
+	adf_os_assert(tx_desc);
+	tx_desc->status = status;
+        netbuf = tx_desc->netbuf;
+        NBUF_UPDATE_TX_PKT_COUNT(netbuf, NBUF_TX_PKT_FREE);
+        DPTRACE(adf_dp_trace_ptr(netbuf,
+                                 ADF_DP_TRACE_FREE_PACKET_PTR_RECORD,
+                                 adf_nbuf_data_addr(netbuf),
+                                 sizeof(adf_nbuf_data(netbuf)),
+                                 tx_desc->id, status));
         if (pdev->cfg.is_high_latency) {
             OL_TX_DESC_UPDATE_GROUP_CREDIT(pdev, tx_desc_id, 1, 0, status);
         }
+
+        if (pdev->ol_tx_packetdump_cb)
+            pdev->ol_tx_packetdump_cb(netbuf, status, tx_desc->vdev->vdev_id,
+                                      TX_DATA_PKT);
 
         htc_pm_runtime_put(pdev->htt_pdev->htc_pdev);
         adf_nbuf_trace_update(netbuf, trace_str);
@@ -745,12 +763,20 @@ ol_tx_single_completion_handler(
     struct ol_tx_desc_list_elem_t *td_array = pdev->tx_desc.array;
     adf_nbuf_t  netbuf;
 
+    if (tx_desc_id >= pdev->tx_desc.pool_size)
+        return;
+
     tx_desc = td_array[tx_desc_id].tx_desc;
     tx_desc->status = status;
     netbuf = tx_desc->netbuf;
 
+    NBUF_UPDATE_TX_PKT_COUNT(netbuf, NBUF_TX_PKT_FREE);
     /* Do one shot statistics */
     TXRX_STATS_UPDATE_TX_STATS(pdev, status, 1, adf_nbuf_len(netbuf));
+
+    if (pdev->ol_tx_packetdump_cb)
+        pdev->ol_tx_packetdump_cb(netbuf, status, tx_desc->vdev->vdev_id,
+                                  TX_MGMT_PKT);
 
     if (OL_TX_DESC_NO_REFS(tx_desc)) {
         ol_tx_desc_frame_free_nonstd(pdev, tx_desc, status != htt_tx_status_ok);
@@ -798,15 +824,16 @@ ol_tx_inspect_handler(
 
     for (i = 0; i < num_msdus; i++) {
         tx_desc_id = desc_ids[i];
-        if (tx_desc_id >= pdev->tx_desc.pool_size) {
-            TXRX_PRINT(TXRX_PRINT_LEVEL_WARN,
-                    "%s: drop due to invalid msdu id = %x\n",
-                    __func__, tx_desc_id);
-            continue;
-        }
-        tx_desc = td_array[tx_desc_id].tx_desc;
-        adf_os_assert(tx_desc);
-        netbuf = tx_desc->netbuf;
+	if (tx_desc_id >= pdev->tx_desc.pool_size) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_WARN,
+			   "%s: drop due to invalid msdu id = %x\n",
+			   __func__, tx_desc_id);
+		continue;
+	}
+
+	tx_desc = td_array[tx_desc_id].tx_desc;
+	adf_os_assert(tx_desc);
+	netbuf = tx_desc->netbuf;
 
         /* find the "vdev" this tx_desc belongs to */
         vdev_id = HTT_TX_DESC_VDEV_ID_GET(*((u_int32_t *)(tx_desc->htt_tx_desc)));
@@ -1145,3 +1172,67 @@ ol_tx_delay_compute(
 }
 
 #endif /* QCA_COMPUTE_TX_DELAY */
+
+/**
+ * ol_register_packetdump_callback() - registers
+ * tx data packet, tx mgmt. packet and rx data packet
+ * dump callback handler
+ *
+ * @ol_tx_packetdump_cb: tx packetdump cb
+ * @ol_rx_packetdump_cb: rx packetdump cb
+ *
+ * This function is used to register tx data pkt, tx mgmt.
+ * pkt and rx data pkt dump callback
+ *
+ * Return: None
+ *
+ */
+void ol_register_packetdump_callback(tp_ol_packetdump_cb ol_tx_packetdump_cb,
+					tp_ol_packetdump_cb ol_rx_packetdump_cb)
+{
+	v_CONTEXT_t vos_context = NULL;
+	ol_txrx_pdev_handle pdev = NULL;
+
+	vos_context = vos_get_global_context(VOS_MODULE_ID_TXRX,
+						NULL);
+	pdev = vos_get_context(VOS_MODULE_ID_TXRX, vos_context);
+
+	if (!pdev) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+				"%s: pdev is NULL", __func__);
+		return;
+	}
+
+	pdev->ol_tx_packetdump_cb = ol_tx_packetdump_cb;
+	pdev->ol_rx_packetdump_cb = ol_rx_packetdump_cb;
+}
+
+/**
+ * ol_deregister_packetdump_callback() - deregidters
+ * tx data packet, tx mgmt. packet and rx data packet
+ * dump callback handler
+ *
+ * This function is used to deregidter tx data pkt.,
+ * tx mgmt. pkt and rx data pkt. dump callback
+ *
+ * Return: None
+ *
+ */
+void ol_deregister_packetdump_callback(void)
+{
+	v_CONTEXT_t vos_context = NULL;
+	ol_txrx_pdev_handle pdev = NULL;
+
+	vos_context = vos_get_global_context(VOS_MODULE_ID_TXRX,
+						NULL);
+	pdev = vos_get_context(VOS_MODULE_ID_TXRX, vos_context);
+
+	if (!pdev) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+				"%s: pdev is NULL", __func__);
+		return;
+	}
+
+	pdev->ol_tx_packetdump_cb = NULL;
+	pdev->ol_rx_packetdump_cb = NULL;
+}

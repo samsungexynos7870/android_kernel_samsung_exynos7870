@@ -41,10 +41,14 @@
 #include "cfgDebug.h"
 #include "wlan_qct_wda.h"
 
-struct cgstatic cfg_static[WNI_CFG_MAX] = {
+struct cgstatic cfg_static[CFG_PARAM_MAX_NUM] = {
 	{WNI_CFG_STA_ID,
 	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RELOAD |
 	 CFG_CTL_NTF_HAL,
+	 0, 255, 1},
+
+	{WNI_CFG_CF_POLLABLE,
+	 CFG_CTL_RE | CFG_CTL_INT | CFG_CTL_RESTART,
 	 0, 255, 1},
 
 	{WNI_CFG_CFP_PERIOD,
@@ -376,6 +380,10 @@ struct cgstatic cfg_static[WNI_CFG_MAX] = {
 	 WNI_CFG_AUTHENTICATION_TYPE_STAMAX,
 	 WNI_CFG_AUTHENTICATION_TYPE_STADEF},
 
+	{WNI_CFG_CF_POLL_REQUEST,
+	 CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT | CFG_CTL_RESTART,
+	 0, 255, 1},
+
 	{WNI_CFG_PRIVACY_ENABLED,
 	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
 	 CFG_CTL_RESTART,
@@ -437,6 +445,14 @@ struct cgstatic cfg_static[WNI_CFG_MAX] = {
 	 WNI_CFG_MAX_NUM_PRE_AUTH_STAMIN,
 	 WNI_CFG_MAX_NUM_PRE_AUTH_STAMAX,
 	 WNI_CFG_MAX_NUM_PRE_AUTH_STADEF},
+
+	{WNI_CFG_PREAUTH_CLNUP_TIMEOUT,
+	 CFG_CTL_INT,
+	 0, 255, 1},
+
+	{WNI_CFG_RELEASE_AID_TIMEOUT,
+	 CFG_CTL_INT,
+	 0, 255, 1},
 
 	{WNI_CFG_HEART_BEAT_THRESHOLD,
 	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
@@ -537,8 +553,12 @@ struct cgstatic cfg_static[WNI_CFG_MAX] = {
 	 WNI_CFG_PROPRIETARY_RATES_ENABLED_STAMAX,
 	 WNI_CFG_PROPRIETARY_RATES_ENABLED_STADEF},
 
+	{WNI_CFG_AP_NODE_NAME,
+	 CFG_CTL_RE,
+	 0, 255, 1},
+
 	{WNI_CFG_COUNTRY_CODE,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_NTF_SCH,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE,
 	 0, 0, 0},
 
 	{WNI_CFG_11H_ENABLED,
@@ -645,6 +665,10 @@ struct cgstatic cfg_static[WNI_CFG_MAX] = {
 	 WNI_CFG_MAX_SP_LENGTH_STAMIN,
 	 WNI_CFG_MAX_SP_LENGTH_STAMAX,
 	 WNI_CFG_MAX_SP_LENGTH_STADEF},
+
+	{WNI_CFG_KEEP_ALIVE_STA_LIMIT_THRESHOLD,
+	 CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
+	 0, 255, 1},
 
 	{WNI_CFG_SEND_SINGLE_SSID_ALWAYS,
 	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
@@ -1875,89 +1899,7 @@ struct cgstatic cfg_static[WNI_CFG_MAX] = {
 	 CFG_CTL_NTF_LIM,
 	 WNI_CFG_TDLS_WMM_MODE_ENABLED_STAMIN,
 	 WNI_CFG_TDLS_WMM_MODE_ENABLED_STAMAX,
-	 WNI_CFG_TDLS_WMM_MODE_ENABLED_STADEF},
-
-	{WNI_CFG_TGT_GTX_USR_CFG,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_TGT_GTX_USR_CFG_STAMIN,
-	 WNI_CFG_TGT_GTX_USR_CFG_STAMAX,
-	 WNI_CFG_TGT_GTX_USR_CFG_STADEF},
-
-	{WNI_CFG_ASSOC_STA_LIMIT_GO,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
-	 CFG_CTL_NTF_LIM,
-	 WNI_CFG_ASSOC_STA_LIMIT_GO_STAMIN,
-	 WNI_CFG_ASSOC_STA_LIMIT_GO_STAMAX,
-	 WNI_CFG_ASSOC_STA_LIMIT_GO_STADEF},
-
-	{WNI_CFG_ASSOC_STA_LIMIT_AP,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
-	 CFG_CTL_NTF_LIM,
-	 WNI_CFG_ASSOC_STA_LIMIT_AP_STAMIN,
-	 WNI_CFG_ASSOC_STA_LIMIT_AP_STAMAX,
-	 WNI_CFG_ASSOC_STA_LIMIT_AP_STADEF},
-
-	{WNI_CFG_MAX_HT_MCS_TX_DATA,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_MAX_HT_MCS_TX_DATA_STAMIN,
-	 WNI_CFG_MAX_HT_MCS_TX_DATA_STAMAX,
-	 WNI_CFG_MAX_HT_MCS_TX_DATA_STADEF},
-
-	{WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA_STAMIN,
-	 WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA_STAMAX,
-	 WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA_STADEF},
-
-	{WNI_CFG_RATE_FOR_TX_MGMT,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_RATE_FOR_TX_MGMT_STAMIN,
-	 WNI_CFG_RATE_FOR_TX_MGMT_STAMAX,
-	 WNI_CFG_RATE_FOR_TX_MGMT_STADEF},
-
-	{WNI_CFG_RATE_FOR_TX_MGMT_2G,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_RATE_FOR_TX_MGMT_2G_STAMIN,
-	 WNI_CFG_RATE_FOR_TX_MGMT_2G_STAMAX,
-	 WNI_CFG_RATE_FOR_TX_MGMT_2G_STADEF},
-
-	{WNI_CFG_RATE_FOR_TX_MGMT_5G,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
-	 WNI_CFG_RATE_FOR_TX_MGMT_5G_STAMIN,
-	 WNI_CFG_RATE_FOR_TX_MGMT_5G_STAMAX,
-	 WNI_CFG_RATE_FOR_TX_MGMT_5G_STADEF},
-
-	{WNI_CFG_EDCA_ETSI_ACBK_LOCAL,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACBE_LOCAL,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACVI_LOCAL,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACVO_LOCAL,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACBK,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACBE,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACVI,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
-
-	{WNI_CFG_EDCA_ETSI_ACVO,
-	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
-	 0, 0, 0},
+	 WNI_CFG_TDLS_WMM_MODE_ENABLED_STADEF}
 };
 
 struct cfgstatic_string cfg_static_string[CFG_MAX_STATIC_STRING] = {
@@ -2064,6 +2006,11 @@ struct cfgstatic_string cfg_static_string[CFG_MAX_STATIC_STRING] = {
 	 3,
 	 {0x24, 0x7e, 0x14}},
 
+	{WNI_CFG_AP_NODE_NAME,
+	 WNI_CFG_AP_NODE_NAME_LEN,
+	 0,
+	 {0}},
+
 	{WNI_CFG_COUNTRY_CODE,
 	 WNI_CFG_COUNTRY_CODE_LEN,
 	 0,
@@ -2164,55 +2111,6 @@ struct cfgstatic_string cfg_static_string[CFG_MAX_STATIC_STRING] = {
 	 17,
 	 {0x0, 0x2, 0x0, 0x3, 0x0, 0x7, 0x2f, 0x0, 0x3, 0x0, 0x7, 0x66, 0x0,
 	  0x3, 0x0, 0x7, 0x2f}},
-
-	{WNI_CFG_EDCA_ETSI_ACBK_LOCAL,
-	 WNI_CFG_EDCA_ETSI_ACBK_LOCAL_LEN,
-	 17,
-	 {0x0, 0x7, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0x1f, 0x3, 0xff, 0x0, 0x0,
-	  0xf, 0x3, 0xff, 0x0}},
-
-	{WNI_CFG_EDCA_ETSI_ACBE_LOCAL,
-	 WNI_CFG_EDCA_ETSI_ACBE_LOCAL_LEN,
-	 17,
-	 {0x0, 0x3, 0x0, 0xf, 0x0, 0x3f, 0xbb, 0x0, 0x1f, 0x3, 0xff,0x0, 0x0,
-	  0xf, 0x0, 0x3f, 0x0}},
-
-	{WNI_CFG_EDCA_ETSI_ACVI_LOCAL,
-	 WNI_CFG_EDCA_ETSI_ACVI_LOCAL_LEN,
-	 17,
-	 {0x0, 0x1, 0x0, 0x7, 0x0, 0xf, 0x7d, 0x0, 0x7, 0x0, 0xf, 0xbc, 0x0,
-	  0x7, 0x0, 0xf, 0x5e}},
-
-	{WNI_CFG_EDCA_ETSI_ACVO_LOCAL,
-	 WNI_CFG_EDCA_ETSI_ACVO_LOCAL_LEN,
-	 17,
-	 {0x0, 0x1, 0x0, 0x3, 0x0, 0x7, 0x3e, 0x0, 0x3, 0x0, 0x7, 0x66, 0x0,
-	  0x3, 0x0, 0x7, 0x2f}},
-
-	{WNI_CFG_EDCA_ETSI_ACBK,
-	 WNI_CFG_EDCA_ETSI_ACBK_LEN,
-	 17,
-	 {0x0, 0x7, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0xf, 0x3, 0xff, 0x0, 0x0,
-	  0xf, 0x3, 0xff, 0x0}},
-
-	{WNI_CFG_EDCA_ETSI_ACBE,
-	 WNI_CFG_EDCA_ETSI_ACBE_LEN,
-	 17,
-	 {0x0, 0x3, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0xf, 0x3, 0xff, 0x0, 0x0,
-	  0xf, 0x3, 0xff, 0x0}},
-
-	{WNI_CFG_EDCA_ETSI_ACVI,
-	 WNI_CFG_EDCA_ETSI_ACVI_LEN,
-	 17,
-	 {0x0, 0x2, 0x0, 0x7, 0x0, 0xf, 0x7d, 0x0, 0x7, 0x0, 0xf, 0xbc, 0x0,
-	  0x7, 0x0, 0xf, 0x5e}},
-
-	{WNI_CFG_EDCA_ETSI_ACVO,
-	 WNI_CFG_EDCA_ETSI_ACVO_LEN,
-	 17,
-	 {0x0, 0x2, 0x0, 0x3, 0x0, 0x7, 0x3e, 0x0, 0x3, 0x0, 0x7, 0x66, 0x0,
-	  0x3, 0x0, 0x7, 0x2f}},
-
 
 	{WNI_CFG_RADAR_CHANNEL_LIST,
 	 WNI_CFG_RADAR_CHANNEL_LIST_LEN,
@@ -2400,6 +2298,7 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
     tpCfgBinHdr pHdr;
     tANI_U32    logLevel;
     tSirMsgQ    mmhMsg;
+    tANI_U32    param_list[WNI_CFG_DNLD_CNF_NUM];
 
     // First Dword must contain the AP or STA magic dword
     PELOGW(cfgLog(pMac, LOGW, FL("CFG size %d bytes MAGIC dword is 0x%x"),
@@ -2433,7 +2332,7 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
     PELOGW(cfgLog(pMac, LOGW, FL("CFG hdr totParams %d intParams %d strBufSize %d/%d"),
            pHdr->controlSize, pHdr->iBufSize, pHdr->sBufSize, pMac->cfg.gCfgMaxSBufSize);)
 
-    expLen = ((WNI_CFG_MAX + 3 * pMac->cfg.gCfgMaxIBufSize) << 2) +
+    expLen = ((CFG_PARAM_MAX_NUM + 3 * pMac->cfg.gCfgMaxIBufSize) << 2) +
              pHdr->sBufSize + sizeof(tCfgBinHdr);
 
     if (length != expLen)
@@ -2445,7 +2344,7 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
     }
 
 
-    if (pHdr->controlSize != WNI_CFG_MAX)
+    if (pHdr->controlSize != CFG_PARAM_MAX_NUM)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("<CFG> Total parameter count mismatch"));)
         retVal = WNI_CFG_INVALID_LEN;
@@ -2461,7 +2360,7 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
 
     // Copy control array
     pDst = (tANI_U32*)pMac->cfg.gCfgEntry;
-    pDstEnd = pDst + WNI_CFG_MAX;
+    pDstEnd = pDst + CFG_PARAM_MAX_NUM;
     pSrc = pParam;
     while (pDst < pDstEnd)
     {
@@ -2503,7 +2402,7 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
 
     // Calculate max string buffer lengths for all string parameters
     bufEnd = pMac->cfg.gCfgMaxSBufSize;
-    for (i = WNI_CFG_MAX - 1; i >= 0; i--)
+    for (i = CFG_PARAM_MAX_NUM - 1; i >= 0; i--)
     {
         if ((pMac->cfg.gCfgEntry[i].control & CFG_CTL_INT) != 0)
             continue;
@@ -2582,9 +2481,9 @@ ProcDnldRsp(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
         pMac->cfg.gCfgStatus = CFG_FAILURE;
 
     // Send response message to host
-    pMac->cfg.gParamList[WNI_CFG_DNLD_CNF_RES] = retVal;
+    param_list[WNI_CFG_DNLD_CNF_RES] = retVal;
     cfgSendHostMsg(pMac, WNI_CFG_DNLD_CNF, WNI_CFG_DNLD_CNF_LEN,
-                   WNI_CFG_DNLD_CNF_NUM, pMac->cfg.gParamList, 0, 0);
+                   WNI_CFG_DNLD_CNF_NUM, param_list, 0, 0);
 
     // Notify WDA that the config has downloaded
     mmhMsg.type = SIR_CFG_DOWNLOAD_COMPLETE_IND;
@@ -2626,6 +2525,7 @@ ProcGetReq(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
     tANI_U16    cfgId, i;
     tANI_U32    value, valueLen, result;
     tANI_U32    *pValue;
+    tANI_U32    param_list[WNI_CFG_GET_RSP_NUM];
 
     PELOG1(cfgLog(pMac, LOG1, FL("Rcvd cfg get request %d bytes"), length);)
     for (i=0; i<length/4; i++)
@@ -2635,11 +2535,11 @@ ProcGetReq(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
     {
         cfgId = (tANI_U16)sirReadU32N((tANI_U8*)pParam);
         PELOGE(cfgLog(pMac, LOGE, FL("CFG not ready, param %d"), cfgId);)
-        pMac->cfg.gParamList[WNI_CFG_GET_RSP_RES]  = WNI_CFG_NOT_READY;
-        pMac->cfg.gParamList[WNI_CFG_GET_RSP_PID]  = cfgId;
-        pMac->cfg.gParamList[WNI_CFG_GET_RSP_PLEN] = 0;
+        param_list[WNI_CFG_GET_RSP_RES]  = WNI_CFG_NOT_READY;
+        param_list[WNI_CFG_GET_RSP_PID]  = cfgId;
+        param_list[WNI_CFG_GET_RSP_PLEN] = 0;
         cfgSendHostMsg(pMac, WNI_CFG_GET_RSP, WNI_CFG_GET_RSP_PARTIAL_LEN,
-                       WNI_CFG_GET_RSP_NUM, pMac->cfg.gParamList, 0, 0);
+                       WNI_CFG_GET_RSP_NUM, param_list, 0, 0);
     }
     else
     {
@@ -2680,15 +2580,15 @@ ProcGetReq(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam)
             }
 
             // Send response message to host
-            pMac->cfg.gParamList[WNI_CFG_GET_RSP_RES]  = result;
-            pMac->cfg.gParamList[WNI_CFG_GET_RSP_PID]  = cfgId;
-            pMac->cfg.gParamList[WNI_CFG_GET_RSP_PLEN] = valueLen;
+            param_list[WNI_CFG_GET_RSP_RES]  = result;
+            param_list[WNI_CFG_GET_RSP_PID]  = cfgId;
+            param_list[WNI_CFG_GET_RSP_PLEN] = valueLen;
 
             // We need to round up buffer length to word-increment
             valueLen = (((valueLen + 3) >> 2) << 2);
             cfgSendHostMsg(pMac, WNI_CFG_GET_RSP,
                            WNI_CFG_GET_RSP_PARTIAL_LEN + valueLen,
-                           WNI_CFG_GET_RSP_NUM, pMac->cfg.gParamList, valueLen, pValue);
+                           WNI_CFG_GET_RSP_NUM, param_list, valueLen, pValue);
 
             // Decrement length
             length -= sizeof(tANI_U32);
@@ -2727,19 +2627,20 @@ ProcSetReqInternal(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam, tANI_
 {
     tANI_U16    cfgId, valueLen, valueLenRoundedUp4;
     tANI_U32    value, result;
+    tANI_U32    param_list[WNI_CFG_SET_CNF_NUM];
 
-    PELOG1(cfgLog(pMac, LOGl, FL("Rcvd cfg set request %d bytes"), length);)
+    PELOG1(cfgLog(pMac, LOG1, FL("Rcvd cfg set request %d bytes"), length);)
 
     if (!pMac->cfg.gCfgStatus)
     {
         cfgId = (tANI_U16)sirReadU32N((tANI_U8*)pParam);
         PELOG1(cfgLog(pMac, LOGW, FL("CFG not ready, param %d"), cfgId);)
-        pMac->cfg.gParamList[WNI_CFG_SET_CNF_RES] = WNI_CFG_NOT_READY;
-        pMac->cfg.gParamList[WNI_CFG_SET_CNF_PID] = cfgId;
         if( fRsp )
         {
+           param_list[WNI_CFG_SET_CNF_RES] = WNI_CFG_NOT_READY;
+           param_list[WNI_CFG_SET_CNF_PID] = cfgId;
            cfgSendHostMsg(pMac, WNI_CFG_SET_CNF, WNI_CFG_SET_CNF_LEN,
-                          WNI_CFG_SET_CNF_NUM, pMac->cfg.gParamList, 0, 0);
+                          WNI_CFG_SET_CNF_NUM, param_list, 0, 0);
         }
     }
     else
@@ -2827,13 +2728,13 @@ ProcSetReqInternal(tpAniSirGlobal pMac, tANI_U16 length, tANI_U32 *pParam, tANI_
                 result = WNI_CFG_INVALID_LEN;
             }
 
-            // Send confirm message to host
-            pMac->cfg.gParamList[WNI_CFG_SET_CNF_RES] = result;
-            pMac->cfg.gParamList[WNI_CFG_SET_CNF_PID] = cfgId;
             if( fRsp )
             {
+                /* Send confirm message to host */
+                param_list[WNI_CFG_SET_CNF_RES] = result;
+                param_list[WNI_CFG_SET_CNF_PID] = cfgId;
                 cfgSendHostMsg(pMac, WNI_CFG_SET_CNF, WNI_CFG_SET_CNF_LEN,
-                               WNI_CFG_SET_CNF_NUM, pMac->cfg.gParamList, 0, 0);
+                               WNI_CFG_SET_CNF_NUM, param_list, 0, 0);
             }
             else
             {
@@ -2896,7 +2797,7 @@ static tANI_U8
 CheckParam(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 flag, tANI_U32 failedResult, tANI_U32 *pResult)
 {
     // Check if parameter ID is out of bound
-    if (cfgId >= WNI_CFG_MAX)
+    if (cfgId >= CFG_PARAM_MAX_NUM)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid param id %d"), cfgId);)
         *pResult = WNI_CFG_INVALID_PID;
@@ -2987,7 +2888,7 @@ processCfgDownloadReq(tpAniSirGlobal pMac)
     uint32_t    icount = 0;
     uint32_t    scount = 0;
 
-    for (i = 0; i < WNI_CFG_MAX ; i++) {
+    for (i = 0; i < CFG_PARAM_MAX_NUM ; i++) {
         if ((cfg_static[i].control & CFG_CTL_VALID) != 0) {
             if (!(cfg_static[i].control & CFG_CTL_INT)) {
                 str_cfg = (struct cfgstatic_string *)cfg_static[i].p_str_data;
@@ -3013,7 +2914,7 @@ processCfgDownloadReq(tpAniSirGlobal pMac)
     /*Fill the SBUF wih maxLength*/
     buf_end = pMac->cfg.gCfgMaxSBufSize;
 
-    for (i = WNI_CFG_MAX - 1; i >= 0; i--)
+    for (i = CFG_PARAM_MAX_NUM - 1; i >= 0; i--)
     {
         if ((pMac->cfg.gCfgEntry[i].control & CFG_CTL_INT) != 0)
             continue;
@@ -3030,7 +2931,7 @@ processCfgDownloadReq(tpAniSirGlobal pMac)
         buf_end = buf_start;
     }
 
-    for (i = 0; i < WNI_CFG_MAX ; i++) {
+    for (i = 0; i < CFG_PARAM_MAX_NUM ; i++) {
         index = pMac->cfg.gCfgEntry[i].control & CFG_BUF_INDX_MASK;
 
         if ((pMac->cfg.gCfgEntry[i].control & CFG_CTL_INT) != 0) {
@@ -3043,11 +2944,8 @@ processCfgDownloadReq(tpAniSirGlobal pMac)
             if ((pMac->cfg.gCfgEntry[i].control & CFG_CTL_VALID) == 0)
                 continue;
 
-            if (index >= CFG_STA_SBUF_MAX_SIZE) {
-                cfgLog(pMac, LOGE, FL("str_cfg id %d index %d too long"),
-                       i, index);
+            if (index >= CFG_STA_SBUF_MAX_SIZE)
                 continue;
-            }
 
             dst_ptr = &pMac->cfg.gCfgSBuf[index];
             str_cfg = (struct cfgstatic_string *)cfg_static[i].p_str_data;
@@ -3079,7 +2977,4 @@ processCfgDownloadReq(tpAniSirGlobal pMac)
     pMac->cfg.gCfgStatus = CFG_SUCCESS;
     ret_val = WNI_CFG_SUCCESS;
     PELOG1(cfgLog(pMac, LOG1, "<CFG> Completed successfully");)
-
-    pMac->cfg.gParamList[WNI_CFG_DNLD_CNF_RES] = ret_val;
-
 } /*** end ProcessDownloadReq() ***/

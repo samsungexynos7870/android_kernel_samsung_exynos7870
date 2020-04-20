@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,7 +39,8 @@
 #include "palTypes.h"
 #include "wniApi.h"
 #include "wlan_qct_wda.h"
-#include "wni_cfg.h"
+
+#include "wniCfgSta.h"
 #include "cfgApi.h"
 #include "sirCommon.h"
 #include "utilsApi.h"
@@ -138,6 +139,18 @@ defMsgDecision(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         (limMsg->type != WDA_START_OEM_DATA_RSP) &&
 #endif
         (limMsg->type != WDA_ADD_TS_RSP) &&
+        /*
+         * LIM won't process any defer queue commands if gLimAddtsSent is set to
+         * TRUE. gLimAddtsSent will be set TRUE to while sending ADDTS REQ. Say,
+         * when deferring is enabled, if SIR_LIM_ADDTS_RSP_TIMEOUT is posted
+         * (because of not receiving ADDTS RSP) then this command will be added
+         * to defer queue and as gLimAddtsSent is set TRUE LIM will never
+         * process any commands from defer queue, including
+         * SIR_LIM_ADDTS_RSP_TIMEOUT. Hence allowing SIR_LIM_ADDTS_RSP_TIMEOUT
+         * command to be processed with deferring enabled, so that this will be
+         * processed immediately and sets gLimAddtsSent to FALSE.
+         */
+        (limMsg->type != SIR_LIM_ADDTS_RSP_TIMEOUT) &&
         /* Allow processing of RX frames while awaiting reception of
            ADD TS response over the air. This logic particularly handles the
            case when host sends ADD BA request to FW after ADD TS request
@@ -356,10 +369,10 @@ __limHandleBeacon(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tpPESession psessionEntry
     {
         schBeaconProcess(pMac, pRxPacketInfo, psessionEntry);
     }
-     else
+    else
         limProcessBeaconFrame(pMac, pRxPacketInfo, psessionEntry);
 
-        return;
+    return;
 }
 
 
@@ -1190,7 +1203,23 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
     pMac->lim.numTot++;
 #endif
 
-    MTRACE(macTraceMsgRx(pMac, NO_SESSION, LIM_TRACE_MAKE_RXMSG(limMsg->type, LIM_MSG_PROCESSED));)
+   /*
+    * MTRACE logs not captured for events received from SME
+    * SME enums (eWNI_SME_START_REQ) starts with 0x16xx.
+    * Compare received SME events with SIR_SME_MODULE_ID
+    */
+    if (SIR_SME_MODULE_ID == (tANI_U8)MAC_TRACE_GET_MODULE_ID(limMsg->type)) {
+       MTRACE(macTrace(pMac, TRACE_CODE_RX_SME_MSG, NO_SESSION, limMsg->type));
+    } else {
+       /*
+        * Omitting below message types as these are too frequent and when crash
+        * happens we loose critical trace logs if these are also logged
+        */
+       if (limMsg->type != SIR_CFG_PARAM_UPDATE_IND &&
+          limMsg->type != SIR_BB_XPORT_MGMT_MSG)
+           MTRACE(macTraceMsgRx(pMac, NO_SESSION,
+                 LIM_TRACE_MAKE_RXMSG(limMsg->type, LIM_MSG_PROCESSED));)
+    }
 
     switch (limMsg->type)
     {
@@ -1350,7 +1379,10 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
             // These messages are from HDD
             limProcessNormalHddMsg(pMac, limMsg, true);  //need to response to hdd
             break;
-
+        case eWNI_SME_SEND_DISASSOC_FRAME:
+            /* Need to response to hdd */
+            limProcessNormalHddMsg(pMac, limMsg, true);
+            break;
         case eWNI_SME_SCAN_ABORT_IND:
           {
             tSirMbMsg *pMsg = limMsg->bodyptr;
@@ -1420,6 +1452,8 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         case eWNI_SME_GET_TSM_STATS_REQ:
 #endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
         case eWNI_SME_EXT_CHANGE_CHANNEL:
+        case eWNI_SME_ROAM_RESTART_REQ:
+        case eWNI_SME_REGISTER_MGMT_FRAME_CB:
             // These messages are from HDD
             limProcessNormalHddMsg(pMac, limMsg, false);   //no need to response to hdd
             break;
@@ -1595,6 +1629,12 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
             limMsg->bodyptr = NULL;
             break;
 
+        case eWNI_SME_MON_INIT_SESSION:
+            lim_mon_init_session(pMac, limMsg->bodyptr);
+            vos_mem_free(limMsg->bodyptr);
+            limMsg->bodyptr = NULL;
+            break;
+
         //Power Save Related Messages From HAL
         case WDA_ENTER_BMPS_RSP:
         case WDA_EXIT_BMPS_RSP:
@@ -1617,6 +1657,11 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
             else
                 limHandleMissedBeaconInd(pMac, limMsg);
 
+            vos_mem_free(limMsg->bodyptr);
+            limMsg->bodyptr = NULL;
+            break;
+        case WDA_SMPS_FORCE_MODE_IND:
+            lim_smps_force_mode_ind(pMac, limMsg);
             vos_mem_free(limMsg->bodyptr);
             limMsg->bodyptr = NULL;
             break;
@@ -2150,6 +2195,13 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         lim_sap_offload_del_sta(pMac, limMsg);
         break;
 #endif /* SAP_AUTH_OFFLOAD */
+
+    case eWNI_SME_DEL_ALL_TDLS_PEERS:
+        lim_process_sme_del_all_tdls_peers(pMac, limMsg->bodyptr);
+        vos_mem_free((v_VOID_t*)limMsg->bodyptr);
+        limMsg->bodyptr = NULL;
+        break;
+
     default:
         vos_mem_free((v_VOID_t*)limMsg->bodyptr);
         limMsg->bodyptr = NULL;

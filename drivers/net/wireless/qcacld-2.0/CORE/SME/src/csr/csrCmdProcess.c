@@ -223,8 +223,6 @@ void csrFullPowerCallback(void *pv, eHalStatus status)
 
 }
 
-extern int g_force_hang;
-extern int g_avoid_command;
 void csrFullPowerOffloadCallback(void *pv, tANI_U32 sessionId, eHalStatus status)
 {
     tpAniSirGlobal pMac = PMAC_STRUCT( pv );
@@ -232,10 +230,6 @@ void csrFullPowerOffloadCallback(void *pv, tANI_U32 sessionId, eHalStatus status
     tSmeCmd *pCommand;
 
     (void)status;
-#if 1 /* 20160801 Prevent burst WDA_EXIT_BMPS_REQ during WIFI recovery by HANG */
-	if (g_force_hang && g_avoid_command)
-		return;
-#endif
 
     while(NULL != (pEntry = csrLLRemoveHead(&pMac->roam.roamCmdPendingList,
                                             eANI_BOOLEAN_TRUE)))

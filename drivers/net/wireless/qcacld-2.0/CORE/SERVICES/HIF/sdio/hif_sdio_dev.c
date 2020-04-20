@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014,2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -61,7 +61,6 @@
  * To align with LL case, we also need 2 mbox support just as PCIe LL cases.
  */
 
-#define INVALID_MAILBOX_NUMBER 0xFF
 A_UINT8 HIFDevMapPipeToMailBox(HIF_SDIO_DEVICE *pDev, A_UINT8 pipeid)
 {
     // TODO: temp version, should not hardcoded here, will be updated after HIF design
@@ -282,7 +281,7 @@ A_STATUS HIFDevEnableInterrupts(HIF_SDIO_DEVICE *pDev)
     HIFDevDisableInterrupts(pDev);
 
     /* Unmask the host controller interrupts */
- //   HIFUnMaskInterrupt(pDev->HIFDevice);
+    HIFUnMaskInterrupt(pDev->HIFDevice);
 
     LOCK_HIF_DEV(pDev);
 
@@ -316,8 +315,6 @@ A_STATUS HIFDevEnableInterrupts(HIF_SDIO_DEVICE *pDev)
 
     UNLOCK_HIF_DEV(pDev);
 
-    /* Unmask the host controller interrupts */
-    HIFUnMaskInterrupt(pDev->HIFDevice);
 
     /* always synchronous */
     status = HIFReadWrite(pDev->HIFDevice,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -49,6 +49,9 @@
 #include <ol_htt_tx_api.h>   /* HTT_TX_DESC_VADDR_OFFSET */
 #include <ol_txrx_htt_api.h> /* ol_tx_msdu_id_storage */
 #include <htt_internal.h>
+#include "adf_trace.h"
+
+#include <vos_utils.h>
 
 #ifdef IPA_UC_OFFLOAD
 /* IPA Micro controler TX data packet HTT Header Preset */
@@ -274,13 +277,18 @@ adf_os_dma_addr_t htt_tx_get_paddr(htt_pdev_handle pdev, char *target_vaddr)
 
 	for (i = 0; i < pdev->num_pages; i++) {
 		page_info = pdev->desc_pages + i;
-		if (!page_info->page_v_addr_start) {
+		if (!page_info || !page_info->page_v_addr_start) {
 			adf_os_assert(0);
 			return 0;
 		}
 		if ((target_vaddr >= page_info->page_v_addr_start) &&
 			(target_vaddr <= page_info->page_v_addr_end))
 			break;
+	}
+	if (!page_info || !page_info->page_v_addr_start ||
+		 !page_info->page_p_addr) {
+		adf_os_assert(0);
+		return 0;
 	}
 
 	return page_info->page_p_addr +
@@ -463,6 +471,11 @@ htt_tx_send_std(
          */
         download_len = packet_len;
     }
+
+    NBUF_UPDATE_TX_PKT_COUNT(msdu, NBUF_TX_PKT_HTT);
+    DPTRACE(adf_dp_trace(msdu, ADF_DP_TRACE_HTT_PACKET_PTR_RECORD,
+                adf_nbuf_data_addr(msdu),
+                sizeof(adf_nbuf_data(msdu))));
 
     if (adf_nbuf_queue_len(&pdev->txnbufq) > 0) {
         HTT_TX_NBUF_QUEUE_ADD(pdev, msdu);
@@ -709,11 +722,13 @@ int htt_tx_ipa_uc_attach(struct htt_pdev_t *pdev,
     unsigned int uc_tx_partition_base)
 {
    unsigned int  tx_buffer_count;
+   unsigned int  tx_buffer_count_pwr2;
    adf_nbuf_t    buffer_vaddr;
    u_int32_t     buffer_paddr;
    u_int32_t    *header_ptr;
    u_int32_t    *ring_vaddr;
    int           return_code = 0;
+   uint16_t     idx;
 
    /* Allocate CE Write Index WORD */
    pdev->ipa_uc_tx_rsc.tx_ce_idx.vaddr =
@@ -766,7 +781,7 @@ int htt_tx_ipa_uc_attach(struct htt_pdev_t *pdev,
       {
          adf_os_print("%s: TX BUF alloc fail, allocated buffer count %d",
                       __func__, tx_buffer_count);
-         return 0;
+         break;
       }
 
       /* Init buffer */
@@ -797,7 +812,33 @@ int htt_tx_ipa_uc_attach(struct htt_pdev_t *pdev,
       ring_vaddr++;
    }
 
-   pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt = tx_buffer_count;
+   /*
+    * Tx complete ring buffer count should be power of 2.
+    * So, allocated Tx buffer count should be one less than ring buffer size.
+    */
+   tx_buffer_count_pwr2 = vos_rounddown_pow_of_two(tx_buffer_count + 1) - 1;
+   if (tx_buffer_count > tx_buffer_count_pwr2) {
+       adf_os_print("%s: Allocated Tx buffer count %d is rounded down to %d",
+                   __func__, tx_buffer_count, tx_buffer_count_pwr2);
+
+       /* Free over allocated buffers below power of 2 */
+       for(idx = tx_buffer_count_pwr2; idx < tx_buffer_count; idx++) {
+           if (pdev->ipa_uc_tx_rsc.tx_buf_pool_vaddr_strg[idx]) {
+               adf_nbuf_unmap(pdev->osdev,
+                   pdev->ipa_uc_tx_rsc.tx_buf_pool_vaddr_strg[idx],
+                   ADF_OS_DMA_FROM_DEVICE);
+               adf_nbuf_free(pdev->ipa_uc_tx_rsc.tx_buf_pool_vaddr_strg[idx]);
+           }
+       }
+   }
+
+   if (tx_buffer_count_pwr2 < 0) {
+       adf_os_print("%s: Failed to round down Tx buffer count %d",
+                   __func__, tx_buffer_count_pwr2);
+       goto free_tx_comp_base;
+   }
+
+   pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt = tx_buffer_count_pwr2;
 
    return 0;
 

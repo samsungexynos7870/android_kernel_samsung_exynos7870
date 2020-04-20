@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -42,16 +42,9 @@
 #include "sirMacProtDef.h"
 #include "csrLinkList.h"
 
-#ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
-#endif
-
-#ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1724
-#endif
-
 /* message subtype for internal purpose */
 #define OEM_MESSAGE_SUBTYPE_INTERNAL   0xdeadbeef
+#define OEM_MESSAGE_SUBTYPE_LEN 4
 
 /*************************************************************************************************************
   OEM DATA REQ/RSP - DATA STRUCTURES
@@ -61,7 +54,8 @@
 typedef struct tagOemDataReq
 {
     tANI_U8   sessionId;
-    tANI_U8   oemDataReq[OEM_DATA_REQ_SIZE];
+    uint32_t   data_len;
+    uint8_t   *data;
 } tOemDataReq, tOemDataReqConfig;
 
 /*************************************************************************************************************
@@ -69,7 +63,8 @@ typedef struct tagOemDataReq
 *************************************************************************************************************/
 typedef struct tagOemDataRsp
 {
-    tANI_U8   oemDataRsp[OEM_DATA_RSP_SIZE];
+    uint32_t  rsp_len;
+    uint8_t   *oem_data_rsp;
 } tOemDataRsp;
 
 /*************************************************************************************************************/
@@ -109,12 +104,9 @@ typedef eHalStatus (*oemData_OemDataReqCompleteCallback)(
     \brief Request an OEM DATA RSP
     \param sessionId - Id of session to be used
     \param pOemDataReqID - pointer to an object to get back the request ID
-    \param callback - a callback function that is called upon finish
-    \param pContext - a pointer passed in for the callback
     \return eHalStatus
   -------------------------------------------------------------------------------*/
-eHalStatus oemData_OemDataReq(tHalHandle, tANI_U8, tOemDataReqConfig *, tANI_U32 *pOemDataReqID,
-                            oemData_OemDataReqCompleteCallback callback, void *pContext);
+eHalStatus oemData_OemDataReq(tHalHandle, tANI_U8, tOemDataReqConfig *, tANI_U32 *pOemDataReqID);
 
 /* ---------------------------------------------------------------------------
     \fn sme_HandleOemDataRsp

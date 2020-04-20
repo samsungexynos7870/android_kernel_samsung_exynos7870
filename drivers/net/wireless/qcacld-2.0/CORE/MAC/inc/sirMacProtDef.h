@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -41,7 +41,7 @@
 
 #include "palTypes.h"
 #include "sirTypes.h"
-#include "wni_cfg.h"
+#include "wniCfgSta.h"
 
 
 ///Capability information related
@@ -146,8 +146,11 @@
 #define SIR_MAC_ACTION_MHF            14
 #define SIR_MAC_SELF_PROTECTED        15
 #define SIR_MAC_ACTION_WME            17
+#define SIR_MAC_ACTION_FST            18
 #define SIR_MAC_ACTION_VHT            21
 
+#define SIR_MAC_ACTION_TX             1
+#define SIR_MAC_ACTION_RX             2
 // QoS management action codes
 
 #define SIR_MAC_QOS_ADD_TS_REQ      0
@@ -502,6 +505,8 @@
 #define SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA   16
 #define SIR_MAC_IPV6_ADDR_LEN               16
 #define SIR_IPV6_ADDR_VALID                 1
+#define SIR_IPV6_ADDR_UC_TYPE               0
+#define SIR_IPV6_ADDR_AC_TYPE               1
 #endif //WLAN_NS_OFFLOAD
 #define SIR_MAC_ARP_OFFLOAD_SIZE        1
 
@@ -1038,11 +1043,10 @@ typedef __ani_attr_pre_packed struct sSirMacRateSet
 } __ani_attr_packed tSirMacRateSet;
 
 
-/* Reserve 1 byte for NULL character in the SSID name field to print in %s */
 typedef __ani_attr_pre_packed struct sSirMacSSid
 {
     tANI_U8        length;
-    tANI_U8        ssId[SIR_MAC_MAX_SSID_LENGTH + 1];
+    tANI_U8        ssId[SIR_MAC_MAX_SSID_LENGTH];
 } __ani_attr_packed tSirMacSSid;
 
 typedef __ani_attr_pre_packed struct sSirMacWpaInfo

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,7 +38,8 @@
  */
 
 #include "palTypes.h"
-#include "wni_cfg.h"
+#include "wniCfgSta.h"
+
 #include "sirCommon.h"
 #include "aniGlobal.h"
 
@@ -1915,12 +1916,6 @@ void pmmSendWowlAddBcastPtrn(tpAniSirGlobal pMac,  tpSirMsgQ pMsg)
         return;
     }
     vos_mem_copy(pBcastPtrn, pMbMsg->data, sizeof(*pBcastPtrn));
-
-    if (NULL == pBcastPtrn)
-    {
-        pmmLog(pMac, LOGE, FL("Add broadcast pattern message is NULL "));
-        return;
-    }
 
     msgQ.type = WDA_WOWL_ADD_BCAST_PTRN;
     msgQ.reserved = 0;

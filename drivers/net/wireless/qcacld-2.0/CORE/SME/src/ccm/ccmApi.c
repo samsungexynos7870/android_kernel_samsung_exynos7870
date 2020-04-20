@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -128,7 +128,7 @@ static eHalStatus sendCfg(tpAniSirGlobal pMac, tHddHandle hHdd, tCfgReq *req, tA
     }
     else
     {
-        smsLog( pMac, LOGW, FL("failed to allocate memory(len=%d)"), msgLen );
+        smsLog( pMac, LOGE, FL("failed to allocate memory(len=%d)"), msgLen );
         status = eHAL_STATUS_FAILURE;
     }
 
@@ -260,6 +260,8 @@ static eHalStatus cfgSetSub(tpAniSirGlobal pMac, tHddHandle hHdd, tANI_U32 cfgId
         if (pMac->ccm.state == eCCM_STOPPED)
         {
             status = eHAL_STATUS_FAILURE ;
+            smsLog(pMac, LOGE,
+                          FL("cfgSetSub failure. ccm.state=eCCM_STOPPED"));
             break ;
         }
 
@@ -267,6 +269,7 @@ static eHalStatus cfgSetSub(tpAniSirGlobal pMac, tHddHandle hHdd, tANI_U32 cfgId
         if (req == NULL)
         {
             status = eHAL_STATUS_FAILED_ALLOC ;
+            smsLog(pMac, LOGE, FL("cfgSetSub failure. req=NULL"));
             break ;
         }
 
@@ -394,7 +397,7 @@ eHalStatus ccmClose(tHalHandle hHal)
     ccmStop(hHal);
 
     /* Go thru comp[] to free all saved requests */
-    for (i = 0 ; i < WNI_CFG_MAX ; ++i)
+    for (i = 0 ; i < CFG_PARAM_MAX_NUM ; ++i)
     {
         if ((req = pMac->ccm.comp[i]) != NULL)
         {
@@ -416,6 +419,9 @@ void ccmCfgCnfMsgHandler(tHalHandle hHal, void *m)
 
     result  = pal_be32_to_cpu(msg->data[0]);
     cfgId   = pal_be32_to_cpu(msg->data[1]);
+
+    smsLog(pMac, LOG2, FL("started=%d, cfgId=%d, in_progress=%d"),
+        pMac->ccm.replay.started, cfgId, pMac->ccm.replay.in_progress);
 
     if (pMac->ccm.replay.started && cfgId == CFG_UPDATE_MAGIC_DWORD)
     {
@@ -483,7 +489,7 @@ void ccmCfgCnfMsgHandler(tHalHandle hHal, void *m)
                 /* move the completed req from reqQ to comp[] */
                 if (req->toBeSaved && (CCM_IS_RESULT_SUCCESS(result)))
                 {
-                    if (cfgId < WNI_CFG_MAX)
+                    if (cfgId < CFG_PARAM_MAX_NUM)
                     {
                         if ((old = pMac->ccm.comp[cfgId]) != NULL)
                         {
@@ -597,7 +603,7 @@ eHalStatus ccmCfgGetInt(tHalHandle hHal, tANI_U32 cfgId, tANI_U32 *pValue)
     eHalStatus status = eHAL_STATUS_SUCCESS ;
     tCfgReq *req;
 
-    if (cfgId >= WNI_CFG_MAX) {
+    if (cfgId >= CFG_PARAM_MAX_NUM) {
         smsLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);
         return eHAL_STATUS_INVALID_PARAMETER;
     }
@@ -629,7 +635,7 @@ eHalStatus ccmCfgGetStr(tHalHandle hHal, tANI_U32 cfgId, tANI_U8 *pBuf, tANI_U32
 
     hHdd = halHandle2HddHandle(hHal);
 
-    if (cfgId >= WNI_CFG_MAX) {
+    if (cfgId >= CFG_PARAM_MAX_NUM) {
         smsLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);
         return eHAL_STATUS_INVALID_PARAMETER;
     }
@@ -681,7 +687,7 @@ static eHalStatus cfgUpdate(tpAniSirGlobal pMac, tHddHandle hHdd, tCcmCfgSetCall
     palSpinLockGive(hHdd, pMac->ccm.lock);
 
     /* Calculate message length */
-    for (i = 0 ; i < WNI_CFG_MAX ; ++i)
+    for (i = 0 ; i < CFG_PARAM_MAX_NUM ; ++i)
     {
         if ((req = pMac->ccm.comp[i]) != NULL)
         {
@@ -720,7 +726,7 @@ static eHalStatus cfgUpdate(tpAniSirGlobal pMac, tHddHandle hHdd, tCcmCfgSetCall
     pl = encodeCfgReq(hHdd, msg->data, CFG_UPDATE_MAGIC_DWORD, 4, NULL, 0, CCM_INTEGER_TYPE) ;
 
     /* Encode the saved cfg requests */
-    for (i = 0 ; i < WNI_CFG_MAX ; ++i)
+    for (i = 0 ; i < CFG_PARAM_MAX_NUM ; ++i)
     {
         if ((req = pMac->ccm.comp[i]) != NULL)
         {

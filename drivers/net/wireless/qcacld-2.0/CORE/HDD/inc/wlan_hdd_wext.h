@@ -70,9 +70,6 @@
 /* 012345678 */
 #define WLAN_HDD_UI_SET_BAND_VALUE_OFFSET              8
 
-#ifdef SEC_CONFIG_GRIP_POWER
-#define WLAN_HDD_UI_SET_GRIP_TX_PWR_VALUE_OFFSET       21
-#endif
 typedef enum
 {
    HDD_WLAN_WMM_DIRECTION_UPSTREAM      = 0,
@@ -149,7 +146,7 @@ typedef enum
 } hdd_wlan_wmm_ts_info_ack_policy_e;
 
 /** Maximum Length of WPA/RSN IE */
-#define MAX_WPA_RSN_IE_LEN 255
+#define MAX_WPA_RSN_IE_LEN 40
 
 /** Maximum Number of WEP KEYS */
 #define MAX_WEP_KEYS 4
@@ -337,6 +334,8 @@ typedef struct hdd_wext_state_s
    v_BOOL_t isESEConnection;
    eCsrAuthType collectedAuthType; /* Collected from ALL SIOCSIWAUTH Ioctls. Will be negotiatedAuthType - in tCsrProfile */
 #endif
+   /* Wireless statistics */
+   struct iw_statistics iw_stats;
 }hdd_wext_state_t;
 
 typedef struct ccp_freq_chan_map_s{
@@ -366,7 +365,7 @@ extern int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter,
 extern void hdd_wlan_get_version(hdd_adapter_t *pAdapter,
                                  union iwreq_data *wrqu, char *extra);
 
-extern void hdd_wlan_get_stats(hdd_adapter_t *pAdapter, v_U16_t *length,
+extern int hdd_wlan_get_stats(hdd_adapter_t *pAdapter, v_U16_t *length,
                                char *buffer, v_U16_t buf_len);
 
 extern void hdd_wlan_dump_stats(hdd_adapter_t *pAdapter, int value);
@@ -479,8 +478,4 @@ int process_wma_set_command_twoargs(int sessid, int paramid,
 void hdd_GetTemperatureCB(int temperature, void *cookie);
 VOS_STATUS wlan_hdd_get_temperature(hdd_adapter_t *adapter_ptr,
         union iwreq_data *wrqu, char *extra);
-#ifdef SEC_CONFIG_GRIP_POWER
-int hdd_setGripPwr(struct net_device *dev, u8 set_value);
-int hdd_setGripPwr_helper(struct net_device *dev, const char *command);
-#endif
 #endif // __WEXT_IW_H__

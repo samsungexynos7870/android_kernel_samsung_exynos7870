@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -127,7 +127,7 @@ int hdd_setP2pPs( struct net_device *dev, void *msgData );
 int hdd_setP2pOpps( struct net_device *dev, tANI_U8 *command );
 int hdd_setP2pNoa( struct net_device *dev, tANI_U8 *command );
 
-void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
+void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
                             tANI_U32 nFrameLength, tANI_U8* pbFrames,
                             tANI_U8 frameType,
                             tANI_U32 rxChan, tANI_S8 rxRssi);
@@ -183,8 +183,12 @@ struct net_device* wlan_hdd_add_virtual_intf(
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)) || defined(WITH_BACKPORTS)
 int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct wireless_dev *wdev );
+int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy,
+                                        struct wireless_dev *wdev);
 #else
 int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct net_device *dev );
+int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy,
+                                        struct net_device *dev);
 #endif
 
 void wlan_hdd_cleanup_remain_on_channel_ctx(hdd_adapter_t *pAdapter);

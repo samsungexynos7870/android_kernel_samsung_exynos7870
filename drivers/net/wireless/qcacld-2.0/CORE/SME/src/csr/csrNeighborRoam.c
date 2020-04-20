@@ -1579,6 +1579,7 @@ eHalStatus csrNeighborRoamPreauthRspHandler(tpAniSirGlobal pMac,
     {
         tpCsrNeighborRoamBSSInfo    pNeighborBssNode = NULL;
         tListElem                   *pEntry;
+        bool is_dis_pending = false;
 
         smsLog(pMac, LOGE, FL("Preauth failed retry number %d, status = 0x%x"),
                pNeighborRoamInfo->FTRoamInfo.numPreAuthRetries, limStatus);
@@ -1631,11 +1632,21 @@ eHalStatus csrNeighborRoamPreauthRspHandler(tpAniSirGlobal pMac,
             }
         }
 
+        is_dis_pending = is_disconnect_pending(pMac, sessionId);
+        if (is_dis_pending) {
+           smsLog(pMac, LOGE,
+              FL(" Disconnect in progress, Abort preauth"));
+           goto abort_preauth;
+        }
+
+
+
         /* Issue preauth request for the same/next entry */
         if (eHAL_STATUS_SUCCESS == csrNeighborRoamIssuePreauthReq(pMac,
                                                                   sessionId))
         goto DEQ_PREAUTH;
 
+abort_preauth:
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
         if (csrRoamIsRoamOffloadScanEnabled(pMac))
         {
@@ -3950,7 +3961,7 @@ void csrNeighborRoamRRMNeighborReportResult(void *context, VOS_STATUS vosStatus)
 
                 /* We are gonna scan now. Remember the time stamp to filter out
                    results only after this time stamp */
-                pNeighborRoamInfo->scanRequestTimeStamp = vos_timer_get_system_time();
+                pNeighborRoamInfo->scanRequestTimeStamp = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
 
                 /* Now ready for neighbor scan based on the channel list created */
                 status = vos_timer_start(&pNeighborRoamInfo->neighborScanTimer,
@@ -4354,8 +4365,7 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac,
                 pNeighborRoamInfo->lookupDOWNRssi,
                 pNeighborRoamInfo->cfgParams.neighborReassocThreshold*(-1));
 
-            pNeighborRoamInfo->scanRequestTimeStamp =
-                                          vos_timer_get_system_time();
+            pNeighborRoamInfo->scanRequestTimeStamp = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
 
             vos_timer_stop(&pNeighborRoamInfo->neighborScanTimer);
 
@@ -4550,7 +4560,7 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac,
 
     /* We are gonna scan now. Remember the time stamp to filter out results
        only after this time stamp */
-    pNeighborRoamInfo->scanRequestTimeStamp = vos_timer_get_system_time();
+    pNeighborRoamInfo->scanRequestTimeStamp = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
 
     vos_timer_stop(&pNeighborRoamInfo->neighborScanTimer);
     status = vos_timer_start(&pNeighborRoamInfo->neighborScanTimer,
@@ -5593,7 +5603,7 @@ eHalStatus csrNeighborRoamInit(tpAniSirGlobal pMac, tANI_U8 sessionId)
     }
 #endif
     /* Initialize this with the current tick count */
-    pNeighborRoamInfo->scanRequestTimeStamp = vos_timer_get_system_time();
+    pNeighborRoamInfo->scanRequestTimeStamp = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
 
     CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_INIT, sessionId)
     pNeighborRoamInfo->roamChannelInfo.IAPPNeighborListReceived = eANI_BOOLEAN_FALSE;

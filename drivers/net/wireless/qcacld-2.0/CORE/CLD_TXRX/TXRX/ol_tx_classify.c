@@ -483,7 +483,7 @@ ol_tx_classify(
              * It is illegitimate to send unicast data if there is no peer
              * to send it to.
              */
-            VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
+            VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_INFO,
                 "Error: vdev %p (%02x:%02x:%02x:%02x:%02x:%02x) "
                 "trying to send unicast tx data frame to an unknown peer\n",
                 vdev,
@@ -549,7 +549,7 @@ ol_tx_classify(
     if (IEEE80211_IS_MULTICAST(dest_addr) && vdev->opmode != wlan_op_mode_sta &&
         tx_msdu_info->peer != NULL) {
 
-        TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+        TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
                       "%s: remove the peer reference %p\n", __func__, peer);
         /* remove the peer reference added above */
         ol_txrx_peer_unref_delete(tx_msdu_info->peer);

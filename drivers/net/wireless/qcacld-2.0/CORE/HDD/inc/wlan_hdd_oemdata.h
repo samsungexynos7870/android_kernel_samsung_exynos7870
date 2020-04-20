@@ -27,6 +27,8 @@
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 
+#include "wlan_hdd_main.h"
+
 /**===========================================================================
 
   \file  wlan_hdd_oemdata.h
@@ -40,7 +42,7 @@
 #define __WLAN_HDD_OEM_DATA_H__
 
 #ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
+#define OEM_DATA_REQ_SIZE 500
 #endif
 
 #ifndef OEM_DATA_RSP_SIZE
@@ -158,32 +160,12 @@ typedef PACKED_PRE struct PACKED_POST
     tHddChannelInfo peer_chan_info;
 } tPeerStatusInfo;
 
-struct iw_oem_data_req
-{
-    v_U8_t                  oemDataReq[OEM_DATA_REQ_SIZE];
-};
-
-int iw_set_oem_data_req(
-        struct net_device *dev,
-        struct iw_request_info *info,
-        union iwreq_data *wrqu,
-        char *extra);
-
-int iw_get_oem_data_rsp(
-        struct net_device *dev,
-        struct iw_request_info *info,
-        union iwreq_data *wrqu,
-        char *extra);
-
-struct iw_oem_data_rsp
-{
-    tANI_U8           oemDataRsp[OEM_DATA_RSP_SIZE];
-};
-
-#if defined (SEC_READ_MACADDR) || defined (SEC_CONFIG_PSM) || defined (SEC_CONFIG_GRIP_POWER)
-#define MAX_RETRY	5
-#endif
-
+void hdd_SendPeerStatusIndToOemApp(v_MACADDR_t *peerMac,
+	uint8_t peerStatus,
+	uint8_t peerTimingMeasCap,
+	uint8_t sessionId,
+	tSirSmeChanInfo *chan_info,
+	device_mode_t dev_mode);
 #endif //__WLAN_HDD_OEM_DATA_H__
 
 #endif //FEATURE_OEM_DATA_SUPPORT
