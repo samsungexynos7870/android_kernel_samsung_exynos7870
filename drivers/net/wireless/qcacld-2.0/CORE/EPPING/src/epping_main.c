@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,7 +45,6 @@
 #include <wlan_hdd_tx_rx.h>
 #include <wniApi.h>
 #include <wlan_nlink_srv.h>
-#include <wlan_btc_svc.h>
 #include <wlan_hdd_cfg.h>
 #include <wlan_ptt_sock_svc.h>
 #include <wlan_hdd_wowl.h>
@@ -69,7 +68,6 @@
 #include "if_ath_sdio.h"
 #endif
 #include "epping_main.h"
-#include "wlan_hdd_memdump.h"
 #include "epping_internal.h"
 
 #ifdef TIMER_MANAGER
@@ -233,7 +231,6 @@ void epping_exit(v_CONTEXT_t pVosContext)
    }
 #endif /* HIF_PCI */
    epping_cookie_cleanup(pEpping_ctx);
-   vos_mem_free(pEpping_ctx);
 }
 
 void epping_driver_exit(v_CONTEXT_t pVosContext)
@@ -251,13 +248,11 @@ void epping_driver_exit(v_CONTEXT_t pVosContext)
    }
    else
    {
-#ifdef QCA_PKT_PROTO_TRACE
-      vos_pkt_proto_trace_close();
-#endif /* QCA_PKT_PROTO_TRACE */
-      //pHddCtx->isUnloadInProgress = TRUE;
+      vos_set_unload_in_progress(TRUE);
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
    }
    hif_unregister_driver();
+   vos_mem_free(pEpping_ctx);
    vos_preClose( &pVosContext );
 #ifdef MEMORY_DEBUG
    vos_mem_exit();

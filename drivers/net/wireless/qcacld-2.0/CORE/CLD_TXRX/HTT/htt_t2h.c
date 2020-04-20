@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -58,20 +58,6 @@
 #ifndef DEBUG_CREDIT
 #define DEBUG_CREDIT 0
 #endif
-
-#ifdef CONFIG_SEC
-u_int32_t g_htt_t2h_msg_log_idx = 0;
-struct htt_t2h_msg_debug htt_t2h_msg_log_buffer[HTT_T2H_MSG_DEBUG_MAX_ENTRY];
-
-#define HTT_T2H_MSG_RECORD(a) {                 \
-        if (HTT_T2H_MSG_DEBUG_MAX_ENTRY <= g_htt_t2h_msg_log_idx)       \
-            g_htt_t2h_msg_log_idx = 0;                                  \
-        htt_t2h_msg_log_buffer[g_htt_t2h_msg_log_idx].msg_type = a;     \
-        htt_t2h_msg_log_buffer[g_htt_t2h_msg_log_idx].time =            \
-            adf_get_boottime();                                         \
-        g_htt_t2h_msg_log_idx++;                                        \
-    }
-#endif /* CONFIG_SEC */
 
 static u_int8_t *
 htt_t2h_mac_addr_deswizzle(u_int8_t *tgt_mac_addr, u_int8_t *buffer)
@@ -228,44 +214,11 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
             tid = HTT_RX_FRAG_IND_EXT_TID_GET(*msg_word);
             HTT_RX_FRAG_SET_LAST_MSDU(pdev, htt_t2h_msg);
 
-            /* If packet len is invalid, will discard this frame. */
-            if (pdev->cfg.is_high_latency) {
-                u_int32_t rx_pkt_len = 0;
-
-                rx_pkt_len = adf_nbuf_len(htt_t2h_msg);
-
-                if (rx_pkt_len < (HTT_RX_FRAG_IND_BYTES +
-                    sizeof(struct hl_htt_rx_ind_base)+
-                    sizeof(struct ieee80211_frame))) {
-
-                    adf_os_print("%s: invalid packet len, %u\n",
-                                __FUNCTION__,
-                                rx_pkt_len);
-                    /*
-                     * This buf will be freed before
-                     * exiting this function.
-                     */
-                    break;
-                }
-            }
-
             ol_rx_frag_indication_handler(
                 pdev->txrx_pdev,
                 htt_t2h_msg,
                 peer_id,
                 tid);
-
-            if (pdev->cfg.is_high_latency) {
-               /*
-                * For high latency solution, HTT_T2H_MSG_TYPE_RX_FRAG_IND
-                * message and RX packet share the same buffer. All buffer will
-                * be freed by ol_rx_frag_indication_handler or upper layer to
-                * avoid double free issue.
-                *
-                */
-                return;
-            }
-
             break;
         }
     case HTT_T2H_MSG_TYPE_RX_ADDBA:
@@ -311,6 +264,14 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
             peer_mac_addr = htt_t2h_mac_addr_deswizzle(
                 (u_int8_t *) (msg_word+1), &mac_addr_deswizzle_buf[0]);
 
+            if (peer_id > ol_cfg_max_peer_id(pdev->ctrl_pdev)) {
+                adf_os_print("%s: HTT_T2H_MSG_TYPE_PEER_MAP,"
+                            "invalid peer_id, %u\n",
+                            __FUNCTION__,
+                            peer_id);
+                break;
+            }
+
             ol_rx_peer_map_handler(
                 pdev->txrx_pdev, peer_id, vdev_id, peer_mac_addr, 1/*can tx*/);
             break;
@@ -319,6 +280,14 @@ htt_t2h_lp_msg_handler(void *context, adf_nbuf_t htt_t2h_msg )
         {
             u_int16_t peer_id;
             peer_id = HTT_RX_PEER_UNMAP_PEER_ID_GET(*msg_word);
+
+            if (peer_id > ol_cfg_max_peer_id(pdev->ctrl_pdev)) {
+                adf_os_print("%s: HTT_T2H_MSG_TYPE_PEER_UNMAP,"
+                            "invalid peer_id, %u\n",
+                            __FUNCTION__,
+                            peer_id);
+                break;
+            }
 
             ol_rx_peer_unmap_handler(pdev->txrx_pdev, peer_id);
             break;
@@ -588,9 +557,6 @@ if (adf_os_unlikely(pdev->rx_ring.rx_reset)) {
 
     msg_word = (u_int32_t *) adf_nbuf_data(htt_t2h_msg);
     msg_type = HTT_T2H_MSG_TYPE_GET(*msg_word);
-#ifdef CONFIG_SEC
-    HTT_T2H_MSG_RECORD(msg_type);
-#endif /* CONFIG_SEC */
     switch (msg_type) {
     case HTT_T2H_MSG_TYPE_RX_IND:
         {

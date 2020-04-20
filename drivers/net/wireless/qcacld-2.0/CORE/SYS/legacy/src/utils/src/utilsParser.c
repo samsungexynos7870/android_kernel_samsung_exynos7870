@@ -704,9 +704,12 @@ void CreateScanCtsFrame(tpAniSirGlobal pMac, tSirMacMgmtHdr *macMgmtHdr, tSirMac
 void ConvertQosMapsetFrame(tpAniSirGlobal pMac, tSirQosMapSet* Qos, tDot11fIEQosMapSet* dot11fIE)
 {
     tANI_U8 i,j=0;
+    if (dot11fIE->num_dscp_exceptions > 58)
+        dot11fIE->num_dscp_exceptions = 58;
 
     if (dot11fIE->num_dscp_exceptions < 16)
 	return;
+
     Qos->num_dscp_exceptions = (dot11fIE->num_dscp_exceptions - 16)/2;
     for (i = 0; i < Qos->num_dscp_exceptions; i++)
     {

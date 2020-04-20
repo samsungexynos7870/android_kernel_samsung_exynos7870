@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -69,6 +69,7 @@ typedef enum eSmeCommandType
     eSmeCommandRemoveKey,
     eSmeCommandAddStaSession,
     eSmeCommandDelStaSession,
+    eSmeCommandSetMaxTxPower,
 #ifdef FEATURE_WLAN_TDLS
     //eSmeTdlsCommandMask = 0x80000,  //To identify TDLS commands <TODO>
     //These can be considered as csr commands.
@@ -111,7 +112,8 @@ typedef enum eSmeState
 #define SME_IS_READY(pMac)  (SME_STATE_READY == (pMac)->sme.state)
 
 /* HDD Callback function */
-typedef void(*pIbssPeerInfoCb)(void *pUserData, void *infoParam);
+typedef void(*pIbssPeerInfoCb)(void *pUserData,
+                               tSirPeerInfoRspParams *infoParam);
 
 /* Peer info */
 typedef struct tagSmePeerInfoHddCbkInfo
@@ -148,7 +150,8 @@ typedef struct tagSmeStruct
     eSmeState state;
     vos_lock_t lkSmeGlobalLock;
     tANI_U32 totalSmeCmd;
-    void *pSmeCmdBufAddr;
+    /* following pointer contains array of pointers for tSmeCmd* */
+    void **pSmeCmdBufAddr;
     tDblLinkList smeCmdActiveList;
     tDblLinkList smeCmdPendingList;
     tDblLinkList smeCmdFreeList;   //preallocated roam cmd list
@@ -221,6 +224,11 @@ typedef struct tagSmeStruct
     void (*rssi_threshold_breached_cb)(void *, struct rssi_breach_event *);
     void (*lost_link_info_cb)(void *context,
 			      struct sir_lost_link_info *lost_link_info);
+    void (*smps_force_mode_cb)(void *context,
+			struct sir_smps_force_mode_event *smps_force_mode_info);
+    void (*pbpf_get_offload_cb)(void *context, struct sir_bpf_get_offload *);
+    void *mib_stats_context;
+    void (*csr_mib_stats_callback) (struct mib_stats_metrics*, void*);
 } tSmeStruct, *tpSmeStruct;
 
 

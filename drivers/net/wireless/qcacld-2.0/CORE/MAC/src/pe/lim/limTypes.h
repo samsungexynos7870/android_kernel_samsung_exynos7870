@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -47,6 +47,7 @@
 
 #include "limApi.h"
 #include "limDebug.h"
+#include "limTrace.h"
 #include "limSendSmeRspMessages.h"
 #include "sysGlobal.h"
 #include "dphGlobal.h"
@@ -624,7 +625,7 @@ void limSetCfgProtection(tpAniSirGlobal pMac, tpPESession pesessionEntry);
 
 
 // Function to Initialize MLM state machine on STA
-void limInitMlm(tpAniSirGlobal);
+tSirRetStatus limInitMlm(tpAniSirGlobal);
 
 /* Function to clean up MLM state machine */
 void limCleanupMlm(tpAniSirGlobal);
@@ -727,6 +728,15 @@ eHalStatus limProcessTdlsAddStaRsp(tpAniSirGlobal pMac, void *msg, tpPESession);
 tSirRetStatus limSendTdlsTeardownFrame(tpAniSirGlobal pMac,
            tSirMacAddr peerMac, tANI_U16 reason, tANI_U8 responder, tpPESession psessionEntry,
            tANI_U8 *addIe, tANI_U16 addIeLen);
+tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
+			uint32_t *msg_buf);
+#else
+static inline tSirRetStatus
+lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
+			uint32_t *msg_buf)
+{
+	return eSIR_SUCCESS;
+}
 #endif
 
 // Algorithms & Link Monitoring related functions
@@ -881,10 +891,12 @@ limPostSmeMessage(tpAniSirGlobal pMac, tANI_U32 msgType, tANI_U32 *pMsgBuf)
     msg.type = (tANI_U16)msgType;
     msg.bodyptr = pMsgBuf;
     msg.bodyval = 0;
-    if (msgType > eWNI_SME_MSG_TYPES_BEGIN)
+    if (msgType > eWNI_SME_MSG_TYPES_BEGIN) {
+        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, msg.type));
         limProcessSmeReqMessages(pMac, &msg);
-    else
+    } else {
         limProcessMlmRspMessages(pMac, msgType, pMsgBuf);
+    }
 } /*** end limPostSmeMessage() ***/
 
 /**
@@ -925,6 +937,7 @@ limPostMlmMessage(tpAniSirGlobal pMac, tANI_U32 msgType, tANI_U32 *pMsgBuf)
     msg.type = (tANI_U16) msgType;
     msg.bodyptr = pMsgBuf;
     msg.bodyval = 0;
+    MTRACE(macTraceMsgRx(pMac, NO_SESSION, msg.type));
     limProcessMlmReqMessages(pMac, &msg);
 } /*** end limPostMlmMessage() ***/
 
@@ -1082,4 +1095,5 @@ void limProcessRxScanEvent(tpAniSirGlobal mac, void *buf);
 
 int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg);
 void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data);
+
 #endif /* __LIM_TYPES_H */

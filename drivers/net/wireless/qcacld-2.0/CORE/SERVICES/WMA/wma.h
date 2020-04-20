@@ -70,22 +70,23 @@
 #include "ol_txrx_types.h"
 #include "wlan_qct_wda.h"
 #include <linux/workqueue.h>
+#include "ol_defines.h"
+#include "limTypes.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
 
 /** Private **/
 #define WMA_CFG_NV_DNLD_TIMEOUT            500
-#define WMA_READY_EVENTID_TIMEOUT          10000
-#define WMA_TGT_SUSPEND_COMPLETE_TIMEOUT   8000
+#define WMA_READY_EVENTID_TIMEOUT          2000
+#define WMA_TGT_SUSPEND_COMPLETE_TIMEOUT   6000
 #define WMA_WAKE_LOCK_TIMEOUT              1000
 #define WMA_MAX_RESUME_RETRY               100
-#define WMA_RESUME_TIMEOUT                 12000
+#define WMA_RESUME_TIMEOUT                 6000
 #define WMA_TGT_WOW_TX_COMPLETE_TIMEOUT    2000
 #define MAX_MEM_CHUNKS                     32
 #define WMA_CRASH_INJECT_TIMEOUT           5000
-#define WMA_TGT_SUSPEND_RETRY_WAIT_TIME    1000
-
+#define WMA_RESET_MAX_RATE                 10
 /*
    In prima 12 HW stations are supported including BCAST STA(staId 0)
    and SELF STA(staId 1) so total ASSOC stations which can connect to Prima
@@ -107,6 +108,7 @@
 #define WMA_MAX_VDEV_SIZE				20
 #define WMA_VDEV_TBL_ENTRY_ADD				1
 #define WMA_VDEV_TBL_ENTRY_DEL				0
+
 #define WMA_SVC_MSG_MAX_SIZE                            1536
 
 /* 11A/G channel boundary */
@@ -171,6 +173,8 @@
 #define WMA_ICMP_V6_HEADER_OFFSET (6 + 6 + 2 + 6)
 /* WMA_ICMP_V6_TYPE_OFFSET = sa(6) + da(6) + eth_type(2) + 40 */
 #define WMA_ICMP_V6_TYPE_OFFSET (6 + 6 + 2 + 40)
+/* WMA_IPV4_PROTOCOL = sa(6) + da(6) + eth_type(2) + 9 */
+#define WMA_IPV4_PROTOCOL (6 + 6 + 2 + 9)
 
 #define WMA_ICMP_V6_HEADER_TYPE (0x3A)
 #define WMA_ICMP_V6_RA_TYPE (0x86)
@@ -179,6 +183,34 @@
 #define WMA_BCAST_MAC_ADDR (0xFF)
 #define WMA_MCAST_IPV4_MAC_ADDR (0x01)
 #define WMA_MCAST_IPV6_MAC_ADDR (0x33)
+#define WMA_ICMP_PROTOCOL (0x01)
+
+#define WMA_EAPOL_SUBTYPE_GET_MIN_LEN     21
+#define WMA_EAPOL_INFO_GET_MIN_LEN        23
+#define WMA_IS_DHCP_GET_MIN_LEN           38
+#define WMA_DHCP_SUBTYPE_GET_MIN_LEN      0x11D
+#define WMA_DHCP_INFO_GET_MIN_LEN         50
+#define WMA_ARP_SUBTYPE_GET_MIN_LEN       22
+#define WMA_IPV4_PROTO_GET_MIN_LEN        24
+#define WMA_IPV4_PKT_INFO_GET_MIN_LEN     42
+#define WMA_ICMP_SUBTYPE_GET_MIN_LEN      35
+#define WMA_IPV6_PROTO_GET_MIN_LEN        21
+#define WMA_IPV6_PKT_INFO_GET_MIN_LEN     62
+#define WMA_ICMPV6_SUBTYPE_GET_MIN_LEN    55
+
+/*
+ * ds_mode: distribution system mode
+ * @IEEE80211_NO_DS: NO DS at either side
+ * @IEEE80211_TO_DS: DS at receiver side
+ * @IEEE80211_FROM_DS: DS at sender side
+ * @IEEE80211_DS_TO_DS: DS at both sender and revceiver side
+ */
+enum ds_mode {
+	IEEE80211_NO_DS,
+	IEEE80211_TO_DS,
+	IEEE80211_FROM_DS,
+	IEEE80211_DS_TO_DS
+};
 
 typedef struct probeTime_dwellTime {
 	u_int8_t dwell_time;
@@ -187,7 +219,7 @@ typedef struct probeTime_dwellTime {
 
 static const t_probeTime_dwellTime
 	probeTime_dwellTime_map[WMA_DWELL_TIME_PROBE_TIME_MAP_SIZE] = {
-	{28, 0}, /* 0 SSID */
+	{28, 11}, /* 0 SSID */
 	{28, 20}, /* 1 SSID */
 	{28, 20}, /* 2 SSID */
 	{28, 20}, /* 3 SSID */
@@ -265,6 +297,10 @@ typedef enum {
 	WMA_TDLS_SUPPORT_DISABLED, /* suppress implicit trigger and not respond to the peer */
 	WMA_TDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY, /* suppress implicit trigger, but respond to the peer */
 	WMA_TDLS_SUPPORT_ENABLED, /* implicit trigger */
+	/* External control means implicit trigger
+	 * but only to a peer mac configured by user space.
+	 */
+	WMA_TDLS_SUPPORT_ACTIVE_EXTERNAL_CONTROL,
 }t_wma_tdls_mode;
 
 /** TDLS EVENTS */
@@ -402,7 +438,6 @@ typedef struct {
 	u_int32_t rxchainmask;
 	u_int32_t txpow2g;
 	u_int32_t txpow5g;
-	u_int32_t pwrgating;
 	u_int32_t burst_enable;
 	u_int32_t burst_dur;
 	u_int32_t chainmask_2g;
@@ -436,7 +471,7 @@ typedef struct {
 #define WMA_NUM_BITS_IN_BYTE           8
 
 #define WMA_AP_WOW_DEFAULT_PTRN_MAX    4
-#define WMA_STA_WOW_DEFAULT_PTRN_MAX   4
+#define WMA_STA_WOW_DEFAULT_PTRN_MAX   5
 
 struct wma_wow_ptrn_cache {
 	u_int8_t vdev_id;
@@ -533,9 +568,14 @@ struct wma_txrx_node {
 	tANI_U8                 vht_capable;
 	tANI_U8                 ht_capable;
 	A_UINT32                mhz; /* channel frequency  in KHZ */
+	bool vdev_active;
 	v_BOOL_t vdev_up;
 	u_int64_t tsfadjust;
 	void     *addBssStaContext;
+	/* Have a back up of arp offload req */
+	tSirHostOffloadReq arp_offload_req;
+	/* tSirHostOffloadReq of ns offload req */
+	tSirHostOffloadReq ns_offload_req;
 	tANI_U8 aid;
 	/* Robust Management Frame (RMF) enabled/disabled */
 	tANI_U8 rmfEnabled;
@@ -572,6 +612,12 @@ struct wma_txrx_node {
 	uint8_t wps_state;
 	uint8_t nss_2g;
 	uint8_t nss_5g;
+	uint32_t tx_aggregation_size;
+	uint32_t rx_aggregation_size;
+
+	uint8_t wep_default_key_idx;
+	bool is_vdev_valid;
+
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -659,6 +705,9 @@ typedef struct wma_handle {
 	v_U8_t lpss_support; /* LPSS feature is supported in target or not */
 #endif
 	uint8_t ap_arpns_support;
+#ifdef FEATURE_GREEN_AP
+	bool egap_support;
+#endif
 	bool wmi_ready;
 	u_int32_t wlan_init_status;
 	adf_os_device_t adf_dev;
@@ -721,10 +770,6 @@ typedef struct wma_handle {
 	u_int8_t no_of_suspend_ind;
 	u_int8_t no_of_resume_ind;
 
-	/* Have a back up of arp info to send along
-	 * with ns info suppose if ns also enabled
-	 */
-	tSirHostOffloadReq mArpInfo;
 	struct wma_tx_ack_work_ctx *ack_work_ctx;
 	u_int8_t powersave_mode;
 	v_BOOL_t ptrn_match_enable_all_vdev;
@@ -797,6 +842,7 @@ typedef struct wma_handle {
 #ifdef WLAN_FEATURE_NAN
 	bool is_nan_enabled;
 #endif
+	bool is_mib_enabled;
 
 	/* Powersave Configuration Parameters */
 	u_int8_t staMaxLIModDtim;
@@ -841,11 +887,22 @@ typedef struct wma_handle {
 	uint32_t wow_ipv6_mcast_ra_stats;
 	uint32_t wow_ipv6_mcast_ns_stats;
 	uint32_t wow_ipv6_mcast_na_stats;
+	uint32_t wow_icmpv4_count;
+	uint32_t wow_icmpv6_count;
+	uint32_t wow_oem_response_wake_up_count;
 	uint32_t wow_wakeup_enable_mask;
 	uint32_t wow_wakeup_disable_mask;
 	uint16_t max_mgmt_tx_fail_count;
+	uint32_t ccmp_replays_attack_cnt;
 
 	struct wma_runtime_pm_context runtime_context;
+	uint32_t fine_time_measurement_cap;
+	bool bpf_enabled;
+	bool pause_other_vdev_on_mcc_start;
+
+	/* NAN datapath support enabled in firmware */
+	bool nan_datapath_enabled;
+	tSirLLStatsResults *link_stats_results;
 }t_wma_handle, *tp_wma_handle;
 
 struct wma_target_cap {
@@ -1538,6 +1595,7 @@ typedef struct wma_tdls_params
 	tANI_U32    puapsd_inactivity_time;
 	tANI_U32    puapsd_rx_frame_threshold;
 	uint32_t    teardown_notification_ms;
+	uint32_t    tdls_peer_kickout_threshold;
 } t_wma_tdls_params;
 
 typedef struct {
@@ -1638,7 +1696,13 @@ A_UINT32 eCsrAuthType_to_rsn_authmode (eCsrAuthType authtype,
                                        eCsrEncryptionType encr);
 A_UINT32 eCsrEncryptionType_to_rsn_cipherset (eCsrEncryptionType encr);
 
-#define WMA_TGT_INVALID_SNR (-1)
+/*
+ * The firmware value has been changed recently to 0x127
+ * But, to maintain backward compatibility, the old
+ * value is also preserved.
+ */
+#define WMA_TGT_INVALID_SNR_OLD (-1)
+#define WMA_TGT_INVALID_SNR_NEW 0x127
 
 #define WMA_TX_Q_RECHECK_TIMER_WAIT      2    // 2 ms
 #define WMA_TX_Q_RECHECK_TIMER_MAX_WAIT  20   // 20 ms
@@ -1674,13 +1738,100 @@ static inline void wma_set_wifi_start_packet_stats(void *wma_handle,
 }
 #endif
 
+/* API's to enable HDD to suspsend FW.
+ * This are active only if Bus Layer aggreed to suspend.
+ * This will be called for only for SDIO driver, for others
+ * by default HIF return failure, as we suspend FW in bus
+ * suspend callbacks
+ */
+int wma_suspend_fw(void);
+int wma_resume_fw(void);
+
 void wma_send_flush_logs_to_fw(tp_wma_handle wma_handle);
 struct wma_txrx_node *wma_get_interface_by_vdev_id(uint8_t vdev_id);
 bool wma_is_vdev_up(uint8_t vdev_id);
+
+int wma_btc_set_bt_wlan_interval(tp_wma_handle wma_handle,
+			WMI_COEX_CONFIG_CMD_fixed_param *interval);
+
 
 int wma_crash_inject(tp_wma_handle wma_handle, uint32_t type,
 			uint32_t delay_time_ms);
 
 uint32_t wma_get_vht_ch_width(void);
+
+VOS_STATUS wma_get_wakelock_stats(struct sir_wake_lock_stats *wake_lock_stats);
+VOS_STATUS wma_set_tx_rx_aggregation_size
+	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
+
+/**
+ * wma_find_vdev_by_id() - Find vdev handle for given vdev id.
+ * @wma: WMA handle
+ * @vdev_id: vdev ID
+ * Return: Returns vdev handle if given vdev id is valid.
+ *         Otherwise returns NULL.
+ */
+static inline void *wma_find_vdev_by_id(tp_wma_handle wma, u_int8_t vdev_id)
+{
+	if (vdev_id > wma->max_bssid)
+		return NULL;
+
+	return wma->interfaces[vdev_id].handle;
+}
+
+/**
+ * wma_find_vdev_by_addr() - Find vdev handle for given vdev mac addr.
+ * @wma: WMA handle
+ * @addr: mac address of the vdev
+ * @vdev_id: out parameter to update with vdev ID
+ *
+ * Return: vdev handle if found NULL otherwise
+ */
+static inline void *wma_find_vdev_by_addr(tp_wma_handle wma, u_int8_t *addr,
+				   u_int8_t *vdev_id)
+{
+	u_int8_t i;
+
+	for (i = 0; i < wma->max_bssid; i++) {
+		if (vos_is_macaddr_equal(
+			(v_MACADDR_t *) wma->interfaces[i].addr,
+			(v_MACADDR_t *) addr) == VOS_TRUE) {
+			*vdev_id = i;
+			return wma->interfaces[i].handle;
+		}
+	}
+	return NULL;
+}
+
+
+int wmi_unified_vdev_set_param_send(wmi_unified_t wmi_handle, u_int32_t if_id,
+				u_int32_t param_id, u_int32_t param_value);
+
+void wma_set_bss_rate_flags(struct wma_txrx_node *iface,
+				tpAddBssParams add_bss);
+
+void wma_send_msg(tp_wma_handle wma_handle, u_int16_t msg_type,
+				void *body_ptr, u_int32_t body_val);
+
+/**
+ * struct wma_version_info - Store wmi version info
+ * @major: wmi major version
+ * @minor: wmi minor version
+ * @revision: wmi revision number
+ */
+struct wma_version_info {
+	u_int32_t major;
+	u_int32_t minor;
+	u_int32_t revision;
+};
+
+void wma_remove_peer(tp_wma_handle wma, u_int8_t *bssid,
+			u_int8_t vdev_id, ol_txrx_peer_handle peer,
+			v_BOOL_t roam_synch_in_progress);
+
+void wma_add_wow_wakeup_event(tp_wma_handle wma, WOW_WAKE_EVENT_TYPE event,
+			bool enable);
+WLAN_PHY_MODE wma_chan_to_mode(uint8_t chan, ePhyChanBondState chan_offset,
+		uint8_t vht_capable, uint8_t dot11_mode);
 
 #endif

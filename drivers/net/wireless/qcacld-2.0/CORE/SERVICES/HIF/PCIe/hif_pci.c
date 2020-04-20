@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -55,14 +55,13 @@
 #include "hif_pci.h"
 #include "vos_trace.h"
 #include "vos_api.h"
-#if  defined(CONFIG_CNSS)
-#include <net/cnss.h>
-#endif
+#include "vos_cnss.h"
 #include <vos_getBin.h>
 #include "epping_main.h"
 #ifdef CONFIG_PCI_MSM
 #include <linux/msm_pcie.h>
 #endif
+#include "adf_trace.h"
 
 /* use credit flow control over HTC */
 unsigned int htc_credit_flow = 1;
@@ -77,7 +76,7 @@ OSDRV_CALLBACKS HIF_osDrvcallback;
 #define HIF_PCI_IPA_UC_ASSIGNED_CE  5
 #endif /* IPA_UC_OFFLOAD */
 
-#if defined(DEBUG)
+#if defined(WLAN_DEBUG)
 static ATH_DEBUG_MASK_DESCRIPTION g_HIFDebugDescription[] = {
     {HIF_PCI_DEBUG,"hif_pci"},
 };
@@ -373,6 +372,10 @@ HIFSend_head(HIF_DEVICE *hif_device,
         return A_ERROR;
     }
 
+    NBUF_UPDATE_TX_PKT_COUNT(nbuf, NBUF_TX_PKT_HIF);
+    DPTRACE(adf_dp_trace(nbuf, ADF_DP_TRACE_HIF_PACKET_PTR_RECORD,
+                adf_nbuf_data_addr(nbuf),
+                sizeof(adf_nbuf_data(nbuf))));
     status = CE_sendlist_send(ce_hdl, nbuf, &sendlist, transfer_id);
     A_ASSERT(status == A_OK);
 
@@ -2352,7 +2355,7 @@ HIF_sleep_entry(void *arg)
 	struct hif_pci_softc *sc = hif_state->sc;
 	u_int32_t idle_ms;
 
-	if (vos_is_unload_in_progress(VOS_MODULE_ID_HIF, NULL))
+	if (vos_is_unload_in_progress())
 		return;
 
 	if (sc->recovery)
@@ -2860,9 +2863,7 @@ HIFTargetSleepStateAdjust(A_target_id_t targid,
                             VOS_BUG(0);
                     sc->recovery = true;
                     vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-#ifdef CONFIG_CNSS
-                    cnss_wlan_pci_link_down();
-#endif
+                    vos_wlan_pci_link_down();
                     return -EACCES;
                 }
 
@@ -3578,7 +3579,55 @@ void hif_runtime_pm_prevent_suspend_deinit(void *data)
 
 	adf_os_mem_free(context);
 }
+
+/**
+ * hif_pm_ssr_runtime_allow_suspend() - Release Runtime Context during SSR
+ * @sc: hif_pci context
+ * @context: runtime context
+ *
+ * API is used to release runtime pm context from prevent suspend list and
+ * reduce the usage count taken by the context and set the context state to
+ * false.
+ *
+ * Return: void
+ */
+void hif_pm_ssr_runtime_allow_suspend(struct hif_pci_softc *sc, void *context)
+{
+	__hif_pm_runtime_allow_suspend(sc, context);
+}
+
+/**
+ * hif_request_runtime_pm_resume() - API to do runtime resume
+ * @ol_sc: HIF context
+ *
+ * API to request runtime resume
+ *
+ * Return: void
+ */
+void hif_request_runtime_pm_resume(void *ol_sc)
+{
+	struct ol_softc *sc = (struct ol_softc *)ol_sc;
+	struct hif_pci_softc *hif_sc = sc->hif_sc;
+	struct device *dev = hif_sc->dev;
+
+	hif_pm_request_resume(dev);
+	hif_pm_runtime_mark_last_busy(dev);
+}
 #endif
+
+/**
+ * hif_is_80211_fw_wow_required() - API to check if target suspend is needed
+ *
+ * API determines if fw can be suspended and returns true/false to the caller.
+ * Caller will call WMA WoW API's to suspend.
+ * This API returns true only for SDIO bus types, for others it's a false.
+ *
+ * Return: bool
+ */
+bool hif_is_80211_fw_wow_required(void)
+{
+	return false;
+}
 
 /* hif_addr_in_boundary() - API to check if addr is with in PCIE BAR range
  * @hif_device:  context of cd

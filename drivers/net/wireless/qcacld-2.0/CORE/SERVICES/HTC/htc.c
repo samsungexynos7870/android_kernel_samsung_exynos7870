@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, 2015, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -36,9 +36,7 @@
 #include "epping_main.h"
 #include "htc_api.h"
 
-#define MAX_HTC_RX_BUNDLE  2
-
-#ifdef DEBUG
+#ifdef WLAN_DEBUG
 static ATH_DEBUG_MASK_DESCRIPTION g_HTCDebugDescription[] = {
     { ATH_DEBUG_SEND , "Send"},
     { ATH_DEBUG_RECV , "Recv"},
@@ -237,6 +235,7 @@ HTC_HANDLE HTCCreate(void *ol_sc, HTC_INIT_INFO *pInfo, adf_os_device_t osdev)
     adf_os_spinlock_init(&target->HTCRxLock);
     adf_os_spinlock_init(&target->HTCTxLock);
     adf_os_spinlock_init(&target->HTCCreditLock);
+    target->is_nodrop_pkt = FALSE;
 
     do {
         A_MEMCPY(&target->HTCInitInfo,pInfo,sizeof(HTC_INIT_INFO));
@@ -524,8 +523,6 @@ A_STATUS HTCWaitTarget(HTC_HANDLE HTCHandle)
     HTC_SERVICE_CONNECT_RESP resp;
     HTC_READY_MSG *rdy_msg;
     A_UINT16 htc_rdy_msg_id;
-    A_UINT8 i = 0;
-    HTC_PACKET *pRxBundlePacket, *pTempBundlePacket;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("HTCWaitTarget - Enter (target:0x%p) \n", HTCHandle));
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY, ("+HWT\n"));
@@ -580,20 +577,6 @@ A_STATUS HTCWaitTarget(HTC_HANDLE HTCHandle)
             status = A_ECOMM;
             break;
         }
-
-        /* Allocate expected number of RX bundle buffer allocation */
-        pTempBundlePacket = NULL;
-        for (i = 0; i < MAX_HTC_RX_BUNDLE; i++) {
-            pRxBundlePacket = AllocateHTCBundleRxPacket(target);
-            if (pRxBundlePacket != NULL) {
-                pRxBundlePacket->ListLink.pNext = (DL_LIST *)pTempBundlePacket;
-            } else {
-                break;
-            }
-            pTempBundlePacket = pRxBundlePacket;
-        }
-        target->pBundleFreeRxList = pTempBundlePacket;
-
             /* done processing */
         target->CtrlResponseProcessing = FALSE;
 
@@ -940,9 +923,6 @@ void HTCSetTargetToSleep(void *context)
     HIFSetTargetSleep(sc->hif_hdl, true, false);
 #endif
 #endif
-#elif defined(HIF_SDIO)
-    struct ol_softc *sc = (struct ol_softc *)context;
-    HIFSetTargetSleep(sc->hif_hdl, true, false);
 #endif
 }
 

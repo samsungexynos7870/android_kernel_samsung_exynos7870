@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -33,14 +33,13 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sd.h>
 #include <linux/kthread.h>
+#include "vos_cnss.h"
 #include "if_ath_sdio.h"
 #include "regtable.h"
 #include "vos_api.h"
-#include "vos_types.h"
 #include "wma_api.h"
 #include "hif_internal.h"
 #include "adf_os_time.h"
-#include "adf_os_defer.h"
 /* by default setup a bounce buffer for the data packets, if the underlying host controller driver
    does not use DMA you may be able to skip this step and save the memory allocation and transfer time */
 #define HIF_USE_DMA_BOUNCE_BUFFER 1
@@ -66,30 +65,6 @@
                 ((request->request & HIF_WRITE)&& \
                 (request->address >= 0x1000 && request->address < 0x1FFFF))
 #endif
-
-#ifdef CONFIG_CNSS_SDIO
-#include <net/cnss.h>
-#else
-typedef int (*oob_irq_handler_t) (void *dev_para);
-int cnss_wlan_query_oob_status(void)
-{
-    return -ENOSYS;
-}
-int cnss_wlan_register_oob_irq_handler(oob_irq_handler_t handler, void *pm_oob)
-{
-    return -ENOSYS;
-}
-int cnss_wlan_unregister_oob_irq_handler(void *pm_oob)
-{
-    return -ENOSYS;
-}
-#if 1 /* 20160327 AI 4 2 */
-int cnss_wlan_oob_shutdown(void)
-{
-	return -ENOSYS;
-}
-#endif /* 20160326 AI 4 2 */
-#endif
 unsigned int mmcbuswidth = 0;
 module_param(mmcbuswidth, uint, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mmcbuswidth, "Set MMC driver Bus Width: 1-1Bit, 4-4Bit, 8-8Bit");
@@ -111,7 +86,7 @@ MODULE_PARM_DESC(forcesleepmode, "Set sleep mode: 0-host capbility, 1-force WOW,
 /* Some laptop with JMicron SDIO host has compitable
  * issue with asyncintdelay value,
  * change default value to 2 */
-unsigned int asyncintdelay = 0;
+unsigned int asyncintdelay = 2;
 module_param(asyncintdelay, uint, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(asyncintdelay, "Delay clock count for aysnc interrupt, 2 is default, vaild values are 1 and 2");
 
@@ -218,6 +193,22 @@ static const struct sdio_device_id ar6k_id_table[] = {
     {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9377_BASE | 0xD))  },
     {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9377_BASE | 0xE))  },
     {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9377_BASE | 0xF))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x0))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x1))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x2))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x3))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x4))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x5))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x6))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x7))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x8))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0x9))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xA))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xB))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xC))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xD))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xE))  },
+    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_QCA9379_BASE | 0xF))  },
     /* TODO: just for compatible with old image which ManufacturerID is 0, should delete later */
     {  SDIO_DEVICE(MANUFACTURER_CODE, (0 | 0x0))  },
     {  SDIO_DEVICE(MANUFACTURER_CODE, (0 | 0x1))  },
@@ -226,6 +217,31 @@ static const struct sdio_device_id ar6k_id_table[] = {
 };
 MODULE_DEVICE_TABLE(sdio, ar6k_id_table);
 
+#if defined(CONFIG_CNSS) && defined(HIF_SDIO)
+static int hif_sdio_device_inserted(struct sdio_func *func, const struct sdio_device_id * id);
+static void hif_sdio_device_removed(struct sdio_func *func);
+static int hif_sdio_device_reinit(struct sdio_func *func, const struct sdio_device_id * id);
+static void hif_sdio_device_shutdown(struct sdio_func *func);
+static void hif_sdio_crash_shutdown(struct sdio_func *func);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
+static int hif_sdio_device_suspend(struct device *dev);
+static int hif_sdio_device_resume(struct device *dev);
+#endif
+
+static struct cnss_sdio_wlan_driver ar6k_driver = {
+	.name = "ar6k_wlan",
+	.id_table = ar6k_id_table,
+	.probe = hif_sdio_device_inserted,
+	.remove = hif_sdio_device_removed,
+	.reinit = hif_sdio_device_reinit,
+	.shutdown = hif_sdio_device_shutdown,
+	.crash_shutdown = hif_sdio_crash_shutdown,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
+	.suspend = hif_sdio_device_suspend,
+	.resume = hif_sdio_device_resume,
+#endif
+};
+#else
 static struct sdio_driver ar6k_driver = {
     .name = "ar6k_wlan",
     .id_table = ar6k_id_table,
@@ -247,6 +263,7 @@ static struct pm_ops ar6k_device_pm_ops = {
     .resume = hifDeviceResume,
 };
 #endif /* CONFIG_PM */
+#endif
 
 /* make sure we only unregister when registered. */
 static int registered = 0;
@@ -262,7 +279,7 @@ static void ResetAllCards(void);
 static A_STATUS hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func);
 static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func);
 
-#ifdef DEBUG
+#ifdef WLAN_DEBUG
 
 ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif,
                                  "hif",
@@ -273,6 +290,47 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif,
 
 #endif
 
+#if defined(CONFIG_CNSS) && defined(HIF_SDIO)
+static int hif_sdio_register_driver(OSDRV_CALLBACKS *callbacks)
+{
+	int status;
+	/* store the callback handlers */
+	osdrvCallbacks = *callbacks;
+
+	/* Register with bus driver core */
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: HIFInit registering\n"));
+	registered = 1;
+	status = cnss_sdio_wlan_register_driver(&ar6k_driver);
+	return status;
+}
+static void hif_sdio_unregister_driver(void)
+{
+	cnss_sdio_wlan_unregister_driver(&ar6k_driver);
+}
+#else
+static int hif_sdio_register_driver(OSDRV_CALLBACKS *callbacks)
+{
+	int status;
+	/* store the callback handlers */
+	osdrvCallbacks = *callbacks;
+
+	/* Register with bus driver core */
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: HIFInit registering\n"));
+	registered = 1;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
+	if (callbacks->deviceSuspendHandler && callbacks->deviceResumeHandler) {
+		ar6k_driver.drv.pm = &ar6k_device_pm_ops;
+	}
+#endif /* CONFIG_PM */
+
+	status = sdio_register_driver(&ar6k_driver);
+	return status;
+}
+static void hif_sdio_unregister_driver(void)
+{
+	sdio_unregister_driver(&ar6k_driver);
+}
+#endif
 
 /* ------ Functions ------ */
 A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks)
@@ -285,18 +343,8 @@ A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks)
     A_REGISTER_MODULE_DEBUG_INFO(hif);
 
     ENTER();
-    /* store the callback handlers */
-    osdrvCallbacks = *callbacks;
 
-    /* Register with bus driver core */
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: HIFInit registering\n"));
-    registered = 1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
-    if (callbacks->deviceSuspendHandler && callbacks->deviceResumeHandler) {
-        ar6k_driver.drv.pm = &ar6k_device_pm_ops;
-    }
-#endif /* CONFIG_PM */
-    status = sdio_register_driver(&ar6k_driver);
+    status = hif_sdio_register_driver(callbacks);
     AR_DEBUG_ASSERT(status==0);
 
     if (status != 0) {
@@ -309,13 +357,6 @@ A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks)
     return A_OK;
 }
 
-extern int g_force_hang;
-int g_avoid_command = 0;
-
-#define HIF_MAX_ADDRESS_LOG        512
-A_UINT32 gaddress_log[HIF_MAX_ADDRESS_LOG];
-A_UINT32 gaddress_log_idx = 0;
-
 static A_STATUS
 __HIFReadWrite(HIF_DEVICE *device,
              A_UINT32 address,
@@ -326,12 +367,9 @@ __HIFReadWrite(HIF_DEVICE *device,
 {
     A_UINT8 opcode;
     A_STATUS    status = A_OK;
-    int ret = 0;
+    int     ret;
     A_UINT8 *tbuffer;
     A_BOOL   bounced = FALSE;
-
-    if (g_force_hang && g_avoid_command)
-        return A_OK;
 
     if (device == NULL || device->func == NULL)
         return A_ERROR;
@@ -340,11 +378,6 @@ __HIFReadWrite(HIF_DEVICE *device,
                     length,
                     request & HIF_READ ? "Read " : "Write",
                     request & HIF_ASYNCHRONOUS ? "Async" : "Sync "));
-
-    gaddress_log[gaddress_log_idx] = address;
-    gaddress_log_idx = (gaddress_log_idx + 1) & (HIF_MAX_ADDRESS_LOG - 1);
-    if (address == 0)
-           panic("Host should never send address 0 to target!\n");
 
     do {
         if (request & HIF_EXTENDED_IO) {
@@ -457,20 +490,23 @@ __HIFReadWrite(HIF_DEVICE *device,
 #else
             tbuffer = buffer;
 #endif
-	    if (tbuffer != NULL) {
+            if (tbuffer != NULL) {
                 if (opcode == CMD53_FIXED_ADDRESS) {
                     ret = sdio_writesb(device->func, address, tbuffer, length);
-                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: writesb ret=%d address: 0x%X, len: %d, 0x%X\n",
+                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+                              ("AR6000: writesb ret=%d address: 0x%X, len: %d, 0x%X\n",
                               ret, address, length, *(int *)tbuffer));
                 } else {
                     ret = sdio_memcpy_toio(device->func, address, tbuffer, length);
-                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: writeio ret=%d address: 0x%X, len: %d, 0x%X\n",
+                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+                              ("AR6000: writeio ret=%d address: 0x%X, len: %d, 0x%X\n",
                               ret, address, length, *(int *)tbuffer));
                 }
-	    } else {
+            } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: tbuffer is NULL"));
-		status = A_ERROR;
-	    }
+                status = A_ERROR;
+                break;
+            }
         } else if (request & HIF_READ) {
 #if HIF_USE_DMA_BOUNCE_BUFFER
             if (BUFFER_NEEDS_BOUNCE(buffer) && device->dma_buffer != NULL) {
@@ -489,7 +525,7 @@ __HIFReadWrite(HIF_DEVICE *device,
 #else
             tbuffer = buffer;
 #endif
-	    if (tbuffer != NULL) {
+            if (tbuffer != NULL) {
                 if (opcode == CMD53_FIXED_ADDRESS) {
                     ret = sdio_readsb(device->func, tbuffer, address, length);
                     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
@@ -528,45 +564,7 @@ __HIFReadWrite(HIF_DEVICE *device,
                             request & HIF_READ ? "Read " : "Write",
                             request & HIF_ASYNCHRONOUS ? "Async" : "Sync "));
             status = A_ERROR;
-#if 1 /* 20160327 AI 4 2 */
-			{
-				extern void hdd_send_hang_event(int event);
-				extern tVOS_CON_MODE vos_get_conparam(void); 
-				if (ret == -ENOTRECOVERABLE || ret == -EIO || ret == -ENOMEDIUM || ret == -EILSEQ) {
-					if (cnss_wlan_query_oob_status()) {
-						/* hang but we will not use inband irq on S.SLI platform */
-					} else {
-						cnss_wlan_oob_shutdown();
-						cnss_wlan_force_ldo_reset();
-						if (vos_get_conparam() != VOS_FTM_MODE) {
-							if (ret == -EILSEQ)
-								hdd_send_hang_event(76);
-							else
-								hdd_send_hang_event(77);
-						}
-					}
-					g_force_hang = 1;
-					g_avoid_command = 1;
-				}
-			}
-#endif /* 20160326 AI 4 */
         }
-#if 1 /* 20160327 AI 4 2 */
-		else {
-			extern void hdd_send_hang_event(int event);
-			if (g_force_hang) {
-				if (cnss_wlan_query_oob_status()) {
-					/* hang but we will not use inband irq on S.SLI platform */
-				} else {
-					cnss_wlan_oob_shutdown();
-					cnss_wlan_force_ldo_reset();
-					hdd_send_hang_event(77);
-					g_avoid_command = 1;
-				}
-				status = A_ERROR;
-			}
-		}
-#endif /* 20160327 AI 4 2 */
     } while (FALSE);
 
     return status;
@@ -690,267 +688,266 @@ HIFReadWrite(HIF_DEVICE *device,
     return status;
 }
 
-#if 1 // by bbelief
 /**
-    * _hif_free_bus_request() - Free the bus access request
-    * @device:    device handle.
-    * @request:   bus access request. 
-    * 
-    * This is the legacy method to handle an asynchronous bus request.
-    * 
-    * Return: None. 
-    */ 
-   static inline void _hif_free_bus_request(HIF_DEVICE *device,
-					BUS_REQUEST *request)
-   { 
-   A_STATUS status = request->status;
-   void *context = request->context; 
-    
-   AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, 
-   ("AR6000: async_task freeing req: 0x%lX\n",
-   (unsigned long)request)); 
-   hifFreeBusRequest(device, request);
-   AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, 
-   ("AR6000: async_task completion routine req: 0x%lX\n",
-   (unsigned long)request)); 
-   device->htcCallbacks.rwCompletionHandler(context, status); 
-   } 
-    
-   #ifdef TX_COMPLETION_THREAD 
+ * _hif_free_bus_request() - Free the bus access request
+ * @device:    device handle.
+ * @request:   bus access request.
+ *
+ * This is the legacy method to handle an asynchronous bus request.
+ *
+ * Return: None.
+ */
+static inline void _hif_free_bus_request(HIF_DEVICE *device,
+				BUS_REQUEST *request)
+{
+	A_STATUS status = request->status;
+	void *context = request->context;
 
-   /** 
-    * add_to_tx_completion_list() - Queue a TX completion handler 
-    * @device:    context to the hif device. 
-    * @tx_comple: SDIO bus access request. 
-    * 
-    * This function adds an sdio bus access request to the 
-    * TX completion list. 
-    * 
-    * Return: No return. 
-    */ 
-   static void add_to_tx_completion_list(HIF_DEVICE *device,
-	BUS_REQUEST *tx_comple) 
-   { 
-unsigned long flags; 
-    
-spin_lock_irqsave(&device->tx_completion_lock, flags);
-tx_comple->inusenext = NULL; 
-*device->last_tx_completion = tx_comple;
-device->last_tx_completion = &tx_comple->inusenext;
-spin_unlock_irqrestore(&device->tx_completion_lock, flags);
-   } 
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+		("AR6000: async_task freeing req: 0x%lX\n",
+		(unsigned long)request));
+	hifFreeBusRequest(device, request);
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+		("AR6000: async_task completion routine req: 0x%lX\n",
+		(unsigned long)request));
+	device->htcCallbacks.rwCompletionHandler(context, status);
+}
 
+#ifdef TX_COMPLETION_THREAD
+/**
+ * add_to_tx_completion_list() - Queue a TX completion handler
+ * @device:    context to the hif device.
+ * @tx_comple: SDIO bus access request.
+ *
+ * This function adds an sdio bus access request to the
+ * TX completion list.
+ *
+ * Return: No return.
+ */
+static void add_to_tx_completion_list(HIF_DEVICE *device,
+		BUS_REQUEST *tx_comple)
+{
+	unsigned long flags;
 
-   /** 
-    * tx_clean_completion_list() - Clean the TX completion request list
-    * @device:  HIF device handle. 
-    * 
-    * Function to clean the TX completion list.
-    * 
-    * Return: No 
-    */ 
-   static void tx_clean_completion_list(HIF_DEVICE *device) 
-   { 
-unsigned long flags;
-BUS_REQUEST *comple;
-BUS_REQUEST *request; 
-    
-spin_lock_irqsave(&device->tx_completion_lock, flags); 
-request = device->tx_completion_req; 
-device->tx_completion_req = NULL; 
-device->last_tx_completion = &device->tx_completion_req;
-spin_unlock_irqrestore(&device->tx_completion_lock, flags);
-    
-while (request != NULL) { 
-comple = request->inusenext;
-_hif_free_bus_request(device, request);
-request = comple;
-} 
-    
-   } 
-    
-   /** 
-    * tx_completion_task() - Thread to process TX completion
-    * @param:   context to the hif device. 
-    * 
-    * This is the TX completion thread.
-    * 
-    * Once TX completion message is received, completed TX 
-    * request will be queued in a tx_comple list and processed 
-    * in this thread. 
-    * 
-    * Return: 0 thread exits 
-    */ 
-   static int tx_completion_task(void *param) 
-   { 
-HIF_DEVICE *device; 
-    
-device = (HIF_DEVICE *)param;
-AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: tx completion task\n")); 
-set_current_state(TASK_INTERRUPTIBLE); 
-    
-while (!device->tx_completion_shutdown) { 
-if (down_interruptible(&device->sem_tx_completion) != 0) {
-AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, 
-("%s: tx completion task interrupted\n",
-__func__)); 
-break; 
-} 
-    
-if (device->tx_completion_shutdown) {
-AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, 
-("%s: tx completion task stopping\n",
-__func__)); 
-break; 
-} 
-    
-tx_clean_completion_list(device);
-} 
-    
-tx_clean_completion_list(device); 
-complete_and_exit(&device->tx_completion_exit, 0);
-return 0; 
-   } 
-    
-   /** 
-    * tx_completion_sem_init() - initialize tx completion semaphore
-    * @device:  device handle. 
-    * 
-    * Initialize semaphore for TX completion thread's synchronization. 
-    * 
-    * Return: None. 
-    */ 
-   static inline void tx_completion_sem_init(HIF_DEVICE *device) 
-   { 
-sema_init(&device->sem_tx_completion, 0); 
-   } 
-    
-   /** 
-    * hif_free_bus_request() - Function to free bus requests 
-    * @device:    device handle. 
-    * @request:   SIDO bus access request.
-    * 
-    * If there is an completion thread, all the completed bus access requests
-    * will be queued in a completion list. Otherwise, the legacy handler will
-    * be called.
-    * 
-    * Return: None.
-    */ 
-   static inline void hif_free_bus_request(HIF_DEVICE *device,
-BUS_REQUEST *request) 
-   { 
-if (!device->tx_completion_shutdown) {
-add_to_tx_completion_list(device, request);
-up(&device->sem_tx_completion);
-} else { 
-_hif_free_bus_request(device, request);
-} 
-   }
-    
-   /** 812 
-    * hif_start_tx_completion_thread() - Create and start the TX compl thread 813 
-    * @device:   device handle. 814 
-    * 815 
-    * This function will create the tx completion thread. 816 
-    * 817 
-    * Return: A_OK     thread created. 818 
-    *         A_ERROR  thread not created. 819 
-    */ 
-   static inline int hif_start_tx_completion_thread(HIF_DEVICE *device)
-   { 
-if (!device->tx_completion_task) {
-device->tx_completion_req = NULL;
-device->last_tx_completion = &device->tx_completion_req;
-device->tx_completion_shutdown = 0;
-device->tx_completion_task = kthread_create(tx_completion_task,
-(void *)device,"AR6K TxCompletion");
-if (IS_ERR(device->tx_completion_task)) {
-device->tx_completion_shutdown = 1;
-AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
-("AR6000: fail to create tx_comple task\n"));
-device->tx_completion_task = NULL;
-return A_ERROR; 
-} 
-AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-("AR6000: start tx_comple task\n"));
-wake_up_process(device->tx_completion_task);
-} 
-return A_OK; 
-   }
-    
-   /* 843 
-    * hif_stop_tx_completion_thread() - Destroy the tx compl thread 844 
-    * @device: device handle. 845 
-    * 846 
-    * This function will destroy the TX completion thread. 847 
-    * 848 
-    * Return: None. 849 
-    */ 
-   static inline void hif_stop_tx_completion_thread(HIF_DEVICE *device)
-   { 
-if (device->tx_completion_task) {
-init_completion(&device->tx_completion_exit); 
-device->tx_completion_shutdown = 1;
-up(&device->sem_tx_completion);
-wait_for_completion(&device->tx_completion_exit); 
-device->tx_completion_task = NULL; 
-sema_init(&device->sem_tx_completion, 0);
-} 
-   }
-    
-   #else
-    
-   /** 865 
-    * tx_completion_sem_init() - Dummy func to initialize semaphore 866 
-    * @device: device handle. 867 
-    * 868 
-    * This is a dummy function when TX compl thread is not created. 869 
-    * 870 
-    * Return: None. 871 
-    */ 
-   static inline void tx_completion_sem_init(HIF_DEVICE *device)
-   {
-   }
-    
-   /** 
-    * hif_free_bus_request() - Free the bus access request 878 
-    * @device:    device handle. 879 
-    * @request:   bus access request. 880 
-    * 881 
-    * Just call the legacy handler when there is no additional completion thread. 882 
-    * 883 
-    * Return: None. 884 
-    */ 
-   static inline void hif_free_bus_request(HIF_DEVICE *device, 
-   BUS_REQUEST *request)
-   { 
-   _hif_free_bus_request(device, request); 
-   } 
-    
-   /** 
-    * hif_start_tx_completion_thread() - Dummy function to start tx_compl thread. 893 
-    * @device:   device handle. 894 
-    * 895 
-    * Dummy function when tx completion thread is not created. 896 
-    * 897 
-    * Return: None. 898 
-    */ 
-   static inline void hif_start_tx_completion_thread(HIF_DEVICE *device) 
-   { 
-   } 
-    
-   /** 904 
-    * hif_stop_tx_completion_thread() - Dummy function to stop tx_compl thread. 905 
-    * @device:   device handle. 906 
-    * 907 
-    * Dummy function when tx conpletion thread is not created. 908 
-    * 909 
-    * Return: None. 910 
-    */ 
-   static inline void hif_stop_tx_completion_thread(HIF_DEVICE *device) 
-   { 
-   } 
-   #endif 
+	spin_lock_irqsave(&device->tx_completion_lock, flags);
+	tx_comple->inusenext = NULL;
+	*device->last_tx_completion = tx_comple;
+	device->last_tx_completion = &tx_comple->inusenext;
+	spin_unlock_irqrestore(&device->tx_completion_lock, flags);
+}
+
+/**
+ * tx_clean_completion_list() - Clean the TX completion request list
+ * @device:  HIF device handle.
+ *
+ * Function to clean the TX completion list.
+ *
+ * Return: No
+ */
+static void tx_clean_completion_list(HIF_DEVICE *device)
+{
+	unsigned long flags;
+	BUS_REQUEST *comple;
+	BUS_REQUEST *request;
+
+	spin_lock_irqsave(&device->tx_completion_lock, flags);
+	request = device->tx_completion_req;
+	device->tx_completion_req = NULL;
+	device->last_tx_completion = &device->tx_completion_req;
+	spin_unlock_irqrestore(&device->tx_completion_lock, flags);
+
+	while (request != NULL) {
+		comple = request->inusenext;
+		_hif_free_bus_request(device, request);
+		request = comple;
+	}
+
+}
+
+/**
+ * tx_completion_task() - Thread to process TX completion
+ * @param:   context to the hif device.
+ *
+ * This is the TX completion thread.
+ *
+ * Once TX completion message is received, completed TX
+ * request will be queued in a tx_comple list and processed
+ * in this thread.
+ *
+ * Return: 0 thread exits
+ */
+static int tx_completion_task(void *param)
+{
+	HIF_DEVICE *device;
+
+	device = (HIF_DEVICE *)param;
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: tx completion task\n"));
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	while (!device->tx_completion_shutdown) {
+		if (down_interruptible(&device->sem_tx_completion) != 0) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+				("%s: tx completion task interrupted\n",
+				 __func__));
+			break;
+		}
+
+		if (device->tx_completion_shutdown) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+				("%s: tx completion task stopping\n",
+				 __func__));
+			break;
+		}
+
+		while (device->tx_completion_req != NULL)
+			tx_clean_completion_list(device);
+	}
+
+	while (device->tx_completion_req != NULL)
+		tx_clean_completion_list(device);
+
+	complete_and_exit(&device->tx_completion_exit, 0);
+	return 0;
+}
+
+/**
+ * tx_completion_sem_init() - initialize tx completion semaphore
+ * @device:  device handle.
+ *
+ * Initialize semaphore for TX completion thread's synchronization.
+ *
+ * Return: None.
+ */
+static inline void tx_completion_sem_init(HIF_DEVICE *device)
+{
+	sema_init(&device->sem_tx_completion, 0);
+}
+
+/**
+ * hif_free_bus_request() - Function to free bus requests
+ * @device:    device handle.
+ * @request:   SIDO bus access request.
+ *
+ * If there is an completion thread, all the completed bus access requests
+ * will be queued in a completion list. Otherwise, the legacy handler will
+ * be called.
+ *
+ * Return: None.
+ */
+static inline void hif_free_bus_request(HIF_DEVICE *device,
+			BUS_REQUEST *request)
+{
+	if (!device->tx_completion_shutdown) {
+		add_to_tx_completion_list(device, request);
+		up(&device->sem_tx_completion);
+	} else {
+		_hif_free_bus_request(device, request);
+	}
+}
+
+/**
+ * hif_start_tx_completion_thread() - Create and start the TX compl thread
+ * @device:   device handle.
+ *
+ * This function will create the tx completion thread.
+ *
+ * Return: A_OK     thread created.
+ *         A_ERROR  thread not created.
+ */
+static inline int hif_start_tx_completion_thread(HIF_DEVICE *device)
+{
+	if (!device->tx_completion_task) {
+		device->tx_completion_req = NULL;
+		device->last_tx_completion = &device->tx_completion_req;
+		device->tx_completion_shutdown = 0;
+		device->tx_completion_task = kthread_create(tx_completion_task,
+			(void *)device,	"AR6K TxCompletion");
+		if (IS_ERR(device->tx_completion_task)) {
+			device->tx_completion_shutdown = 1;
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+			("AR6000: fail to create tx_comple task\n"));
+			device->tx_completion_task = NULL;
+			return A_ERROR;
+		}
+		AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+			("AR6000: start tx_comple task\n"));
+		wake_up_process(device->tx_completion_task);
+	}
+	return A_OK;
+}
+
+/*
+ * hif_stop_tx_completion_thread() - Destroy the tx compl thread
+ * @device: device handle.
+ *
+ * This function will destroy the TX completion thread.
+ *
+ * Return: None.
+ */
+static inline void hif_stop_tx_completion_thread(HIF_DEVICE *device)
+{
+	if (device->tx_completion_task) {
+		init_completion(&device->tx_completion_exit);
+		device->tx_completion_shutdown = 1;
+		up(&device->sem_tx_completion);
+		wait_for_completion(&device->tx_completion_exit);
+		device->tx_completion_task = NULL;
+		sema_init(&device->sem_tx_completion, 0);
+	}
+}
+
+#else
+
+/**
+ * tx_completion_sem_init() - Dummy func to initialize semaphore
+ * @device: device handle.
+ *
+ * This is a dummy function when TX compl thread is not created.
+ *
+ * Return: None.
+ */
+static inline void tx_completion_sem_init(HIF_DEVICE *device)
+{
+}
+
+/**
+ * hif_free_bus_request() - Free the bus access request
+ * @device:    device handle.
+ * @request:   bus access request.
+ *
+ * Just call the legacy handler when there is no additional completion thread.
+ *
+ * Return: None.
+ */
+static inline void hif_free_bus_request(HIF_DEVICE *device,
+			BUS_REQUEST *request)
+{
+	_hif_free_bus_request(device, request);
+}
+
+/**
+ * hif_start_tx_completion_thread() - Dummy function to start tx_compl thread.
+ * @device:   device handle.
+ *
+ * Dummy function when tx completion thread is not created.
+ *
+ * Return: None.
+ */
+static inline void hif_start_tx_completion_thread(HIF_DEVICE *device)
+{
+}
+
+/**
+ * hif_stop_tx_completion_thread() - Dummy function to stop tx_compl thread.
+ * @device:   device handle.
+ *
+ * Dummy function when tx conpletion thread is not created.
+ *
+ * Return: None.
+ */
+static inline void hif_stop_tx_completion_thread(HIF_DEVICE *device)
+{
+}
 #endif
 
 /* thread to serialize all requests, both sync and async */
@@ -1020,16 +1017,8 @@ static int async_task(void *param)
                 status = __HIFReadWrite(device, request->address, request->buffer,
                                       request->length, request->request & ~HIF_SYNCHRONOUS, NULL);
                 if (request->request & HIF_ASYNCHRONOUS) {
-#if 0 // by bbelief				
-                    void *context = request->context;
-                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: async_task freeing req: 0x%lX\n", (unsigned long)request));
-                    hifFreeBusRequest(device, request);
-                    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: async_task completion routine req: 0x%lX\n", (unsigned long)request));
-                    device->htcCallbacks.rwCompletionHandler(context, status);
-#else
-					request->status = status;
-					hif_free_bus_request(device, request);
-#endif					
+                    request->status = status;
+                    hif_free_bus_request(device, request);
                 } else {
                     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: async_task upping req: 0x%lX\n", (unsigned long)request));
                     request->status = status;
@@ -1215,7 +1204,9 @@ static int SdioEnable4bits(HIF_DEVICE *device,  int enable)
             setAsyncIRQ = 1;
             ret = Func0_CMD52WriteByte(func->card, CCCR_SDIO_IRQ_MODE_REG_AR6003,
                     enable ? SDIO_IRQ_MODE_ASYNC_4BIT_IRQ_AR6003 : 0);
-        } else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE || manufacturer_id == MANUFACTURER_ID_QCA9377_BASE) {
+        } else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE ||
+                   manufacturer_id == MANUFACTURER_ID_QCA9377_BASE ||
+                   manufacturer_id == MANUFACTURER_ID_QCA9379_BASE ) {
             unsigned char data = 0;
             setAsyncIRQ = 1;
             ret = Func0_CMD52ReadByte(func->card, CCCR_SDIO_IRQ_MODE_REG_AR6320, &data);
@@ -1401,7 +1392,7 @@ HIFShutDownDevice(HIF_DEVICE *device)
             registered = 0;
             AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
                             ("AR6000: Unregistering with the bus driver\n"));
-            sdio_unregister_driver(&ar6k_driver);
+            hif_sdio_unregister_driver();
             AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
                             ("AR6000: Unregistered!"));
         }
@@ -1436,26 +1427,28 @@ hifIRQHandler(struct sdio_func *func)
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifIRQHandler\n"));
 }
 
-static int
-hifOOBIRQHandler(void *dev_para)
+/**
+ * hif_oob_irq_handler() - irq handler for OOB
+ * @dev_para: SDIO function devices.
+ *
+ * This is the SDIO OOB interrupt handler.
+ * A GPIO pin is used as an out-of-band interrupt source to gain
+ * better performance,
+ *
+ * Return: None.
+ */
+static void hif_oob_irq_handler(void *dev_para)
 {
-    A_STATUS status;
-    HIF_DEVICE *device;
-    struct sdio_func *func = (struct sdio_func*)dev_para;
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifOOBIRQHandler\n"));
+	A_STATUS status;
+	HIF_DEVICE *device;
 
-    device = getHifDevice(func);
-        if (device->wow_maskInt == TRUE)
-            return A_FAKE_WOW_ERROR;
-    atomic_set(&device->irqHandling, 1);
-    /* release the host during ints so we can pick it back up when we process cmds */
-    status = device->htcCallbacks.dsrHandler(device->htcCallbacks.context);
-	if (device->tg_ready == FALSE)
-		msleep(10);
-    atomic_set(&device->irqHandling, 0);
-    AR_DEBUG_ASSERT(status == A_OK || status == A_ECANCELED);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifOOBIRQHandler\n"));
-        return status;
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hif_oob_irq_handler\n"));
+	device = getHifDevice(dev_para);
+	atomic_set(&device->irqHandling, 1);
+	status = device->htcCallbacks.dsrHandler(device->htcCallbacks.context);
+	atomic_set(&device->irqHandling, 0);
+	AR_DEBUG_ASSERT(status == A_OK || status == A_ECANCELED);
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hif_oob_irq_handler\n"));
 }
 
 #ifdef HIF_MBOX_SLEEP_WAR
@@ -1510,6 +1503,39 @@ HIFSetMboxSleep(HIF_DEVICE *device, bool sleep, bool wait, bool cache)
 }
 #endif
 
+/* handle HTC startup via thread*/
+static int startup_task(void *param)
+{
+    HIF_DEVICE *device;
+
+    device = (HIF_DEVICE *)param;
+    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: call HTC from startup_task\n"));
+        /* start  up inform DRV layer */
+    if ((osdrvCallbacks.deviceInsertedHandler(osdrvCallbacks.context,device)) != A_OK) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: Device rejected\n"));
+    }
+    return 0;
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
+static int enable_task(void *param)
+{
+    HIF_DEVICE *device;
+    device = (HIF_DEVICE *)param;
+    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: call  from resume_task\n"));
+
+        /* start  up inform DRV layer */
+    if (device &&
+        device->claimedContext &&
+        osdrvCallbacks.devicePowerChangeHandler &&
+        osdrvCallbacks.devicePowerChangeHandler(device->claimedContext, HIF_DEVICE_POWER_UP) != A_OK)
+    {
+        AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: Device rejected\n"));
+    }
+
+    return 0;
+}
+#endif
 static int hifDeviceInserted(struct sdio_func *func, const struct sdio_device_id *id)
 {
     int i;
@@ -1783,9 +1809,7 @@ TODO: MMC SDIO3.0 Setting should also be modified in ReInit() function when Powe
             hifFreeBusRequest(device, &device->busRequest[count]);
         }
         sema_init(&device->sem_async, 0);
-#if 1 // by bbelief
-		tx_completion_sem_init(device);
-#endif		
+        tx_completion_sem_init(device);
     }
 #ifdef HIF_MBOX_SLEEP_WAR
     adf_os_timer_init(NULL, &device->sleep_timer,
@@ -1797,6 +1821,7 @@ TODO: MMC SDIO3.0 Setting should also be modified in ReInit() function when Powe
     ret = hifEnableFunc(device, func);
     return (ret == A_OK || ret == A_PENDING) ? 0 : -1;
 }
+
 
 void
 HIFAckInterrupt(HIF_DEVICE *device)
@@ -1826,10 +1851,11 @@ HIFUnMaskInterrupt(HIF_DEVICE *device)
     }
     /* Register the IRQ Handler */
     sdio_claim_host(device->func);
-    if (cnss_wlan_query_oob_status())
+    if (false == vos_oob_enabled())
         ret = sdio_claim_irq(device->func, hifIRQHandler);
     else
-        ret = cnss_wlan_register_oob_irq_handler(hifOOBIRQHandler, device->func);
+        ret = vos_register_oob_irq_handler(hif_oob_irq_handler,
+                                device->func);
     sdio_release_host(device->func);
     AR_DEBUG_ASSERT(ret == 0);
     EXIT();
@@ -1851,10 +1877,10 @@ void HIFMaskInterrupt(HIF_DEVICE *device)
         sdio_claim_host(device->func);
     }
 
-    if (cnss_wlan_query_oob_status())
+    if (false == vos_oob_enabled())
         ret = sdio_release_irq(device->func);
     else
-        ret = cnss_wlan_unregister_oob_irq_handler(device->func);
+        ret = vos_unregister_oob_irq_handler(device->func);
 
     sdio_release_host(device->func);
     if (ret) {
@@ -1917,11 +1943,9 @@ static A_STATUS hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func)
 
     ENTER();
     device = getHifDevice(func);
-	
-#if 1 // by bbelief
-	hif_stop_tx_completion_thread(device);
-#endif
-	
+
+    hif_stop_tx_completion_thread(device);
+
     if (device->async_task) {
         init_completion(&device->async_completion);
         device->async_shutdown = 1;
@@ -1970,6 +1994,9 @@ static A_STATUS hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func)
 
 static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
 {
+    struct task_struct* pTask;
+    const char *taskName = NULL;
+    int (*taskFunc)(void *) = NULL;
     int ret = A_OK;
 
     ENTER("sdio_func 0x%p", func);
@@ -1988,7 +2015,8 @@ static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
             ret = Func0_CMD52WriteByte(func->card, CCCR_SDIO_IRQ_MODE_REG_AR6003,
                     SDIO_IRQ_MODE_ASYNC_4BIT_IRQ_AR6003);
         } else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE ||
-                   manufacturer_id == MANUFACTURER_ID_QCA9377_BASE) {
+                   manufacturer_id == MANUFACTURER_ID_QCA9377_BASE ||
+                   manufacturer_id == MANUFACTURER_ID_QCA9379_BASE) {
             unsigned char data = 0;
             setAsyncIRQ = 1;
             ret = Func0_CMD52ReadByte(func->card, CCCR_SDIO_IRQ_MODE_REG_AR6320, &data);
@@ -2069,10 +2097,8 @@ static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
             return A_ERROR;
         }
         device->is_disabled = FALSE;
-		
-#if 1 // by bbelief
-		hif_start_tx_completion_thread(device);
-#endif		
+        hif_start_tx_completion_thread(device);
+
         /* create async I/O thread */
         if (!device->async_task) {
             device->async_shutdown = 0;
@@ -2090,29 +2116,23 @@ static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
     }
 
     if (!device->claimedContext) {
+        taskFunc = startup_task;
+        taskName = "AR6K startup";
         ret = A_OK;
-		AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-            ("AR6k: call deviceInsertedHandler\n"));
-        ret = osdrvCallbacks.deviceInsertedHandler(
-            osdrvCallbacks.context,device);
-        /* start  up inform DRV layer */
-        if (ret != A_OK)
-            AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-                ("AR6k: Device rejected error:%d \n", ret));
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
     } else {
-        AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-             ("AR6k: call devicePwrChangeApi\n"));
-        /* start  up inform DRV layer */
-        if (device &&
-            device->claimedContext &&
-            osdrvCallbacks.devicePowerChangeHandler &&
-            ((ret = osdrvCallbacks.devicePowerChangeHandler(
-                  device->claimedContext, HIF_DEVICE_POWER_UP)) != A_OK))
-                AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-                    ("AR6k: Device rejected error:%d \n", ret));
+        taskFunc = enable_task;
+        taskName = "AR6K enable";
+        ret = A_PENDING;
 #endif /* CONFIG_PM */
     }
+    /* create resume thread */
+    pTask = kthread_create(taskFunc, (void *)device, taskName);
+    if (IS_ERR(pTask)) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: %s(), to create enabel task\n", __FUNCTION__));
+        return A_ERROR;
+    }
+    wake_up_process(pTask);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifEnableFunc\n"));
 
     /* task will call the enable func, indicate pending */
@@ -2272,18 +2292,6 @@ static int hifDeviceSuspend(struct device *dev)
                 return ret;
             }
 
-            if (wma_is_wow_mode_selected(temp_module)) {
-                if (wma_enable_wow_in_fw(temp_module, 0)) {
-                    AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("wow mode failure\n"));
-                    return -1;
-                }
-            } else {
-                if (wma_suspend_target(temp_module, 0)) {
-                   AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("PDEV Suspend Failed\n"));
-                   return -1;
-                }
-            }
-
             if (pm_flag & MMC_PM_WAKE_SDIO_IRQ){
                 AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("hifDeviceSuspend: wow enter\n"));
                 config = HIF_DEVICE_POWER_DOWN;
@@ -2301,7 +2309,6 @@ static int hifDeviceSuspend(struct device *dev)
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: set sdio pm flags MMC_PM_WAKE_SDIO_IRQ failed: %d\n",ret));
                     return ret;
                 }
-                device->wow_maskInt = TRUE;
                 HIFMaskInterrupt(device);
                 device->DeviceState = HIF_DEVICE_STATE_WOW;
                 AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("hifDeviceSuspend: wow success\n"));
@@ -2319,7 +2326,6 @@ static int hifDeviceSuspend(struct device *dev)
                  * But before adding finishe callback function to these handler, sleep wait is a simple method.
                  */
                 msleep(100);
-                device->wow_maskInt = TRUE;
                 HIFMaskInterrupt(device);
                 device->DeviceState = HIF_DEVICE_STATE_DEEPSLEEP;
                 AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("hifDeviceSuspend: deep sleep success\n"));
@@ -2365,9 +2371,6 @@ static int hifDeviceResume(struct device *dev)
     void *vos = vos_get_global_context(VOS_MODULE_ID_HIF, NULL);
     v_VOID_t * temp_module;
 
-    if (g_force_hang) 
-        return 0; 
-
     if (vos == NULL)
         return 0;
 
@@ -2395,7 +2398,6 @@ static int hifDeviceResume(struct device *dev)
         }
     }
     else if(device->DeviceState == HIF_DEVICE_STATE_DEEPSLEEP){
-        device->wow_maskInt = FALSE;
         HIFUnMaskInterrupt(device);
 //        hifRestartAllVap((struct ol_ath_softc_net80211 *)device->claimedContext);
     }
@@ -2411,7 +2413,6 @@ static int hifDeviceResume(struct device *dev)
           return status;
         }
         /*TODO:WOW support*/
-        device->wow_maskInt = FALSE;
         HIFUnMaskInterrupt(device);
     }
 
@@ -2425,14 +2426,6 @@ static int hifDeviceResume(struct device *dev)
     if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
         status = osdrvCallbacks.deviceResumeHandler(device->claimedContext);
         device->is_suspend = FALSE;
-    }
-
-    /* No need to send WMI_PDEV_RESUME_CMDID to FW if WOW is enabled */
-    if (!wma_is_wow_mode_selected(temp_module)) {
-        wma_resume_target(temp_module, 0);
-    } else if (wma_disable_wow_in_fw(temp_module, 0)) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("%s: disable wow in fw failed\n", __func__));
-        status = (-1);
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceResume\n"));
@@ -2451,6 +2444,10 @@ static void hifDeviceRemoved(struct sdio_func *func)
     ENTER();
 
     device = getHifDevice(func);
+    if (!device) {
+        pr_err("%s: Failed to get the sdio driver private data\n", __func__);
+        return;
+    }
 
     if (device->powerConfig == HIF_DEVICE_POWER_CUT) {
         device->func = NULL; /* func will be free by mmc stack */
@@ -2546,7 +2543,6 @@ addHifDevice(struct sdio_func *func)
     hifdevice->func = func;
     hifdevice->powerConfig = HIF_DEVICE_POWER_UP;
     hifdevice->DeviceState = HIF_DEVICE_STATE_ON;
-    hifdevice->wow_maskInt = FALSE;
 #if(LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)) && !defined(WITH_BACKPORTS)
     ret = sdio_set_drvdata(func, hifdevice);
     EXIT("status %d", ret);
@@ -2722,3 +2718,69 @@ A_BOOL HIFIsMailBoxSwapped(HIF_DEVICE *hd)
 {
     return ((struct hif_device *)hd)->swap_mailbox;
 }
+
+/**
+ * hif_is_80211_fw_wow_required() - API to check if target suspend is needed
+ *
+ * API determines if fw can be suspended and returns true/false to the caller.
+ * Caller will call WMA WoW API's to suspend.
+ * The API returns true only for SDIO bus types, for others it's a false.
+ *
+ * Return: bool
+ */
+bool hif_is_80211_fw_wow_required(void)
+{
+	return true;
+}
+
+#if defined(CONFIG_CNSS) && defined(HIF_SDIO)
+static int hif_sdio_device_inserted(struct sdio_func *func, const struct sdio_device_id * id)
+{
+	if ((func != NULL) && (id != NULL))
+		return hifDeviceInserted(func, id);
+	else
+		printk("%s: Invalid sdio func and device id. Card removed?\n", __func__);
+
+	return -ENODEV;
+}
+
+static void hif_sdio_device_removed(struct sdio_func *func)
+{
+	if (func != NULL)
+		hifDeviceRemoved(func);
+}
+
+static int hif_sdio_device_reinit(struct sdio_func *func, const struct sdio_device_id * id)
+{
+	if ((func != NULL) && (id != NULL))
+		return hifDeviceInserted(func, id);
+	else
+		printk("%s: Invalid sdio func and device id. Card removed?\n", __func__);
+
+	return -ENODEV;
+}
+
+static void hif_sdio_device_shutdown(struct sdio_func *func)
+{
+	vos_set_logp_in_progress(VOS_MODULE_ID_HIF, TRUE);
+
+	if (func != NULL)
+		hifDeviceRemoved(func);
+}
+
+static void hif_sdio_crash_shutdown(struct sdio_func *func)
+{
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27) && defined(CONFIG_PM)
+static int hif_sdio_device_suspend(struct device *dev)
+{
+	return hifDeviceSuspend(dev);
+}
+
+static int hif_sdio_device_resume(struct device *dev)
+{
+	return hifDeviceResume(dev);
+}
+#endif
+#endif

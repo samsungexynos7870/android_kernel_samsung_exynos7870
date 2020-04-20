@@ -62,9 +62,9 @@ tSirRetStatus macReset(tpAniSirGlobal pMac, tANI_U32 rc);
 
 tSirRetStatus macPreStart(tHalHandle hHal)
 {
+#if defined(ANI_LOGDUMP)
    tpAniSirGlobal pMac = (tpAniSirGlobal) hHal;
 
-#if defined(ANI_LOGDUMP)
    //logDumpInit must be called before any module starts
    logDumpInit(pMac);
 #endif //#if defined(ANI_LOGDUMP)

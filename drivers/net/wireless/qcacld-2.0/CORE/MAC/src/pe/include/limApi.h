@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -72,6 +72,8 @@
                    (GET_LIM_SYSTEM_ROLE(psessionEntry) == eLIM_P2P_DEVICE_ROLE)
 #define LIM_IS_P2P_DEVICE_GO(psessionEntry)   \
                    (GET_LIM_SYSTEM_ROLE(psessionEntry) == eLIM_P2P_DEVICE_GO)
+#define LIM_IS_NDI_ROLE(psessionEntry)   \
+                   (GET_LIM_SYSTEM_ROLE(psessionEntry) == eLIM_NDI_ROLE)
 /* gLimSmeState */
 #define GET_LIM_SME_STATE(pMac)                 (pMac->lim.gLimSmeState)
 #define SET_LIM_SME_STATE(pMac, state)          (pMac->lim.gLimSmeState = state)
@@ -125,6 +127,9 @@ void limDumpInit(tpAniSirGlobal pMac);
 extern void limCleanup(tpAniSirGlobal);
 /// Function to post messages to LIM thread
 extern tANI_U32  limPostMsgApi(tpAniSirGlobal, tSirMsgQ *);
+uint32_t
+lim_post_msg_high_pri(tpAniSirGlobal mac, tSirMsgQ *msg);
+
 /**
  * Function to process messages posted to LIM thread
  * and dispatch to various sub modules within LIM module.
@@ -184,6 +189,15 @@ void limMicFailureInd(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 void limRoamOffloadSynchInd(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
 #endif
+/**
+ * lim_mon_init_session() - create PE session for monitor mode operation
+ * @mac_ptr: mac pointer
+ * @msg: Pointer to struct sir_create_session type.
+ *
+ * Return: NONE
+ */
+void lim_mon_init_session(tpAniSirGlobal mac_ptr,
+			  struct sir_create_session *msg);
 void lim_update_lost_link_info(tpAniSirGlobal mac, tpPESession session,
 			       int8_t rssi);
 /* ----------------------------------------------------------------------- */
@@ -258,6 +272,14 @@ void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data);
 
   --------------------------------------------------------------------------*/
 void limProcessAbortScanInd(tpAniSirGlobal pMac, tANI_U8 sessionId);
+
+void lim_smps_force_mode_ind(tpAniSirGlobal mac_ctx, tpSirMsgQ msg);
+
+typedef void (*tp_pe_packetdump_cb)(adf_nbuf_t netbuf,
+			uint8_t status, uint8_t vdev_id, uint8_t type);
+
+void pe_register_packetdump_callback(tp_pe_packetdump_cb pe_packetdump_cb);
+void pe_deregister_packetdump_callback(void);
 
 /************************************************************/
 #endif /* __LIM_API_H */

@@ -1378,7 +1378,7 @@ IE RSN (EID_RSN)                          // 7.3.2.25
     // The version is 2 octets, and we only support version 1.
     version, 2 MUSTBE 1;
     // The next four octets will be the Group Cipher Suite
-    OPTIONAL gp_cipher_suite[4];
+    gp_cipher_suite[4];
     // The IE *may* stop here; if there's any more, we should see two more
     // octets giving the number of Pairwise Cipher Suites
     OPTIONAL pwise_cipher_suite_count, 2;
@@ -1387,10 +1387,10 @@ IE RSN (EID_RSN)                          // 7.3.2.25
     // to 61.  However, that seems needlessly wasteful of space.
     pwise_cipher_suites[4][0..4] COUNTIS pwise_cipher_suite_count;
     // Optional count of AKM suite selectors
-    OPTIONAL akm_suite_cnt, 2;
+    OPTIONAL akm_suite_count, 2;
     // Again, I see nothing in the Standard explicitly limiting the number of
     // AKM suite selectors other than the maximum size of an IE.
-    akm_suite[4][0..4] COUNTIS akm_suite_cnt;
+    akm_suites[4][0..4] COUNTIS akm_suite_count;
     OPTIONAL RSN_Cap[2];
     // Finally, the IE may contain zero or more PMKIDs:
     OPTIONAL pmkid_count, 2;
@@ -2050,28 +2050,6 @@ IE Vendor2IE (EID_VENDOR_SPECIFIC) OUI (0x00, 0x90, 0x4C)
 
 IE Vendor3IE (EID_VENDOR_SPECIFIC) OUI (0x00, 0x16, 0x32)
 {
-}
-
-IE hs20vendor_ie (EID_VENDOR_SPECIFIC) OUI (0x50, 0x6F, 0x9A, 0x10)
-{
-    /* hotspot_configurations */
-    {
-        dgaf_dis:               1;
-        hs_id_present:          2;
-        reserved:               1;
-        release_num:            4;
-    }
-    OPTIONAL UNION hs_id (DISCRIMINATOR hs_id_present)
-    {
-        pps_mo (hs_id_present IS 1)
-        {
-            pps_mo_id,          2;
-        }
-        anqp_domain (hs_id_present IS 2)
-        {
-            anqp_domain_id,     2;
-        }
-    };
 }
 
 IE QComVendorIE (EID_VENDOR_SPECIFIC) OUI (0x00, 0xA0, 0xC6)
@@ -3094,7 +3072,6 @@ FRAME Beacon                              // C.f. Sec. 7.2.3.1
     OPTIE  Vendor1IE;
     OPTIE  Vendor2IE;
     OPTIE  Vendor3IE;
-    OPTIE  hs20vendor_ie;
     OPTIE  ChannelSwitchWrapper;
     OPTIE  QComVendorIE;
     OPTIE  ESEVersion;
@@ -3182,7 +3159,6 @@ FRAME Beacon2
     OPTIE  Vendor1IE;
     OPTIE  Vendor2IE;
     OPTIE  Vendor3IE;
-    OPTIE  hs20vendor_ie;
     OPTIE  ChannelSwitchWrapper;
     OPTIE  QComVendorIE;
     OPTIE  ESEVersion;
@@ -3247,7 +3223,6 @@ FRAME BeaconIEs
     OPTIE  Vendor1IE;
     OPTIE  Vendor2IE;
     OPTIE  Vendor3IE;
-    OPTIE  hs20vendor_ie;
     OPTIE  ChannelSwitchWrapper;
     OPTIE  QComVendorIE;
 
@@ -3287,7 +3262,6 @@ FRAME AssocRequest                        // 7.2.3.4
     OPTIE  ExtCap;
     OPTIE  OperatingMode;
     OPTIE  QosMapSet;
-    OPTIE  hs20vendor_ie;
 } // End frame AssocRequest.
 
 FRAME AssocResponse                       // 7.2.3.5
@@ -3357,7 +3331,6 @@ FRAME ReAssocRequest                      // 7.2.3.6
     OPTIE  ExtCap;
     OPTIE  OperatingMode;
     OPTIE  QosMapSet;
-    OPTIE  hs20vendor_ie;
 } // End frame ReAssocRequest.
 
 FRAME ReAssocResponse                     // 7.2.3.7
@@ -3460,7 +3433,6 @@ FRAME ProbeResponse                       // 7.2.3.9
     OPTIE  Vendor1IE;
     OPTIE  Vendor2IE;
     OPTIE  Vendor3IE;
-    OPTIE  hs20vendor_ie;
     OPTIE  ChannelSwitchWrapper;
     OPTIE  QComVendorIE;
     OPTIE  ESEVersion;

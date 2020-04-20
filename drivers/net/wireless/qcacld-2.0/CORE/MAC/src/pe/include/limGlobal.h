@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,7 +45,7 @@
 #include "sirMacPropExts.h"
 #include "sirCommon.h"
 #include "sirDebug.h"
-#include "wni_cfg.h"
+#include "wniCfgSta.h"
 #include "csrApi.h"
 #include "sapApi.h"
 #include "dot11f.h"
@@ -87,7 +87,8 @@ typedef enum eLimSystemRole
     eLIM_BT_AMP_AP_ROLE,
     eLIM_P2P_DEVICE_ROLE,
     eLIM_P2P_DEVICE_GO,
-    eLIM_P2P_DEVICE_CLIENT
+    eLIM_P2P_DEVICE_CLIENT,
+    eLIM_NDI_ROLE
 } tLimSystemRole;
 
 /**
@@ -312,23 +313,19 @@ struct tLimScanResultNode
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 
-#ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
-#endif
-#ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1724
-#endif
-
 // OEM Data related structure definitions
 typedef struct sLimMlmOemDataReq
 {
     tSirMacAddr           selfMacAddr;
-    tANI_U8               oemDataReq[OEM_DATA_REQ_SIZE];
+    uint32_t               data_len;
+    uint8_t               *data;
 } tLimMlmOemDataReq, *tpLimMlmOemDataReq;
 
 typedef struct sLimMlmOemDataRsp
 {
-   tANI_U8                oemDataRsp[OEM_DATA_RSP_SIZE];
+   bool                   target_rsp;
+   uint32_t               rsp_len;
+   uint8_t                *oem_data_rsp;
 } tLimMlmOemDataRsp, *tpLimMlmOemDataRsp;
 #endif
 
@@ -354,7 +351,7 @@ typedef struct tLimPreAuthNode
 typedef struct tLimPreAuthTable
 {
     tANI_U32        numEntry;
-    tpLimPreAuthNode pTable;
+    tLimPreAuthNode **pTable;
 }tLimPreAuthTable, *tpLimPreAuthTable;
 
 /// Per STA context structure definition
