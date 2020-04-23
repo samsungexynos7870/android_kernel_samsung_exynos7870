@@ -1,8 +1,9 @@
 #!/bin/bash
 
 export ARCH=arm64
-export CROSS_COMPILE=../PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+export CROSS_COMPILE=~/android/kernel/toolchain/gcc-linaro-7.5.0/bin/aarch64-linux-gnu-
 export ANDROID_MAJOR_VERSION=q
+export ANDROID_PLATFORM_VERSION=10
 
-make exynos7870-a6lte_defconfig
-make -j64
+make O=./out $1
+make O=./out -j64
