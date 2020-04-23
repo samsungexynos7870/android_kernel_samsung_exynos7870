@@ -83,6 +83,7 @@ ter (typically in callback) */
     A_CONSUMED,                 /* Object was consumed */
     A_CLONE,                    /* The buffer is cloned */
     A_USB_ERROR,                /* Rome USB Target error */
+    A_FAKE_WOW_ERROR,           /* Fake WOW ERROR */
 } A_STATUS;
 
 #define A_SUCCESS(x)        (x == A_OK)

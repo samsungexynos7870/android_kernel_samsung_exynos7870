@@ -857,6 +857,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_DISABLE, 30},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 30},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},             //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},             //RF_CHAN_40,
@@ -914,6 +923,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1007,6 +1023,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 19},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 0},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 23},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 23},            //RF_CHAN_40,
@@ -1064,6 +1089,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 23},            //RF_CHAN_BOND_38,
@@ -1157,6 +1189,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 20},           //RF_CHAN_13,
                     {NV_CHANNEL_ENABLE, 18},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1197,6 +1238,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1290,6 +1338,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 16},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 0},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1330,6 +1387,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1423,6 +1487,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_DISABLE, 30},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 30},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1463,6 +1536,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1556,6 +1636,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 16},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 0},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1596,6 +1685,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1689,6 +1785,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 15},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 0},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1729,6 +1834,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -1822,6 +1934,15 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 14},           //RF_CHAN_13,
                     {NV_CHANNEL_DISABLE, 0},           //RF_CHAN_14,
 
+                    //4.9GHz Band, none CB
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_240,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_244,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_248,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_252,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_208,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_212,
+                    {NV_CHANNEL_DISABLE, 23},            //RF_CHAN_216,
+
                     //5GHz Low & Mid U-NII Band, none CB
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_36,
                     {NV_CHANNEL_ENABLE, 17},            //RF_CHAN_40,
@@ -1862,6 +1983,13 @@ const sHalNv nvDefaults =
                     {NV_CHANNEL_ENABLE, 22},            //RF_CHAN_BOND_9,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_10,
                     {NV_CHANNEL_ENABLE, 0},            //RF_CHAN_BOND_11,
+
+                    // 4.9GHz Band, channel bonded channels
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_242,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_246,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_250,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_210,
+                    {NV_CHANNEL_DISABLE, 0},            //RF_CHAN_BOND_214,
 
                     //5GHz Low & Mid U-NII Band, channel bonded channels
                     {NV_CHANNEL_ENABLE, 20},            //RF_CHAN_BOND_38,
@@ -3895,6 +4023,13 @@ const sHalNv nvDefaults =
             95,  // RF_CHAN_12
             97,  // RF_CHAN_13
             104,   // RF_CHAN_14
+            100,   // RF_CHAN_240
+            100,   // RF_CHAN_244
+            100,   // RF_CHAN_248
+            100,   // RF_CHAN_252
+            100,   // RF_CHAN_208
+            100,   // RF_CHAN_212
+            100,   // RF_CHAN_216
             100,   // RF_CHAN_36
             100,   // RF_CHAN_40
             100,   // RF_CHAN_44
@@ -3929,6 +4064,11 @@ const sHalNv nvDefaults =
             100,   // RF_CHAN_BOND_9
             100,   // RF_CHAN_BOND_10
             100,   // RF_CHAN_BOND_11
+            100,   // RF_CHAN_BOND_242
+            100,   // RF_CHAN_BOND_246
+            100,   // RF_CHAN_BOND_250
+            100,   // RF_CHAN_BOND_210
+            100,   // RF_CHAN_BOND_214
             100,   // RF_CHAN_BOND_38
             100,   // RF_CHAN_BOND_42
             100,   // RF_CHAN_BOND_46
@@ -5177,6 +5317,13 @@ const sHalNv nvDefaults =
             310,  // RF_CHAN_12
             310,  // RF_CHAN_13
             310,   // RF_CHAN_14
+            280,  // RF_CHAN_240
+            280,  // RF_CHAN_244
+            280,   // RF_CHAN_248
+            280,   // RF_CHAN_252
+            280,   // RF_CHAN_208
+            280,   // RF_CHAN_212
+            280,   // RF_CHAN_216
             280,   // RF_CHAN_36
             280,   // RF_CHAN_40
             280,   // RF_CHAN_44
@@ -5211,6 +5358,11 @@ const sHalNv nvDefaults =
             280,   // RF_CHAN_BOND_9
             280,   // RF_CHAN_BOND_10
             280,   // RF_CHAN_BOND_11
+            280,   // RF_CHAN_BOND_242
+            280,   // RF_CHAN_BOND_246
+            280,   // RF_CHAN_BOND_250
+            280,   // RF_CHAN_BOND_210
+            280,   // RF_CHAN_BOND_214
             280,   // RF_CHAN_BOND_38
             280,   // RF_CHAN_BOND_42
             280,   // RF_CHAN_BOND_46

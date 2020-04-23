@@ -37,7 +37,9 @@
 #include <adf_os_types.h>
 #include <adf_os_mem_pvt.h>
 
-#include "vos_cnss.h"
+#ifdef CONFIG_CNSS
+#include <net/cnss.h>
+#endif
 
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
 #include <net/cnss_prealloc.h>

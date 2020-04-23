@@ -107,6 +107,8 @@ void sme_FTClose(tHalHandle hHal, tANI_U32 sessionId)
       }
 
       if (pSession->ftSmeContext.pUsrCtx != NULL) {
+          smsLog(pMac, LOG1,
+                 FL("Freeing ftSmeContext.pUsrCtx and setting to NULL"));
           vos_mem_free(pSession->ftSmeContext.pUsrCtx);
           pSession->ftSmeContext.pUsrCtx = NULL;
       }
@@ -172,7 +174,7 @@ void sme_SetFTIEs(tHalHandle hHal, tANI_U32 sessionId, const tANI_U8 *ft_ies,
             pSession->ftSmeContext.auth_ft_ies_length = 0;
             pSession->ftSmeContext.auth_ft_ies = NULL;
          }
-         ft_ies_length = VOS_MIN(ft_ies_length, MAX_FTIE_SIZE);
+         ft_ies_length = MIN(ft_ies_length, MAX_FTIE_SIZE);
          // Save the FT IEs
          pSession->ftSmeContext.auth_ft_ies =
             vos_mem_malloc(ft_ies_length);

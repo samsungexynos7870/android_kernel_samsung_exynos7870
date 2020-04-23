@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -43,7 +43,6 @@
 #include <ol_txrx.h>          /* ol_tx_desc_pool_size_hl */
 #include <adf_os_types.h>     /* a_bool_t */
 #include <ol_txrx_peer_find.h>
-#include "adf_trace.h"
 
 
 #if defined(CONFIG_HL_SUPPORT)
@@ -106,23 +105,10 @@ ol_tx_queue_vdev_flush(struct ol_txrx_pdev_t *pdev, struct ol_txrx_vdev_t *vdev)
     struct ol_txrx_peer_t *peer, *peers[PEER_ARRAY_COUNT];
     int i, j, peer_count;
 
-    /* flush bundling queue */
-    ol_tx_hl_queue_flush_all(vdev);
-
     /* flush VDEV TX queues */
     for (i = 0; i < OL_TX_VDEV_NUM_QUEUES; i++) {
         txq = &vdev->txqs[i];
-       /*
-        * currently txqs of MCAST_BCAST/DEFAULT_MGMT packet are using tid
-        * HTT_TX_EXT_TID_NON_QOS_MCAST_BCAST/HTT_TX_EXT_TID_MGMT when inserted
-        * into scheduler, so use same tid when we flush them
-        */
-        if (i == OL_TX_VDEV_MCAST_BCAST)
-            ol_tx_queue_free(pdev, txq, HTT_TX_EXT_TID_NON_QOS_MCAST_BCAST);
-        else if (i == OL_TX_VDEV_DEFAULT_MGMT)
-            ol_tx_queue_free(pdev, txq, HTT_TX_EXT_TID_MGMT);
-        else
-            ol_tx_queue_free(pdev, txq, (i + OL_TX_NUM_TIDS));
+        ol_tx_queue_free(pdev, txq, (i + OL_TX_NUM_TIDS));
     }
     /* flush PEER TX queues */
     do {
@@ -508,7 +494,7 @@ ol_txrx_throttle_pause(ol_txrx_pdev_handle pdev)
     pdev->tx_throttle.is_paused = TRUE;
     adf_os_spin_unlock_bh(&pdev->tx_throttle.mutex);
 #endif
-    ol_txrx_pdev_pause(pdev, OL_TXQ_PAUSE_REASON_THROTTLE);
+    ol_txrx_pdev_pause(pdev, 0);
 }
 
 void
@@ -525,7 +511,7 @@ ol_txrx_throttle_unpause(ol_txrx_pdev_handle pdev)
     pdev->tx_throttle.is_paused = FALSE;
     adf_os_spin_unlock_bh(&pdev->tx_throttle.mutex);
 #endif
-    ol_txrx_pdev_unpause(pdev, OL_TXQ_PAUSE_REASON_THROTTLE);
+    ol_txrx_pdev_unpause(pdev, 0);
 }
 #endif /* defined(CONFIG_HL_SUPPORT) */
 
@@ -575,60 +561,6 @@ ol_txrx_pdev_unpause(ol_txrx_pdev_handle pdev, u_int32_t reason)
 		ol_txrx_vdev_unpause(vdev, reason);
 	}
 }
-
-#if defined(CONFIG_HL_SUPPORT)
-/**
- * ol_txrx_pdev_pause_other_vdev() - Suspend all tx data for the specified physical device except
- * current vdev.
- * @data_pdev: the physical device being paused.
- * @reason:  pause reason.
- *		One can provide multiple line descriptions
- *		for arguments.
- * @current_id: do not pause this vdev id queues
- *
- * This function applies to HL systems -
- * in LL systems, applies when txrx_vdev_pause_all is enabled.
- * In some cases it is necessary to be able to temporarily
- * suspend other vdevs traffic, e.g. to avoid current EAPOL frames credit starvation
- *
- * Return: None
- */
-void
-ol_txrx_pdev_pause_other_vdev(ol_txrx_pdev_handle pdev, u_int32_t reason, u_int32_t current_id)
-{
-	struct ol_txrx_vdev_t *vdev = NULL, *tmp;
-
-	TAILQ_FOREACH_SAFE(vdev, &pdev->vdev_list, vdev_list_elem, tmp) {
-		if (vdev->vdev_id != current_id) {
-			ol_txrx_vdev_pause(vdev, reason);
-		}
-	}
-}
-
-/**
- * ol_txrx_pdev_unpause_other_vdev() - Resume tx for the paused vdevs..
- * @data_pdev: the physical device being paused.
- * @reason:  pause reason.
- * @current_id: do not unpause this vdev
- *
- *  This function applies to HL systems -
- *  in LL systems, applies when txrx_vdev_pause_all is enabled.
- *
- *
- * Return: None
- */
-void
-ol_txrx_pdev_unpause_other_vdev(ol_txrx_pdev_handle pdev, u_int32_t reason, u_int32_t current_id)
-{
-	struct ol_txrx_vdev_t *vdev = NULL, *tmp;
-
-	TAILQ_FOREACH_SAFE(vdev, &pdev->vdev_list, vdev_list_elem, tmp) {
-		if (vdev->vdev_id != current_id) {
-			ol_txrx_vdev_unpause(vdev, reason);
-		}
-	}
-}
-#endif
 
 #ifdef QCA_BAD_PEER_TX_FLOW_CL
 
@@ -952,8 +884,7 @@ ol_txrx_peer_link_status_handler(
 		return;
 	}
 
-	VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_DEBUG,
-		  "%s: peer_num %d", __func__, peer_num);
+	TX_SCHED_DEBUG_PRINT_ALWAYS("%s: peer_num %d\n", __func__, peer_num);
 
 	for (i = 0; i < peer_num; i++) {
 		u_int16_t peer_limit, peer_id;
@@ -1040,11 +971,8 @@ ol_txrx_vdev_pause(ol_txrx_vdev_handle vdev, u_int32_t reason)
         /* use peer_ref_mutex before accessing peer_list */
         adf_os_spin_lock_bh(&pdev->peer_ref_mutex);
         adf_os_spin_lock_bh(&pdev->tx_queue_spinlock);
-        if((vdev->hl_paused_reason & reason) == 0) {
-            vdev->hl_paused_reason |= reason;
-            TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-                ol_txrx_peer_pause_base(pdev, peer);
-            }
+        TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
+            ol_txrx_peer_pause_base(pdev, peer);
         }
         adf_os_spin_unlock_bh(&pdev->tx_queue_spinlock);
         adf_os_spin_unlock_bh(&pdev->peer_ref_mutex);
@@ -1075,14 +1003,11 @@ ol_txrx_vdev_unpause(ol_txrx_vdev_handle vdev, u_int32_t reason)
         /* take peer_ref_mutex before accessing peer_list */
         adf_os_spin_lock_bh(&pdev->peer_ref_mutex);
         adf_os_spin_lock_bh(&pdev->tx_queue_spinlock);
-        if (vdev->hl_paused_reason & reason) {
-            vdev->hl_paused_reason &= ~reason;
 
-            TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-                int i;
-                for (i = 0; i < ARRAY_LEN(peer->txqs); i++) {
-                    ol_txrx_peer_tid_unpause_base(pdev, peer, i);
-                }
+        TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
+            int i;
+            for (i = 0; i < ARRAY_LEN(peer->txqs); i++) {
+                ol_txrx_peer_tid_unpause_base(pdev, peer, i);
             }
         }
         adf_os_spin_unlock_bh(&pdev->tx_queue_spinlock);
@@ -1112,7 +1037,6 @@ ol_txrx_vdev_unpause(ol_txrx_vdev_handle vdev, u_int32_t reason)
             adf_os_spin_unlock_bh(&vdev->ll_pause.mutex);
         }
     }
-
     TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
@@ -1258,8 +1182,14 @@ void ol_tx_throttle_set_level(struct ol_txrx_pdev_t *pdev, int level)
     }
 }
 
-void ol_tx_throttle_init_period(struct ol_txrx_pdev_t *pdev, int period,
-    u_int8_t *dutycycle_level)
+/* This table stores the duty cycle for each level.
+   Example "on" time for level 2 with duty period 100ms is:
+   "on" time = duty_period_ms >> throttle_duty_cycle_table[2]
+   "on" time = 100 ms >> 2 = 25ms */
+static u_int8_t g_throttle_duty_cycle_table[THROTTLE_LEVEL_MAX] =
+{ 0, 1, 2, 4 };
+
+void ol_tx_throttle_init_period(struct ol_txrx_pdev_t *pdev, int period)
 {
     int i;
 
@@ -1269,9 +1199,8 @@ void ol_tx_throttle_init_period(struct ol_txrx_pdev_t *pdev, int period,
     TXRX_PRINT(TXRX_PRINT_LEVEL_WARN, "level  OFF  ON\n");
     for (i = 0; i < THROTTLE_LEVEL_MAX; i++) {
         pdev->tx_throttle.throttle_time_ms[i][THROTTLE_PHASE_ON] =
-            pdev->tx_throttle.throttle_period_ms -
-                ((dutycycle_level[i] * pdev->tx_throttle.throttle_period_ms)
-                 /100);
+                pdev->tx_throttle.throttle_period_ms >>
+            g_throttle_duty_cycle_table[i];
         pdev->tx_throttle.throttle_time_ms[i][THROTTLE_PHASE_OFF] =
             pdev->tx_throttle.throttle_period_ms -
             pdev->tx_throttle.throttle_time_ms[i][THROTTLE_PHASE_ON];
@@ -1284,8 +1213,6 @@ void ol_tx_throttle_init_period(struct ol_txrx_pdev_t *pdev, int period,
 void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev)
 {
     u_int32_t throttle_period;
-    u_int8_t dutycycle_level[THROTTLE_LEVEL_MAX];
-    int i;
 
     pdev->tx_throttle.current_throttle_level = THROTTLE_LEVEL_0;
     pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
@@ -1293,11 +1220,7 @@ void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev)
 
     throttle_period = ol_cfg_throttle_period_ms(pdev->ctrl_pdev);
 
-    for (i = 0; i < THROTTLE_LEVEL_MAX; i++)
-        dutycycle_level[i] = ol_cfg_throttle_duty_cycle_level(pdev->ctrl_pdev,
-                                                              i);
-
-    ol_tx_throttle_init_period(pdev, throttle_period, &dutycycle_level[0]);
+    ol_tx_throttle_init_period(pdev, throttle_period);
 
     adf_os_timer_init(
             pdev->osdev,

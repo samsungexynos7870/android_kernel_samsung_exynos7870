@@ -44,7 +44,11 @@
 #include "ol_txrx_osif_api.h"
 #include "ol_params.h"
 #include <wdi_event_api.h>
-#include "vos_cnss.h"
+
+#ifdef CONFIG_CNSS
+#include <net/cnss.h>
+#endif
+
 
 #include "ol_ctrl_addba_api.h"
 typedef void * hif_handle_t;
@@ -85,7 +89,7 @@ enum ol_ath_tx_ecodes  {
 } ;
 
 #ifdef HIF_SDIO
-#define MAX_FILE_NAME	NAME_MAX
+#define MAX_FILE_NAME     20
 struct ol_fw_files {
     char image_file[MAX_FILE_NAME];
     char ibss_image_file[MAX_FILE_NAME];
@@ -274,7 +278,7 @@ struct ol_softc {
     u_int32_t               set_ht_vht_ies:1; /* true if vht ies are set on target */
     bool                    scn_cwmenable;    /*CWM enable/disable state*/
     u_int8_t                max_no_of_peers;
-#ifdef HIF_PCI
+#ifdef CONFIG_CNSS
     struct cnss_fw_files fw_files;
 #elif defined(HIF_SDIO)
     struct ol_fw_files fw_files;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -78,7 +78,6 @@
 #define ANI_DUMMY_PKT_MSG_LEN            16
 #define ANI_DUMMY_DATA_PAYLOAD_OFFSET    10
 
-#define SIR_SME_MODULE_ID 0x16
 
 /// Start of Sirius/Host message types
 #define WNI_HOST_MSG_START             0x1500
@@ -203,6 +202,7 @@ enum eWniMsgTypes
     eWNI_SME_REMAIN_ON_CHANNEL_REQ,
     eWNI_SME_REMAIN_ON_CHN_IND,
     eWNI_SME_REMAIN_ON_CHN_RSP,
+    eWNI_SME_MGMT_FRM_IND,
     eWNI_SME_REMAIN_ON_CHN_RDY_IND,
     eWNI_SME_SEND_ACTION_FRAME_IND,
     eWNI_SME_ACTION_FRAME_SEND_CNF,
@@ -277,6 +277,8 @@ enum eWniMsgTypes
 #endif
 
     eWNI_SME_REGISTER_MGMT_FRAME_REQ,
+
+    eWNI_SME_COEX_IND,
 
 #ifdef FEATURE_WLAN_SCAN_PNO
     eWNI_SME_PREF_NETWORK_FOUND_IND,
@@ -397,23 +399,6 @@ enum eWniMsgTypes
     eWNI_SME_EXT_CHANGE_CHANNEL_IND,
     eWNI_SME_LOST_LINK_INFO_IND,
     eWNI_SME_GET_RSSI_IND,
-    eWNI_SME_ROAM_RESTART_REQ,
-    eWNI_SME_SMPS_FORCE_MODE_IND,
-    eWNI_SME_REGISTER_MGMT_FRAME_CB,
-    eWNI_SME_MON_INIT_SESSION,
-    eWNI_SME_DEL_ALL_TDLS_PEERS,
-    eWNI_SME_SEND_DISASSOC_FRAME,
-
-    eWNI_SME_NDP_INITIATOR_RSP,
-    eWNI_SME_NDP_NEW_PEER_IND,
-    eWNI_SME_NDP_CONFIRM_IND,
-    eWNI_SME_NDP_INDICATION,
-    eWNI_SME_NDP_RESPONDER_REQ,
-    eWNI_SME_NDP_RESPONDER_RSP,
-    eWNI_SME_NDP_END_RSP,
-    eWNI_SME_NDP_PEER_DEPARTED_IND,
-    eWNI_SME_NDP_END_IND,
-
     eWNI_SME_MSG_TYPES_END
 };
 

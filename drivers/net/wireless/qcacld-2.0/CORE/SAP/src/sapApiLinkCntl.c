@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -140,7 +140,9 @@ WLANSAP_ScanCallback
     v_U8_t operChannel = 0;
     VOS_STATUS sapstatus;
     tpAniSirGlobal pMac = NULL;
+#ifdef SOFTAP_CHANNEL_RANGE
     v_U32_t event;
+#endif
 
     if (NULL == halHandle)
     {
@@ -683,6 +685,15 @@ WLANSAP_RoamCallback
                         FL("CSR roamStatus = %s (%d)"),
                         "eCSR_ROAM_WPS_PBC_PROBE_REQ_IND", roamStatus);
             break;
+
+        case eCSR_ROAM_INDICATE_MGMT_FRAME:
+            VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH,
+                        FL("CSR roamStatus = %s (%d)"),
+                        "eCSR_ROAM_INDICATE_MGMT_FRAME", roamStatus);
+            sapSignalHDDevent(sapContext, pCsrRoamInfo,
+                              eSAP_INDICATE_MGMT_FRAME,
+                              (v_PVOID_t) eSAP_STATUS_SUCCESS);
+            break;
         case eCSR_ROAM_REMAIN_CHAN_READY:
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH,
                         FL("CSR roamStatus = %s (%d)"),
@@ -940,9 +951,7 @@ WLANSAP_RoamCallback
                              "eCSR_ROAM_RESULT_AUTHENTICATED",
                               roamResult);
             /* Fill in the event structure */
-            vosStatus = sapSignalHDDevent(sapContext,
-                                  pCsrRoamInfo,eSAP_STA_SET_KEY_EVENT,
-                                  (v_PVOID_t)eSAP_STATUS_SUCCESS);
+            sapSignalHDDevent( sapContext, pCsrRoamInfo,eSAP_STA_SET_KEY_EVENT, (v_PVOID_t)eSAP_STATUS_SUCCESS);
             if(!VOS_IS_STATUS_SUCCESS(vosStatus))
             {
                 halStatus = eHAL_STATUS_FAILURE;
@@ -1074,7 +1083,6 @@ WLANSAP_RoamCallback
                      */
                     vos_timer_stop(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
                     vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
-                    pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
 
                     /*
                      * User space is already indicated the CAC start and if
@@ -1091,6 +1099,8 @@ WLANSAP_RoamCallback
                              * Lets try not to be on the DFS channel
                              */
                     }
+
+                    pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
 
                     sapEvent.event = eSAP_DFS_CHANNEL_CAC_RADAR_FOUND;
                     sapEvent.params = 0;
@@ -1126,8 +1136,8 @@ WLANSAP_RoamCallback
             {
                 /* Further actions to be taken here */
                 VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                         "In %s, eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state"
-                         , __func__, sapContext->sapsMachine);
+                         "In %s, eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in"
+                         "(%d) state\n", __func__, sapContext->sapsMachine);
             }
             break;
 
@@ -1286,8 +1296,8 @@ WLANSAP_RoamCallback
             {
                 /* Further actions to be taken here */
                 VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_WARN,
-                         "In %s, eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state",
-                         __func__, sapContext->sapsMachine);
+                         "In %s, eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in"
+                         "(%d) state\n", __func__, sapContext->sapsMachine);
             }
             break;
         }
@@ -1381,16 +1391,9 @@ WLANSAP_RoamCallback
              * channel due to the presence of radar but our channel change
              * failed, stop the BSS operation completely and inform hostapd
              */
-            sapEvent.event = eWNI_SME_CHANNEL_CHANGE_RSP;
-            sapEvent.params = 0;
-            sapEvent.u1 = eCSR_ROAM_INFRA_IND;
-            sapEvent.u2 = eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE;
+            sapContext->sapsMachine = eSAP_DISCONNECTED;
 
-            vosStatus = sapFsm(sapContext, &sapEvent);
-            if (!VOS_IS_STATUS_SUCCESS(vosStatus)) {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
-            break;
+            /* Inform cfg80211 and hostapd that BSS is not alive anymore */
         }
         case eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND:
         {

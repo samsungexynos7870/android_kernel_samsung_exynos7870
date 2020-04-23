@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,7 +38,7 @@
  */
 
 #include "wniApi.h"
-#include "wniCfgSta.h"
+#include "wni_cfg.h"
 #include "aniGlobal.h"
 #include "cfgApi.h"
 
@@ -108,56 +108,57 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
                            (tANI_U8)(pAssocRsp->HTCaps.supportedChannelWidthSet ?
                            pAssocRsp->HTInfo.recommendedTxWidthSet :
                            pAssocRsp->HTCaps.supportedChannelWidthSet);
-               } else
+               }
+               else
                    pStaDs->htSupportedChannelWidthSet = eHT_CHANNEL_WIDTH_20MHZ;
 
-               pStaDs->htLsigTXOPProtection = ( tANI_U8 ) pAssocRsp->HTCaps.lsigTXOPProtection;
-               pStaDs->htMIMOPSState =  (tSirMacHTMIMOPowerSaveState)pAssocRsp->HTCaps.mimoPowerSave;
-               pStaDs->htMaxAmsduLength = ( tANI_U8 ) pAssocRsp->HTCaps.maximalAMSDUsize;
-               pStaDs->htAMpduDensity =             pAssocRsp->HTCaps.mpduDensity;
-               pStaDs->htDsssCckRate40MHzSupport = (tANI_U8)pAssocRsp->HTCaps.dsssCckMode40MHz;
-               pStaDs->htMaxRxAMpduFactor = pAssocRsp->HTCaps.maxRxAMPDUFactor;
-               limFillRxHighestSupportedRate(pMac, &rxHighestRate, pAssocRsp->HTCaps.supportedMCSSet);
-               pStaDs->supportedRates.rxHighestDataRate = rxHighestRate;
-               /* This is for AP as peer STA and we are INFRA STA. We will put APs offset in dph node which is peer STA */
-               pStaDs->htSecondaryChannelOffset = (tANI_U8)pAssocRsp->HTInfo.secondaryChannelOffset;
+                   pStaDs->htLsigTXOPProtection = ( tANI_U8 ) pAssocRsp->HTCaps.lsigTXOPProtection;
+                   pStaDs->htMIMOPSState =  (tSirMacHTMIMOPowerSaveState)pAssocRsp->HTCaps.mimoPowerSave;
+                   pStaDs->htMaxAmsduLength = ( tANI_U8 ) pAssocRsp->HTCaps.maximalAMSDUsize;
+                   pStaDs->htAMpduDensity =             pAssocRsp->HTCaps.mpduDensity;
+                   pStaDs->htDsssCckRate40MHzSupport = (tANI_U8)pAssocRsp->HTCaps.dsssCckMode40MHz;
+                   pStaDs->htMaxRxAMpduFactor = pAssocRsp->HTCaps.maxRxAMPDUFactor;
+                   limFillRxHighestSupportedRate(pMac, &rxHighestRate, pAssocRsp->HTCaps.supportedMCSSet);
+                   pStaDs->supportedRates.rxHighestDataRate = rxHighestRate;
+                   /* This is for AP as peer STA and we are INFRA STA. We will put APs offset in dph node which is peer STA */
+                   pStaDs->htSecondaryChannelOffset = (tANI_U8)pAssocRsp->HTInfo.secondaryChannelOffset;
 
-               //FIXME_AMPDU
-               // In the future, may need to check for "assoc.HTCaps.delayedBA"
-               // For now, it is IMMEDIATE BA only on ALL TID's
-               pStaDs->baPolicyFlag = 0xFF;
+                   //FIXME_AMPDU
+                   // In the future, may need to check for "assoc.HTCaps.delayedBA"
+                   // For now, it is IMMEDIATE BA only on ALL TID's
+                   pStaDs->baPolicyFlag = 0xFF;
 
-               /*
-                * Check if we have support for gShortGI20Mhz and
-                * gShortGI40Mhz from ini file.
-                */
-               if (HAL_STATUS_SUCCESS(ccmCfgGetInt(pMac,
-                                      WNI_CFG_SHORT_GI_20MHZ,
-                                      &shortgi_20mhz_support))) {
-                   if (VOS_TRUE == shortgi_20mhz_support)
-                       pStaDs->htShortGI20Mhz =
-                              (tANI_U8)pAssocRsp->HTCaps.shortGI20MHz;
-                   else
-                       pStaDs->htShortGI20Mhz = VOS_FALSE;
-               } else {
-                   limLog(pMac, LOGE,
-                          FL("could not retrieve shortGI 20Mhz CFG, setting value to default"));
-                   pStaDs->htShortGI20Mhz = WNI_CFG_SHORT_GI_20MHZ_STADEF;
-               }
+                   /*
+                    * Check if we have support for gShortGI20Mhz and
+                    * gShortGI40Mhz from ini file.
+                    */
+                   if (HAL_STATUS_SUCCESS(ccmCfgGetInt(pMac,
+                                          WNI_CFG_SHORT_GI_20MHZ,
+                                          &shortgi_20mhz_support))) {
+                       if (VOS_TRUE == shortgi_20mhz_support)
+                           pStaDs->htShortGI20Mhz =
+                                  (tANI_U8)pAssocRsp->HTCaps.shortGI20MHz;
+                       else
+                           pStaDs->htShortGI20Mhz = VOS_FALSE;
+                   } else {
+                       limLog(pMac, LOGE,
+                              FL("could not retrieve shortGI 20Mhz CFG, setting value to default"));
+                       pStaDs->htShortGI20Mhz = WNI_CFG_SHORT_GI_20MHZ_STADEF;
+                   }
 
-               if (HAL_STATUS_SUCCESS(ccmCfgGetInt(pMac,
-                                      WNI_CFG_SHORT_GI_40MHZ,
-                                      &shortgi_40mhz_support))) {
-                   if (VOS_TRUE == shortgi_40mhz_support)
-                       pStaDs->htShortGI40Mhz =
-                               (tANI_U8)pAssocRsp->HTCaps.shortGI40MHz;
-                   else
-                   pStaDs->htShortGI40Mhz = VOS_FALSE;
-               } else {
-                   limLog(pMac, LOGE,
-                          FL("could not retrieve shortGI 40Mhz CFG,setting value to default"));
-                   pStaDs->htShortGI40Mhz = WNI_CFG_SHORT_GI_40MHZ_STADEF;
-               }
+                   if (HAL_STATUS_SUCCESS(ccmCfgGetInt(pMac,
+                                          WNI_CFG_SHORT_GI_40MHZ,
+                                          &shortgi_40mhz_support))) {
+                       if (VOS_TRUE == shortgi_40mhz_support)
+                           pStaDs->htShortGI40Mhz =
+                                   (tANI_U8)pAssocRsp->HTCaps.shortGI40MHz;
+                       else
+                           pStaDs->htShortGI40Mhz = VOS_FALSE;
+                   } else {
+                       limLog(pMac, LOGE,
+                              FL("could not retrieve shortGI 40Mhz CFG,setting value to default"));
+                       pStaDs->htShortGI40Mhz = WNI_CFG_SHORT_GI_40MHZ_STADEF;
+                   }
            }
        }
 
@@ -519,7 +520,6 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
         "and setting NULL"));
         vos_mem_free(psessionEntry->assocRsp);
         psessionEntry->assocRsp = NULL;
-        psessionEntry->assocRspLen = 0;
     }
 
     psessionEntry->assocRsp = vos_mem_malloc(frameLen);
@@ -539,7 +539,6 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
     {
         vos_mem_free(psessionEntry->ricData);
         psessionEntry->ricData = NULL;
-        psessionEntry->RICDataLen = 0;
     }
     if(pAssocRsp->ricPresent) {
         psessionEntry->RICDataLen =
@@ -585,7 +584,6 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
     {
         vos_mem_free(psessionEntry->tspecIes);
         psessionEntry->tspecIes = NULL;
-        psessionEntry->tspecLen = 0;
     }
     if(pAssocRsp->tspecPresent) {
         limLog(pMac, LOG1, FL("Tspec EID present in assoc rsp"));
@@ -658,15 +656,8 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
 
     if (pAssocRsp->statusCode != eSIR_MAC_SUCCESS_STATUS
 #ifdef WLAN_FEATURE_11W
-       /*
-        * Consider eSIR_MAC_TRY_AGAIN_LATER as failure in re-assoc
-        * case as waiting for come back time and retrying reassociation
-        * again will increase roam time. Its better to allow supplicant
-        * to select new candiadte
-        */
       && (!psessionEntry->limRmfEnabled ||
-          pAssocRsp->statusCode != eSIR_MAC_TRY_AGAIN_LATER ||
-          (subType == LIM_REASSOC))
+          pAssocRsp->statusCode != eSIR_MAC_TRY_AGAIN_LATER)
 #endif /* WLAN_FEATURE_11W */
       )
     {
@@ -736,29 +727,11 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
                                 timeout_value)) {
                 PELOGE(limLog(pMac, LOGE,
                        FL("Failed to start comeback timer."));)
-
-                mlmAssocCnf.resultCode = eSIR_SME_ASSOC_REFUSED;
-                mlmAssocCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
-
-                /* Delete Pre-auth context for the associated BSS */
-                if (limSearchPreAuthList(pMac, pHdr->sa))
-                    limDeletePreAuthNode(pMac, pHdr->sa);
-
-                goto assocReject;
             }
         } else {
             PELOGE(limLog(pMac, LOG1,
                    FL("ASSOC response with eSIR_MAC_TRY_AGAIN_LATER recvd."
                       "But try again time interval IE is wrong."));)
-
-            mlmAssocCnf.resultCode = eSIR_SME_ASSOC_REFUSED;
-            mlmAssocCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
-
-            /* Delete Pre-auth context for the associated BSS */
-            if (limSearchPreAuthList(pMac, pHdr->sa))
-                limDeletePreAuthNode(pMac, pHdr->sa);
-
-            goto assocReject;
         }
         /* callback will send Assoc again */
         /* DO NOT send ASSOC CNF to MLM state machine */
@@ -969,6 +942,17 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
                             (tANI_U8 *) psessionEntry->pLimJoinReq->bssDescription.ieFields,
                             limGetIElenFromBssDescription( &psessionEntry->pLimJoinReq->bssDescription ),
                             pBeaconStruct );
+
+    if (pBeaconStruct->VHTCaps.present)
+        psessionEntry->vht_caps = pBeaconStruct->VHTCaps;
+    if (pBeaconStruct->HTCaps.present)
+        psessionEntry->ht_caps = pBeaconStruct->HTCaps;
+    if (pBeaconStruct->hs20vendor_ie.present)
+        psessionEntry->hs20vendor_ie = pBeaconStruct->hs20vendor_ie;
+    if (pBeaconStruct->HTInfo.present)
+        psessionEntry->ht_operation = pBeaconStruct->HTInfo;
+    if (pBeaconStruct->VHTOperation.present)
+        psessionEntry->vht_operation = pBeaconStruct->VHTOperation;
 
     if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
         limDecideStaProtectionOnAssoc(pMac, pBeaconStruct, psessionEntry);

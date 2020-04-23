@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -309,12 +309,7 @@ typedef struct tagScanProfile
 {
     tANI_U32 minChnTime;
     tANI_U32 maxChnTime;
-    /* In units of milliseconds, ignored when not connected */
     tANI_U32 restTime;  //This is ignored if not associated
-    /* In units of milliseconds, ignored when not connected */
-    tANI_U32 min_rest_time;
-    /* In units of milliseconds, ignored when not connected */
-    tANI_U32 idle_time;
     tANI_U32 numOfChannels;
     tANI_U8 *pChannelList;
     tSirScanType scanType;  //active or passive
@@ -546,6 +541,7 @@ typedef struct tagCsrConfig
     tANI_U32 bgScanInterval;
     eCsrCBChoice cbChoice;
     eCsrBand bandCapability;     //indicate hw capability
+    tANI_U8 gStaLocalEDCAEnable;
     eCsrRoamWmmUserModeType WMMSupportMode;
     tANI_BOOLEAN Is11eSupportEnabled;
     tANI_BOOLEAN Is11dSupportEnabled;
@@ -597,19 +593,15 @@ typedef struct tagCsrConfig
     tANI_U32  nInitialDwellTime;     //in units of milliseconds
     bool      initial_scan_no_dfs_chnl;
 
+    tANI_U32  nActiveMinChnTimeBtc;     //in units of milliseconds
+    tANI_U32  nActiveMaxChnTimeBtc;     //in units of milliseconds
     tANI_U8   disableAggWithBtc;
 #ifdef WLAN_AP_STA_CONCURRENCY
     tANI_U32  nPassiveMinChnTimeConc;    //in units of milliseconds
     tANI_U32  nPassiveMaxChnTimeConc;    //in units of milliseconds
     tANI_U32  nActiveMinChnTimeConc;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTimeConc;     //in units of milliseconds
-    /* In units of milliseconds */
-    tANI_U32  nRestTimeConc;
-    /* In units of milliseconds */
-    tANI_U32  min_rest_time_conc;
-    /* In units of milliseconds */
-    tANI_U32  idle_time_conc;
-
+    tANI_U32  nRestTimeConc;             //in units of milliseconds
     tANI_U8   nNumStaChanCombinedConc;   //number of channels combined for
                                          //Sta in each split scan operation
     tANI_U8   nNumP2PChanCombinedConc;   //number of channels combined for
@@ -706,24 +698,7 @@ typedef struct tagCsrConfig
     struct roam_ext_params roam_params;
     tANI_BOOLEAN sendDeauthBeforeCon;
     tANI_BOOLEAN ignorePeerErpInfo;
-    bool ignore_peer_ht_opmode;
     v_U16_t pkt_err_disconn_th;
-    bool enable_fatal_event;
-    uint32_t tx_aggregation_size;
-    uint32_t rx_aggregation_size;
-    bool enable_edca_params;
-    uint32_t edca_vo_cwmin;
-    uint32_t edca_vi_cwmin;
-    uint32_t edca_bk_cwmin;
-    uint32_t edca_be_cwmin;
-    uint32_t edca_vo_cwmax;
-    uint32_t edca_vi_cwmax;
-    uint32_t edca_bk_cwmax;
-    uint32_t edca_be_cwmax;
-    uint32_t edca_vo_aifs;
-    uint32_t edca_vi_aifs;
-    uint32_t edca_bk_aifs;
-    uint32_t edca_be_aifs;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
@@ -769,7 +744,6 @@ typedef struct tagCsrScanStruct
     vos_timer_t hTimerStaApConcTimer;
 #endif
     vos_timer_t hTimerIdleScan;
-    vos_timer_t hTimerResultCfgAging;
     //changes on every scan, it is used as a flag for whether 11d info is found on every scan
     tANI_U8 channelOf11dInfo;
     tANI_U8 scanResultCfgAgingTime;
@@ -845,6 +819,7 @@ typedef struct tagCsrScanStruct
     eCsrBand  scanBandPreference;  //This defines the band perference for scan
     csrScanCompleteCallback callback11dScanDone;
     bool fcc_constraint;
+    bool defer_update_channel_list;
 }tCsrScanStruct;
 
 //Save the connected information. This structure + connectedProfile
@@ -1055,8 +1030,6 @@ typedef struct tagCsrRoamSession
                                */
     tCsrRoamStoredProfile stored_roam_profile;
     bool ch_switch_in_progress;
-    bool supported_nss_1x1;
-    bool disable_hi_rssi;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct
@@ -1112,7 +1085,6 @@ typedef struct tagCsrRoamStruct
     tANI_U8 *pReassocResp;  /* reassociation response from new AP */
     tANI_U16 reassocRespLen;  /* length of reassociation response */
 #endif
-    vos_timer_t packetdump_timer;
 }tCsrRoamStruct;
 
 
@@ -1273,7 +1245,7 @@ tANI_BOOLEAN csrIsConnStateDisconnectedWds( tpAniSirGlobal pMac, tANI_U32 sessio
 tANI_BOOLEAN csrIsAnySessionInConnectState( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsAllSessionDisconnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsStaSessionConnected( tpAniSirGlobal pMac );
-tANI_BOOLEAN csrIsP2pOrSapSessionConnected(tpAniSirGlobal pMac);
+tANI_BOOLEAN csrIsP2pSessionConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsAnySessionConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsInfraConnected( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsConcurrentInfraConnected( tpAniSirGlobal pMac );

@@ -56,3 +56,5 @@ __adf_os_defer_delayed_func(struct work_struct *dwork)
     }
     ctx->fn(ctx->arg);
 }
+EXPORT_SYMBOL(__adf_os_defer_func);
+EXPORT_SYMBOL(__adf_os_defer_delayed_func);

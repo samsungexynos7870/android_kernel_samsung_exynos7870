@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -42,7 +42,6 @@
 #include "wma_api.h"
 #include "vos_utils.h"
 #include "wdi_out.h"
-#include "ol_rx_fwd.h"
 
 #define TLSHIM_PEER_AUTHORIZE_WAIT 50
 
@@ -461,13 +460,16 @@ is_ccmp_pn_replay_attack(void *vos_ctx, struct ieee80211_frame *wh,
 }
 #endif
 
+#define RESERVE_BYTES   100
 static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 				       u_int32_t data_len, bool saved_beacon, u_int32_t vdev_id)
 {
 	void *vos_ctx = vos_get_global_context(VOS_MODULE_ID_TL, NULL);
 	struct txrx_tl_shim_ctx *tl_shim = vos_get_context(VOS_MODULE_ID_TL,
 							   vos_ctx);
+#ifdef FEATURE_WLAN_D0WOW
 	tp_wma_handle wma_handle = vos_get_context(VOS_MODULE_ID_WDA, vos_ctx);
+#endif
 	WMI_MGMT_RX_EVENTID_param_tlvs *param_tlvs = NULL;
 	wmi_mgmt_rx_hdr *hdr = NULL;
 #ifdef WLAN_FEATURE_11W
@@ -487,10 +489,12 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 		return 0;
 	}
 
+#ifdef FEATURE_WLAN_D0WOW
 	if (!wma_handle) {
 		TLSHIM_LOGE("%s: Failed to get WMA context!", __func__);
 		return 0;
 	}
+#endif
 
 	adf_os_spin_lock_bh(&tl_shim->mgmt_lock);
 	param_tlvs = (WMI_MGMT_RX_EVENTID_param_tlvs *) data;
@@ -551,7 +555,7 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 	rx_pkt->pkt_meta.mpdu_data_len = hdr->buf_len -
 					 rx_pkt->pkt_meta.mpdu_hdr_len;
 
-    /*
+	/*
 	 * If the mpdu_data_len is greater than Max (2k), drop the frame
 	 */
 	if (rx_pkt->pkt_meta.mpdu_data_len > WMA_MAX_MGMT_MPDU_LEN) {
@@ -569,9 +573,28 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
      */
 	rx_pkt->pkt_meta.roamCandidateInd = saved_beacon ? 1 : 0;
 	rx_pkt->pkt_meta.sessionId = vdev_id;
-	/* Why not just use rx_event->hdr.buf_len? */
+	/*
+	 * Allocate the memory for this rx packet, add extra 100 bytes for:-
+	 *
+	 * 1.  Filling the missing RSN capabilites by some APs, which fill the
+	 *     RSN IE length as extra 2 bytes but dont fill the IE data with
+	 *     capabilities, resulting in failure in unpack core due to length
+	 *     mismatch. Check sir_validate_and_rectify_ies for more info.
+	 *
+	 * 2.  In the API wma_process_rmf_frame(), the driver trims the CCMP
+	 *     header by overwriting the IEEE header to memory occupied by CCMP
+	 *     header, but an overflow is possible if the memory allocated to
+	 *     frame is less than the sizeof(struct ieee80211_frame) +CCMP
+	 *     HEADER len, so allocating 100 bytes would solve this issue too.
+	 *
+	 * 3.  CCMP header is pointing to orig_hdr +
+	 *     sizeof(struct ieee80211_frame) which could also result in OOB
+	 *     access, if the data len is less than
+	 *     sizeof(struct ieee80211_frame), allocating extra bytes would
+	 *     result in solving this issue too.
+	 */
 	wbuf = adf_nbuf_alloc(NULL,
-			      roundup(hdr->buf_len, 4),
+			      roundup(hdr->buf_len + RESERVE_BYTES, 4),
 			      0, 4, FALSE);
 	if (!wbuf) {
 		adf_os_spin_unlock_bh(&tl_shim->mgmt_lock);
@@ -705,7 +728,6 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 				if (is_ccmp_pn_replay_attack(vos_ctx, wh,
 									ccmp)) {
 					TLSHIM_LOGE("Dropping the frame");
-					wma_handle->ccmp_replays_attack_cnt++;
 					vos_pkt_return_packet(rx_pkt);
 					return 0;
 				}
@@ -733,7 +755,12 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 					 IEEE80211_IS_MULTICAST(wh->i_addr1))
 				{
 					efrm = adf_nbuf_data(wbuf) + adf_nbuf_len(wbuf);
-
+					/* Check if frame is invalid length */
+					if (efrm - (uint8_t *)wh <
+					    sizeof(*wh) + vos_get_mmie_size()) {
+						TLSHIM_LOGE("Invalid frame length");
+						return 0;
+					}
 					key_id = (u_int16_t)*(efrm - vos_get_mmie_size() + 2);
 					if (!((key_id == WMA_IGTK_KEY_INDEX_4) ||
 						(key_id == WMA_IGTK_KEY_INDEX_5))) {
@@ -1137,54 +1164,11 @@ void WLANTL_UnRegisterVdev(void *vos_ctx, u_int8_t vdev_id)
 #endif /* QCA_LL_TX_FLOW_CT */
 }
 
-/**
- * tlshim_peer_validity() - determines whether peer is valid or not
- * @vos_ctx: vos context
- * @sta_id: station id
- *
- * Return: on success return vdev, NULL when peer is invalid/NULL
+/*
+ * TL API to transmit a frame given by HDD. Returns NULL
+ * in case of success, skb pointer in case of failure.
  */
-void *tlshim_peer_validity(void *vos_ctx, uint8_t sta_id)
-{
-	struct txrx_tl_shim_ctx *tl_shim = vos_get_context(VOS_MODULE_ID_TL,
-							vos_ctx);
-	struct ol_txrx_peer_t *peer;
-
-	if (!tl_shim) {
-		TLSHIM_LOGE("tl_shim is NULL");
-		return NULL;
-	}
-
-	if (sta_id >= WLAN_MAX_STA_COUNT) {
-		TLSHIM_LOGE("Invalid sta id for data tx");
-		return NULL;
-	}
-
-	if (!tl_shim->sta_info[sta_id].registered) {
-		TLSHIM_LOGW("Staion is not yet registered for data service");
-		return NULL;
-	}
-
-	peer = ol_txrx_peer_find_by_local_id(
-			((pVosContextType) vos_ctx)->pdev_txrx_ctx,
-			sta_id);
-	if (!peer) {
-		TLSHIM_LOGW("Invalid peer");
-		return NULL;
-	} else {
-		return (void *)peer->vdev;
-	}
-}
-
-/**
- * WLANTL_SendSTA_DataFrame() - transmit frame from upper layers
- * @vos_ctx: pointer to vos context
- * @vdev: vdev
- * @skb: pointer to OS packet list
- *
- * Return: return NULL in success, pointer to skb list in case of failure
- */
-adf_nbuf_t WLANTL_SendSTA_DataFrame(void *vos_ctx, void *vdev,
+adf_nbuf_t WLANTL_SendSTA_DataFrame(void *vos_ctx, u_int8_t sta_id,
 				    adf_nbuf_t skb
 #ifdef QCA_PKT_PROTO_TRACE
 				  , v_U8_t proto_type
@@ -1194,7 +1178,8 @@ adf_nbuf_t WLANTL_SendSTA_DataFrame(void *vos_ctx, void *vdev,
 	struct txrx_tl_shim_ctx *tl_shim = vos_get_context(VOS_MODULE_ID_TL,
 							   vos_ctx);
 	void *adf_ctx = vos_get_context(VOS_MODULE_ID_ADF, vos_ctx);
-	adf_nbuf_t ret, skb_list_head;
+	adf_nbuf_t ret;
+	struct ol_txrx_peer_t *peer;
 
 	if (!tl_shim) {
 		TLSHIM_LOGE("tl_shim is NULL");
@@ -1210,33 +1195,46 @@ adf_nbuf_t WLANTL_SendSTA_DataFrame(void *vos_ctx, void *vdev,
 		TLSHIM_LOGW("%s: Driver load/unload in progress", __func__);
 		return skb;
 	}
-
-	skb_list_head = skb;
-	while (skb) {
-		adf_nbuf_map_single(adf_ctx, skb, ADF_OS_DMA_TO_DEVICE);
-
-#ifdef QCA_PKT_PROTO_TRACE
-		adf_nbuf_trace_set_proto_type(skb, proto_type);
-#endif /* QCA_PKT_PROTO_TRACE */
-
-		if ((tl_shim->ip_checksum_offload) &&
-			(skb->protocol == htons(ETH_P_IP))
-			 && (skb->ip_summed == CHECKSUM_PARTIAL))
-			skb->ip_summed = CHECKSUM_COMPLETE;
-
-		skb = skb->next;
+	/*
+	 * TODO: How sta_id is created and used for IBSS mode?.
+	 */
+	if (sta_id >= WLAN_MAX_STA_COUNT) {
+		TLSHIM_LOGE("Invalid sta id for data tx");
+		return skb;
 	}
 
-	ret = tl_shim->tx(vdev, skb_list_head);
+	if (!tl_shim->sta_info[sta_id].registered) {
+		TLSHIM_LOGW("Staion is not yet registered for data service");
+		return skb;
+	}
+
+	peer = ol_txrx_peer_find_by_local_id(
+			((pVosContextType) vos_ctx)->pdev_txrx_ctx,
+			sta_id);
+	if (!peer) {
+		TLSHIM_LOGW("Invalid peer");
+		return skb;
+	}
+
+	/* Zero out skb's context buffer for the driver to use */
+	adf_os_mem_set(skb->cb, 0, sizeof(skb->cb));
+	adf_nbuf_map_single(adf_ctx, skb, ADF_OS_DMA_TO_DEVICE);
+
+#ifdef QCA_PKT_PROTO_TRACE
+	adf_nbuf_trace_set_proto_type(skb, proto_type);
+#endif /* QCA_PKT_PROTO_TRACE */
+
+	if ((tl_shim->ip_checksum_offload) && (skb->protocol == htons(ETH_P_IP))
+		 && (skb->ip_summed == CHECKSUM_PARTIAL))
+		skb->ip_summed = CHECKSUM_COMPLETE;
+
+	/* Terminate the (single-element) list of tx frames */
+	skb->next = NULL;
+	ret = tl_shim->tx(peer->vdev, skb);
 	if (ret) {
-		skb_list_head = ret;
 		TLSHIM_LOGW("Failed to tx");
-		while (ret) {
-			adf_nbuf_unmap_single(adf_ctx, ret,
-						ADF_OS_DMA_TO_DEVICE);
-			ret = ret->next;
-		}
-		return skb_list_head;
+		adf_nbuf_unmap_single(adf_ctx, ret, ADF_OS_DMA_TO_DEVICE);
+		return ret;
 	}
 
 	return NULL;
@@ -1740,6 +1738,8 @@ VOS_STATUS WLANTL_ClearSTAClient(void *vos_ctx, u_int8_t sta_id)
  */
 VOS_STATUS WLANTL_RegisterSTAClient(void *vos_ctx,
 				    WLANTL_STARxCBType rxcb,
+				    WLANTL_TxCompCBType tx_comp,
+				    WLANTL_STAFetchPktCBType txpkt_fetch,
 				    WLAN_STADescType *sta_desc, v_S7_t rssi)
 {
 	struct txrx_tl_shim_ctx *tl_shim;
@@ -1822,9 +1822,9 @@ VOS_STATUS WLANTL_Start(void *vos_ctx)
 VOS_STATUS WLANTL_Close(void *vos_ctx)
 {
 	struct txrx_tl_shim_ctx *tl_shim;
-	struct tlshim_buf *cache_buf, *tmp;
-	struct tlshim_sta_info *sta_info;
-	u_int16_t i;
+#if defined(QCA_LL_TX_FLOW_CT) || defined(QCA_SUPPORT_TXRX_VDEV_PAUSE_LL)
+	u_int8_t i;
+#endif /* QCA_LL_TX_FLOW_CT */
 
 	ENTER();
 	tl_shim = vos_get_context(VOS_MODULE_ID_TL, vos_ctx);
@@ -1856,19 +1856,7 @@ VOS_STATUS WLANTL_Close(void *vos_ctx)
 	vos_flush_work(&tl_shim->iapp_work.deferred_work);
 #endif
 	vos_flush_work(&tl_shim->cache_flush_work);
-	for (i = 0; i < WLAN_MAX_STA_COUNT; i++) {
-		sta_info = &tl_shim->sta_info[i];
-		adf_os_spin_lock_bh(&tl_shim->bufq_lock);
-		list_for_each_entry_safe(cache_buf, tmp,
-					 &sta_info->cached_bufq, list) {
-			list_del(&cache_buf->list);
-			adf_os_spin_unlock_bh(&tl_shim->bufq_lock);
-			adf_nbuf_free(cache_buf->buf);
-			adf_os_mem_free(cache_buf);
-			adf_os_spin_lock_bh(&tl_shim->bufq_lock);
-		}
-		adf_os_spin_unlock_bh(&tl_shim->bufq_lock);
-	}
+
 	wdi_in_pdev_detach(((pVosContextType) vos_ctx)->pdev_txrx_ctx, 1);
 	// Delete beacon buffer hanging off tl_shim
 	if (tl_shim->last_beacon_data) {
@@ -1919,11 +1907,20 @@ VOS_STATUS WLANTL_Open(void *vos_ctx, WLANTL_ConfigInfoType *tl_cfg)
 		INIT_LIST_HEAD(&tl_shim->sta_info[i].cached_bufq);
 	}
 
-	vos_init_work(&tl_shim->cache_flush_work, tl_shim_cache_flush_work);
+#ifdef CONFIG_CNSS
+	cnss_init_work(&tl_shim->cache_flush_work, tl_shim_cache_flush_work);
+#else
+	INIT_WORK(&tl_shim->cache_flush_work, tl_shim_cache_flush_work);
+#endif
 
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
-	vos_init_work(&(tl_shim->iapp_work.deferred_work),
+#ifdef CONFIG_CNSS
+	cnss_init_work(&(tl_shim->iapp_work.deferred_work),
 		tlshim_mgmt_over_data_rx_handler);
+#else
+	INIT_WORK(&(tl_shim->iapp_work.deferred_work),
+		tlshim_mgmt_over_data_rx_handler);
+#endif
 #endif
 	/*
 	 * TODO: Allocate memory for tx callback for maximum supported
@@ -2027,7 +2024,7 @@ void *tl_shim_get_vdev_by_addr(void *vos_context, uint8_t *mac_addr)
 	peer = ol_txrx_find_peer_by_addr(pdev, mac_addr, &peer_id);
 
 	if (!peer) {
-		TLSHIM_LOGW("PEER [%pM] not found", mac_addr);
+		TLSHIM_LOGE("PEER [%pM] not found", mac_addr);
 		return NULL;
 	}
 
@@ -2090,9 +2087,8 @@ WLANTL_PauseUnPauseQs(void *vos_context, v_BOOL_t flag)
  *
  * HDD will call this API to get the OL-TXRX module stats
  *
- * Return: VOS_STATUS
  */
-VOS_STATUS WLANTL_Get_llStats
+void WLANTL_Get_llStats
 (
 	uint8_t sessionId,
 	char *buffer,
@@ -2104,22 +2100,24 @@ VOS_STATUS WLANTL_Get_llStats
 	struct ol_txrx_vdev_t *vdev;
 
 	if (!vos_context) {
-		return VOS_STATUS_E_FAILURE;
+		return;
 	}
 
 	tl_shim = vos_get_context(VOS_MODULE_ID_TL, vos_context);
 	if (!tl_shim) {
 		TLSHIM_LOGD("%s, tl_shim is NULL",
                     __func__);
-		return VOS_STATUS_E_FAILURE;
+		return;
 	}
 
 	vdev = tl_shim->session_flow_control[sessionId].vdev;
 	if (!vdev) {
 		TLSHIM_LOGE("%s, vdev is NULL", __func__);
-		return VOS_STATUS_E_FAILURE;
+		return;
 	}
-	return ol_txrx_stats(vdev, buffer, (unsigned)length);
+	ol_txrx_stats(vdev, buffer, (unsigned)length);
+	return;
+
 }
 
 /*=============================================================================
@@ -2658,17 +2656,4 @@ void WLANTL_clear_datapath_stats(void *vos_ctx, uint16_t bitmap)
 
 	wdi_in_clear_stats(pdev, bitmap);
 	return;
-}
-
-/* tlshim_get_fwd_to_tx_packet_count() - to get the total rx packets that have
- *   been directly forwarded to tx without coming to upper layers
- *
- * @session_id: session id/vdev id
- *
- * Returns: forwarded packet count
- *
- */
-uint64_t tlshim_get_fwd_to_tx_packet_count(uint8_t session_id)
-{
-	return ol_rx_get_fwd_to_tx_packet_count(session_id);
 }

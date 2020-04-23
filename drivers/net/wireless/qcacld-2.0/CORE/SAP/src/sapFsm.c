@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -345,22 +345,6 @@ tSapChanMatrixInfo ht80_chan[] =
     ,{144, SAP_TX_LEAKAGE_MIN}
 #endif
 }},
-
-#ifdef FEATURE_WLAN_CH144
- {144,
-   {{36, 695},            {40, 695 },
-    {44, 684},            {48, 684 },
-    {52, 664},            {56, 664 },
-    {60, 658},            {64, 658 },
-    {100, 601},{104, 601 },
-    {108, 545},{112, 545 },
-    {116, SAP_TX_LEAKAGE_AUTO_MIN}, {120, SAP_TX_LEAKAGE_AUTO_MIN},
-    {124, SAP_TX_LEAKAGE_AUTO_MIN}, {128, SAP_TX_LEAKAGE_AUTO_MIN},
-    {132, 262},{136, 262},
-    {140, SAP_TX_LEAKAGE_MIN},
-    {144, SAP_TX_LEAKAGE_MIN}
-}},
-#endif
 };
 
 /* channel tx leakage table - ht40 */
@@ -605,23 +589,8 @@ tSapChanMatrixInfo ht40_chan[] =
     ,{144, SAP_TX_LEAKAGE_MIN}
 #endif
 }},
-
-#ifdef FEATURE_WLAN_CH144
- {144,
-   {{36, 695},            {40, 695 },
-    {44, 684},            {48, 684 },
-    {52, 664},            {56, 664 },
-    {60, 658},            {64, 658 },
-    {100, 601},{104, 601 },
-    {108, 545},{112, 545 },
-    {116, SAP_TX_LEAKAGE_AUTO_MIN}, {120, SAP_TX_LEAKAGE_AUTO_MIN},
-    {124, SAP_TX_LEAKAGE_AUTO_MIN}, {128, SAP_TX_LEAKAGE_AUTO_MIN},
-    {132, 262},{136, 262},
-    {140, SAP_TX_LEAKAGE_MIN},
-    {144, SAP_TX_LEAKAGE_MIN}
-}},
-#endif
 };
+
 
 /* channel tx leakage table - ht20 */
 tSapChanMatrixInfo ht20_chan[] =
@@ -865,22 +834,6 @@ tSapChanMatrixInfo ht20_chan[] =
     ,{144, SAP_TX_LEAKAGE_MIN}
 #endif
 }},
-
-#ifdef FEATURE_WLAN_CH144
- {144,
-   {{36, 679},            {40, 673},
-    {44, 667},            {48, 656},
-    {52, 634},            {56, 663},
-    {60, 662},            {64, 660},
-    {100, SAP_TX_LEAKAGE_MAX},{104, SAP_TX_LEAKAGE_MAX},
-    {108, SAP_TX_LEAKAGE_MAX},{112, 590},
-    {116, 573},           {120, 553},
-    {124, 533},{128, 513},
-    {132, 490},{136, SAP_TX_LEAKAGE_MIN},
-    {140, SAP_TX_LEAKAGE_MIN},
-    {144, SAP_TX_LEAKAGE_MIN}
-}},
-#endif
 };
 #endif //end of WLAN_ENABLE_CHNL_MATRIX_RESTRICTION
 
@@ -1097,16 +1050,7 @@ sapMarkChannelsLeakingIntoNOL(ptSapContext sapContext,
     v_U32_t         j = 0;
     v_U32_t         k = 0;
     v_U8_t          dfs_nol_channel;
-    tHalHandle      hal = VOS_GET_HAL_CB(sapContext->pvosGCtx);
-    tpAniSirGlobal  mac;
 
-    if (NULL == hal) {
-        VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-            "%s: Invalid hal pointer", __func__);
-        return VOS_STATUS_E_FAULT;
-    }
-
-    mac = PMAC_STRUCT(hal);
 
     /* traverse target_chan_matrix and */
     for (i = 0; i < NUM_5GHZ_CHANNELS ; i++) {
@@ -1147,8 +1091,7 @@ sapMarkChannelsLeakingIntoNOL(ptSapContext sapContext,
                     k++;
                 } else {
                     /* check leakage from candidate channel to NOL channel */
-                    if (target_chan_matrix[k].leak_lvl <=
-                         mac->sap.SapDfsInfo.tx_leakage_threshold)
+                    if (target_chan_matrix[k].leak_lvl <= SAP_TX_LEAKAGE_THRES)
                     {
                         /*
                          * this means that candidate channel will have bad
@@ -1161,6 +1104,7 @@ sapMarkChannelsLeakingIntoNOL(ptSapContext sapContext,
                                   dfs_nol_channel,
                                   pTempChannelList[j]);
                         pTempChannelList[j] = 0;
+                        break;
                     }
                     j++;
                     k++;
@@ -1627,8 +1571,8 @@ static v_U8_t sapRandomChannelSel(ptSapContext sapContext)
         channelBitmap.chanBondingSet[1].startChannel = 52;
         channelBitmap.chanBondingSet[2].startChannel = 100;
         channelBitmap.chanBondingSet[3].startChannel = 116;
-        channelBitmap.chanBondingSet[3].startChannel = 132;
-        channelBitmap.chanBondingSet[4].startChannel = 149;
+        channelBitmap.chanBondingSet[4].startChannel = 132;
+        channelBitmap.chanBondingSet[5].startChannel = 149;
         /* now loop through whatever is left of channel list */
         VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
                   FL("sapdfs: Moving temp channel list to final."));
@@ -1946,7 +1890,7 @@ v_BOOL_t
 sapDfsIsChannelInNolList(ptSapContext sapContext, v_U8_t channelNumber,
         ePhyChanBondState chanBondState)
 {
-    int i = 0, j;
+    int i, j;
     v_U64_t timeElapsedSinceLastRadar,timeWhenRadarFound,currentTime = 0;
     v_U64_t max_jiffies;
     tHalHandle hHal = VOS_GET_HAL_CB(sapContext->pvosGCtx);
@@ -2932,6 +2876,22 @@ sapSignalHDDevent
                           pCsrRoamInfo->u.pWPSPBCProbeReq,
                           sizeof(tSirWPSPBCProbeReq));
             break;
+
+       case eSAP_INDICATE_MGMT_FRAME:
+            VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH,
+                       FL("SAP event callback event = %s"),
+                          "eSAP_INDICATE_MGMT_FRAME");
+            sapApAppEvent.sapHddEventCode = eSAP_INDICATE_MGMT_FRAME;
+            sapApAppEvent.sapevt.sapManagementFrameInfo.nFrameLength
+                                           = pCsrRoamInfo->nFrameLength;
+            sapApAppEvent.sapevt.sapManagementFrameInfo.pbFrames
+                                           = pCsrRoamInfo->pbFrames;
+            sapApAppEvent.sapevt.sapManagementFrameInfo.frameType
+                                           = pCsrRoamInfo->frameType;
+            sapApAppEvent.sapevt.sapManagementFrameInfo.rxChan
+                                           = pCsrRoamInfo->rxChan;
+
+            break;
        case eSAP_REMAIN_CHAN_READY:
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH,
                        FL("SAP event callback event = %s"),
@@ -3776,8 +3736,20 @@ sapFsm
                     }
                  }
              }
-             else if (msg == eSAP_HDD_STOP_INFRA_BSS ||
-                      msg == eSAP_MAC_START_FAILS)
+             else if (msg == eSAP_MAC_START_FAILS)
+             {
+                 /*Transition from STARTING to DISCONNECTED (both without substates)*/
+                 VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR, "In %s, from state %s => %s",
+                            __func__, "eSAP_STARTING", "eSAP_DISCONNECTED");
+
+                 /*Action code for transition */
+                 vosStatus = sapSignalHDDevent( sapContext, NULL, eSAP_START_BSS_EVENT,(v_PVOID_t) eSAP_STATUS_FAILURE);
+                 vosStatus =  sapGotoDisconnected(sapContext);
+
+                 /*Advance outer statevar */
+                 sapContext->sapsMachine = eSAP_DISCONNECTED;
+             }
+             else if (msg == eSAP_HDD_STOP_INFRA_BSS)
              {
                  /*Transition from eSAP_STARTING to eSAP_DISCONNECTED (both without substates)*/
                  VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s",
@@ -3927,17 +3899,6 @@ sapFsm
                VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO,
                          "In %s, Sending DFS eWNI_SME_CHANNEL_CHANGE_REQ",
                          __func__);
-            }
-            else if (msg == eWNI_SME_CHANNEL_CHANGE_RSP)
-            {
-                VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_MED,
-                          "In %s, in state %s, event msg %d result %d",
-                          __func__, "eSAP_DISCONNECTING ", msg, sapEvent->u2);
-
-                if (sapEvent->u2 == eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE)
-                {
-                    vosStatus = sapGotoDisconnecting(sapContext);
-                }
             }
             else
             {
@@ -4695,18 +4656,13 @@ void sapDfsCacTimerCallback(void *data)
         return;
     }
 
-    /*
-     * SAP may not be in CAC wait state, when the timer runs out.
-     * if following flag is set, then timer is in initialized state,
-     * destroy timer here.
-     */
-    if (pMac->sap.SapDfsInfo.is_dfs_cac_timer_running == true) {
-        vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
-        pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
-    }
     /* Check to ensure that SAP is in DFS WAIT state*/
     if (sapContext->sapsMachine == eSAP_DFS_CAC_WAIT)
     {
+        vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
+        pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = VOS_FALSE;
+
+
         /*
          * CAC Complete, post eSAP_DFS_CHANNEL_CAC_END to sapFsm
          */
@@ -4751,7 +4707,6 @@ static int sapStopDfsCacTimer(ptSapContext sapContext)
 
     vos_timer_stop(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
     pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
-    vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
 
     return 0;
 }
@@ -4833,13 +4788,11 @@ int sapStartDfsCacTimer(ptSapContext sapContext)
     status = vos_timer_start(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer, cacTimeOut);
     if (status == VOS_STATUS_SUCCESS)
     {
-        pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = true;
+        pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = VOS_TRUE;
         return 1;
     }
     else
     {
-        pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
-        vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
         return 0;
     }
 }

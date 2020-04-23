@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -398,6 +398,7 @@ tSirRetStatus limPostSMStateUpdate(tpAniSirGlobal pMac,
 void limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
 void limProcessAddBaInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
 void limDeleteBASessions(tpAniSirGlobal pMac, tpPESession pSessionEntry, tANI_U32 baDirection);
+void limDelPerBssBASessionsBtc(tpAniSirGlobal pMac);
 void limDelAllBASessions(tpAniSirGlobal pMac);
 void limDeleteDialogueTokenList(tpAniSirGlobal pMac);
 tSirRetStatus limSearchAndDeleteDialogueToken(tpAniSirGlobal pMac, tANI_U8 token, tANI_U16 assocId, tANI_U16 tid);
@@ -460,6 +461,8 @@ tANI_BOOLEAN limCheckMembershipUserPosition( tpAniSirGlobal pMac, tpPESession ps
                                              tANI_U32 membership, tANI_U32 userPosition,
                                              tANI_U8 staId);
 #endif
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 
 typedef enum
 {
@@ -537,18 +540,10 @@ typedef enum
     WLAN_PE_DIAG_ROAM_ASSOC_COMP_EVENT,
     RESERVED1, /* = 72 for SCAN_COMPLETE */
     RESERVED2, /*  = 73 for SCAN_RES_FOUND */
-    WLAN_PE_DIAG_ASSOC_TIMEOUT,
-    WLAN_PE_DIAG_AUTH_TIMEOUT,
 } WLAN_PE_DIAG_EVENT_TYPE;
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
 void limDiagEventReport(tpAniSirGlobal pMac, tANI_U16 eventType, tpPESession pSessionEntry, tANI_U16 status, tANI_U16 reasonCode);
-#else
-static inline void limDiagEventReport(tpAniSirGlobal pMac, tANI_U16 eventType,
-			tpPESession pSessionEntry, tANI_U16 status,
-			tANI_U16 reasonCode)
-{
-}
+
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
 void peSetResumeChannel(tpAniSirGlobal pMac, tANI_U16 channel, ePhyChanBondState cbState);
@@ -671,8 +666,4 @@ void lim_merge_extcap_struct(tDot11fIEExtCap *dst, tDot11fIEExtCap *src,
 uint8_t
 lim_get_80Mhz_center_channel(uint8_t primary_channel);
 tANI_U8 lim_compute_ext_cap_ie_length (tDot11fIEExtCap *ext_cap);
-bool lim_is_robust_mgmt_action_frame(uint8_t action_catagory);
-void lim_update_caps_info_for_bss(tpAniSirGlobal mac_ctx,
-				uint16_t *caps, uint16_t bss_caps);
-
 #endif /* __LIM_UTILS_H */

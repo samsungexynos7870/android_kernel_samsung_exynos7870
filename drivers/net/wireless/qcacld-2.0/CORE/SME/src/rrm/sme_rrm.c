@@ -591,8 +591,6 @@ static eHalStatus sme_RrmSendScanResult( tpAniSirGlobal pMac,
    while (pScanResult)
    {
       pNextResult = sme_ScanResultGetNext(pMac, pResult);
-      smsLog(pMac, LOG1, "Scan res timer:%lu, rrm scan timer:%lu",
-             pScanResult->timer, RRM_scan_timer);
       if(pScanResult->timer >= RRM_scan_timer)
       {
           pScanResultsArr[counter++] = pScanResult;
@@ -600,7 +598,7 @@ static eHalStatus sme_RrmSendScanResult( tpAniSirGlobal pMac,
       pScanResult = pNextResult; //sme_ScanResultGetNext(hHal, pResult);
       if (counter >= SIR_BCN_REPORT_MAX_BSS_DESC)
          break;
-   }
+      }
 
    smsLog(pMac, LOG1, " Number of BSS Desc with RRM Scan %d ", counter);
    /*
@@ -1197,11 +1195,11 @@ eHalStatus sme_RrmProcessNeighborReport(tpAniSirGlobal pMac, void *pMsgBuf)
    tpRrmNeighborReportDesc  pNeighborReportDesc;
    tANI_U8 i = 0;
    VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
-   tANI_U32 sessionId;
+   tANI_U8 sessionId;
 
    /* Get the session id */
    status = csrRoamGetSessionIdFromBSSID(pMac, (tCsrBssid *)pNeighborRpt->bssId,
-                                         &sessionId);
+                                        (tANI_U32*) &sessionId);
    if (HAL_STATUS_SUCCESS(status)) {
 #ifdef FEATURE_WLAN_ESE
        /* Clear the cache for ESE. */

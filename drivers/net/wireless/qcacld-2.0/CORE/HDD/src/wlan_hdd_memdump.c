@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -42,6 +42,17 @@
 #include <linux/proc_fs.h> /* Necessary because we use the proc fs */
 #include <linux/uaccess.h> /* for copy_to_user */
 
+#define PROCFS_DRIVER_DUMP_DIR "debugdriver"
+
+#ifdef MULTI_IF_NAME
+#define PROCFS_DRIVER_DUMP_NAME "driverdump" MULTI_IF_NAME
+#else
+#define PROCFS_DRIVER_DUMP_NAME "driverdump"
+#endif
+#define PROCFS_DRIVER_DUMP_PERM 0444
+
+static struct proc_dir_entry *proc_file_driver, *proc_dir_driver;
+
 /** memdump_get_file_data() - get data available in proc file
  *
  * @file - handle for the proc file.
@@ -68,18 +79,6 @@ static void *memdump_get_file_data(struct file *file)
 	return hdd_ctx;
 }
 #endif
-
-#define PROCFS_DRIVER_DUMP_DIR "debugdriver"
-
-#ifdef MULTI_IF_NAME
-#define PROCFS_DRIVER_DUMP_NAME "driverdump" MULTI_IF_NAME
-#else
-#define PROCFS_DRIVER_DUMP_NAME "driverdump"
-#endif
-
-#define PROCFS_DRIVER_DUMP_PERM 0444
-
-static struct proc_dir_entry *proc_file_driver, *proc_dir_driver;
 
 /**
  * hdd_driver_mem_cleanup() - Frees memory allocated for

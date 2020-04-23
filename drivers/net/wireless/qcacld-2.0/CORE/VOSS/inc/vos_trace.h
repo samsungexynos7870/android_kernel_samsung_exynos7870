@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014, 2016, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -48,6 +48,10 @@
 #include  <vos_status.h>
 #include  <i_vos_types.h>
 
+void __printf(3,4) vos_snprintf(char *strBuffer, unsigned  int size,
+                                char *strFormat, ...);
+#define VOS_SNPRINTF vos_snprintf
+#define vos_scnprintf scnprintf
 /*--------------------------------------------------------------------------
   Type declarations
   ------------------------------------------------------------------------*/
@@ -107,7 +111,7 @@ typedef enum
 #define NO_SESSION 0xFF
 
 #else
-#define MTRACE(p) do { } while (0);
+#define MTRACE(p) {  }
 
 #endif
 

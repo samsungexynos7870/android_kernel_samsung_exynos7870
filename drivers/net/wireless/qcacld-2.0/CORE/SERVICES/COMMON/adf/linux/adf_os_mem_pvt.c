@@ -32,3 +32,8 @@
 
 int adf_dbg_mask;
 adf_os_declare_param(adf_dbg_mask, ADF_OS_PARAM_TYPE_INT32);
+
+
+EXPORT_SYMBOL(adf_os_mem_alloc_outline);
+EXPORT_SYMBOL(adf_os_mem_free_outline);
+EXPORT_SYMBOL(adf_os_mem_zero_outline);

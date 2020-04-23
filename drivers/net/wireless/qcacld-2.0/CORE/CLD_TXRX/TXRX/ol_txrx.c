@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -71,28 +71,6 @@
 #include <ol_txrx.h>
 
 /*=== function definitions ===*/
-
-/**
- * ol_tx_mark_first_wakeup_packet() - set flag to indicate that
- *    fw is compatible for marking first packet after wow wakeup
- * @value: 1 for enabled/ 0 for disabled
- *
- * Return: None
- */
-void ol_tx_mark_first_wakeup_packet(uint8_t value)
-{
-	void *vos_context = vos_get_global_context(VOS_MODULE_ID_TXRX, NULL);
-	struct ol_txrx_pdev_t *pdev = vos_get_context(VOS_MODULE_ID_TXRX,
-						vos_context);
-
-	if (!pdev) {
-		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
-			"%s: pdev is NULL\n", __func__);
-		return;
-	}
-
-	htt_mark_first_wakeup_packet(pdev->htt_pdev, value);
-}
 
 u_int16_t
 ol_tx_desc_pool_size_hl(ol_pdev_handle ctrl_pdev)
@@ -442,12 +420,6 @@ ol_txrx_pdev_attach(
     if (!pdev->htt_pdev) {
         goto fail2;
     }
-
-    htt_register_rx_pkt_dump_callback(pdev->htt_pdev,
-                          ol_rx_pkt_dump_call);
-
-    adf_os_mem_zero(pdev->pn_replays,
-                    OL_RX_NUM_PN_REPLAY_TYPES * sizeof(uint32_t));
 
 #ifdef IPA_UC_OFFLOAD
     /* Attach micro controller data path offload resource */
@@ -905,8 +877,8 @@ void
 ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 {
     int i = 0;
-    unsigned int page_idx;
     struct ol_txrx_stats_req_internal *req;
+    unsigned int page_idx;
 
     /*checking to ensure txrx pdev structure is not NULL */
     if (!pdev) {
@@ -973,8 +945,6 @@ ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
         TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1, "Force delete for pdev %p\n", pdev);
         ol_txrx_peer_find_hash_erase(pdev);
     }
-
-    htt_deregister_rx_pkt_dump_callback(pdev->htt_pdev);
 
     /* Stop the communication between HTT and target at first */
     htt_detach_target(pdev->htt_pdev);
@@ -1091,7 +1061,6 @@ ol_txrx_vdev_attach(
     vdev->safemode = 0;
     vdev->drop_unenc = 1;
     vdev->num_filters = 0;
-    vdev->fwd_to_tx_packets = 0;
 #if defined(CONFIG_PER_VDEV_TX_DESC_POOL)
     adf_os_atomic_init(&vdev->tx_desc_count);
 #endif
@@ -1131,10 +1100,6 @@ ol_txrx_vdev_attach(
 
     adf_os_spinlock_init(&vdev->ll_pause.mutex);
     vdev->ll_pause.paused_reason = 0;
-#if defined(CONFIG_HL_SUPPORT)
-    vdev->hl_paused_reason = 0;
-#endif
-
     vdev->ll_pause.txq.head = vdev->ll_pause.txq.tail = NULL;
     vdev->ll_pause.txq.depth = 0;
     adf_os_timer_init(
@@ -1151,17 +1116,6 @@ ol_txrx_vdev_attach(
     /* Default MAX Q depth for every VDEV */
     vdev->ll_pause.max_q_depth =
         ol_tx_cfg_max_tx_queue_depth_ll(vdev->pdev->ctrl_pdev);
-
-    vdev->bundling_reqired = false;
-    adf_os_spinlock_init(&vdev->bundle_queue.mutex);
-    vdev->bundle_queue.txq.head = vdev->ll_pause.txq.tail = NULL;
-    vdev->bundle_queue.txq.depth = 0;
-    adf_os_timer_init(
-            pdev->osdev,
-            &vdev->bundle_queue.timer,
-            ol_tx_hl_vdev_bundle_timer,
-            vdev, ADF_DEFERRABLE_TIMER);
-
     /* add this vdev into the pdev's list */
     TAILQ_INSERT_TAIL(&pdev->vdev_list, vdev, vdev_list_elem);
 
@@ -1188,7 +1142,7 @@ void ol_txrx_osif_vdev_register(ol_txrx_vdev_handle vdev,
     vdev->osif_rx = txrx_ops->rx.std;
 
     if (ol_cfg_is_high_latency(vdev->pdev->ctrl_pdev)) {
-        txrx_ops->tx.std = vdev->tx = OL_TX_HL;
+        txrx_ops->tx.std = vdev->tx = ol_tx_hl;
         txrx_ops->tx.non_std = ol_tx_non_std_hl;
     } else {
         txrx_ops->tx.std = vdev->tx = OL_TX_LL;
@@ -1468,22 +1422,8 @@ ol_txrx_peer_attach(
     #ifdef QCA_SUPPORT_PEER_DATA_RX_RSSI
     peer->rssi_dbm = HTT_RSSI_INVALID;
     #endif
-    if ((VOS_MONITOR_MODE == vos_get_conparam()) && !pdev->self_peer) {
-        pdev->self_peer = peer;
-        /*
-         * No Tx in monitor mode, otherwise results in target assert.
-         * Setting disable_intrabss_fwd to true
-         */
-        ol_vdev_rx_set_intrabss_fwd(vdev, true);
-    }
 
     OL_TXRX_LOCAL_PEER_ID_ALLOC(pdev, peer);
-    peer->reorder_history = adf_os_mem_alloc(NULL,
-            sizeof(struct ol_rx_reorder_history));
-    if (!peer->reorder_history) {
-        TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
-                 "%s: reorder history malloc failed\n", __func__);
-    }
 
     return peer;
 }
@@ -1945,31 +1885,6 @@ ol_txrx_get_tx_pending(ol_txrx_pdev_handle pdev_handle)
     return (total - pdev->tx_desc.num_free);
 }
 
-/*
- * ol_txrx_get_queue_status() - get vdev tx ll queues status
- * pdev_handle: pdev handle
- *
- * Return: A_OK - if all queues are empty
- *         A_ERROR - if any queue is not empty
- */
-A_STATUS
-ol_txrx_get_queue_status(ol_txrx_pdev_handle pdev_handle)
-{
-	struct ol_txrx_pdev_t *pdev = (ol_txrx_pdev_handle)pdev_handle;
-	struct ol_txrx_vdev_t *vdev;
-	A_STATUS status = A_OK;
-
-	TAILQ_FOREACH(vdev, &pdev->vdev_list, vdev_list_elem) {
-		if ((vdev->ll_pause.paused_reason & OL_TXQ_PAUSE_REASON_FW) &&
-			 vdev->ll_pause.txq.depth) {
-			status = A_ERROR;
-			break;
-		}
-	}
-
-	return status;
-}
-
 void
 ol_txrx_discard_tx_pending(ol_txrx_pdev_handle pdev_handle)
 {
@@ -2379,14 +2294,12 @@ ol_txrx_peer_display(ol_txrx_peer_handle peer, int indent)
  * *
  * to update the stats
  *
- * Return: VOS_STATUS
+ * Return: None
  */
-VOS_STATUS
+void
 ol_txrx_stats(ol_txrx_vdev_handle vdev, char *buffer, unsigned buf_len)
 {
-	int ret;
-
-	ret = snprintf(buffer, buf_len,
+	snprintf(buffer, buf_len,
 		"\nTXRX stats:\n"
 		"\nllQueue State : %s"
 		"\n pause %u unpause %u"
@@ -2398,12 +2311,6 @@ ol_txrx_stats(ol_txrx_vdev_handle vdev, char *buffer, unsigned buf_len)
 		vdev->ll_pause.q_overflow_cnt,
 		((vdev->ll_pause.is_q_timer_on == FALSE)
 			? "NOT-RUNNING" : "RUNNING"));
-	if (ret >= buf_len) {
-		VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
-			"Insufficient buffer:%d, %d", buf_len, ret);
-		return VOS_STATUS_E_NOMEM;
-	}
-	return VOS_STATUS_SUCCESS;
 }
 
 #if TXRX_STATS_LEVEL != TXRX_STATS_LEVEL_OFF
@@ -2631,92 +2538,6 @@ exit:
     return rc;
 }
 
-#define MAX_TID         15
-#define MAX_DATARATE    7
-#define OCB_HEADER_VERSION 1
-
-/**
- * ol_txrx_set_ocb_def_tx_param() - Set the default OCB TX parameters
- * @vdev: The OCB vdev that will use these defaults.
- * @_def_tx_param: The default TX parameters.
- * @def_tx_param_size: The size of the _def_tx_param buffer.
- *
- * Return: true if the default parameters were set correctly, false if there
- * is an error, for example an invalid parameter. In the case that false is
- * returned, see the kernel log for the error description.
- */
-bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
-	void *_def_tx_param, uint32_t def_tx_param_size)
-{
-	struct ocb_tx_ctrl_hdr_t *def_tx_param =
-		(struct ocb_tx_ctrl_hdr_t *)_def_tx_param;
-
-	if (def_tx_param) {
-		/*
-		 * Default TX parameters are provided.
-		 * Validate the contents and
-		 * save them in the vdev.
-		 */
-		if (def_tx_param_size != sizeof(struct ocb_tx_ctrl_hdr_t)) {
-			VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
-			    "Invalid size of OCB default TX params");
-			return false;
-		}
-
-		if (def_tx_param->version != OCB_HEADER_VERSION) {
-			VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
-				  "Invalid version of OCB default TX params");
-			return false;
-		}
-
-		if (def_tx_param->channel_freq) {
-			int i;
-			for (i = 0; i < vdev->ocb_channel_count; i++) {
-				if (vdev->ocb_channel_info[i].chan_freq ==
-						def_tx_param->channel_freq)
-					break;
-			}
-			if (i == vdev->ocb_channel_count) {
-				VOS_TRACE(VOS_MODULE_ID_TXRX,
-					  VOS_TRACE_LEVEL_ERROR,
-					  "Invalid default channel frequency");
-				return false;
-			}
-		}
-
-		if (def_tx_param->valid_datarate &&
-			    def_tx_param->datarate > MAX_DATARATE) {
-			VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
-				  "Invalid default datarate");
-			return false;
-		}
-
-		if (def_tx_param->valid_tid &&
-			    def_tx_param->ext_tid > MAX_TID) {
-			VOS_TRACE(VOS_MODULE_ID_TXRX, VOS_TRACE_LEVEL_ERROR,
-				  "Invalid default TID");
-			return false;
-		}
-
-		if (vdev->ocb_def_tx_param == NULL)
-			vdev->ocb_def_tx_param =
-				vos_mem_malloc(sizeof(*vdev->ocb_def_tx_param));
-		vos_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
-			     sizeof(*vdev->ocb_def_tx_param));
-	} else {
-		/*
-		 * Default TX parameters are not provided.
-		 * Delete the old defaults.
-		 */
-		if (vdev->ocb_def_tx_param) {
-			vos_mem_free(vdev->ocb_def_tx_param);
-			vdev->ocb_def_tx_param = NULL;
-		}
-	}
-
-	return true;
-}
-
 #ifdef IPA_UC_OFFLOAD
 void
 ol_txrx_ipa_uc_get_resource(
@@ -2803,9 +2624,6 @@ void ol_txrx_display_stats(struct ol_txrx_pdev_t *pdev, uint16_t value)
         case WLAN_TXRX_STATS:
             ol_txrx_stats_display(pdev);
             break;
-        case WLAN_TXRX_DESC_STATS:
-            adf_nbuf_tx_desc_count_display();
-            break;
 #ifdef CONFIG_HL_SUPPORT
         case WLAN_SCHEDULER_STATS:
             ol_tx_sched_cur_state_display(pdev);
@@ -2840,9 +2658,6 @@ void ol_txrx_clear_stats(struct ol_txrx_pdev_t *pdev, uint16_t value)
     {
         case WLAN_TXRX_STATS:
             ol_txrx_stats_clear(pdev);
-            break;
-        case WLAN_TXRX_DESC_STATS:
-            adf_nbuf_tx_desc_count_clear();
             break;
 #ifdef CONFIG_HL_SUPPORT
         case WLAN_SCHEDULER_STATS:

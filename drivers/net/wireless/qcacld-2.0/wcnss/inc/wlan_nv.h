@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -244,6 +244,15 @@ typedef enum
     RF_CHAN_13,
     RF_CHAN_14,
 
+    //4.9GHz Band
+    RF_CHAN_240,
+    RF_CHAN_244,
+    RF_CHAN_248,
+    RF_CHAN_252,
+    RF_CHAN_208,
+    RF_CHAN_212,
+    RF_CHAN_216,
+
     //5GHz Low & Mid U-NII Band
     RF_CHAN_36,
     RF_CHAN_40,
@@ -304,6 +313,11 @@ typedef enum
     RF_CHAN_BOND_9,
     RF_CHAN_BOND_10,
     RF_CHAN_BOND_11,
+    RF_CHAN_BOND_242,    //4.9GHz Band
+    RF_CHAN_BOND_246,
+    RF_CHAN_BOND_250,
+    RF_CHAN_BOND_210,
+    RF_CHAN_BOND_214,
     RF_CHAN_BOND_38,    //5GHz Low & Mid U-NII Band
     RF_CHAN_BOND_42,
     RF_CHAN_BOND_46,
@@ -334,7 +348,7 @@ typedef enum
     MIN_2_4GHZ_CHANNEL = RF_CHAN_1,
     MAX_2_4GHZ_CHANNEL = RF_CHAN_14,
 
-    MIN_5GHZ_CHANNEL = RF_CHAN_36,
+    MIN_5GHZ_CHANNEL = RF_CHAN_240,
     MAX_5GHZ_CHANNEL = RF_CHAN_184,
     NUM_5GHZ_CHANNELS = (MAX_5GHZ_CHANNEL - MIN_5GHZ_CHANNEL + 1),
 
@@ -349,7 +363,7 @@ typedef enum
     MIN_CB_2_4GHZ_CHANNEL = RF_CHAN_BOND_3,
     MAX_CB_2_4GHZ_CHANNEL = RF_CHAN_BOND_11,
 
-    MIN_CB_5GHZ_CHANNEL = RF_CHAN_BOND_38,
+    MIN_CB_5GHZ_CHANNEL = RF_CHAN_BOND_242,
     MAX_CB_5GHZ_CHANNEL = RF_CHAN_BOND_163,
 
     NUM_TPC_2_4GHZ_CHANNELS = 14,
@@ -384,17 +398,14 @@ enum
    NV_CHANNEL_DISABLE,
    NV_CHANNEL_ENABLE,
    NV_CHANNEL_DFS,
-   NV_CHANNEL_INVALID,
-   NV_CHANNEL_SKIP_DSRC,
-   NV_CHANNEL_SKIP_2G
+   NV_CHANNEL_INVALID
 };
 typedef uint8 eNVChannelEnabledType;
 
 typedef PACKED_PRE struct PACKED_POST
 {
-    uint32_t   enabled:4;
-    uint32_t   flags:28;
-    tPowerdBm  pwrLimit;
+    eNVChannelEnabledType   enabled;
+    tPowerdBm pwrLimit;
 }sRegulatoryChannel;
 
 typedef PACKED_PRE struct PACKED_POST

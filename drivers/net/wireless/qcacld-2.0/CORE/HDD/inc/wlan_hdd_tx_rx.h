@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -77,11 +77,6 @@
 
 #define HDD_ETH_HEADER_LEN      14
 
-#define TX_PATH 1
-#define RX_PATH 0
-#define STA  1
-#define AP 0
-
 /*---------------------------------------------------------------------------
   Type declarations
   -------------------------------------------------------------------------*/
@@ -102,11 +97,7 @@
   ===========================================================================*/
 extern int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
-extern void hdd_drop_skb(hdd_adapter_t *adapter, struct sk_buff *skb);
-
-extern void hdd_drop_skb_list(hdd_adapter_t *adapter, struct sk_buff *skb,
-                                                      bool is_update_ac_stats);
-
+extern int hdd_mon_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 /**============================================================================
   @brief hdd_tx_timeout() - Function called by OS if there is any
   timeout during transmission. Since HDD simply enqueues packet
@@ -158,6 +149,57 @@ extern VOS_STATUS hdd_deinit_tx_rx( hdd_adapter_t *pAdapter );
 extern VOS_STATUS hdd_disconnect_tx_rx( hdd_adapter_t *pAdapter );
 
 /**============================================================================
+  @brief hdd_tx_complete_cbk() - Callback function invoked by TL
+  to indicate that a packet has been transmitted across the SDIO bus
+  succesfully. OS packet resources can be released after this cbk.
+
+  @param vosContext   : [in] pointer to VOS context
+  @param pVosPacket   : [in] pointer to VOS packet (containing skb)
+  @param vosStatusIn  : [in] status of the transmission
+
+  @return             : VOS_STATUS_E_FAILURE if any errors encountered
+                      : VOS_STATUS_SUCCESS otherwise
+  ===========================================================================*/
+extern VOS_STATUS hdd_tx_complete_cbk( v_VOID_t *vosContext,
+                                       vos_pkt_t *pVosPacket,
+                                       VOS_STATUS vosStatusIn );
+
+/**============================================================================
+  @brief hdd_tx_fetch_packet_cbk() - Callback function invoked by TL to
+  fetch a packet for transmission.
+
+  @param vosContext   : [in] pointer to VOS context
+  @param staId        : [in] Station for which TL is requesting a pkt
+  @param ucAC         : [in] pointer to access category requested by TL
+  @param pVosPacket   : [out] pointer to VOS packet packet pointer
+  @param pPktMetaInfo : [out] pointer to meta info for the pkt
+
+  @return             : VOS_STATUS_E_EMPTY if no packets to transmit
+                      : VOS_STATUS_E_FAILURE if any errors encountered
+                      : VOS_STATUS_SUCCESS otherwise
+  ===========================================================================*/
+extern VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
+                                           v_U8_t *pStaId,
+                                           WLANTL_ACEnumType    ucAC,
+                                           vos_pkt_t **ppVosPacket,
+                                           WLANTL_MetaInfoType *pPktMetaInfo );
+
+/**============================================================================
+  @brief hdd_tx_low_resource_cbk() - Callback function invoked in the
+  case where VOS packets are not available at the time of the call to get
+  packets. This callback function is invoked by VOS when packets are
+  available.
+
+  @param pVosPacket : [in]  pointer to VOS packet
+  @param userData   : [in]  opaque user data that was passed initially
+
+  @return           : VOS_STATUS_E_FAILURE if any errors encountered,
+                    : VOS_STATUS_SUCCESS otherwise
+  =============================================================================*/
+extern VOS_STATUS hdd_tx_low_resource_cbk( vos_pkt_t *pVosPacket,
+                                           v_VOID_t *userData );
+
+/**============================================================================
   @brief hdd_rx_packet_cbk() - Receive callback registered with TL.
   TL will call this to notify the HDD when a packet was received
   for a registered STA.
@@ -180,6 +222,22 @@ extern VOS_STATUS hdd_rx_packet_cbk(v_VOID_t *vosContext, adf_nbuf_t rxBufChain,
                   : VOS_FALSE otherwise
   ===========================================================================*/
 extern v_BOOL_t hdd_IsEAPOLPacket( vos_pkt_t *pVosPacket );
+
+/**============================================================================
+  @brief hdd_mon_tx_mgmt_pkt() - Transmit MGMT packet received on monitor
+                                 interface.
+
+  @param pAdapter: [in] SAP/P2P GO adapter.
+  ===========================================================================*/
+void hdd_mon_tx_mgmt_pkt(hdd_adapter_t* pAdapter);
+
+/**============================================================================
+  @brief hdd_mon_tx_work_queue() - work queue handler for transmitting
+                                   mgmt packets.
+
+  @param work: [in] work queue structure.
+  ===========================================================================*/
+void hdd_mon_tx_work_queue(struct work_struct *work);
 
 /**============================================================================
   @brief hdd_Ibss_GetStaId() - Get the StationID using the Peer Mac address
@@ -236,29 +294,26 @@ void hdd_tx_resume_cb(void *adapter_context,
 void hdd_tx_resume_timer_expired_handler(void *adapter_context);
 #endif /* QCA_LL_TX_FLOW_CT */
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**
- * hdd_mon_rx_packet_cbk() - Receive callback registered with TL.
- * @vosContext: [in] pointer to VOS context
- * @staId:      [in] Station Id
- * @rxBuf:      [in] pointer to rx adf_nbuf
+ * wlan_hdd_log_eapol() - Function to check and extract EAPOL params
+ * @skb:               skb data
+ * @event_type:        One of enum wifi_connectivity_events to indicate Tx/Rx
  *
- * TL will call this to notify the HDD when one or more packets were
- * received for a registered STA.
+ * This function parses the input skb data to get the EAPOL params,if the
+ * packet is EAPOL and store it in the pointer passed as input
  *
- * Return: VOS_STATUS_E_FAILURE if any errors encountered, VOS_STATUS_SUCCESS
- * otherwise
+ * Return: None
+ *
  */
-VOS_STATUS hdd_mon_rx_packet_cbk(v_VOID_t *vos_ctx, adf_nbuf_t rx_buf,
-				 uint8_t sta_id);
-
-#ifdef QCA_PKT_PROTO_TRACE
-void hdd_dhcp_pkt_trace_buf_update(struct sk_buff *skb, int is_transmission,
-				   int is_sta);
+void wlan_hdd_log_eapol(struct sk_buff *skb,
+			uint8_t event_type);
 #else
-static inline void hdd_dhcp_pkt_trace_buf_update(struct sk_buff *skb,
-					    int is_transmission, int is_sta)
+static inline void wlan_hdd_log_eapol(struct sk_buff *skb,
+				      uint8_t event_type)
 {
-	return;
+
 }
-#endif
+#endif /* FEATURE_WLAN_DIAG_SUPPORT */
+
 #endif    // end #if !defined( WLAN_HDD_TX_RX_H )
