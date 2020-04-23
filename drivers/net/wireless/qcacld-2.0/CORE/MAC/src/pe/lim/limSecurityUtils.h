@@ -53,6 +53,7 @@
                                      SIR_MAC_AUTH_FRAME_INFO_LEN + \
                                      SIR_MAC_WEP_IV_LENGTH + \
                                      SIR_MAC_WEP_ICV_LENGTH)
+
 struct tLimPreAuthNode;
 
 tANI_U8        limIsAuthAlgoSupported(tpAniSirGlobal, tAniAuthType, tpPESession);

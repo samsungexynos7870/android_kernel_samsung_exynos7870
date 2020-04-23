@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,7 +40,7 @@
 #include "limAssocUtils.h"
 #include "limSecurityUtils.h"
 #include "pmmApi.h"
-#include "limApi.h"
+
 
 // default value 5000 ms for background scan period when it is disabled
 #define LIM_BACKGROUND_SCAN_PERIOD_DEFAULT_MS    5000
@@ -582,24 +582,12 @@ limCreateTimers(tpAniSirGlobal pMac)
                FL("could not retrieve mac preauth value"));
     }
     pMac->lim.gLimPreAuthTimerTable.numEntry = cfgValue;
-    pMac->lim.gLimPreAuthTimerTable.pTable =
-        vos_mem_malloc(cfgValue*sizeof(tLimPreAuthNode*));
-    if(pMac->lim.gLimPreAuthTimerTable.pTable == NULL) {
+    pMac->lim.gLimPreAuthTimerTable.pTable = vos_mem_malloc(cfgValue*sizeof(tLimPreAuthNode));
+    if(pMac->lim.gLimPreAuthTimerTable.pTable == NULL)
+    {
         pMac->lim.gLimPreAuthTimerTable.numEntry = 0;
         limLog(pMac, LOGP, FL("AllocateMemory failed!"));
         goto err_timer;
-    }
-    vos_mem_zero(pMac->lim.gLimPreAuthTimerTable.pTable,
-                 cfgValue * sizeof(tLimPreAuthNode*));
-
-    for (i = 0; i < cfgValue; i++) {
-        pMac->lim.gLimPreAuthTimerTable.pTable[i] =
-            vos_mem_malloc(sizeof(tLimPreAuthNode));
-        if (pMac->lim.gLimPreAuthTimerTable.pTable[i] == NULL) {
-            pMac->lim.gLimPreAuthTimerTable.numEntry = 0;
-            limLog(pMac, LOGP, FL("AllocateMemory failed!"));
-            goto err_timer;
-        }
     }
 
     limInitPreAuthTimerTable(pMac, &pMac->lim.gLimPreAuthTimerTable);
@@ -777,8 +765,6 @@ limCreateTimers(tpAniSirGlobal pMac)
 
         if(NULL != pMac->lim.gLimPreAuthTimerTable.pTable)
         {
-            for (i = 0; i < pMac->lim.gLimPreAuthTimerTable.numEntry; i++)
-                vos_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable[i]);
             vos_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable);
             pMac->lim.gLimPreAuthTimerTable.pTable = NULL;
         }
@@ -828,8 +814,7 @@ limTimerHandler(void *pMacGlobal, tANI_U32 param)
     msg.bodyptr = NULL;
     msg.bodyval = 0;
 
-    statusCode = lim_post_msg_high_pri(pMac, &msg);
-    if (statusCode != eSIR_SUCCESS)
+    if ((statusCode = limPostMsgApi(pMac, &msg)) != eSIR_SUCCESS)
         limLog(pMac, LOGE,
                FL("posting message %X to LIM failed, reason=%d"),
                msg.type, statusCode);
@@ -1037,6 +1022,8 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
     tANI_U32    val=0, val1=0;
     tpPESession  session_entry;
 
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_DEACTIVATE, NO_SESSION, timerId));
+
     switch (timerId)
     {
         case eLIM_ADDTS_RSP_TIMER:
@@ -1063,6 +1050,17 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
             if (pMac->lim.gpLimMlmScanReq) {
                 val =
                      SYS_MS_TO_TICKS(pMac->lim.gpLimMlmScanReq->minChannelTime);
+                if (pMac->btc.btcScanCompromise) {
+                    if (pMac->lim.gpLimMlmScanReq->minChannelTimeBtc) {
+                        val = SYS_MS_TO_TICKS(
+                                  pMac->lim.gpLimMlmScanReq->minChannelTimeBtc);
+                        limLog(pMac, LOG1,
+                               FL("Using BTC Min Active Scan time"));
+                    } else {
+                        limLog(pMac, LOGE,
+                               FL("BTC Active Scan Min Time is Not Set"));
+                    }
+                }
             } else {
                 limLog(pMac, LOGE, FL("gpLimMlmScanReq is NULL"));
                 break;
@@ -1089,6 +1087,17 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
             }
 
             val = SYS_MS_TO_TICKS(pMac->lim.gpLimMlmScanReq->minChannelTime)/2;
+            if (pMac->btc.btcScanCompromise)
+            {
+               if (pMac->lim.gpLimMlmScanReq->minChannelTimeBtc)
+               {
+                   val = SYS_MS_TO_TICKS(pMac->lim.gpLimMlmScanReq->minChannelTimeBtc)/2;
+               }
+               else
+               {
+                   limLog(pMac, LOGE, FL("BTC Active Scan Min Time is Not Set"));
+               }
+            }
             if (tx_timer_change(&pMac->lim.limTimers.gLimPeriodicProbeReqTimer,
                                 val, 0) != TX_SUCCESS)
             {
@@ -1118,6 +1127,17 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
                 if (pMac->lim.gpLimMlmScanReq) {
                     val = SYS_MS_TO_TICKS(
                                      pMac->lim.gpLimMlmScanReq->maxChannelTime);
+                    if (pMac->btc.btcScanCompromise) {
+                        if (pMac->lim.gpLimMlmScanReq->maxChannelTimeBtc) {
+                            val = SYS_MS_TO_TICKS(
+                                  pMac->lim.gpLimMlmScanReq->maxChannelTimeBtc);
+                            limLog(pMac, LOG1,
+                                   FL("Using BTC Max Active Scan time"));
+                        } else {
+                            limLog(pMac, LOGE,
+                                   FL("BTC Active Scan Max Time is Not Set"));
+                        }
+                    }
                 } else {
                     limLog(pMac, LOGE, FL("gpLimMlmScanReq is NULL"));
                     break;
@@ -1684,6 +1704,7 @@ limHeartBeatDeactivateAndChangeTimer(tpAniSirGlobal pMac, tpPESession psessionEn
       return;
    }
 
+   MTRACE(macTrace(pMac, TRACE_CODE_TIMER_DEACTIVATE, psessionEntry->peSessionId, eLIM_HEART_BEAT_TIMER));
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
    if(IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE)
       return;
@@ -1750,6 +1771,7 @@ limReactivateHeartBeatTimer(tpAniSirGlobal pMac, tpPESession psessionEntry)
 #endif
 
     limHeartBeatDeactivateAndChangeTimer(pMac, psessionEntry);
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, psessionEntry->peSessionId, eLIM_HEART_BEAT_TIMER));
 
     /* Only start the heartbeat-timer if the timeout value is non-zero */
     if(pMac->lim.limTimers.gLimHeartBeatTimer.initScheduleTimeInMsecs > 0)
@@ -1891,6 +1913,7 @@ void
 limDeactivateAndChangePerStaIdTimer(tpAniSirGlobal pMac, tANI_U32 timerId, tANI_U16 staId)
 {
     tANI_U32    val;
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_DEACTIVATE, NO_SESSION, timerId));
 
     switch (timerId)
     {
@@ -2001,6 +2024,7 @@ limDeactivateAndChangePerStaIdTimer(tpAniSirGlobal pMac, tANI_U32 timerId, tANI_
 
 void limActivateCnfTimer(tpAniSirGlobal pMac, tANI_U16 staId, tpPESession psessionEntry)
 {
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, psessionEntry->peSessionId, eLIM_CNF_WAIT_TIMER));
     pMac->lim.limTimers.gpLimCnfWaitTimer[staId].sessionId = psessionEntry->peSessionId;
     if (tx_timer_activate(&pMac->lim.limTimers.gpLimCnfWaitTimer[staId])
                 != TX_SUCCESS)
@@ -2032,6 +2056,7 @@ void limActivateCnfTimer(tpAniSirGlobal pMac, tANI_U16 staId, tpPESession psessi
 
 void limActivateAuthRspTimer(tpAniSirGlobal pMac, tLimPreAuthNode *pAuthNode)
 {
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, NO_SESSION, eLIM_AUTH_RESP_TIMER));
     if (tx_timer_activate(&pAuthNode->timer) != TX_SUCCESS)
     {
         /// Could not activate auth rsp timer.

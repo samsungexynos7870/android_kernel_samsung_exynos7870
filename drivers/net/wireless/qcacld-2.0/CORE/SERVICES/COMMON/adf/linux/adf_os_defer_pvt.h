@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,7 +32,9 @@
 #include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include "vos_cnss.h"
+#ifdef CONFIG_CNSS
+#include <net/cnss.h>
+#endif
 #include <adf_os_types.h>
 
 typedef struct tasklet_struct  __adf_os_bh_t;
@@ -67,7 +69,11 @@ __adf_os_init_work(adf_os_handle_t    hdl,
     /*Initilize func and argument in work struct */
     work->fn = func;
     work->arg = arg;
-    vos_init_work(&work->work, __adf_os_defer_func);
+#ifdef CONFIG_CNSS
+    cnss_init_work(&work->work, __adf_os_defer_func);
+#else
+    INIT_WORK(&work->work, __adf_os_defer_func);
+#endif
     return A_STATUS_OK;
 }
 
@@ -80,13 +86,17 @@ __adf_os_init_delayed_work(adf_os_handle_t    hdl,
     /*Initilize func and argument in work struct */
     work->fn = func;
     work->arg = arg;
-    vos_init_delayed_work(&work->dwork, __adf_os_defer_delayed_func);
+#ifdef CONFIG_CNSS
+    cnss_init_delayed_work(&work->dwork, __adf_os_defer_delayed_func);
+#else
+    INIT_DELAYED_WORK(&work->dwork, __adf_os_defer_delayed_func);
+#endif
     return A_STATUS_OK;
 }
 
 static inline __adf_os_workqueue_t* __adf_os_create_workqueue(char *name)
 {
-    return alloc_workqueue(name, WQ_POWER_EFFICIENT, 0);
+    return create_workqueue(name);
 }
 
 static inline void __adf_os_queue_work(adf_os_handle_t hdl, __adf_os_workqueue_t *wqueue, __adf_os_work_t* work)

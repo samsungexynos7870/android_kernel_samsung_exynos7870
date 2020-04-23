@@ -120,6 +120,8 @@ void HIFPostInit(HIF_DEVICE *hif_device, void *target,
     if (htc_sdio_device)
     HIFDevSetup(htc_sdio_device);
 
+	hif_device->tg_ready = FALSE;
+
     return;
 }
 

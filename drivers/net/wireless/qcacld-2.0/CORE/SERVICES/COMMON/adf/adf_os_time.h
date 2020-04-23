@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -36,7 +36,9 @@
 #define _ADF_OS_TIME_H
 
 #include <adf_os_time_pvt.h>
-#include "vos_cnss.h"
+#ifdef CONFIG_CNSS
+#include <net/cnss.h>
+#endif
 
 typedef __adf_time_t   adf_os_time_t;
 
@@ -141,11 +143,11 @@ static inline a_uint64_t adf_get_boottime(void)
 #ifdef CONFIG_CNSS
    struct timespec ts;
 
-   vos_get_boottime_ts(&ts);
+   cnss_get_boottime(&ts);
 
    return (((a_uint64_t)ts.tv_sec * 1000000) + (ts.tv_nsec / 1000));
 #else
-   return ((a_uint64_t)adf_os_ticks_to_msecs(adf_os_ticks())) * 1000;
+   return adf_os_ticks_to_msecs(adf_os_ticks()) * 1000;
 #endif /* CONFIG_CNSS */
 }
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, 2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,11 +27,9 @@
 
 #ifndef _PKTLOG_AC_H_
 #define _PKTLOG_AC_H_
-
-#include "ol_if_athvar.h"
-
 #ifndef REMOVE_PKT_LOG
 
+#include "ol_if_athvar.h"
 #include <pktlog_ac_api.h>
 #include <pktlog_ac_fmt.h>
 #include "osdep.h"
@@ -67,6 +65,7 @@ extern void pktlog_release_buf(struct ol_softc *scn);
 ssize_t pktlog_read_proc_entry(char *buf, size_t nbytes, loff_t *ppos,
 			       struct ath_pktlog_info *pl_info,
 			       bool *read_complete);
+int pktlog_send_per_pkt_stats_to_user(void);
 
 struct ol_pl_arch_dep_funcs {
 	void (*pktlog_init) (struct ol_softc *scn);
@@ -149,15 +148,15 @@ static inline void pktlog_init(struct ol_softc *scn)
 {
 	return;
 }
-static inline int pktlog_enable(struct ol_softc *scn, int32_t log_state)
+static int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 {
 	return 0;
 }
-static inline int pktlog_setsize(struct ol_softc *scn, int32_t log_state)
+static int pktlog_setsize(struct ol_softc *scn, int32_t log_state)
 {
 	return 0;
 }
-static inline int pktlog_disable(struct ol_softc *scn)
+static int pktlog_disable(struct ol_softc *scn)
 {
 	return 0;
 }

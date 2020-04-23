@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -33,9 +33,9 @@
 #include "epping_main.h"
 
 /* HTC Control message receive timeout msec */
-#define HTC_CONTROL_RX_TIMEOUT     5000
+#define HTC_CONTROL_RX_TIMEOUT     3000
 
-#ifdef WLAN_DEBUG
+#ifdef DEBUG
 void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription)
 {
     A_CHAR stream[60];
@@ -570,18 +570,22 @@ void HTCRecvInit(HTC_TARGET *target)
     adf_os_init_completion(&target->CtrlResponseValid);
 }
 
-
+extern void sdio_ramdump_handler(void*);
     /* polling routine to wait for a control packet to be received */
 A_STATUS HTCWaitRecvCtrlMessage(HTC_TARGET *target)
 {
 //    int count = HTC_TARGET_MAX_RESPONSE_POLL;
-
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HTCWaitCtrlMessageRecv\n"));
+    HTC_INIT_INFO   *initInfo = &target->HTCInitInfo;
+    AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("+HTCWaitCtrlMessageRecv\n"));
 
     adf_os_re_init_completion(target->CtrlResponseValid);
     /* Wait for BMI request/response transaction to complete */
     if(!adf_os_wait_for_completion_timeout(&target->CtrlResponseValid,
         adf_os_msecs_to_ticks(HTC_CONTROL_RX_TIMEOUT))) {
+        printk("%s: ++\n", __func__);
+        sdio_ramdump_handler(initInfo->pContext);
+        printk("%s: --\n", __func__);
+        ADF_BUG(0);
         return A_ERROR;
     }
 

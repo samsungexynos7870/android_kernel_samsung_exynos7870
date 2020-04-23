@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -53,10 +53,10 @@
  * ------------------------------------------------------------------------*/
 #include "vos_memory.h"
 #include "vos_trace.h"
-#include "vos_api.h"
-#include "vos_diag_core_event.h"
 
-#include "vos_cnss.h"
+#ifdef CONFIG_CNSS
+#include <net/cnss.h>
+#endif
 
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
 #include <net/cnss_prealloc.h>
@@ -64,14 +64,11 @@
 
 #ifdef MEMORY_DEBUG
 #include "wlan_hdd_dp_utils.h"
-#include <linux/stacktrace.h>
 
 hdd_list_t vosMemList;
 
 static v_U8_t WLAN_MEM_HEADER[] =  {0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68 };
 static v_U8_t WLAN_MEM_TAIL[]   =  {0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87};
-
-#define VOS_MEM_MAX_STACK_TRACE 16
 
 struct s_vos_mem_struct
 {
@@ -79,10 +76,6 @@ struct s_vos_mem_struct
    const char *fileName;
    unsigned int lineNum;
    unsigned int size;
-#ifdef WLAN_OPEN_SOURCE
-   unsigned long stack_trace[VOS_MEM_MAX_STACK_TRACE];
-   struct stack_trace trace;
-#endif
    v_U8_t header[8];
 };
 
@@ -104,8 +97,6 @@ static struct s_vos_mem_usage_struct g_usage_mem_buf[MAX_USAGE_TRACE_BUF_NUM];
 /*---------------------------------------------------------------------------
  * Preprocessor Definitions and Constants
  * ------------------------------------------------------------------------*/
-
-#define VOS_GET_MEMORY_TIME_THRESHOLD 300
 
 /*---------------------------------------------------------------------------
  * Type Declarations
@@ -267,50 +258,6 @@ void vos_mem_init()
    return;
 }
 
-#ifdef WLAN_OPEN_SOURCE
-/**
- * vos_mem_save_stack_trace() - Save stack trace of the caller
- * @mem_struct: Pointer to the memory structure where to save the stack trace
- *
- * Return: None
- */
-static inline void vos_mem_save_stack_trace(struct s_vos_mem_struct* mem_struct)
-{
-	struct stack_trace *trace = &mem_struct->trace;
-
-	trace->nr_entries = 0;
-	trace->max_entries = VOS_MEM_MAX_STACK_TRACE;
-	trace->entries = mem_struct->stack_trace;
-	trace->skip = 2;
-
-	save_stack_trace(trace);
-}
-
-/**
- * vos_mem_print_stack_trace() - Print saved stack trace
- * @mem_struct: Pointer to the memory structure which has the saved stack trace
- *              to be printed
- *
- * Return: None
- */
-static inline void vos_mem_print_stack_trace(struct s_vos_mem_struct* mem_struct)
-{
-	VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-		  "Call stack for the source of leaked memory:");
-
-	print_stack_trace(&mem_struct->trace, 1);
-}
-#else
-static inline void vos_mem_save_stack_trace(struct s_vos_mem_struct* mem_struct)
-{
-
-}
-static inline void vos_mem_print_stack_trace(struct s_vos_mem_struct* mem_struct)
-{
-
-}
-#endif
-
 void vos_mem_clean()
 {
     v_SIZE_t listSize;
@@ -359,8 +306,6 @@ void vos_mem_clean()
              }
              mleak_cnt++;
 
-             vos_mem_print_stack_trace(memStruct);
-
              kfree((v_VOID_t*)memStruct);
           }
        }while(vosStatus == VOS_STATUS_SUCCESS);
@@ -397,14 +342,12 @@ v_VOID_t *vos_mem_malloc_debug(v_SIZE_t size, const char *fileName,
    v_SIZE_t new_size;
    int flags = GFP_KERNEL;
    unsigned long IrqFlags;
-   unsigned long  time_before_kmalloc;
 
 
    if (size > (1024*1024)|| size == 0)
    {
        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                "%s: called with invalid arg %u !!!", __func__, size);
-       vos_log_low_resource_failure(WIFI_EVENT_MEMORY_FAILURE);
        return NULL;
    }
 
@@ -426,18 +369,8 @@ v_VOID_t *vos_mem_malloc_debug(v_SIZE_t size, const char *fileName,
 #endif
 
    new_size = size + sizeof(struct s_vos_mem_struct) + 8;
-   time_before_kmalloc = vos_timer_get_system_time();
+
    memStruct = (struct s_vos_mem_struct*)kmalloc(new_size, flags);
-   /* If time taken by kmalloc is greater than
-    * VOS_GET_MEMORY_TIME_THRESHOLD msec
-    */
-   if (vos_timer_get_system_time() - time_before_kmalloc >=
-                                    VOS_GET_MEMORY_TIME_THRESHOLD)
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-           "%s: kmalloc took %lu msec for size %d called from %pS at line %d",
-           __func__,
-           vos_timer_get_system_time() - time_before_kmalloc,
-           size, (void *)_RET_IP_, lineNum);
 
    if(memStruct != NULL)
    {
@@ -446,8 +379,6 @@ v_VOID_t *vos_mem_malloc_debug(v_SIZE_t size, const char *fileName,
       memStruct->fileName = fileName;
       memStruct->lineNum  = lineNum;
       memStruct->size     = size;
-
-      vos_mem_save_stack_trace(memStruct);
 
       vos_mem_copy(&memStruct->header[0], &WLAN_MEM_HEADER[0], sizeof(WLAN_MEM_HEADER));
       vos_mem_copy( (v_U8_t*)(memStruct + 1) + size, &WLAN_MEM_TAIL[0], sizeof(WLAN_MEM_TAIL));
@@ -464,10 +395,6 @@ v_VOID_t *vos_mem_malloc_debug(v_SIZE_t size, const char *fileName,
 
       memPtr = (v_VOID_t*)(memStruct + 1);
    }
-
-   if (!memPtr)
-       vos_log_low_resource_failure(WIFI_EVENT_MEMORY_FAILURE);
-
    return memPtr;
 }
 
@@ -524,14 +451,15 @@ v_VOID_t * vos_mem_malloc( v_SIZE_t size )
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
     v_VOID_t* pmem;
 #endif
-   v_VOID_t* memPtr = NULL;
-   unsigned long  time_before_kmalloc;
-
+#ifdef CONFIG_SEC
+/* for ramdump */
+   if (size > (2048*1024) || size == 0)
+#else
    if (size > (1024*1024) || size == 0)
+#endif /* CONFIG_SEC */
    {
        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
             "%s: called with invalid arg %u !!", __func__, size);
-       vos_log_low_resource_failure(WIFI_EVENT_MEMORY_FAILURE);
        return NULL;
    }
    if (in_interrupt() || irqs_disabled() || in_atomic())
@@ -548,22 +476,7 @@ v_VOID_t * vos_mem_malloc( v_SIZE_t size )
        }
    }
 #endif
-   time_before_kmalloc = vos_timer_get_system_time();
-   memPtr = kmalloc(size, flags);
-   /* If time taken by kmalloc is greater than
-    * VOS_GET_MEMORY_TIME_THRESHOLD msec
-    */
-   if (vos_timer_get_system_time() - time_before_kmalloc >=
-                                    VOS_GET_MEMORY_TIME_THRESHOLD)
-       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-           "%s: kmalloc took %lu msec for size %d from %pS",
-           __func__,
-           vos_timer_get_system_time() - time_before_kmalloc,
-           size, (void *)_RET_IP_);
-   if (!memPtr)
-       vos_log_low_resource_failure(WIFI_EVENT_MEMORY_FAILURE);
-
-   return memPtr;
+   return kmalloc(size, flags);
 }
 
 v_VOID_t vos_mem_free( v_VOID_t *ptr )

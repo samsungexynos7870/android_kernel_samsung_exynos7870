@@ -335,10 +335,6 @@ void vos_trace_display(void)
    }
 }
 
-#define ROW_SIZE 16
-/* Buffer size = data bytes(2 hex chars plus space) + NULL */
-#define BUFFER_SIZE ((ROW_SIZE * 3) + 1)
-
 /*----------------------------------------------------------------------------
 
   \brief vos_trace_hex_dump() - Externally called hex dump function
@@ -362,25 +358,43 @@ void vos_trace_display(void)
   \sa
   --------------------------------------------------------------------------*/
 void vos_trace_hex_dump( VOS_MODULE_ID module, VOS_TRACE_LEVEL level,
-		void *data, int buf_len )
+                                void *data, int buf_len )
 {
-	const u8 *ptr = data;
-	int i, linelen, remaining = buf_len;
-	unsigned char linebuf[BUFFER_SIZE];
+    char *buf = (char *)data;
+    int i;
 
-	if (!(gVosTraceInfo[module].moduleTraceLevel &
-				VOS_TRACE_LEVEL_TO_MODULE_BITMASK(level)))
-		return;
+    if (!(gVosTraceInfo[module].moduleTraceLevel &
+                VOS_TRACE_LEVEL_TO_MODULE_BITMASK(level)))
+        return;
 
-	for (i = 0; i < buf_len; i += ROW_SIZE) {
-		linelen = min(remaining, ROW_SIZE);
-		remaining -= ROW_SIZE;
+    for (i=0; (i+15)< buf_len; i+=16)
+    {
+        vos_trace_msg( module, level,
+                 "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                 buf[i],
+                 buf[i+1],
+                 buf[i+2],
+                 buf[i+3],
+                 buf[i+4],
+                 buf[i+5],
+                 buf[i+6],
+                 buf[i+7],
+                 buf[i+8],
+                 buf[i+9],
+                 buf[i+10],
+                 buf[i+11],
+                 buf[i+12],
+                 buf[i+13],
+                 buf[i+14],
+                 buf[i+15]);
+    }
 
-		hex_dump_to_buffer(ptr + i, linelen, ROW_SIZE, 1,
-				linebuf, sizeof(linebuf), false);
+    // Dump the bytes in the last line
+    for (; i < buf_len; i++)
+    {
+        vos_trace_msg( module, level, "%02x ", buf[i]);
+    }
 
-		vos_trace_msg(module, level, "%.8x: %s", i, linebuf);
-	}
 }
 
 #endif
@@ -625,7 +639,7 @@ void vosTraceDumpAll(void *pMac, v_U8_t code, v_U8_t session,
         return;
     }
 
-    VOS_TRACE( VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_INFO,
+    VOS_TRACE( VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_ERROR,
                "Total Records: %d, Head: %d, Tail: %d",
                gvosTraceData.num, gvosTraceData.head, gvosTraceData.tail);
 

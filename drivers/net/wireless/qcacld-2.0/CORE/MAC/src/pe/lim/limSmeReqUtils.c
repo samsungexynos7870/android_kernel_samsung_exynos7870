@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,7 +39,7 @@
  */
 
 #include "wniApi.h"
-#include "wniCfgSta.h"
+#include "wni_cfg.h"
 #include "cfgApi.h"
 #include "sirApi.h"
 #include "schApi.h"
@@ -505,19 +505,45 @@ limIsSmeStartBssReqValid(tpAniSirGlobal pMac,
            pStartBssReq->nwType,
            pStartBssReq->operationalRateSet.numRates);)
 
-    switch (pStartBssReq->bssType) {
-         /* Start BSS is valid only for following BSS type */
-        case eSIR_IBSS_MODE:
-        case eSIR_BTAMP_STA_MODE:
-        case eSIR_BTAMP_AP_MODE:
-        case eSIR_INFRA_AP_MODE:
-        case eSIR_NDI_MODE:
-            break;
-
-        default:
+    switch (pStartBssReq->bssType)
+    {
+        case eSIR_INFRASTRUCTURE_MODE:
+            /**
+             * Should not have received start BSS req with bssType
+             * Infrastructure on STA.
+             * Log error.
+             */
             limLog(pMac, LOGE,
                    FL("Invalid bssType %d in eWNI_SME_START_BSS_REQ"),
                    pStartBssReq->bssType);
+            valid = false;
+            goto end;
+            break;
+
+        case eSIR_IBSS_MODE:
+            break;
+
+        /* Added for BT AMP support */
+        case eSIR_BTAMP_STA_MODE:
+            break;
+
+        /* Added for BT AMP support */
+        case eSIR_BTAMP_AP_MODE:
+            break;
+
+        /* Added for SoftAP support */
+        case eSIR_INFRA_AP_MODE:
+            break;
+
+        default:
+            /**
+             * Should not have received start BSS req with bssType
+             * other than Infrastructure/IBSS.
+             * Log error
+             */
+            limLog(pMac, LOGW,
+               FL("Invalid bssType %d in eWNI_SME_START_BSS_REQ"),
+               pStartBssReq->bssType);
 
             valid = false;
             goto end;

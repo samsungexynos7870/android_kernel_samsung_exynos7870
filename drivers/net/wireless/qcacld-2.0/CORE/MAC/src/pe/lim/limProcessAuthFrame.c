@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014, 2016, 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,7 +39,7 @@
  */
 
 #include "wniApi.h"
-#include "wniCfgSta.h"
+#include "wni_cfg.h"
 #include "aniGlobal.h"
 #include "cfgApi.h"
 
@@ -178,7 +178,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                FL("received Authentication frame with no body from "));
         limPrintMacAddr(pMac, pHdr->sa, LOGE);
 
-        goto free;
+        return;
     }
 
     if (limIsGroupAddr(pHdr->sa))
@@ -189,7 +189,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                FL("received Auth frame from a BC/MC address - "));)
         PELOGE( limPrintMacAddr(pMac, pHdr->sa, LOGE);)
 
-        goto free;
+        return;
     }
     currSeqNum = (pHdr->seqControl.seqNumHi << 4) |
                     (pHdr->seqControl.seqNumLo);
@@ -222,19 +222,13 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
         goto free;
     }
 
-    encrAuthFrame = vos_mem_malloc(LIM_ENCR_AUTH_BODY_LEN);
-    if (!encrAuthFrame) {
-        limLog(pMac, LOGE, FL("failed to allocate memory"));
-        goto free;
-    }
-
     plainBody = vos_mem_malloc(LIM_ENCR_AUTH_BODY_LEN);
     if (!plainBody) {
         limLog(pMac, LOGE, FL("failed to allocate memory"));
         goto free;
     }
 
-    challengeTextArray = vos_mem_malloc(SIR_MAC_AUTH_CHALLENGE_LENGTH);
+    challengeTextArray = vos_mem_malloc(SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH);
     if(!challengeTextArray) {
         limLog(pMac, LOGE, FL("failed to allocate memory"));
         goto free;
@@ -242,9 +236,8 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
 
     vos_mem_set(rxAuthFrame, sizeof(tSirMacAuthFrameBody), 0);
     vos_mem_set(authFrame, sizeof(tSirMacAuthFrameBody), 0);
-    vos_mem_set(encrAuthFrame, LIM_ENCR_AUTH_BODY_LEN, 0);
     vos_mem_set(plainBody, LIM_ENCR_AUTH_BODY_LEN, 0);
-    vos_mem_set(challengeTextArray, SIR_MAC_AUTH_CHALLENGE_LENGTH, 0);
+    vos_mem_set(challengeTextArray, SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH, 0);
 
     /// Determine if WEP bit is set in the FC or received MAC header
     if (pHdr->fc.wep)
@@ -298,7 +291,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
         }
 
         if ((frameLen < LIM_ENCR_AUTH_BODY_LEN_SAP) ||
-            (frameLen > LIM_ENCR_AUTH_BODY_LEN_SAP))
+	    (frameLen > LIM_ENCR_AUTH_BODY_LEN))
         {
             // Log error
             limLog(pMac, LOGE,
@@ -460,7 +453,6 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                                             psessionEntry,
                                             eSIR_FALSE);
 
-
                         goto free;
                     }
 
@@ -596,24 +588,11 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
 
     pRxAuthFrameBody = rxAuthFrame;
 
-   PELOGW(limLog(pMac, LOGW,
+    PELOGW(limLog(pMac, LOGW,
            FL("Received Auth frame with type=%d seqnum=%d, status=%d (%d)"),
            (tANI_U32) pRxAuthFrameBody->authAlgoNumber,
            (tANI_U32) pRxAuthFrameBody->authTransactionSeqNumber,
            (tANI_U32) pRxAuthFrameBody->authStatusCode,(tANI_U32)pMac->lim.gLimNumPreAuthContexts);)
-
-    // IOT Workaround: with invalid WEP password, some APs reply AUTH frame 4
-    // with invalid seqNumber. This AUTH frame will be dropped by driver,
-    // thus driver sends the generic status code instead of protocol status code.
-    // As a workaround, assign the correct seqNumber for the AUTH frame 4.
-    if (psessionEntry->limMlmState == eLIM_MLM_WT_AUTH_FRAME4_STATE &&
-        pRxAuthFrameBody->authTransactionSeqNumber != SIR_MAC_AUTH_FRAME_1 &&
-        pRxAuthFrameBody->authTransactionSeqNumber != SIR_MAC_AUTH_FRAME_2 &&
-        pRxAuthFrameBody->authTransactionSeqNumber != SIR_MAC_AUTH_FRAME_3) {
-        PELOGE(limLog(pMac, LOGE, FL("Workaround: Assign a correct seqNumber=4 "
-                "for AUTH frame 4"));)
-        pRxAuthFrameBody->authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_4;
-    }
 
     switch (pRxAuthFrameBody->authTransactionSeqNumber)
     {
@@ -657,8 +636,8 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
 
                 /* pStaDS != NULL and isConnected = 1 means the STA is already
                  * connected, But SAP received the Auth from that station.
-                 * For non PMF connection, just delete the STA here as it will
-                 * retry to connect back after timeout.
+                 * For non PMF connection send Deauth frame as STA will retry
+                 * to connect back.
                  *
                  * For PMF connection the AP should not tear down or otherwise
                  * modify the state of the existing association until the
@@ -676,6 +655,8 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                                 "Send the Deauth and lim Delete Station Context"
                                 "(staId: %d, assocId: %d) "),
                             pStaDs->staIndex, assocId);
+                    limSendDeauthMgmtFrame(pMac, eSIR_MAC_UNSPEC_FAILURE_REASON,
+                            (tANI_U8 *) pHdr->sa, psessionEntry, FALSE);
                     limTriggerSTAdeletion(pMac, pStaDs, psessionEntry);
                     goto free;
                 }
@@ -749,7 +730,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                      * but ACK lost at STA side, in this case 2nd auth frame is already
                      * in transmission queue
                      * */
-                    PELOGE(limLog(pMac, LOGE, FL("STA is initiating Authentication after ACK lost..."));)
+                    limLog(pMac, LOGW, FL("STA is initiating Authentication after ACK lost..."));
                     goto free;
                 }
             }
@@ -808,7 +789,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                             goto free;
                         }
 
-                        PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %p peer"), pAuthNode);
+                        PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %x peer "), pAuthNode);
                         limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
                         vos_mem_copy((tANI_U8 *) pAuthNode->peerMacAddr,
@@ -934,7 +915,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                             pAuthNode->timestamp = vos_timer_get_system_ticks();
                             limAddPreAuthNode(pMac, pAuthNode);
 
-                            PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %p id %d peer "),
+                            PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %x id %d peer "),
                                           pAuthNode, pAuthNode->authNodeIdx);)
                             PELOG1(limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
@@ -998,7 +979,6 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                             pRxAuthFrameBody->authTransactionSeqNumber + 1;
                             authFrame->authStatusCode =
                             eSIR_MAC_SUCCESS_STATUS;
-
                             authFrame->type   = SIR_MAC_CHALLENGE_TEXT_EID;
                             authFrame->length = SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH;
                             vos_mem_copy(authFrame->challengeText,
@@ -1201,7 +1181,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                         goto free;
                     }
 
-                    PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %p peer "), pAuthNode);)
+                    PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %x peer "), pAuthNode);)
                     PELOG1(limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
                     vos_mem_copy((tANI_U8 *) pAuthNode->peerMacAddr,
@@ -1766,7 +1746,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
 
                     goto free;
                 }
-                PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %p peer "), pAuthNode);
+                PELOG1(limLog(pMac, LOG1, FL("Alloc new data: %x peer "), pAuthNode);
                 limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
                 vos_mem_copy((tANI_U8 *) pAuthNode->peerMacAddr,

@@ -313,9 +313,6 @@ void csrLLInsertTail( tDblLinkList *pList, tListElem *pEntry, tANI_BOOLEAN fInte
         {
             csrLLUnlock(pList);
         }
-    } else {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH,
-                             "%s: pList->Flag = %d", __func__, pList->Flag);
     }
 }
 
@@ -348,9 +345,6 @@ void csrLLInsertHead( tDblLinkList *pList, tListElem *pEntry, tANI_BOOLEAN fInte
             vos_timer_start( pList->cmdTimeoutTimer,
                 pList->cmdTimeoutDuration);
         }
-    } else {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH,
-                             "%s: pList->Flag = %d", __func__, pList->Flag);
     }
 }
 

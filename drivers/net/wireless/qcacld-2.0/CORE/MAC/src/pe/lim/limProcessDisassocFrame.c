@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,8 +40,7 @@
 #include "wniApi.h"
 #include "sirApi.h"
 #include "aniGlobal.h"
-#include "wniCfgSta.h"
-
+#include "wni_cfg.h"
 #include "utilsApi.h"
 #include "limTypes.h"
 #include "limUtils.h"
@@ -78,7 +77,6 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     tpSirMacMgmtHdr    pHdr;
     tpDphHashNode      pStaDs;
     tLimMlmDisassocInd mlmDisassocInd;
-
     tANI_U32            frameLen;
     int8_t frame_rssi;
 
@@ -127,6 +125,11 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
 
     }
 
+    if (frameLen < 2) {
+        PELOGE(limLog(pMac, LOGE, FL("frame len less than 2"));)
+        return;
+    }
+
 #ifdef WLAN_FEATURE_11W
     /* PMF: If this session is a PMF session, then ensure that this frame was protected */
     if(psessionEntry->limRmfEnabled  && (WDA_GET_RX_DPU_FEEDBACK(pRxPacketInfo) & DPU_FEEDBACK_UNPROTECTED_ERROR))
@@ -142,10 +145,6 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     }
 #endif
 
-    if (frameLen < 2) {
-		PELOGE(limLog(pMac, LOGE, FL("frame len less than 2"));)
-		return;
-    }
     // Get reasonCode from Disassociation frame body
     reasonCode = sirReadU16(pBody);
 
@@ -251,8 +250,6 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
             case eSIR_MAC_RSN_IE_MISMATCH_REASON:
             case eSIR_MAC_1X_AUTH_FAILURE_REASON:
             case eSIR_MAC_PREV_AUTH_NOT_VALID_REASON:
-            case eSIR_MAC_PEER_REJECT_MECHANISIM_REASON:
-            case eSIR_MAC_XS_UNACKED_FRAMES_REASON:
                 // Valid reasonCode in received Disassociation frame
                 break;
 
@@ -270,7 +267,13 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
                 break;
 
             default:
-                break;
+                // Invalid reasonCode in received Disassociation frame
+                // Log error and ignore the frame
+                PELOGE(limLog(pMac, LOGE,
+                       FL("received Disassoc frame with invalid reasonCode "
+                       "%d from "MAC_ADDRESS_STR), reasonCode,
+                       MAC_ADDR_ARRAY(pHdr->sa));)
+                return;
         }
     }
     else

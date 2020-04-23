@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -42,9 +42,6 @@
 #include <wlan_hdd_wext.h>
 #include <net/sock.h>
 #include <linux/netlink.h>
-#ifdef CNSS_GENL
-#include <net/cnss_nl.h>
-#endif
 
 #ifdef WLAN_OPEN_SOURCE
 #include <linux/debugfs.h>
@@ -62,12 +59,14 @@
 #include <a_debug.h>
 #define FWLOG_DEBUG   ATH_DEBUG_MAKE_MODULE_MASK(0)
 
+static bool appstarted = FALSE;
+static bool senddriverstatus = FALSE;
 static bool kd_nl_init = FALSE;
+static int cnss_diag_pid = INVALID_PID;
 static int get_version = 0;
 static int gprint_limiter = 0;
-static bool tgt_assert_enable = 0;
 
-#if defined(WLAN_DEBUG)
+#if defined(DEBUG)
 
 static ATH_DEBUG_MASK_DESCRIPTION g_fwlogDebugDescription[] = {
     {FWLOG_DEBUG,"fwlog"},
@@ -1413,6 +1412,12 @@ int dbglog_report_enable(wmi_unified_t  wmi_handle, bool isenable)
 {
     int bitmap[2] = {0};
 
+    if (isenable > TRUE) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("dbglog_report_enable:Invalid value %d\n",
+        isenable));
+        return -EINVAL;
+    }
+
     if(isenable){
 	/* set the vap enable bitmap */
         dbglog_set_vap_enable_bitmap(wmi_handle, 0xFFFF);
@@ -1531,7 +1536,7 @@ dbglog_print_raw_data(A_UINT32 *buffer, A_UINT32 length)
     char parseArgsString[DBGLOG_PARSE_ARGS_STRING_LENGTH];
     char *dbgidString;
 
-    while ((count + 1) < length) {
+    while (count + 1 < length) {
 
         debugid = DBGLOG_GET_DBGID(buffer[count + 1]);
         moduleid = DBGLOG_GET_MODULEID(buffer[count + 1]);
@@ -1551,6 +1556,7 @@ dbglog_print_raw_data(A_UINT32 *buffer, A_UINT32 length)
                 writeLen = snprintf(parseArgsString + totalWriteLen, DBGLOG_PARSE_ARGS_STRING_LENGTH - totalWriteLen, "%x ", buffer[count + 2 + curArgs]);
                 totalWriteLen += writeLen;
             }
+
 skip_args_processing:
             if (debugid < MAX_DBG_MSGS){
                 dbgidString = DBG_MSG_ARR[moduleid][debugid];
@@ -1634,38 +1640,17 @@ dbglog_debugfs_raw_data(wmi_unified_t wmi_handle, const u_int8_t *buf, A_UINT32 
 }
 #endif /* WLAN_OPEN_SOURCE */
 
-/**
- * nl_srv_bcast_fw_logs() - Wrapper func to send bcast msgs to FW logs mcast grp
- * @skb: sk buffer pointer
- *
- * Sends the bcast message to FW logs multicast group with generic nl socket
- * if CNSS_GENL is enabled. Else, use the legacy netlink socket to send.
- *
- * Return: zero on success, error code otherwise
- */
-static int nl_srv_bcast_fw_logs(struct sk_buff *skb)
-{
-#ifdef CNSS_GENL
-	return nl_srv_bcast(skb, CLD80211_MCGRP_FW_LOGS, WLAN_NL_MSG_CNSS_DIAG);
-#else
-	return nl_srv_bcast(skb);
-#endif
-}
-
 /*
  * Package the data from the fw diag WMI event handler.
  * Pass this data to cnss-diag service
  */
-static int
-send_fw_diag_nl_data(const u_int8_t *buffer,
-                     A_UINT32 len, A_UINT32 event_type)
+int
+send_fw_diag_nl_data(wmi_unified_t wmi_handle, const u_int8_t *buffer,
+                           A_UINT32 len, A_UINT32 event_type)
 {
     struct sk_buff *skb_out;
     struct nlmsghdr *nlh;
     int res = 0;
-    tAniNlHdr *wnl;
-    int radio = 0;
-    int msg_len = 0;
 
     if (WARN_ON(len > ATH6KL_FWLOG_PAYLOAD_SIZE))
         return -ENODEV;
@@ -1675,23 +1660,20 @@ send_fw_diag_nl_data(const u_int8_t *buffer,
 
     if (vos_is_multicast_logging())
     {
-        msg_len = len + sizeof(radio);
-        skb_out = nlmsg_new(msg_len, 0);
+        skb_out = nlmsg_new(len, 0);
         if (!skb_out)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to allocate new skb\n"));
             return -1;
         }
-        nlh = nlmsg_put(skb_out, 0, 0, WLAN_NL_MSG_CNSS_DIAG, msg_len, 0);
-        wnl = (tAniNlHdr *)nlh;
-        wnl->radio = 0;
-        memcpy(nlmsg_data(nlh) + sizeof(radio), buffer, len);
+        nlh = nlmsg_put(skb_out, 0, 0, WLAN_NL_MSG_CNSS_DIAG, len, 0);
+        memcpy(nlmsg_data(nlh), buffer, len);
 
-        res = nl_srv_bcast_fw_logs(skb_out);
+        res = nl_srv_bcast(skb_out);
         if (res < 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_RSVD1,
-                            ("%s: nl_srv_bcast_fw_logs failed 0x%x \n", __func__, res));
+                            ("%s: nl_srv_bcast failed 0x%x \n", __func__, res));
             return res;
         }
     }
@@ -1707,8 +1689,6 @@ send_diag_netlink_data(const u_int8_t *buffer,
     int res = 0;
     struct dbglog_slot *slot;
     size_t slot_len;
-    tAniNlHdr *wnl;
-    int radio = 0;
 
     if (WARN_ON(len > ATH6KL_FWLOG_PAYLOAD_SIZE))
         return -ENODEV;
@@ -1717,7 +1697,7 @@ send_diag_netlink_data(const u_int8_t *buffer,
 	return -EIO;
 
     if (vos_is_multicast_logging()) {
-        slot_len = sizeof(*slot) + ATH6KL_FWLOG_PAYLOAD_SIZE + sizeof(radio);
+        slot_len = sizeof(*slot) + ATH6KL_FWLOG_PAYLOAD_SIZE;
 
         skb_out = nlmsg_new(slot_len, 0);
         if (!skb_out) {
@@ -1727,9 +1707,7 @@ send_diag_netlink_data(const u_int8_t *buffer,
         }
 
         nlh = nlmsg_put(skb_out, 0, 0, WLAN_NL_MSG_CNSS_DIAG, slot_len, 0);
-        wnl = (tAniNlHdr *)nlh;
-        wnl->radio = 0;
-        slot = (struct dbglog_slot *) (nlmsg_data(nlh) + sizeof(radio));
+        slot = (struct dbglog_slot *) nlmsg_data(nlh);
         slot->diag_type = cmd;
         slot->timestamp = cpu_to_le32(jiffies);
         slot->length = cpu_to_le32(len);
@@ -1737,13 +1715,10 @@ send_diag_netlink_data(const u_int8_t *buffer,
         slot->dropped = get_version;
         memcpy(slot->payload, buffer, len);
 
-        /* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
-        memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
-
-        res = nl_srv_bcast_fw_logs(skb_out);
+        res = nl_srv_bcast(skb_out);
         if (res < 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_RSVD1,
-                            ("%s: nl_srv_bcast_fw_logs failed 0x%x \n", __func__, res));
+                            ("%s: nl_srv_bcast failed 0x%x \n", __func__, res));
             return res;
         }
     }
@@ -1786,14 +1761,11 @@ dbglog_process_netlink_data(wmi_unified_t wmi_handle, const u_int8_t *buffer,
         slot->dropped = cpu_to_le32(dropped);
         memcpy(slot->payload, buffer, len);
 
-        /* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
-        memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
-
-        res = nl_srv_bcast_fw_logs(skb_out);
+        res = nl_srv_bcast(skb_out);
         if (res < 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_RSVD1,
-                            ("%s: nl_srv_bcast_fw_logs failed 0x%x \n", __func__, res));
+                            ("%s: nl_srv_bcast failed 0x%x \n", __func__, res));
             return res;
         }
     }
@@ -1883,58 +1855,26 @@ diag_fw_handler(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
     return (0);
 }
 
-/**
- * process_fw_diag_event_data - process diag events and fw messages
- * @datap: data to be processed
- * num_data: number of data chunks
- *
- * return: success
- */
-static int
-process_fw_diag_event_data(uint8_t *datap, uint32_t num_data)
-{
-	uint32_t i;
-	uint32_t diag_type;
-	uint32_t nl_data_len; /* diag hdr + payload */
-	uint32_t diag_data_len; /* each fw diag payload */
-	struct wlan_diag_data *diag_data;
-
-	for (i = 0; i < num_data; i++) {
-		diag_data = (struct wlan_diag_data *)datap;
-		diag_type = WLAN_DIAG_0_TYPE_GET(diag_data->word0);
-		diag_data_len = WLAN_DIAG_0_LEN_GET(diag_data->word0);
-		/* Length of diag struct and len of payload */
-		nl_data_len = sizeof(struct wlan_diag_data) + diag_data_len;
-
-		switch (diag_type) {
-		case DIAG_TYPE_FW_EVENT:
-			return send_fw_diag_nl_data(datap, nl_data_len,
-							diag_type);
-			break;
-		case DIAG_TYPE_FW_LOG:
-			return send_fw_diag_nl_data(datap, nl_data_len,
-							diag_type);
-			break;
-		}
-		/* Move to the next event and send to cnss-diag */
-		datap += nl_data_len;
-	}
-
-	return 0;
-}
 
 /*
  * WMI diag data event handler, this function invoked as a CB
  * when there DIAG_DATA to be forwarded from the FW.
  */
 
-static int
+int
 fw_diag_data_event_handler(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
 {
 
+    tp_wma_handle wma = (tp_wma_handle)scn;
+    struct wlan_diag_data *diag_data;
     WMI_DIAG_DATA_CONTAINER_EVENTID_param_tlvs *param_buf;
+    wmi_diag_data_container_event_fixed_param *fixed_param;
     u_int8_t *datap;
-    u_int32_t num_data; /* Total events */
+    u_int32_t num_data=0; /* Total events */
+    u_int32_t diag_data_len=0; /* each fw diag payload */
+    u_int32_t diag_type=0;
+    u_int32_t i=0;
+    u_int32_t nl_data_len=0; /* diag hdr + payload */
 
     param_buf = (WMI_DIAG_DATA_CONTAINER_EVENTID_param_tlvs *) data;
     if (!param_buf) {
@@ -1942,11 +1882,44 @@ fw_diag_data_event_handler(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
         return -1;
     }
 
+    if (!wma) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("NULL Pointer assigned\n"));
+        return -1;
+    }
+
+    fixed_param = param_buf->fixed_param;
     num_data = param_buf->num_bufp;
 
     datap = (u_int8_t *)param_buf->bufp;
 
-    return process_fw_diag_event_data(datap, num_data);
+    /* If cnss-diag service started triggered during the init of services */
+    if (appstarted) {
+        for (i = 0; i < num_data; i++) {
+            diag_data = (struct wlan_diag_data *)datap;
+            diag_type = WLAN_DIAG_0_TYPE_GET(diag_data->word0);
+            diag_data_len = WLAN_DIAG_0_LEN_GET(diag_data->word0);
+
+           /* Length of diag struct and len of payload */
+            nl_data_len = sizeof(struct wlan_diag_data) + diag_data_len;
+#if 0
+            print_hex_dump_bytes("payload: ", DUMP_PREFIX_ADDRESS,
+                                 diag_data->payload, diag_data_len);
+#endif
+            switch (diag_type) {
+                case DIAG_TYPE_FW_EVENT:
+                return send_fw_diag_nl_data((wmi_unified_t)wma->wmi_handle,
+                                           datap, nl_data_len, diag_type);
+                break;
+                case DIAG_TYPE_FW_LOG:
+                return send_fw_diag_nl_data((wmi_unified_t)wma->wmi_handle,
+                                            datap, nl_data_len, diag_type);
+                break;
+            }
+            /* Move to the next event and send to cnss-diag */
+            datap += nl_data_len;
+        }
+    }
+    return 0;
 }
 
 
@@ -1989,12 +1962,12 @@ dbglog_parse_debug_logs(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
 
     if (len < sizeof(dropped)) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid length\n"));
-        return A_ERROR;
+        return -1;
     }
 
     dropped = *((A_UINT32 *)datap);
     if (dropped > 0) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_TRC , ("%d log buffers are dropped \n", dropped));
+        AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%d log buffers are dropped \n", dropped));
     }
     datap += sizeof(dropped);
     len -= sizeof(dropped);
@@ -2007,10 +1980,15 @@ dbglog_parse_debug_logs(ol_scn_t scn, u_int8_t *data, u_int32_t datalen)
         return dbglog_print_raw_data(buffer, length);
     }
 
-    if (dbglog_process_type == DBGLOG_PROCESS_NET_RAW) {
-        return dbglog_process_netlink_data((wmi_unified_t)wma->wmi_handle,
-                                           (A_UINT8 *)buffer,
-                                           len, dropped);
+    if ( dbglog_process_type == DBGLOG_PROCESS_NET_RAW) {
+        if(appstarted){
+            return dbglog_process_netlink_data((wmi_unified_t)wma->wmi_handle,
+			                                      (A_UINT8 *)buffer,
+					                      len, dropped);
+        } else {
+            return 0;
+        }
+
     }
 
 #ifdef WLAN_OPEN_SOURCE
@@ -3954,41 +3932,58 @@ int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
 }
 #endif /* WLAN_OPEN_SOURCE */
 
-/**
- * cnss_diag_handle_crash_inject() - API to handle crash inject command
- * @slot: pointer to struct dbglog_slot
- *
- * API to handle CNSS diag crash inject command
- *
- * Return: None
- */
-static void cnss_diag_handle_crash_inject(struct dbglog_slot *slot)
+static void
+cnss_diag_event_report(A_UINT16 event_Id, A_UINT16 length, void *pPayload)
 {
-	switch (slot->diag_type) {
-	case DIAG_TYPE_CRASH_INJECT:
-		if (slot->length == 2) {
-			AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-					("%s : DIAG_TYPE_CRASH_INJECT: %d %d\n", __func__,
-					 slot->payload[0], slot->payload[1]));
-			if (!tgt_assert_enable) {
-				AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-						("%s: tgt Assert Disabled\n", __func__));
-				return;
-			}
-			process_wma_set_command_twoargs(0,
-					(int)GEN_PARAM_CRASH_INJECT,
-					slot->payload[0],
-					slot->payload[1], GEN_CMD);
-		}
-		else
-			AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("crash_inject cmd error\n"));
-		break;
-	default:
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown cmd error\n"));
-		break;
-	}
+    A_UINT8 *pBuf, *pBuf1;
+    event_report_t *pEvent_report;
+    A_UINT16 total_len;
+    total_len = sizeof(event_report_t) + length;
+    pBuf = vos_mem_malloc(total_len);
+    if (!pBuf){
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+                        ("%s: vos_mem_malloc failed \n", __func__));
+        return;
+    }
+    pBuf1 = pBuf;
+    pEvent_report = (event_report_t*)pBuf;
+    pEvent_report->diag_type = DIAG_TYPE_EVENTS;
+    pEvent_report->event_id = event_Id;
+    pEvent_report->length = length;
+    pBuf += sizeof(event_report_t);
+    memcpy(pBuf, pPayload, length);
+    send_diag_netlink_data((A_UINT8 *) pBuf1, total_len, DIAG_TYPE_HOST_MSG);
+    vos_mem_free((v_VOID_t*)pBuf1);
+    return;
+
 }
 
+static void cnss_diag_send_driver_loaded(void)
+{
+    if (appstarted) {
+        vos_event_wlan_bringup_status_payload_type wlan_bringup_status;
+         /* Send Driver up command */
+        strlcpy(&wlan_bringup_status.driverVersion[0], QWLAN_VERSIONSTR,
+                    sizeof(wlan_bringup_status.driverVersion));
+        wlan_bringup_status.wlanStatus = DIAG_WLAN_DRIVER_LOADED;
+        cnss_diag_event_report(EVENT_WLAN_BRINGUP_STATUS,
+                      sizeof(wlan_bringup_status), &wlan_bringup_status);
+        senddriverstatus = FALSE;
+    }
+    else
+        senddriverstatus = TRUE;
+}
+
+static void cnss_diag_send_driver_unloaded(void)
+{
+    vos_event_wlan_bringup_status_payload_type wlan_bringup_status;
+     /* Send Driver down command */
+    memset(&wlan_bringup_status, 0,
+           sizeof(vos_event_wlan_bringup_status_payload_type));
+    wlan_bringup_status.wlanStatus = DIAG_WLAN_DRIVER_UNLOADED;
+    cnss_diag_event_report(EVENT_WLAN_BRINGUP_STATUS,
+        sizeof(wlan_bringup_status), &wlan_bringup_status);
+}
 /**---------------------------------------------------------------------------
   \brief cnss_diag_msg_callback() - Call back invoked by netlink service
 
@@ -4002,77 +3997,72 @@ static void cnss_diag_handle_crash_inject(struct dbglog_slot *slot)
 --------------------------------------------------------------------------*/
 int cnss_diag_msg_callback(struct sk_buff *skb)
 {
-	struct nlmsghdr *nlh;
-	A_UINT8 *msg;
+    struct nlmsghdr *nlh;
+    struct dbglog_slot *slot;
+    A_UINT8 *msg;
 
-	nlh = (struct nlmsghdr *)skb->data;
-	if (!nlh) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Netlink header null \n", __func__));
-		return -1;
-	}
+    nlh = (struct nlmsghdr *)skb->data;
+    if (!nlh)
+    {
+       AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Netlink header null \n", __func__));
+       return -1;
+    }
 
-	msg = NLMSG_DATA(nlh);
-	cnss_diag_handle_crash_inject((struct dbglog_slot *)msg);
+    msg = NLMSG_DATA(nlh);
 
-	return 0;
+    /* This check added for backward compatability */
+    if (!memcmp(msg, "Hello", 5)) {
+         appstarted = TRUE;
+         cnss_diag_pid = nlh->nlmsg_pid;
+         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+                   ("%s: registered pid %d \n", __func__, cnss_diag_pid));
+         if (senddriverstatus)
+             cnss_diag_send_driver_loaded();
+         return 0;
+    }
+    else
+       slot = (struct dbglog_slot *)msg;
+    switch (slot->diag_type) {
+    case DIAG_TYPE_CRASH_INJECT:
+        if (slot->length == 2) {
+            AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+                           ("%s : DIAG_TYPE_CRASH_INJECT: %d %d\n", __func__,
+                           slot->payload[0], slot->payload[1]));
+            process_wma_set_command_twoargs(0,
+                                           (int)GEN_PARAM_CRASH_INJECT,
+                                           slot->payload[0],
+                                           slot->payload[1], GEN_CMD);
+        }
+        else
+            AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("crash_inject cmd error\n"));
+    break;
+    default:
+    break;
+    }
+    return 0;
+
 }
+/**---------------------------------------------------------------------------
+  \brief cnss_diag_notify_wlan_close() - Notify APP driver closed
 
-#ifdef CNSS_GENL
+  This function notifies the user cnss-diag app that wlan driver is closed.
 
-/**
- * cnss_diag_cmd_handler() - API to handle CNSS diag command
- * @data: Data received
- * @data_len: length of the data received
- * @ctx: Pointer to stored context
- * @pid: Process ID
- *
- * API to handle CNSS diag commands from user space
- *
- * Return: None
- */
-static void cnss_diag_cmd_handler(const void *data, int data_len,
-						void *ctx, int pid)
+  \param -
+      - None
+
+  \return - 0 for success, non zero for failure
+--------------------------------------------------------------------------*/
+int cnss_diag_notify_wlan_close()
 {
-	struct dbglog_slot *slot = NULL;
-	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_MAX + 1];
+    /* Send nl msg about the wlan close */
+    if (0 != cnss_diag_pid)
+    {
+        cnss_diag_send_driver_unloaded();
+        cnss_diag_pid = 0;
+    }
+    return 0;
 
-	if (nla_parse(tb, CLD80211_ATTR_MAX, data, data_len, NULL)) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: nla parse fails \n",
-							__func__));
-		return;
-	}
-
-	if (!tb[CLD80211_ATTR_DATA]) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: attr VENDOR_DATA fails \n",
-								__func__));
-		return;
-	}
-	slot = (struct dbglog_slot *)nla_data(tb[CLD80211_ATTR_DATA]);
-
-	if (!slot) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: data NULL \n", __func__));
-		return;
-	}
-
-	cnss_diag_handle_crash_inject(slot);
-	return;
 }
-
-/**
- * cnss_diag_activate_service() - API to register CNSS diag cmd handler
- *
- * API to register the CNSS diag command handler using new genl infra.
- * Return type is zero to match with legacy prototype
- *
- * Return: 0
- */
-int cnss_diag_activate_service(void)
-{
-	register_cld_cmd_cb(WLAN_NL_MSG_CNSS_DIAG, cnss_diag_cmd_handler, NULL);
-	return 0;
-}
-
-#else
 /**---------------------------------------------------------------------------
   \brief cnss_diag_activate_service() - Activate cnss_diag message handler
 
@@ -4084,7 +4074,7 @@ int cnss_diag_activate_service(void)
 
   \return - 0 for success, non zero for failure
 --------------------------------------------------------------------------*/
-int cnss_diag_activate_service(void)
+int cnss_diag_activate_service()
 {
     int ret = 0;
 
@@ -4098,7 +4088,6 @@ int cnss_diag_activate_service(void)
     kd_nl_init = TRUE;
     return 0;
 }
-#endif
 
 A_BOOL
 dbglog_wow_print_handler(
@@ -4222,7 +4211,7 @@ dbglog_init(wmi_unified_t wmi_handle)
     dbglog_reg_modprint(WLAN_MODULE_PCIELP, dbglog_pcielp_print_handler);
     dbglog_reg_modprint(WLAN_MODULE_IBSS_PWRSAVE,
                         dbglog_ibss_powersave_print_handler);
-    tgt_assert_enable = wmi_handle->tgt_force_assert_enable;
+
     /* Register handler for F3 or debug messages */
     res = wmi_unified_register_event_handler(wmi_handle, WMI_DEBUG_MESG_EVENTID,
                        dbglog_parse_debug_logs);
@@ -4242,6 +4231,7 @@ dbglog_init(wmi_unified_t wmi_handle)
     if (res != 0)
        return res;
 
+    cnss_diag_send_driver_loaded();
 #ifdef WLAN_OPEN_SOURCE
     /* Initialize the fw debug log queue */
     skb_queue_head_init(&wmi_handle->dbglog.fwlog_queue);
@@ -4268,7 +4258,6 @@ dbglog_deinit(wmi_unified_t wmi_handle)
     dbglog_debugfs_remove(wmi_handle);
 #endif /* WLAN_OPEN_SOURCE */
 
-    tgt_assert_enable = 0;
     res = wmi_unified_unregister_event_handler(wmi_handle, WMI_DEBUG_MESG_EVENTID);
     if(res != 0)
         return res;

@@ -33,6 +33,7 @@
 #include "a_osapi.h"
 #include "adf_os_timer.h"
 #include "adf_os_atomic.h"
+#include "adf_os_defer.h"
 #include "hif.h"
 #include "hif_sdio_common.h"
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
@@ -119,6 +120,8 @@ struct hif_device {
     void *htcContext;
     /* mailbox swapping for control and data svc*/
     A_BOOL swap_mailbox;
+    A_BOOL wow_maskInt;
+    A_BOOL tg_ready;
 };
 
 #define HIF_DMA_BUFFER_SIZE (4 * 1024)

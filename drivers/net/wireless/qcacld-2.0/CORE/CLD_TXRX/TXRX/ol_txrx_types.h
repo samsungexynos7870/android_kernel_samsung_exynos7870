@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -191,9 +191,9 @@ struct ol_tx_desc_t {
 	/* used by tx encap, to restore the os buf start offset after tx complete*/
 	u_int8_t orig_l2_hdr_bytes;
 #endif
-
+#if defined(CONFIG_HL_SUPPORT)
 	struct ol_txrx_vdev_t* vdev;
-
+#endif
 	void *txq;
 	void *p_link;
 	uint16_t id;
@@ -592,10 +592,6 @@ struct ol_txrx_pdev_t {
 		} callbacks[OL_TXRX_MGMT_NUM_TYPES];
 	} tx_mgmt;
 
-	/* packetdump callback functions */
-	tp_ol_packetdump_cb ol_tx_packetdump_cb;
-	tp_ol_packetdump_cb ol_rx_packetdump_cb;
-
 	/* tx descriptor pool */
 	struct {
 		u_int16_t pool_size;
@@ -612,8 +608,6 @@ struct ol_txrx_pdev_t {
 				int opmode);
 		int len;
 	} rx_pn[htt_num_sec_types];
-
-	uint32_t pn_replays[OL_RX_NUM_PN_REPLAY_TYPES];
 
 	/* tx mutex */
 	OL_TX_MUTEX_TYPE tx_mutex;
@@ -844,8 +838,6 @@ struct ol_txrx_pdev_t {
 	unsigned int num_desc_pages;
 	unsigned int num_descs_per_page;
 	void **desc_pages;
-	struct ol_txrx_peer_t *self_peer;
-	uint32_t total_bundle_queue_length;
 };
 
 struct ol_txrx_ocb_chan_info {
@@ -914,7 +906,6 @@ struct ol_txrx_vdev_t {
 
 #if defined(CONFIG_HL_SUPPORT)
 	struct ol_tx_frms_queue_t txqs[OL_TX_VDEV_NUM_QUEUES];
-	u_int32_t hl_paused_reason;
 #endif
 
 	struct {
@@ -939,17 +930,6 @@ struct ol_txrx_vdev_t {
 	u_int16_t tx_fl_hwm;
 	ol_txrx_tx_flow_control_fp osif_flow_control_cb;
 
-	bool bundling_reqired;
-	struct {
-		struct {
-			adf_nbuf_t head;
-			adf_nbuf_t tail;
-			int depth;
-		} txq;
-		adf_os_spinlock_t mutex;
-		adf_os_timer_t timer;
-	} bundle_queue;
-
 #if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
         union ol_txrx_align_mac_addr_t hl_tdls_ap_mac_addr;
         bool hlTdlsFlag;
@@ -972,12 +952,6 @@ struct ol_txrx_vdev_t {
 	/* Information about the schedules in the schedule */
 	struct ol_txrx_ocb_chan_info *ocb_channel_info;
 	uint32_t ocb_channel_count;
-
-	/* Default OCB TX parameter */
-	struct ocb_tx_ctrl_hdr_t *ocb_def_tx_param;
-
-	/* packet count that only forwarded and not dent to OS layer */
-	uint64_t fwd_to_tx_packets;
 };
 
 struct ol_rx_reorder_array_elem_t {
@@ -1013,29 +987,6 @@ typedef A_STATUS (*ol_tx_filter_func)(struct ol_txrx_msdu_info_t *tx_msdu_info);
 #define OL_TXRX_PEER_SECURITY_MULTICAST  0
 #define OL_TXRX_PEER_SECURITY_UNICAST    1
 #define OL_TXRX_PEER_SECURITY_MAX        2
-
-enum ol_rx_reorder_msg_type {
-	reorder_store = 0,
-	reorder_release,
-	reorder_flush
-};
-
-struct ol_rx_reorder_record {
-	uint8_t msg_type;
-	uint8_t tid;
-	uint16_t peer_id;
-	uint8_t start_seq;
-	uint8_t end_seq;
-	uint8_t reorder_idx;
-};
-
-#define OL_MAX_RX_REORDER_HISTORY  50
-struct ol_rx_reorder_history {
-	uint8_t curr_index;
-	uint8_t wrap_around;
-	struct ol_rx_reorder_record record[OL_MAX_RX_REORDER_HISTORY];
-};
-
 
 struct ol_txrx_peer_t {
 	struct ol_txrx_vdev_t *vdev;
@@ -1140,7 +1091,6 @@ struct ol_txrx_peer_t {
 	u_int16_t tx_limit_flag;
 	u_int16_t tx_pause_flag;
 #endif
-	struct ol_rx_reorder_history * reorder_history;
 };
 
 #endif /* _OL_TXRX_TYPES__H_ */

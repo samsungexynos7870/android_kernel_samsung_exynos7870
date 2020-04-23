@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,8 +40,7 @@
 #include "wniApi.h"
 #include "sirCommon.h"
 #include "aniGlobal.h"
-
-#include "wniCfgSta.h"
+#include "wni_cfg.h"
 #include "sysDef.h"
 #include "cfgApi.h"
 
@@ -54,8 +53,6 @@
 #include "limSendSmeRspMessages.h"
 #include "limIbssPeerMgmt.h"
 #include "limSessionUtils.h"
-#include "regdomain_common.h"
-#include "nan_datapath.h"
 
 #include "sirApi.h"
 
@@ -191,7 +188,8 @@ limSendSmeRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
     mmhMsg.type = msgType;
     mmhMsg.bodyptr = pSirSmeRsp;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, smesessionId, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, smesessionId, mmhMsg.type));
+
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
    {
     tpPESession psessionEntry = peGetValidPowerSaveSession(pMac);
@@ -328,10 +326,31 @@ static void limSendSmeJoinReassocRspAfterResume( tpAniSirGlobal pMac,
     mmhMsg.type = pSirSmeJoinRsp->messageType;
     mmhMsg.bodyptr = pSirSmeJoinRsp;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg,  ePROT);
 }
 
+/**
+ * lim_add_bss_info() - copy data from session entry to join rsp
+ * @session entry: PE Session Info
+ * @sme_join_rsp: Join response buffer to be filled up
+ *
+ * Return: None
+ */
+static void lim_add_bss_info(tpPESession session_entry,
+					tpSirSmeJoinRsp sme_join_rsp)
+{
+	if (session_entry->hs20vendor_ie.present)
+		sme_join_rsp->hs20vendor_ie = session_entry->hs20vendor_ie;
+	if (session_entry->vht_caps.present)
+		sme_join_rsp->vht_caps = session_entry->vht_caps;
+	if (session_entry->ht_caps.present)
+		sme_join_rsp->ht_caps = session_entry->ht_caps;
+	if (session_entry->ht_operation.present)
+		sme_join_rsp->ht_operation = session_entry->ht_operation;
+	if (session_entry->vht_operation.present)
+		sme_join_rsp->vht_operation = session_entry->vht_operation;
+}
 
 /**
  * limSendSmeJoinReassocRsp()
@@ -447,6 +466,7 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
                 pSirSmeJoinRsp->nss = pStaDs->nss;
                 pSirSmeJoinRsp->max_rate_flags =
                                 lim_get_max_rate_flags(pMac, pStaDs);
+                lim_add_bss_info(psessionEntry, pSirSmeJoinRsp);
             }
         }
 
@@ -470,53 +490,41 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
                               pSirSmeJoinRsp->beaconLength);
                 vos_mem_free( psessionEntry->beacon);
                 psessionEntry->beacon = NULL;
-                psessionEntry->bcnLen = 0;
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
-                PELOG1(limLog(pMac, LOG1, FL("Beacon=%d"),
-                              pSirSmeJoinRsp->beaconLength);)
+                PELOG1(limLog(pMac, LOG1, FL("Beacon=%d"), psessionEntry->bcnLen);)
 #endif
             }
 
             if(psessionEntry->assocReq != NULL)
             {
                 pSirSmeJoinRsp->assocReqLength = psessionEntry->assocReqLen;
-                vos_mem_copy(pSirSmeJoinRsp->frames +
-                             pSirSmeJoinRsp->beaconLength,
-                             psessionEntry->assocReq,
-                             pSirSmeJoinRsp->assocReqLength);
+                vos_mem_copy( pSirSmeJoinRsp->frames + psessionEntry->bcnLen,
+                              psessionEntry->assocReq, pSirSmeJoinRsp->assocReqLength);
                 vos_mem_free( psessionEntry->assocReq);
                 psessionEntry->assocReq = NULL;
-                psessionEntry->assocReqLen = 0;
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
-                PELOG1(limLog(pMac, LOG1, FL("AssocReq=%d"),
-                              pSirSmeJoinRsp->assocReqLength);)
+                PELOG1(limLog(pMac, LOG1, FL("AssocReq=%d"), psessionEntry->assocReqLen);)
 #endif
             }
             if(psessionEntry->assocRsp != NULL)
             {
                 pSirSmeJoinRsp->assocRspLength = psessionEntry->assocRspLen;
-                vos_mem_copy(pSirSmeJoinRsp->frames +
-                             pSirSmeJoinRsp->beaconLength +
-                             pSirSmeJoinRsp->assocReqLength,
-                             psessionEntry->assocRsp,
-                             pSirSmeJoinRsp->assocRspLength);
+                vos_mem_copy( pSirSmeJoinRsp->frames + psessionEntry->bcnLen +
+                                               psessionEntry->assocReqLen,
+                              psessionEntry->assocRsp,
+                              pSirSmeJoinRsp->assocRspLength);
                 vos_mem_free( psessionEntry->assocRsp);
                 psessionEntry->assocRsp = NULL;
-                psessionEntry->assocRspLen = 0;
             }
 #ifdef WLAN_FEATURE_VOWIFI_11R
             if(psessionEntry->ricData != NULL)
             {
                 pSirSmeJoinRsp->parsedRicRspLen = psessionEntry->RICDataLen;
-                vos_mem_copy(pSirSmeJoinRsp->frames +
-                             pSirSmeJoinRsp->beaconLength +
-                             pSirSmeJoinRsp->assocReqLength +
-                             pSirSmeJoinRsp->assocRspLength,
-                             psessionEntry->ricData,
-                             pSirSmeJoinRsp->parsedRicRspLen);
+                vos_mem_copy( pSirSmeJoinRsp->frames + psessionEntry->bcnLen +
+                                 psessionEntry->assocReqLen + psessionEntry->assocRspLen,
+                              psessionEntry->ricData, pSirSmeJoinRsp->parsedRicRspLen);
                 vos_mem_free(psessionEntry->ricData);
                 psessionEntry->ricData = NULL;
-                psessionEntry->RICDataLen = 0;
                 PELOG1(limLog(pMac, LOG1, FL("RicLength=%d"), pSirSmeJoinRsp->parsedRicRspLen);)
             }
 #endif
@@ -524,24 +532,18 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
             if(psessionEntry->tspecIes != NULL)
             {
                 pSirSmeJoinRsp->tspecIeLen = psessionEntry->tspecLen;
-                vos_mem_copy(pSirSmeJoinRsp->frames +
-                             pSirSmeJoinRsp->beaconLength +
-                             pSirSmeJoinRsp->assocReqLength +
-                             pSirSmeJoinRsp->assocRspLength +
-                             pSirSmeJoinRsp->parsedRicRspLen,
-                             psessionEntry->tspecIes,
-                             pSirSmeJoinRsp->tspecIeLen);
+                vos_mem_copy( pSirSmeJoinRsp->frames + psessionEntry->bcnLen +
+                                psessionEntry->assocReqLen + psessionEntry->assocRspLen +
+                                  psessionEntry->RICDataLen,
+                              psessionEntry->tspecIes, pSirSmeJoinRsp->tspecIeLen);
                 vos_mem_free(psessionEntry->tspecIes);
                 psessionEntry->tspecIes = NULL;
-                psessionEntry->tspecLen = 0;
-                PELOG1(limLog(pMac, LOG1, FL("ESE-TspecLen=%d"),
-                              pSirSmeJoinRsp->tspecIeLen);)
+                PELOG1(limLog(pMac, LOG1, FL("ESE-TspecLen=%d"), psessionEntry->tspecLen);)
             }
 #endif
             pSirSmeJoinRsp->aid = psessionEntry->limAID;
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
-            PELOG1(limLog(pMac, LOG1, FL("AssocRsp=%d"),
-                          pSirSmeJoinRsp->assocRspLength);)
+            PELOG1(limLog(pMac, LOG1, FL("AssocRsp=%d"), psessionEntry->assocRspLen);)
 #endif
             if (WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ ==
                             psessionEntry->apChanWidth) {
@@ -586,21 +588,18 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
             {
                 vos_mem_free(psessionEntry->beacon);
                 psessionEntry->beacon = NULL;
-                psessionEntry->bcnLen = 0;
             }
 
             if(psessionEntry->assocReq != NULL)
             {
                 vos_mem_free( psessionEntry->assocReq);
                 psessionEntry->assocReq = NULL;
-                psessionEntry->assocReqLen = 0;
             }
 
             if(psessionEntry->assocRsp != NULL)
             {
                 vos_mem_free( psessionEntry->assocRsp);
                 psessionEntry->assocRsp = NULL;
-                psessionEntry->assocRspLen = 0;
             }
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
@@ -608,7 +607,6 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
             {
                 vos_mem_free( psessionEntry->ricData);
                 psessionEntry->ricData = NULL;
-                psessionEntry->RICDataLen = 0;
             }
 #endif
 
@@ -617,16 +615,9 @@ limSendSmeJoinReassocRsp(tpAniSirGlobal pMac, tANI_U16 msgType,
             {
                 vos_mem_free(psessionEntry->tspecIes);
                 psessionEntry->tspecIes = NULL;
-                psessionEntry->tspecLen = 0;
             }
 #endif
         }
-        /* Send supported NSS 1x1 to SME */
-        pSirSmeJoinRsp->supported_nss_1x1 =
-                psessionEntry->supported_nss_1x1;
-        PELOG1(limLog(pMac, LOG1,
-                      FL("SME Join Rsp is supported NSS 1X1: %d"),
-                      pSirSmeJoinRsp->supported_nss_1x1);)
     }
 
 
@@ -751,7 +742,8 @@ limSendSmeStartBssRsp(tpAniSirGlobal pMac,
         }
         vos_mem_set((tANI_U8*)pSirSmeRsp, size, 0);
         size = sizeof(tSirSmeStartBssRsp);
-        if (resultCode == eSIR_SME_SUCCESS) {
+        if (resultCode == eSIR_SME_SUCCESS)
+        {
 
                 sirCopyMacAddr(pSirSmeRsp->bssDescription.bssId, psessionEntry->bssId);
 
@@ -767,30 +759,22 @@ limSendSmeStartBssRsp(tpAniSirGlobal pMac,
 
                 pSirSmeRsp->bssDescription.channelId = psessionEntry->currentOperChannel;
 
-                if (!LIM_IS_NDI_ROLE(psessionEntry)) {
-                      curLen = psessionEntry->schBeaconOffsetBegin - ieOffset;
-                      vos_mem_copy(
-                          (uint8_t *)&pSirSmeRsp->bssDescription.ieFields,
-                          psessionEntry->pSchBeaconFrameBegin + ieOffset,
-                          (uint32_t)curLen);
+                curLen = psessionEntry->schBeaconOffsetBegin - ieOffset;
+                vos_mem_copy( (tANI_U8 *) &pSirSmeRsp->bssDescription.ieFields,
+                           psessionEntry->pSchBeaconFrameBegin + ieOffset,
+                          (tANI_U32)curLen);
 
-                      vos_mem_copy(curLen +
-                          ((tANI_U8 *)&pSirSmeRsp->bssDescription.ieFields),
-                          psessionEntry->pSchBeaconFrameEnd,
+                vos_mem_copy( ((tANI_U8 *) &pSirSmeRsp->bssDescription.ieFields) + curLen,
+                           psessionEntry->pSchBeaconFrameEnd,
                           (tANI_U32)psessionEntry->schBeaconOffsetEnd);
-                      /*
-                       * subtract size of length indicator itself and size of
-                       * pointer to ieFields.
-                       */
-                      pSirSmeRsp->bssDescription.length =
-                              sizeof(pSirSmeRsp->bssDescription) -
-                              sizeof(tANI_U16) - sizeof(tANI_U32) + ieLen;
-                      /*
-                       * This is the size of the message, subtract the size of
-                       * the pointer to ieFields
-                       */
-                      size += ieLen - sizeof(tANI_U32);
-                }
+
+
+                //subtracting size of length indicator itself and size of pointer to ieFields
+                pSirSmeRsp->bssDescription.length = sizeof(tSirBssDescription) -
+                                                sizeof(tANI_U16) - sizeof(tANI_U32) +
+                                                ieLen;
+                //This is the size of the message, subtracting the size of the pointer to ieFields
+                size += ieLen - sizeof(tANI_U32);
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
                 if (psessionEntry->cc_switch_mode
                                              != VOS_MCC_TO_SCC_SWITCH_DISABLE) {
@@ -817,6 +801,10 @@ limSendSmeStartBssRsp(tpAniSirGlobal pMac,
                 }
 #endif
         }
+
+
+
+
     }
 
     pSirSmeRsp->messageType     = msgType;
@@ -835,12 +823,11 @@ limSendSmeStartBssRsp(tpAniSirGlobal pMac,
     mmhMsg.bodyval = 0;
     if(psessionEntry == NULL)
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     }
     else
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG,
-                        psessionEntry->peSessionId, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     }
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_START_BSS_RSP_EVENT, psessionEntry, (tANI_U16)resultCode, 0);
@@ -945,8 +932,7 @@ limSendSmeScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
                 pSirSmeScanRsp->length      = curMsgLen;
                 mmhMsg.bodyptr = pSirSmeScanRsp;
                 mmhMsg.bodyval = 0;
-                MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION,
-                                mmhMsg.type));
+                MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
                 limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
                 pSirSmeScanRsp = vos_mem_malloc(allocLength);
                 if ( NULL == pSirSmeScanRsp )
@@ -970,7 +956,7 @@ limSendSmeScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
             vos_mem_copy( (tANI_U8 *) &pDesc->bssId,
                           (tANI_U8 *) &ptemp->bssDescription.bssId,
                            ptemp->bssDescription.length);
-            limLog(pMac, LOG2, FL("ScanRsp : msgLen %d, bssDescr Len=%d BssID "MAC_ADDRESS_STR),
+            limLog(pMac, LOG1, FL("ScanRsp : msgLen %d, bssDescr Len=%d BssID "MAC_ADDRESS_STR),
                           msgLen, ptemp->bssDescription.length,
                           MAC_ADDR_ARRAY(ptemp->bssDescription.bssId));
 
@@ -1005,6 +991,7 @@ limSendSmeScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
         mmhMsg.type = eWNI_SME_SCAN_RSP;
         mmhMsg.bodyptr = pSirSmeScanRsp;
         mmhMsg.bodyval = 0;
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
         limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
         PELOG2(limLog(pMac, LOG2, FL("statusCode : eSIR_SME_SUCCESS"));)
     }
@@ -1123,8 +1110,7 @@ limSendSmeLfrScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
                 pSirSmeScanRsp->length      = curMsgLen;
                 mmhMsg.bodyptr = pSirSmeScanRsp;
                 mmhMsg.bodyval = 0;
-                MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION,
-                                                         mmhMsg.type));
+                MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
                 limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
                 pSirSmeScanRsp = vos_mem_malloc(allocLength);
                 if ( NULL == pSirSmeScanRsp )
@@ -1281,7 +1267,7 @@ limSendSmeLfrScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
         mmhMsg.type = eWNI_SME_SCAN_RSP;
         mmhMsg.bodyptr = pSirSmeScanRsp;
         mmhMsg.bodyval = 0;
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
         limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
         PELOG2(limLog(pMac, LOG2, FL("statusCode : eSIR_SME_SUCCESS\n"));)
     }
@@ -1293,8 +1279,8 @@ limSendSmeLfrScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
                  &pMac->roam.roamSession[smesessionId].connectedProfile.SSID);
     PELOG2(limLog(pMac,
                   LOG2,
-                  FL("Scan Entries Left after cleanup: %d"),
-                     scanEntriesLeft);)
+                  FL("Scan Entries Left after cleanup: %d",
+                     scanEntriesLeft)));
 
     return;
 
@@ -1355,7 +1341,8 @@ limPostSmeScanRspMessage(tpAniSirGlobal    pMac,
     mmhMsg.type = eWNI_SME_SCAN_RSP;
     mmhMsg.bodyptr = pSirSmeScanRsp;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_SCAN_RSP_EVENT, NULL, (tANI_U16)resultCode, 0);
 #endif //FEATURE_WLAN_DIAG_SUPPORT
@@ -1404,28 +1391,14 @@ void limSendSmeOemDataRsp(tpAniSirGlobal pMac, tANI_U32* pMsgBuf, tSirResultCode
     //get the pointer to the mlm message
     pMlmOemDataRsp = (tLimMlmOemDataRsp*)(pMsgBuf);
 
-    msgLength = sizeof(*pSirSmeOemDataRsp);
+    msgLength = sizeof(tSirOemDataRsp);
 
     //now allocate memory for the char buffer
     pSirSmeOemDataRsp = vos_mem_malloc(msgLength);
     if (NULL == pSirSmeOemDataRsp)
     {
-        limLog(pMac, LOGP, FL("malloc failed for pSirSmeOemDataRsp"));
-        vos_mem_free(pMlmOemDataRsp->oem_data_rsp);
-        vos_mem_free(pMlmOemDataRsp);
+        limLog(pMac, LOGP, FL("call to AllocateMemory failed for pSirSmeOemDataRsp"));
         return;
-    }
-
-    if (pMlmOemDataRsp->rsp_len) {
-        pSirSmeOemDataRsp->oem_data_rsp =
-                vos_mem_malloc(pMlmOemDataRsp->rsp_len);
-        if (!pSirSmeOemDataRsp->oem_data_rsp) {
-            limLog(pMac, LOGE, FL("malloc failed for oem_data_rsp"));
-            vos_mem_free(pSirSmeOemDataRsp);
-            vos_mem_free(pMlmOemDataRsp->oem_data_rsp);
-            vos_mem_free(pMlmOemDataRsp);
-            return;
-        }
     }
 
 #if defined (ANI_LITTLE_BYTE_ENDIAN)
@@ -1435,23 +1408,11 @@ void limSendSmeOemDataRsp(tpAniSirGlobal pMac, tANI_U32* pMsgBuf, tSirResultCode
     pSirSmeOemDataRsp->length = msgLength;
     pSirSmeOemDataRsp->messageType = eWNI_SME_OEM_DATA_RSP;
 #endif
-    pSirSmeOemDataRsp->target_rsp = pMlmOemDataRsp->target_rsp;
-    pSirSmeOemDataRsp->rsp_len = pMlmOemDataRsp->rsp_len;
-    vos_mem_copy(pSirSmeOemDataRsp->oem_data_rsp,
-                 pMlmOemDataRsp->oem_data_rsp,
-                 pSirSmeOemDataRsp->rsp_len);
 
-    /*
-     * Now free the memory from MLM Rsp Message
-     *
-     * Free oem_data_rsp only if rsp is from target
-     */
-    if (pMlmOemDataRsp->target_rsp && pMlmOemDataRsp->oem_data_rsp) {
-        vos_mem_free(pMlmOemDataRsp->oem_data_rsp);
-        pMlmOemDataRsp->oem_data_rsp = NULL;
-    }
+    vos_mem_copy(pSirSmeOemDataRsp->oemDataRsp, pMlmOemDataRsp->oemDataRsp, OEM_DATA_RSP_SIZE);
+
+    //Now free the memory from MLM Rsp Message
     vos_mem_free(pMlmOemDataRsp);
-    pMlmOemDataRsp = NULL;
 
     mmhMsg.type = eWNI_SME_OEM_DATA_RSP;
     mmhMsg.bodyptr = pSirSmeOemDataRsp;
@@ -1475,7 +1436,8 @@ void limSendSmeDisassocDeauthNtf( tpAniSirGlobal pMac,
     mmhMsg.bodyptr = pMsg;
     mmhMsg.bodyval = 0;
 
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
+
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 }
 /**
@@ -1689,8 +1651,8 @@ limSendSmeDisassocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession pses
     mmhMsg.type = eWNI_SME_DISASSOC_IND;
     mmhMsg.bodyptr = pSirSmeDisassocInd;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, psessionEntry->peSessionId,
-                                                            mmhMsg.type));
+
+    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_DISASSOC_IND_EVENT, psessionEntry, 0, (tANI_U16)pStaDs->mlmStaContext.disassocReason);
 #endif //FEATURE_WLAN_DIAG_SUPPORT
@@ -2163,7 +2125,8 @@ limSendSmeWmStatusChangeNtf(tpAniSirGlobal pMac, tSirSmeStatusChangeCode statusC
         break;
     }
 
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, sessionId, mmhMsg.type));
+
+    MTRACE(macTraceMsgTx(pMac, sessionId, mmhMsg.type));
     if (eSIR_SUCCESS != limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT))
     {
         vos_mem_free(pSirSmeWmStatusChangeNtf);
@@ -2239,13 +2202,11 @@ limSendSmeSetContextRsp(tpAniSirGlobal pMac,
     mmhMsg.bodyval = 0;
     if(NULL == psessionEntry)
     {
-          MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION,
-                                                  mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     }
     else
     {
-          MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG,
-                     psessionEntry->peSessionId, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
@@ -2323,12 +2284,11 @@ limSendSmeRemoveKeyRsp(tpAniSirGlobal pMac,
     mmhMsg.bodyval = 0;
     if(NULL == psessionEntry)
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     }
     else
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG,
-                   psessionEntry->peSessionId, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     }
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 } /*** end limSendSmeSetContextRsp() ***/
@@ -2414,7 +2374,7 @@ limSendSmeNeighborBssInd(tpAniSirGlobal pMac,
     msgQ.type = eWNI_SME_NEIGHBOR_BSS_IND;
     msgQ.bodyptr = pNewBssInd;
     msgQ.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, msgQ.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, msgQ.type));
     limSysProcessMmhMsgApi(pMac, &msgQ, ePROT);
 } /*** end limSendSmeNeighborBssInd() ***/
 
@@ -2459,12 +2419,11 @@ limSendSmeAddtsRsp(tpAniSirGlobal pMac, tANI_U8 rspReqd, tANI_U32 status, tpPESe
     mmhMsg.bodyval = 0;
     if(NULL == psessionEntry)
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     }
     else
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG,
-                 psessionEntry->peSessionId, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     }
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_ADDTS_RSP_EVENT, psessionEntry, 0, 0);
@@ -2549,12 +2508,11 @@ limSendSmeDeltsRsp(tpAniSirGlobal pMac, tpSirDeltsReq delts, tANI_U32 status,tpP
     mmhMsg.bodyval = 0;
     if(NULL == psessionEntry)
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     }
     else
     {
-        MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG,
-                   psessionEntry->peSessionId, mmhMsg.type));
+        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     }
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_DELTS_RSP_EVENT, psessionEntry, (tANI_U16)status, 0);
@@ -2659,7 +2617,7 @@ limSendSmeStatsRsp(tpAniSirGlobal pMac, tANI_U16 msgType, void* stats)
 
     mmhMsg.bodyptr = stats;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -2718,7 +2676,7 @@ limSendSmePEStatisticsRsp(tpAniSirGlobal pMac, tANI_U16 msgType, void* stats)
 
     mmhMsg.bodyptr = stats;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -2774,7 +2732,7 @@ limSendSmePEEseTsmRsp(tpAniSirGlobal pMac, tAniGetTsmStatsRsp *pStats)
     mmhMsg.type = eWNI_SME_GET_TSM_STATS_RSP;
     mmhMsg.bodyptr = pStats;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, sessionId, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, sessionId, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -2823,7 +2781,7 @@ limSendSmeIBSSPeerInd(
 
     mmhMsg.type    = msgType;
     mmhMsg.bodyptr = pNewPeerInd;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, sessionId, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, sessionId, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
 }
@@ -2867,7 +2825,7 @@ void limSendExitBmpsInd(tpAniSirGlobal pMac, tExitBmpsReason reasonCode,
     mmhMsg.bodyval = 0;
 
     PELOG1(limLog(pMac, LOG1, FL("Sending eWNI_PMC_EXIT_BMPS_IND to SME. "));)
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     limDiagEventReport(pMac, WLAN_PE_DIAG_EXIT_BMPS_IND_EVENT, peGetValidPowerSaveSession(pMac), 0, (tANI_U16)reasonCode);
 #endif //FEATURE_WLAN_DIAG_SUPPORT
@@ -2892,7 +2850,6 @@ void limHandleCSAoffloadMsg(tpAniSirGlobal pMac,tpSirMsgQ MsgQ)
    tpDphHashNode pStaDs = NULL ;
    tANI_U8 sessionId;
    tANI_U16 aid = 0 ;
-   int chan_space;
 
    if (!csa_params) {
       limLog(pMac, LOGE, FL("limMsgQ body ptr is NULL"));
@@ -2951,35 +2908,6 @@ void limHandleCSAoffloadMsg(tpAniSirGlobal pMac,tpSirMsgQ MsgQ)
                                                      csa_params->channel,
                                                      csa_params->new_ch_width);
           }
-          else if ( csa_params->ies_present_flag & lim_xcsa_ie_present )
-          {
-              chan_space = regdm_get_chanwidth_from_opclass(
-                                           pMac->scan.countryCodeCurrent,
-                                           csa_params->channel,
-                                           csa_params->new_op_class);
-              if (chan_space == 80) {
-                  psessionEntry->gLimWiderBWChannelSwitch.newChanWidth =
-                                          WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
-              }
-              else {
-                  psessionEntry->gLimWiderBWChannelSwitch.newChanWidth =
-                                          WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
-              }
-
-              psessionEntry->gLimChannelSwitch.state =
-                                     eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY;
-
-              psessionEntry->gLimChannelSwitch.secondarySubBand =
-                      limSelectCBMode(pStaDs,
-                          psessionEntry,
-                          csa_params->channel,
-                          psessionEntry->gLimWiderBWChannelSwitch.newChanWidth);
-              limLog(pMac, LOG1, FL("xcsa frame opclass %d , chanbw %d secondary subband %d "),
-                          csa_params->new_op_class,
-                          psessionEntry->gLimWiderBWChannelSwitch.newChanWidth,
-                          psessionEntry->gLimChannelSwitch.secondarySubBand);
-
-          }
 
       } else
 #endif
@@ -2989,7 +2917,7 @@ void limHandleCSAoffloadMsg(tpAniSirGlobal pMac,tpSirMsgQ MsgQ)
                                                  psessionEntry,
                                                  csa_params->channel,
                                                  csa_params->new_ch_width);
-          if (psessionEntry->gLimChannelSwitch.secondarySubBand > 0) {
+          if (psessionEntry->gLimChannelSwitch.secondarySubBand) {
               psessionEntry->gLimChannelSwitch.state =
                                      eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY;
           }
@@ -3043,16 +2971,13 @@ void limHandleDeleteBssRsp(tpAniSirGlobal pMac,tpSirMsgQ MsgQ)
     {
         limLog(pMac, LOGE,FL("Session Does not exist for given sessionID %d"),
           pDelBss->sessionId);
-        vos_mem_free(MsgQ->bodyptr);
         return;
     }
-    if (LIM_IS_IBSS_ROLE(psessionEntry))
+    if (LIM_IS_IBSS_ROLE(psessionEntry)) {
         limIbssDelBssRsp(pMac, MsgQ->bodyptr, psessionEntry);
-    else if(LIM_IS_UNKNOWN_ROLE(psessionEntry))
+    } else if(LIM_IS_UNKNOWN_ROLE(psessionEntry)) {
          limProcessSmeDelBssRsp(pMac, MsgQ->bodyval,psessionEntry);
-    else if (LIM_IS_NDI_ROLE(psessionEntry))
-         lim_ndi_del_bss_rsp(pMac, MsgQ->bodyptr, psessionEntry);
-    else
+    } else
          limProcessMlmDelBssRsp(pMac,MsgQ,psessionEntry);
 
 }
@@ -3077,7 +3002,7 @@ limSendSmeAggrQosRsp(tpAniSirGlobal pMac, tpSirAggrQosRsp aggrQosRsp,
     mmhMsg.type = eWNI_SME_FT_AGGR_QOS_RSP;
     mmhMsg.bodyptr = aggrQosRsp;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, smesessionId, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, smesessionId, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -3118,7 +3043,7 @@ limSendSmePreChannelSwitchInd(tpAniSirGlobal pMac, tpPESession psessionEntry)
     mmhMsg.type = eWNI_SME_PRE_SWITCH_CHL_IND;
     mmhMsg.bodyptr = pPreSwitchChInd;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -3142,7 +3067,7 @@ limSendSmePostChannelSwitchInd(tpAniSirGlobal pMac)
     mmhMsg.type = eWNI_SME_POST_SWITCH_CHL_IND;
     mmhMsg.bodyptr = NULL;
     mmhMsg.bodyval = 0;
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, NO_SESSION, mmhMsg.type));
+    MTRACE(macTraceMsgTx(pMac, NO_SESSION, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -3169,11 +3094,8 @@ void limSendSmeMaxAssocExceededNtf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
     mmhMsg.type = pSmeMaxAssocInd->mesgType;
     mmhMsg.bodyptr = pSmeMaxAssocInd;
     PELOG1(limLog(pMac, LOG1, FL("msgType %s peerMacAddr "MAC_ADDRESS_STR
-                  " sme session id %d"),
-                  "eWNI_SME_MAX_ASSOC_EXCEEDED",
-                  MAC_ADDR_ARRAY(peerMacAddr),
-                  smesessionId);)
-    MTRACE(macTrace(pMac, TRACE_CODE_TX_SME_MSG, smesessionId, mmhMsg.type));
+                  " sme session id %d"), "eWNI_SME_MAX_ASSOC_EXCEEDED", MAC_ADDR_ARRAY(peerMacAddr));)
+    MTRACE(macTraceMsgTx(pMac, smesessionId, mmhMsg.type));
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
     return;
@@ -3206,6 +3128,9 @@ limSendSmeCandidateFoundInd(tpAniSirGlobal pMac, tANI_U8 sessionId)
           sessionId);
         return;
     }
+    limLog(pMac, LOGE,FL("Set roaming_in_progress for SME:%d, PE:%d session"),
+           sessionId, pe_session->peSessionId);
+    pe_session->roaming_in_progress = true;
 
     pSirSmeCandidateFoundInd = vos_mem_malloc(sizeof(tSirSmeCandidateFoundInd));
     if (NULL == pSirSmeCandidateFoundInd) {
@@ -3213,9 +3138,6 @@ limSendSmeCandidateFoundInd(tpAniSirGlobal pMac, tANI_U8 sessionId)
                FL("AllocateMemory failed for eWNI_SME_CANDIDATE_FOUND_IND"));
         return;
     }
-    pe_session->roaming_in_progress = true;
-    limLog(pMac, LOGE,FL("Set roaming_in_progress for SME:%d, PE:%d session"),
-           sessionId, pe_session->peSessionId);
     pSirSmeCandidateFoundInd->messageType = eWNI_SME_CANDIDATE_FOUND_IND;
     pSirSmeCandidateFoundInd->length = sizeof(tSirSmeCandidateFoundInd);
     pSirSmeCandidateFoundInd->sessionId = sessionId;

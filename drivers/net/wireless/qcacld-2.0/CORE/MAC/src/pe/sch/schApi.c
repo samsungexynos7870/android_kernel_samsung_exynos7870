@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,8 +39,7 @@
  */
 #include "palTypes.h"
 #include "aniGlobal.h"
-#include "wniCfgSta.h"
-
+#include "wni_cfg.h"
 #include "sirMacProtDef.h"
 #include "sirMacPropExts.h"
 #include "sirCommon.h"
@@ -421,7 +420,7 @@ tANI_U32 limSendProbeRspTemplateToHal(tpAniSirGlobal pMac,tpPESession psessionEn
     tANI_U32             addnIELenWoP2pIe = 0;
     tANI_U32             retStatus;
     tDot11fIEExtCap extracted_extcap;
-    bool extcap_present = false;
+    bool extcap_present = true;
     tDot11fProbeResponse *prb_rsp_frm;
     tSirRetStatus status;
     uint16_t addn_ielen = 0;
@@ -479,9 +478,8 @@ tANI_U32 limSendProbeRspTemplateToHal(tpAniSirGlobal pMac,tpPESession psessionEn
         status = lim_strip_extcap_update_struct(pMac, addIE, &addn_ielen,
                                                    &extracted_extcap);
         if (eSIR_SUCCESS != status) {
+            extcap_present = false;
             limLog(pMac, LOG1, FL("extcap not extracted"));
-        } else {
-            extcap_present = true;
         }
 
     }

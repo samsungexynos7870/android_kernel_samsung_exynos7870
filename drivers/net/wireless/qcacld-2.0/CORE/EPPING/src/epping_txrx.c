@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,6 +45,7 @@
 #include <wlan_hdd_tx_rx.h>
 #include <wniApi.h>
 #include <wlan_nlink_srv.h>
+#include <wlan_btc_svc.h>
 #include <wlan_hdd_cfg.h>
 #include <wlan_ptt_sock_svc.h>
 #include <wlan_hdd_wowl.h>
@@ -52,7 +53,9 @@
 #include <wlan_hdd_wext.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
-#include "vos_cnss.h"
+#if defined(MSM_PLATFORM) && defined(HIF_PCI)
+#include <net/cnss.h>
+#endif /* MSM_PLATFORM */
 #include <linux/rtnetlink.h>
 #include <linux/semaphore.h>
 #include <linux/ctype.h>
@@ -238,32 +241,28 @@ static int epping_set_mac_address(struct net_device *dev, void *addr)
 
 static void epping_stop_adapter(epping_adapter_t *pAdapter)
 {
-   struct device *dev;
-
    if (pAdapter && pAdapter->started) {
       EPPING_LOG(LOG1, FL("Disabling queues"));
       netif_tx_disable(pAdapter->dev);
       netif_carrier_off(pAdapter->dev);
       pAdapter->started = false;
-      dev = pAdapter->pEpping_ctx->parent_dev;
-      if (dev)
-         vos_request_bus_bandwidth(dev, CNSS_BUS_WIDTH_LOW);
+#if defined(MSM_PLATFORM) && defined(HIF_PCI) && defined(CONFIG_CNSS)
+      cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_LOW);
+#endif
    }
 }
 
 static int epping_start_adapter(epping_adapter_t *pAdapter)
 {
-   struct device *dev;
-
    if (!pAdapter) {
       EPPING_LOG(VOS_TRACE_LEVEL_FATAL,
          "%s: pAdapter= NULL\n", __func__);
       return -1;
    }
    if (!pAdapter->started) {
-      dev = pAdapter->pEpping_ctx->parent_dev;
-      if (dev)
-         vos_request_bus_bandwidth(dev, CNSS_BUS_WIDTH_HIGH);
+#if defined(MSM_PLATFORM) && defined(HIF_PCI) && defined(CONFIG_CNSS)
+      cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_HIGH);
+#endif
       netif_carrier_on(pAdapter->dev);
       EPPING_LOG(LOG1, FL("Enabling queues"));
       netif_tx_start_all_queues(pAdapter->dev);

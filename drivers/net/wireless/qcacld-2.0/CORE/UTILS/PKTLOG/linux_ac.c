@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -77,8 +77,6 @@
 static struct ath_pktlog_info *g_pktlog_info;
 
 static struct proc_dir_entry *g_pktlog_pde;
-
-static DEFINE_MUTEX(proc_mutex);
 
 static int pktlog_attach(struct ol_softc *sc);
 static void pktlog_detach(struct ol_softc *sc);
@@ -228,11 +226,9 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp,
 	ol_ath_generic_softc_handle scn;
 	struct ol_pktlog_dev_t *pl_dev;
 
-	mutex_lock(&proc_mutex);
 	scn = (ol_ath_generic_softc_handle) ctl->extra1;
 
 	if (!scn) {
-		mutex_unlock(&proc_mutex);
 		printk("%s: Invalid scn context\n", __func__);
 		ASSERT(0);
 		return -EINVAL;
@@ -241,7 +237,6 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp,
 	pl_dev = get_pl_handle((struct ol_softc *)scn);
 
 	if (!pl_dev) {
-		mutex_unlock(&proc_mutex);
 		printk("%s: Invalid pktlog context\n", __func__);
 		ASSERT(0);
 		return -ENODEV;
@@ -271,7 +266,6 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp,
 	ctl->data = NULL;
 	ctl->maxlen = 0;
 
-	mutex_unlock(&proc_mutex);
 	return ret;
 }
 
@@ -289,11 +283,9 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp,
 	ol_ath_generic_softc_handle scn;
 	struct ol_pktlog_dev_t *pl_dev;
 
-	mutex_lock(&proc_mutex);
 	scn = (ol_ath_generic_softc_handle) ctl->extra1;
 
 	if (!scn) {
-		mutex_unlock(&proc_mutex);
 		printk("%s: Invalid scn context\n", __func__);
 		ASSERT(0);
 		return -EINVAL;
@@ -302,7 +294,6 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp,
 	pl_dev = get_pl_handle((struct ol_softc *)scn);
 
 	if (!pl_dev) {
-		mutex_unlock(&proc_mutex);
 		printk("%s: Invalid pktlog handle\n", __func__);
 		ASSERT(0);
 		return -ENODEV;
@@ -327,7 +318,6 @@ ATH_SYSCTL_DECL(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp,
 	ctl->data = NULL;
 	ctl->maxlen = 0;
 
-	mutex_unlock(&proc_mutex);
 	return ret;
 }
 
@@ -603,6 +593,139 @@ static int pktlog_release(struct inode *i, struct file *f)
 #endif
 
 /**
+ * pktlog_send_per_pkt_stats_to_user() - This function is used to send the per
+ * packet statistics to the user
+ *
+ * This function is used to send the per packet statistics to the user
+ *
+ * Return: Success if the message is posted to user
+ *
+ */
+int pktlog_send_per_pkt_stats_to_user(void)
+{
+	ssize_t ret_val;
+	struct vos_log_pktlog_info *pktlog = NULL;
+	void *vos = vos_get_global_context(VOS_MODULE_ID_HIF, NULL);
+	ol_txrx_pdev_handle txrx_pdev =
+		vos_get_context(VOS_MODULE_ID_TXRX, vos);
+	struct ath_pktlog_info *pl_info;
+	bool read_complete;
+	uint32_t num_bytes_read = 0;
+
+	/*
+	 * We do not want to do this packet stats related processing when
+	 * packet log tool is run. i.e., we want this processing to be
+	 * done only when start logging command of packet stats is initiated.
+	 */
+	if ((vos_get_ring_log_level(RING_ID_PER_PACKET_STATS) <
+				WLAN_LOG_LEVEL_ACTIVE)) {
+		printk(PKTLOG_TAG " %s: Shouldnt happen. Logging not started\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if (!txrx_pdev) {
+		printk(PKTLOG_TAG " %s: Invalid TxRx handle\n", __func__);
+		return -EINVAL;
+	}
+
+	pl_info = txrx_pdev->pl_dev->pl_info;
+
+	if (!pl_info || !pl_info->buf) {
+		printk(PKTLOG_TAG " %s: Shouldnt happen. pl_info is invalid\n",
+			 __func__);
+		return -EINVAL;
+	}
+
+	if (pl_info->buf->rd_offset == -1) {
+		printk(PKTLOG_TAG " %s: Shouldnt happen. No write yet!\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	do {
+		pktlog = (struct vos_log_pktlog_info *)
+			    vos_mem_malloc(sizeof(struct vos_log_pktlog_info) +
+						VOS_LOG_PKT_LOG_SIZE);
+		if (!pktlog) {
+			printk(PKTLOG_TAG " %s: Memory allocation failed\n",
+				__func__);
+			return -ENOMEM;
+		}
+
+		vos_mem_zero(pktlog, VOS_LOG_PKT_LOG_SIZE);
+		vos_log_set_code(pktlog, LOG_WLAN_PKT_LOG_INFO_C);
+
+		pktlog->buf_len = 0;
+		pktlog->version = VERSION_LOG_WLAN_PKT_LOG_INFO_C;
+
+		/*
+		 * @ret_val: ret_val gives the actual data read from the buffer.
+		 * When there is no more data to read, this value will be zero
+		 * @offset: offset in the ring buffer. Initially it is zero and
+		 * is incremented during every read based on number of bytes
+		 * read
+		 */
+		ret_val = pktlog_read_proc_entry(pktlog->buf,
+						 VOS_LOG_PKT_LOG_SIZE,
+						 &pl_info->buf->offset,
+						 pl_info, &read_complete);
+		if (ret_val) {
+			int index = 0;
+			struct ath_pktlog_hdr *temp;
+			while (1) {
+				if ((ret_val - index) <
+						sizeof(struct ath_pktlog_hdr)) {
+					/* Partial header */
+					pl_info->buf->offset -=
+							(ret_val - index);
+					ret_val = index;
+					break;
+				}
+				temp = (struct ath_pktlog_hdr *)
+							(pktlog->buf + index);
+				if ((ret_val - index) < (temp->size +
+					    sizeof(struct ath_pktlog_hdr))) {
+					/* Partial record payload */
+					pl_info->buf->offset -=
+							(ret_val - index);
+					ret_val = index;
+					break;
+				}
+				index += temp->size +
+					sizeof(struct ath_pktlog_hdr);
+			}
+		}
+
+		/* Data will include message index/seq number and buf length */
+		pktlog->buf_len = ret_val;
+		if (ret_val) {
+			vos_log_set_length(pktlog, ret_val +
+					   sizeof(struct vos_log_pktlog_info));
+			pktlog->seq_no = pl_info->buf->msg_index++;
+			WLAN_VOS_DIAG_LOG_REPORT(pktlog);
+		} else {
+			vos_mem_free(pktlog);
+		}
+		num_bytes_read += ret_val;
+		/*
+		 * If the logger thread is scheduled late and the proc entry
+		 * is having too much data to be read, we might start to starve
+		 * the other threads if we continuously keep reading the proc
+		 * entry. So, having a threshold to break this read from proc
+		 * entry.
+		 */
+		if (num_bytes_read > VOS_LOG_PKT_LOG_THRESHOLD) {
+			read_complete = true;
+			printk(PKTLOG_TAG " %s: Break read to prevent starve\n",
+				__func__);
+		}
+	} while (read_complete == false);
+
+	return 0;
+}
+
+/**
  * pktlog_read_proc_entry() - This function is used to read data from the
  * proc entry into the readers buffer
  * @buf:           Readers buffer
@@ -768,7 +891,7 @@ __pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 	int fold_offset, ppos_data, cur_rd_offset;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 	struct ath_pktlog_info *pl_info = (struct ath_pktlog_info *)
-					  PDE_DATA(file->f_path.dentry->d_inode);
+					  PDE_DATA(file->f_dentry->d_inode);
 #else
 	struct proc_dir_entry *proc_entry = PDE(file->f_dentry->d_inode);
 	struct ath_pktlog_info *pl_info = (struct ath_pktlog_info *)

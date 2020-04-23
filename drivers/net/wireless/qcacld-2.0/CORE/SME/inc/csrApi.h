@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -148,16 +148,17 @@ typedef enum {
 
 typedef tANI_U8 tCsrBssid[VOS_MAC_ADDR_SIZE];
 
-typedef enum {
+typedef enum
+{
+    eCSR_BSS_TYPE_NONE,
     eCSR_BSS_TYPE_INFRASTRUCTURE,
-    eCSR_BSS_TYPE_INFRA_AP,       /* Soft AP */
-    eCSR_BSS_TYPE_IBSS,           /* IBSS network, will NOT start */
-    eCSR_BSS_TYPE_START_IBSS,     /* IBSS network, will start if no partner */
-    eCSR_BSS_TYPE_WDS_AP,         /* BT-AMP AP */
-    eCSR_BSS_TYPE_WDS_STA,        /* BT-AMP station */
-    eCSR_BSS_TYPE_NDI,            /* NAN data path interface */
-    eCSR_BSS_TYPE_ANY,            /* any BSS type (IBSS or Infrastructure) */
-} eCsrRoamBssType;
+    eCSR_BSS_TYPE_INFRA_AP,       // SoftAP AP
+    eCSR_BSS_TYPE_IBSS,           // an IBSS network we will NOT start
+    eCSR_BSS_TYPE_START_IBSS,     // an IBSS network we will start if no partners detected.
+    eCSR_BSS_TYPE_WDS_AP,         // BT-AMP AP
+    eCSR_BSS_TYPE_WDS_STA,        // BT-AMP station
+    eCSR_BSS_TYPE_ANY,            // any BSS type (IBSS or Infrastructure).
+}eCsrRoamBssType;
 
 
 
@@ -298,13 +299,7 @@ typedef struct tagCsrScanRequest
     tANI_U32 maxChnTime;    //in units of milliseconds
     tANI_U32 minChnTimeBtc;    //in units of milliseconds
     tANI_U32 maxChnTimeBtc;    //in units of milliseconds
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t restTime;
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t min_rest_time;
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t idle_time;
-
+    tANI_U32 restTime;      //in units of milliseconds  //ignored when not connected
     tANI_U32 uIEFieldLen;
     tANI_U8 *pIEField;
     eCsrRequestType requestType;    //11d scan or full scan
@@ -330,12 +325,7 @@ typedef struct tagCsrBGScanRequest
     tANI_U32 maxChnTime;    //in units of milliseconds
     tANI_U32 minChnTimeBtc;    //in units of milliseconds
     tANI_U32 maxChnTimeBtc;    //in units of milliseconds
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t restTime;
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t min_rest_time;
-    /* In units of milliseconds, ignored when not connected */
-    uint32_t idle_time;
+    tANI_U32 restTime;      //in units of milliseconds  //ignored when not connected
     tANI_U32 throughputImpact;      //specify whether BG scan cares about impacting throughput  //ignored when not connected
     tCsrBssid bssid;    //how to use it?? Apple
 }tCsrBGScanRequest, *tpCsrBGScanRequest;
@@ -506,6 +496,7 @@ typedef enum
     eCSR_ROAM_FT_RESPONSE,
 #endif
     eCSR_ROAM_FT_START,
+    eCSR_ROAM_INDICATE_MGMT_FRAME,
     eCSR_ROAM_REMAIN_CHAN_READY,
     eCSR_ROAM_SEND_ACTION_CNF,
     //this mean error happens before association_start or roaming_start is called.
@@ -547,8 +538,6 @@ typedef enum
     // Channel sw update notification
     eCSR_ROAM_DFS_CHAN_SW_NOTIFY,
     eCSR_ROAM_EXT_CHG_CHNL_IND,
-
-    eCSR_ROAM_NDP_STATUS_UPDATE,
 }eRoamCmdStatus;
 
 
@@ -650,20 +639,6 @@ typedef enum
     eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS,
     eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_FAILURE,
     eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND,
-
-    eCSR_ROAM_RESULT_NDP_CREATE_RSP,
-    eCSR_ROAM_RESULT_NDP_DELETE_RSP,
-    eCSR_ROAM_RESULT_NDP_INITIATOR_RSP,
-    eCSR_ROAM_RESULT_NDP_NEW_PEER_IND,
-    eCSR_ROAM_RESULT_NDP_CONFIRM_IND,
-    eCSR_ROAM_RESULT_NDP_INDICATION,
-    eCSR_ROAM_RESULT_NDP_SCHED_UPDATE_RSP,
-    eCSR_ROAM_RESULT_NDP_RESPONDER_RSP,
-    eCSR_ROAM_RESULT_NDP_END_RSP,
-    eCSR_ROAM_RESULT_NDP_PEER_DEPARTED_IND,
-    eCSR_ROAM_RESULT_NDP_END_IND,
-    /* If Scan for SSID failed to found proper BSS */
-    eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE,
 }eCsrRoamResult;
 
 
@@ -694,7 +669,6 @@ typedef enum
     eCSR_DISCONNECT_REASON_IBSS_JOIN_FAILURE,
     eCSR_DISCONNECT_REASON_IBSS_LEAVE,
     eCSR_DISCONNECT_REASON_STA_HAS_LEFT,
-    eCSR_DISCONNECT_REASON_NDI_DELETE,
 }eCsrRoamDisconnectReason;
 
 typedef enum
@@ -718,10 +692,6 @@ typedef enum
     eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED,
     // Disconnecting with AP or stop connecting process
     eCSR_ASSOC_STATE_TYPE_INFRA_DISCONNECTING,
-    /* NAN Data interface not started */
-    eCSR_CONNECT_STATE_TYPE_NDI_NOT_STARTED,
-    /* NAN Data inteface started */
-    eCSR_CONNECT_STATE_TYPE_NDI_STARTED,
 }eCsrConnectState;
 
 
@@ -1145,6 +1115,7 @@ typedef struct tagCsrConfigParam
     tANI_U32 bgScanInterval;
     tANI_U16 TxRate;
     eCsrRoamWmmUserModeType WMMSupportMode;
+    tANI_U8 gStaLocalEDCAEnable;
     tANI_BOOLEAN Is11eSupportEnabled;
     tANI_BOOLEAN Is11dSupportEnabled;
     tANI_BOOLEAN Is11dSupportEnabledOriginal;
@@ -1195,6 +1166,8 @@ typedef struct tagCsrConfigParam
     tANI_U32  nInitialDwellTime;      //in units of milliseconds
     bool      initial_scan_no_dfs_chnl;
 
+    tANI_U32  nActiveMinChnTimeBtc;     //in units of milliseconds
+    tANI_U32  nActiveMaxChnTimeBtc;     //in units of milliseconds
     tANI_U32  disableAggWithBtc;
 #ifdef WLAN_AP_STA_CONCURRENCY
     tANI_U32  nPassiveMinChnTimeConc;    //in units of milliseconds
@@ -1207,10 +1180,6 @@ typedef struct tagCsrConfigParam
     tANI_U8   nNumP2PChanCombinedConc;   //number of channels combined for
                                          //P2P in each split scan operation
 #endif
-    /*In units of milliseconds*/
-    uint32_t       min_rest_time_conc;
-    /*In units of milliseconds*/
-    uint32_t       idle_time_conc;
 
     tANI_BOOLEAN IsIdleScanEnabled;
     //in dBm, the maximum TX power
@@ -1318,28 +1287,12 @@ typedef struct tagCsrConfigParam
     v_U8_t conc_custom_rule1;
     v_U8_t conc_custom_rule2;
     v_U8_t is_sta_connection_in_5gz_enabled;
-    bool       ignore_peer_ht_opmode;
+
     /* 802.11p enable */
     bool       enable_dot11p;
     tANI_BOOLEAN sendDeauthBeforeCon;
     v_U16_t    pkt_err_disconn_th;
     int8_t    first_scan_bucket_threshold;
-    bool    enable_fatal_event;
-    uint32_t tx_aggregation_size;
-    uint32_t rx_aggregation_size;
-    bool enable_edca_params;
-    uint32_t edca_vo_cwmin;
-    uint32_t edca_vi_cwmin;
-    uint32_t edca_bk_cwmin;
-    uint32_t edca_be_cwmin;
-    uint32_t edca_vo_cwmax;
-    uint32_t edca_vi_cwmax;
-    uint32_t edca_bk_cwmax;
-    uint32_t edca_be_cwmax;
-    uint32_t edca_vo_aifs;
-    uint32_t edca_vi_aifs;
-    uint32_t edca_bk_aifs;
-    uint32_t edca_be_aifs;
 }tCsrConfigParam;
 
 //Tush
@@ -1452,21 +1405,12 @@ typedef struct tagCsrRoamInfo
 #endif
     tSirSmeChanInfo chan_info;
     uint8_t target_channel;
-
-#ifdef WLAN_FEATURE_NAN_DATAPATH
-    union {
-        struct sme_ndp_peer_ind ndp_peer_ind_params;
-        struct ndp_schedule_update_rsp ndp_sched_upd_rsp_params;
-        struct ndp_end_indication_event ndp_end_ind_params;
-        struct ndp_end_rsp_event ndp_end_rsp_params;
-        struct ndp_confirm_event ndp_confirm_params;
-        struct ndp_responder_rsp_event ndp_responder_rsp_params;
-        struct ndp_indication_event ndp_indication_params;
-        struct ndp_initiator_rsp_event ndp_init_rsp_params;
-        struct ndi_create_rsp ndi_create_params;
-        struct ndi_delete_rsp ndi_delete_params;
-    } ndp;
-#endif
+    tDot11fIEHTCaps ht_caps;
+    tDot11fIEVHTCaps vht_caps;
+    tDot11fIEhs20vendor_ie hs20vendor_ie;
+    tDot11fIEVHTOperation vht_operation;
+    tDot11fIEHTInfo ht_operation;
+    bool reassoc;
 }tCsrRoamInfo;
 
 
@@ -1691,20 +1635,6 @@ struct tagCsrDelStaParams
     u8 subtype;
 };
 
-/**
- * struct wep_update_default_key_idx: wep default key index structure
- *
- * @session_id: session ID for the connection session
- * @default_idx: default key index for wep
- *
- * structure includes sesssion id for connection and default key
- * index used for wep
- */
-struct wep_update_default_key_idx {
-	uint8_t session_id;
-	uint8_t default_idx;
-};
-
 ////////////////////////////////////////////Common SCAN starts
 
 //void *p2 -- the second context pass in for the caller
@@ -1756,23 +1686,12 @@ typedef eHalStatus (*csrRoamSessionCloseCallback)(void *pContext);
 #define CSR_IS_WDS_STA( pProfile ) ( eCSR_BSS_TYPE_WDS_STA == (pProfile)->BSSType )
 #define CSR_IS_WDS( pProfile )  ( CSR_IS_WDS_AP( pProfile ) || CSR_IS_WDS_STA( pProfile ) )
 #define CSR_IS_INFRA_AP( pProfile )  ( eCSR_BSS_TYPE_INFRA_AP == (pProfile)->BSSType )
-#ifdef WLAN_FEATURE_NAN_DATAPATH
-#define CSR_IS_NDI(pProfile)  (eCSR_BSS_TYPE_NDI == (pProfile)->BSSType)
-#else
-#define CSR_IS_NDI(pProfile)  (FALSE)
-#endif
 
 //pProfile - pointer to tCsrRoamConnectedProfile
 #define CSR_IS_CONN_INFRA_AP( pProfile )  ( eCSR_BSS_TYPE_INFRA_AP == (pProfile)->BSSType )
 #define CSR_IS_CONN_WDS_AP( pProfile )  ( eCSR_BSS_TYPE_WDS_AP == (pProfile)->BSSType )
 #define CSR_IS_CONN_WDS_STA( pProfile ) ( eCSR_BSS_TYPE_WDS_STA == (pProfile)->BSSType )
 #define CSR_IS_CONN_WDS( pProfile )  ( CSR_IS_WDS_AP( pProfile ) || CSR_IS_WDS_STA( pProfile ) )
-
-#ifdef WLAN_FEATURE_NAN_DATAPATH
-#define CSR_IS_CONN_NDI(pProfile)  (eCSR_BSS_TYPE_NDI == (pProfile)->BSSType)
-#else
-#define CSR_IS_CONN_NDI(pProfile)  (FALSE)
-#endif
 
 
 
@@ -1926,8 +1845,6 @@ eHalStatus csrRoamIssueFTRoamOffloadSynch(tHalHandle hHal, tANI_U32 sessionId,
 
 ---------------------------------------------------------------------------*/
 typedef void (*tCsrLinkStatusCallback)(v_U8_t status, void *pContext);
-typedef void (*csr_mib_stats_callback)
-			(struct mib_stats_metrics *mib_stats, void *context);
 /**
  * tcsr_fw_state_callback() -HDD callback registered with SME for getting
  *  firmware state
@@ -1936,5 +1853,4 @@ typedef void (*csr_mib_stats_callback)
  * Return: void
  */
 typedef void (*tcsr_fw_state_callback)(void *context);
-void csr_packetdump_timer_stop(void);
 #endif

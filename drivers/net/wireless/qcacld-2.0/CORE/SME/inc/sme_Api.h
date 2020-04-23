@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -50,6 +50,7 @@
 #include "vos_lock.h"
 #include "halTypes.h"
 #include "sirApi.h"
+#include "btcApi.h"
 #include "vos_nvitem.h"
 #include "p2p_Api.h"
 #include "smeInternal.h" 
@@ -161,11 +162,7 @@ typedef enum
 {
     eSME_TDLS_PEER_STATE_PEERING,
     eSME_TDLS_PEER_STATE_CONNECTED,
-    eSME_TDLS_PEER_STATE_TEARDOWN,
-    /* Add peer mac into connection table */
-    eSME_TDLS_PEER_ADD_MAC_ADDR,
-    /* Remove peer mac from connection table */
-    eSME_TDLS_PEER_REMOVE_MAC_ADDR,
+    eSME_TDLS_PEER_STATE_TEARDOWN
 } eSmeTdlsPeerState;
 
 typedef struct _smeTdlsPeerStateParams
@@ -231,15 +228,12 @@ struct sme_bad_peer_txctl_param{
 
 
 #define SME_MAX_THERMAL_LEVELS (4)
-#define SME_MAX_THROTTLE_LEVELS (4)
-
 
 typedef struct {
     /* Array of thermal levels */
     tSmeThermalLevelInfo smeThermalLevels[SME_MAX_THERMAL_LEVELS];
     u_int8_t smeThermalMgmtEnabled;
     u_int32_t smeThrottlePeriod;
-    u_int8_t sme_throttle_duty_cycle_tbl[SME_MAX_THROTTLE_LEVELS];
 } tSmeThermalParams;
 
 #ifdef WLAN_FEATURE_APFIND
@@ -1826,6 +1820,50 @@ eHalStatus sme_DHCPStopInd( tHalHandle hHal,
                             tANI_U8 sessionId );
 
 /* ---------------------------------------------------------------------------
+    \fn sme_BtcSignalBtEvent
+    \brief  API to signal Bluetooth (BT) event to the WLAN driver. Based on the
+            BT event type and the current operating mode of Libra (full power,
+            BMPS, UAPSD etc), appropriate Bluetooth Coexistence (BTC) strategy
+            would be employed.
+    \param  hHal - The handle returned by macOpen.
+    \param  pBtcBtEvent -  Pointer to a caller allocated object of type tSmeBtEvent
+                           Caller owns the memory and is responsible for freeing it.
+    \return VOS_STATUS
+            VOS_STATUS_E_FAILURE  BT Event not passed to HAL. This can happen
+                                   if driver has not yet been initialized or if BTC
+                                   Events Layer has been disabled.
+            VOS_STATUS_SUCCESS    BT Event passed to HAL
+  ---------------------------------------------------------------------------*/
+VOS_STATUS sme_BtcSignalBtEvent (tHalHandle hHal, tpSmeBtEvent pBtcBtEvent);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_BtcSetConfig
+    \brief  API to change the current Bluetooth Coexistence (BTC) configuration
+            This function should be invoked only after CFG download has completed.
+            Calling it after sme_HDDReadyInd is recommended.
+    \param  hHal - The handle returned by macOpen.
+    \param  pSmeBtcConfig - Pointer to a caller allocated object of type
+                            tSmeBtcConfig. Caller owns the memory and is responsible
+                            for freeing it.
+    \return VOS_STATUS
+            VOS_STATUS_E_FAILURE  Config not passed to HAL.
+            VOS_STATUS_SUCCESS  Config passed to HAL
+  ---------------------------------------------------------------------------*/
+VOS_STATUS sme_BtcSetConfig (tHalHandle hHal, tpSmeBtcConfig pSmeBtcConfig);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_BtcGetConfig
+    \brief  API to retrieve the current Bluetooth Coexistence (BTC) configuration
+    \param  hHal - The handle returned by macOpen.
+    \param  pSmeBtcConfig - Pointer to a caller allocated object of type tSmeBtcConfig.
+                            Caller owns the memory and is responsible for freeing it.
+    \return VOS_STATUS
+            VOS_STATUS_E_FAILURE - failure
+            VOS_STATUS_SUCCESS  success
+  ---------------------------------------------------------------------------*/
+VOS_STATUS sme_BtcGetConfig (tHalHandle hHal, tpSmeBtcConfig pSmeBtcConfig);
+
+/* ---------------------------------------------------------------------------
     \fn sme_SetCfgPrivacy
     \brief  API to set configure privacy parameters
     \param  hHal - The handle returned by macOpen.
@@ -1901,12 +1939,25 @@ eHalStatus sme_ScanGetBKIDCandidateList(tHalHandle hHal, tANI_U32 sessionId,
     \fn sme_OemDataReq
     \param sessionId - session id of session to be used for oem data req.
     \param pOemDataReqID - pointer to an object to get back the request ID
+    \param callback - a callback function that is called upon finish
+    \param pContext - a pointer passed in for the callback
     \return eHalStatus
   ---------------------------------------------------------------------------*/
 eHalStatus sme_OemDataReq(tHalHandle hHal,
                                        tANI_U8 sessionId,
                                        tOemDataReqConfig *,
-                                       tANI_U32 *pOemDataReqID);
+                                       tANI_U32 *pOemDataReqID,
+                                       oemData_OemDataReqCompleteCallback callback,
+                                       void *pContext);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getOemDataRsp
+    \param pOemDataRsp - A pointer to the response object
+    \param pOemDataReqID - pointer to an object to get back the request ID
+    \return eHalStatus
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_getOemDataRsp(tHalHandle hHal,
+                                         tOemDataRsp **pOemDataRsp);
 
 #endif /*FEATURE_OEM_DATA_SUPPORT*/
 
@@ -3640,8 +3691,6 @@ void smeGetCommandQStatus( tHalHandle hHal );
  */
 VOS_STATUS sme_SetIdlePowersaveConfig(v_PVOID_t vosContext, tANI_U32 value);
 VOS_STATUS sme_notify_modem_power_state(tHalHandle hHal, tANI_U32 value);
-eHalStatus sme_set_cts2self_for_p2p_go(tHalHandle hHal);
-eHalStatus sme_set_mib_stats_enable(tHalHandle hal, uint8_t value);
 
 eHalStatus sme_ConfigEnablePowerSave (tHalHandle hHal, tPmcPowerSavingMode psMode);
 eHalStatus sme_ConfigDisablePowerSave (tHalHandle hHal, tPmcPowerSavingMode psMode);
@@ -3813,8 +3862,6 @@ eHalStatus sme_UpdateAddIE(tHalHandle hHal,
 
 eHalStatus sme_UpdateConnectDebug(tHalHandle hHal, tANI_U32 set_value);
 const char * sme_requestTypetoString(const v_U8_t requestType);
-const char * sme_scan_type_to_string(const uint8_t scan_type);
-const char * sme_bss_type_to_string(const uint8_t bss_type);
 const char * sme_PmcStatetoString(const v_U8_t pmcState);
 eHalStatus sme_ApDisableIntraBssFwd(tHalHandle hHal, tANI_U8 sessionId,
                                     tANI_BOOLEAN disablefwd);
@@ -3871,10 +3918,6 @@ eHalStatus sme_ocb_start_timing_advert(struct sir_ocb_timing_advert
 
 eHalStatus sme_ocb_stop_timing_advert(struct sir_ocb_timing_advert
                                       *timing_advert);
-
-int sme_ocb_gen_timing_advert_frame(tHalHandle hHal, tSirMacAddr self_addr,
-                                    uint8_t **buf, uint32_t *timestamp_offset,
-                                    uint32_t *time_value_offset);
 
 eHalStatus sme_ocb_get_tsf_timer(tHalHandle hHal, void *context,
                                  ocb_callback callback,
@@ -4048,12 +4091,6 @@ eHalStatus sme_ExtScanRegisterCallback (tHalHandle hHal,
                         void (*pExtScanIndCb)(void *, const tANI_U16, void *));
 
 #endif /* FEATURE_WLAN_EXTSCAN */
-
-eHalStatus sme_bpf_offload_register_callback(tHalHandle hal,
-			void (*pbpf_get_offload_cb)(void *,
-			struct sir_bpf_get_offload *));
-VOS_STATUS sme_set_beacon_filter(uint32_t vdev_id, uint32_t *ie_map);
-VOS_STATUS sme_unset_beacon_filter(uint32_t vdev_id);
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 /* ---------------------------------------------------------------------------
@@ -4369,18 +4406,9 @@ sme_set_tsf_gpio(tHalHandle hHal, uint32_t pinvalue)
 #endif
 
 bool smeNeighborMiddleOfRoaming(tHalHandle hHal, tANI_U8 sessionId);
-eHalStatus sme_register_mgmt_frame_ind_callback(tHalHandle hal,
-      sir_mgmt_frame_ind_callback callback);
 
 eHalStatus sme_update_nss(tHalHandle h_hal, uint8_t nss);
 void sme_enable_phy_error_logs(tHalHandle hal, bool enable_log);
-
-VOS_STATUS sme_set_btc_bt_wlan_interval_page_p2p(uint32_t bt_interval,
-					uint32_t p2p_interval);
-VOS_STATUS sme_set_btc_bt_wlan_interval_page_sta(uint32_t bt_interval,
-					uint32_t sta_interval);
-VOS_STATUS sme_set_btc_bt_wlan_interval_page_sap(uint32_t bt_interval,
-					uint32_t sap_interval);
 
 uint8_t    sme_is_any_session_in_connected_state(tHalHandle h_hal);
 
@@ -4389,7 +4417,8 @@ void sme_add_set_thermal_level_callback(tHalHandle hHal,
                    tSmeSetThermalLevelCallback callback);
 
 eHalStatus sme_handle_set_fcc_channel(tHalHandle hHal,
-				       bool fcc_constraint);
+		bool fcc_constraint,
+		uint32_t scan_pending);
 
 eHalStatus sme_set_rssi_monitoring(tHalHandle hal,
 					struct rssi_monitor_req *input);
@@ -4399,7 +4428,6 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 		uint32_t vdev_type_nss, eCsrBand band);
-void sme_update_user_configured_nss(tHalHandle hal, uint8_t nss);
 void sme_set_vdev_nss(tHalHandle hal, bool enable2x2);
 void sme_set_per_band_chainmask_supp(tHalHandle hal, bool val);
 void sme_set_lte_coex_supp(tHalHandle hal, bool val);
@@ -4433,67 +4461,19 @@ static inline VOS_STATUS sme_set_udp_resp_offload(struct udp_resp_offload
 eHalStatus sme_set_lost_link_info_cb(tHalHandle hal,
                                      void (*cb)(void *,
                                                 struct sir_lost_link_info *));
-#ifdef FEATURE_GREEN_AP
-VOS_STATUS sme_send_egap_conf_params(uint32_t enable,
-				     uint32_t inactivity_time,
-				     uint32_t wait_time,
-				     uint32_t flags);
-#else
-static inline VOS_STATUS sme_send_egap_conf_params(uint32_t enable,
-						   uint32_t inactivity_time,
-						   uint32_t wait_time,
-						   uint32_t flags)
-{
-	return VOS_STATUS_E_NOSUPPORT;
-}
-#endif
-
-#ifdef WLAN_FEATURE_WOW_PULSE
-VOS_STATUS sme_set_wow_pulse(struct wow_pulse_mode *wow_pulse_set_info);
-#endif
-
-eHalStatus sme_roam_set_default_key_index(tHalHandle hal, uint8_t session_id,
-					uint8_t default_idx);
-
-eHalStatus sme_set_smps_force_mode_cb(tHalHandle hal,
-		void (*cb)(void *, struct sir_smps_force_mode_event *));
-
-eHalStatus sme_update_mimo_power_save(tHalHandle hHal,
-				      uint8_t is_ht_smps_enabled,
-				      uint8_t ht_smps_mode);
-
-bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
-
-eHalStatus sme_get_bpf_offload_capabilities(tHalHandle hal);
-eHalStatus sme_set_bpf_instructions(tHalHandle hal,
-			struct sir_bpf_set_offload *);
 
 /**
- * sme_create_mon_session() - post message to create PE session for monitormode
- * operation
- * @hal_handle: Handle to the HAL
- * @bssid: pointer to bssid
+ * sme_unpack_rsn_ie: wrapper to unpack RSN IE and update def RSN params
+ * if optional fields are not present.
+ * @hal: handle returned by mac_open
+ * @buf: rsn ie buffer pointer
+ * @buf_len: rsn ie buffer length
+ * @rsn_ie: outframe rsn ie structure
+ * @append_ie: flag to indicate if the rsn_ie need to be appended from buf
  *
- * Return: eHAL_STATUS_SUCCESS on success, non-zero error code on failure.
+ * Return: parse status
  */
-eHalStatus sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
-eHalStatus sme_get_mib_stats(tHalHandle hal,
-				csr_mib_stats_callback callback,
-				void *context, void *vos_context,
-				uint8_t session_id);
-void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val);
+uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
+			   uint8_t buf_len, tDot11fIERSN *rsn_ie);
 
-eHalStatus sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id);
-
-eHalStatus sme_update_txrate(tHalHandle hal, struct sir_txrate_update *req);
-
-void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id,
-		uint8_t *peer_mac, tANI_U16 reason, uint8_t wait_for_ack);
-
-VOS_STATUS sme_is_session_valid(tHalHandle hal_handle, uint8_t session_id);
-
-eHalStatus sme_enable_disable_chanavoidind_event(tHalHandle hHal,
-							tANI_U8 set_value);
-eHalStatus sme_remove_bssid_from_scan_list(tHalHandle hal,
-	tSirMacAddr bssid);
 #endif //#if !defined( __SME_API_H )

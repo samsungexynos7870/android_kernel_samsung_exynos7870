@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -125,8 +125,6 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U8                 operMode;               // AP - 0; STA - 1 ;
     tSirNwType              nwType;
     tpSirSmeStartBssReq     pLimStartBssReq;        //handle to smestart bss req
-    bool                    osen_association;
-    bool                    wps_registration;
     tpSirSmeJoinReq         pLimJoinReq;            // handle to sme join req
     tpSirSmeJoinReq         pLimReAssocReq;         //handle to sme reassoc req
     tpLimMlmJoinReq         pLimMlmJoinReq;         //handle to MLM join Req
@@ -493,13 +491,16 @@ typedef struct sPESession           // Added to Support BT-AMP
 #ifdef FEATURE_WLAN_ESE
     uint8_t is_ese_version_ie_present;
 #endif
+    /* HS 2.0 Indication */
+    tDot11fIEhs20vendor_ie hs20vendor_ie;
     /* flag to indicate country code in beacon */
     tANI_U8 countryInfoPresent;
     uint8_t vdev_nss;
     bool roaming_in_progress;
-    bool add_bss_failed;
-    /* Supported NSS is intersection of self and peer NSS */
-    bool supported_nss_1x1;
+    tDot11fIEHTCaps ht_caps;
+    tDot11fIEVHTCaps vht_caps;
+    tDot11fIEHTInfo ht_operation;
+    tDot11fIEVHTOperation vht_operation;
     bool is_ext_caps_present;
 } tPESession, *tpPESession;
 

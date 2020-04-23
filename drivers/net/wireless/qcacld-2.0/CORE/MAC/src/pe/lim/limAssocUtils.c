@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -42,7 +42,7 @@
 #include "wniApi.h"
 #include "sirCommon.h"
 
-#include "wniCfgSta.h"
+#include "wni_cfg.h"
 #include "pmmApi.h"
 #include "cfgApi.h"
 
@@ -656,10 +656,10 @@ limCleanupRxPath(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession psessionE
              */
             if (LIM_IS_AP_ROLE(psessionEntry) ||
                 LIM_IS_BT_AMP_AP_ROLE(psessionEntry)) {
-                limDelSta(pMac, pStaDs, false, psessionEntry);
                 limReleasePeerIdx(pMac, pStaDs->assocId, psessionEntry);
             }
             limDeleteDphHashEntry(pMac, pStaDs->staAddr, pStaDs->assocId,psessionEntry);
+
             return retCode;
         }
     }
@@ -705,14 +705,12 @@ limCleanupRxPath(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession psessionE
     // increment a debug count
     pMac->lim.gLimNumRxCleanup++;
 #endif
-    /* Do DEL BSS or DEL STA only if ADD BSS was success */
-    if (!psessionEntry->add_bss_failed) {
-        if (psessionEntry->limSmeState == eLIM_SME_JOIN_FAILURE_STATE) {
-            retCode = limDelBss( pMac, pStaDs,
-                              psessionEntry->bssIdx, psessionEntry);
-        } else
-            retCode = limDelSta( pMac, pStaDs, true, psessionEntry);
+
+    if (psessionEntry->limSmeState == eLIM_SME_JOIN_FAILURE_STATE) {
+        retCode = limDelBss( pMac, pStaDs, psessionEntry->bssIdx, psessionEntry);
     }
+    else
+        retCode = limDelSta( pMac, pStaDs, true, psessionEntry);
 
     return retCode;
 
@@ -775,19 +773,15 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
 
         psessionEntry->limAID = 0;
 
-    } else if (
-       (mlmStaContext.cleanupTrigger == eLIM_LINK_MONITORING_DISASSOC) ||
-       (mlmStaContext.cleanupTrigger == eLIM_LINK_MONITORING_DEAUTH)) {
-       /* only for non-STA cases PE/SME is serialized */
-       return;
+
     }
 
     if ((mlmStaContext.cleanupTrigger ==
                                       eLIM_HOST_DISASSOC) ||
         (mlmStaContext.cleanupTrigger ==
-                                      eLIM_PROMISCUOUS_MODE_DISASSOC) ||
+                                      eLIM_LINK_MONITORING_DISASSOC) ||
         (mlmStaContext.cleanupTrigger ==
-                                      eLIM_LINK_MONITORING_DISASSOC))
+                                      eLIM_PROMISCUOUS_MODE_DISASSOC))
     {
         /**
          * Host or LMM driven Disassociation.
@@ -810,8 +804,10 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                           LIM_MLM_DISASSOC_CNF,
                           (tANI_U32 *) &mlmDisassocCnf);
     }
-    else if ((mlmStaContext.cleanupTrigger == eLIM_HOST_DEAUTH) ||
-             (mlmStaContext.cleanupTrigger == eLIM_LINK_MONITORING_DEAUTH))
+    else if ((mlmStaContext.cleanupTrigger ==
+                                           eLIM_HOST_DEAUTH) ||
+             (mlmStaContext.cleanupTrigger ==
+                                           eLIM_LINK_MONITORING_DEAUTH))
     {
         /**
          * Host or LMM driven Deauthentication.
@@ -1617,7 +1613,7 @@ tSirRetStatus limPopulateVhtMcsSet(tpAniSirGlobal pMac,
                     }
                 }
             } else {
-                if (psessionEntry && (psessionEntry->vdev_nss == NSS_2x2_MODE))
+                if (psessionEntry->vdev_nss == NSS_2x2_MODE)
                     mcsMapMask2x2 = MCSMAPMASK2x2;
             }
 
@@ -1659,15 +1655,6 @@ tSirRetStatus limPopulateVhtMcsSet(tpAniSirGlobal pMac,
                         "enable2x2 %d nss %d vhtRxMCSMap %x vhtTxMCSMap %x\n"),
                         pMac->roam.configParam.enable2x2, nss,
                         pRates->vhtRxMCSMap, pRates->vhtTxMCSMap);
-
-            /* Check if VHT caps present to determine session NSS */
-            if ((psessionEntry) && (pPeerVHTCaps->present)) {
-                    psessionEntry->supported_nss_1x1 =
-                        ((pRates->vhtTxMCSMap & VHT_MCS_1x1) ==
-                         VHT_MCS_1x1) ? true : false;
-                    limLog(pMac, LOG1, FL("VHT supported nss 1x1 : %d "),
-                           psessionEntry->supported_nss_1x1);
-            }
         }
     }
     return eSIR_SUCCESS;
@@ -2007,16 +1994,9 @@ limPopulatePeerRateSet(tpAniSirGlobal pMac,
             for(i=0; i<SIR_MAC_MAX_SUPPORTED_MCS_SET; i++)
                     pRates->supportedMCSSet[i] &= pSupportedMCSSet[i];
         }
-
         PELOG2(limLog(pMac, LOG2, FL("MCS Rate Set Bitmap: "));)
         for(i=0; i<SIR_MAC_MAX_SUPPORTED_MCS_SET; i++)
-            PELOG2(limLog(pMac, LOG2, FL("%x "), pRates->supportedMCSSet[i]);)
-
-        psessionEntry->supported_nss_1x1 =
-            ((pRates->supportedMCSSet[1] != 0) ? false : true);
-        limLog(pMac, LOG1, FL("HT supported nss 1x1 : %d "),
-                      psessionEntry->supported_nss_1x1);
-
+            PELOG2(limLog(pMac, LOG2,FL("%x ") , pRates->supportedMCSSet[i]);)
     }
 #ifdef WLAN_FEATURE_11AC
     limPopulateVhtMcsSet(pMac, pRates , pVHTCaps, psessionEntry,
@@ -2574,7 +2554,7 @@ limAddSta(
        pPeerNode = limIbssPeerFind(pMac, *pStaAddr);
        if (!pPeerNode) {
              limLog( pMac, LOGP, FL("Can't find IBSS peer node for ADD_STA"));
-             vos_mem_free(pAddStaParams);
+	     vos_mem_free(pAddStaParams);
              return eSIR_HAL_STA_DOES_NOT_EXIST;
        }
 
@@ -3125,8 +3105,7 @@ limAddStaSelf(tpAniSirGlobal pMac,tANI_U16 staIdx, tANI_U8 updateSta, tpPESessio
     pAddStaParams->enableVhtpAid = psessionEntry->enableVhtpAid;
 #endif
     pAddStaParams->enableAmpduPs = psessionEntry->enableAmpduPs;
-    pAddStaParams->enableHtSmps = (psessionEntry->enableHtSmps &&
-                                   (!psessionEntry->supported_nss_1x1));
+    pAddStaParams->enableHtSmps = psessionEntry->enableHtSmps;
     pAddStaParams->htSmpsconfig = psessionEntry->htSmpsvalue;
 
     /* For Self STA get the LDPC capability from session i.e config.ini*/
@@ -3362,8 +3341,6 @@ limDeleteDphHashEntry(tpAniSirGlobal pMac, tSirMacAddr staAddr, tANI_U16 staId,t
     }
 }
 
-
-
 /**
  * limCheckAndAnnounceJoinSuccess()
  *
@@ -3501,6 +3478,9 @@ limCheckAndAnnounceJoinSuccess(tpAniSirGlobal pMac,
         mlmJoinCnf.sessionId = psessionEntry->peSessionId;
         limPostSmeMessage(pMac, LIM_MLM_JOIN_CNF, (tANI_U32 *) &mlmJoinCnf);
     } // if ((pMac->lim.gLimSystemRole == IBSS....
+
+    /* Update HS 2.0 Information Element */
+    sir_copy_hs20_ie(&psessionEntry->hs20vendor_ie, &pBPR->hs20vendor_ie);
 }
 
 /**
@@ -3892,8 +3872,8 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
             PELOGE(limLog(pMac, LOGE, FL("Couldn't get assoc id for "
                        "MAC ADDR: " MAC_ADDRESS_STR),
                        MAC_ADDR_ARRAY(pAddBssParams->staContext.staMac));)
-            retCode = eSIR_FAILURE;
-            goto returnFailure;
+	    retCode = eSIR_FAILURE;
+	    goto returnFailure;
         }
 
         if(!pMac->psOffloadEnabled)
@@ -4213,7 +4193,7 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 
  returnFailure:
     if (pAddBssParams != NULL)
-        vos_mem_free(pAddBssParams);
+	    vos_mem_free(pAddBssParams);
     // Clean-up will be done by the caller...
     return retCode;
 }
@@ -4225,7 +4205,7 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
 {
     tSirMsgQ msgQ;
     tpAddBssParams pAddBssParams = NULL;
-    tANI_U32 retCode;
+    tANI_U32 retCode = eSIR_SUCCESS;
     tANI_U8 i;
     tSchBeaconStruct *pBeaconStruct;
     tANI_U8 chanWidthSupp = 0;
@@ -4261,8 +4241,8 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
 
     if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
         limDecideStaProtectionOnAssoc(pMac, pBeaconStruct, psessionEntry);
-    vos_mem_copy(pAddBssParams->bssId, bssDescription->bssId,
-                 sizeof(tSirMacAddr));
+        vos_mem_copy(pAddBssParams->bssId, bssDescription->bssId,
+                     sizeof(tSirMacAddr));
 
     // Fill in tAddBssParams selfMacAddr
     vos_mem_copy(pAddBssParams->selfMacAddr,
@@ -4663,7 +4643,6 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
     if( eSIR_SUCCESS != retCode)
     {
         SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
-        vos_mem_free(pAddBssParams);
         limLog( pMac, LOGE, FL("Posting ADD_BSS_REQ to HAL failed, reason=%X"),
                 retCode );
         goto returnFailure;
@@ -4676,6 +4655,8 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
     }
 
  returnFailure:
+    if (pAddBssParams != NULL)
+        vos_mem_free(pAddBssParams);
     // Clean-up will be done by the caller...
     vos_mem_free(pBeaconStruct);
     return retCode;
@@ -4771,7 +4752,7 @@ void limInitPreAuthTimerTable(tpAniSirGlobal pMac, tpLimPreAuthTable pPreAuthTim
 {
     tANI_U32 cfgValue;
     tANI_U32 authNodeIdx;
-    tLimPreAuthNode **pAuthNode = pPreAuthTimerTable->pTable;
+    tpLimPreAuthNode pAuthNode = pPreAuthTimerTable->pTable;
 
     // Get AUTH_RSP Timers value
 
@@ -4788,9 +4769,9 @@ void limInitPreAuthTimerTable(tpAniSirGlobal pMac, tpLimPreAuthTable pPreAuthTim
     }
 
     cfgValue = SYS_MS_TO_TICKS(cfgValue);
-    for(authNodeIdx=0; authNodeIdx<pPreAuthTimerTable->numEntry; authNodeIdx++)
+    for(authNodeIdx=0; authNodeIdx<pPreAuthTimerTable->numEntry; authNodeIdx++, pAuthNode++)
     {
-        if (tx_timer_create(&(pAuthNode[authNodeIdx]->timer),
+        if (tx_timer_create(&pAuthNode->timer,
                         "AUTH RESPONSE TIMEOUT",
                         limAuthResponseTimerHandler,
                         authNodeIdx,
@@ -4802,9 +4783,10 @@ void limInitPreAuthTimerTable(tpAniSirGlobal pMac, tpLimPreAuthTable pPreAuthTim
             limLog(pMac, LOGP, FL("Cannot create Auth Rsp timer of Index :%d."), authNodeIdx);
             return;
         }
-        pAuthNode[authNodeIdx]->authNodeIdx = (tANI_U8)authNodeIdx;
-        pAuthNode[authNodeIdx]->fFree = 1;
+        pAuthNode->authNodeIdx = (tANI_U8)authNodeIdx;
+        pAuthNode->fFree = 1;
     }
+
 }
 
 /** -------------------------------------------------------------
@@ -4817,11 +4799,13 @@ void limInitPreAuthTimerTable(tpAniSirGlobal pMac, tpLimPreAuthTable pPreAuthTim
 tLimPreAuthNode * limAcquireFreePreAuthNode(tpAniSirGlobal pMac, tpLimPreAuthTable pPreAuthTimerTable)
 {
     tANI_U32 i;
-    tLimPreAuthNode **pTempNode = pPreAuthTimerTable->pTable;
-    for (i=0; i < pPreAuthTimerTable->numEntry; i++) {
-        if (pTempNode[i]->fFree == 1) {
-            pTempNode[i]->fFree = 0;
-            return pTempNode[i];
+    tLimPreAuthNode *pTempNode = pPreAuthTimerTable->pTable;
+    for (i=0; i<pPreAuthTimerTable->numEntry; i++,pTempNode++)
+    {
+        if (pTempNode->fFree == 1)
+        {
+            pTempNode->fFree = 0;
+            return pTempNode;
         }
     }
 
@@ -4846,7 +4830,7 @@ tLimPreAuthNode * limGetPreAuthNodeFromIndex(tpAniSirGlobal pMac,
         return NULL;
     }
 
-    return pAuthTable->pTable[authNodeIdx];
+    return pAuthTable->pTable + authNodeIdx;
 }
 
 /* Util API to check if the channels supported by STA is within range */
