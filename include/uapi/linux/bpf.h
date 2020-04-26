@@ -609,6 +609,8 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_get_socket_uid,
 
+	BPF_FUNC_ktime_get_boot_ns = BPF_FUNC_get_socket_uid + 78,
+
 	__BPF_FUNC_MAX_ID,
 };
 
