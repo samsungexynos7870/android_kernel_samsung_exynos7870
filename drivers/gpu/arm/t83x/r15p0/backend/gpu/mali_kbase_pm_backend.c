@@ -420,15 +420,7 @@ void kbase_hwaccess_pm_suspend(struct kbase_device *kbdev)
 		 * Interrupts are disabled so no more faults should be
 		 * generated at this point */
 		mutex_unlock(&kbdev->pm.lock);
-
-		/* MALI_SEC_INTEGRATION */
-		mutex_unlock(&js_devdata->runpool_mutex);
-
 		kbase_flush_mmu_wqs(kbdev);
-
-		/* MALI_SEC_INTEGRATION */
-		mutex_lock(&js_devdata->runpool_mutex);
-
 		mutex_lock(&kbdev->pm.lock);
 		WARN_ON(!kbase_pm_do_poweroff(kbdev, false));
 	}
