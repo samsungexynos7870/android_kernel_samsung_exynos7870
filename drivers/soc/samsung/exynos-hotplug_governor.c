@@ -554,7 +554,7 @@ static int __init exynos_hpgov_init(void)
 	exynos_hpgov.attrib.attrib_group.name = "governor";
 	ret = sysfs_create_group(exynos_cpu_hotplug_kobj(), &exynos_hpgov.attrib.attrib_group);
 	if (ret)
-		pr_err("Unable to create sysfs objects :%d\n", ret);
+		pr_err("Unable to create sysfs objects: %d\n", ret);
 
 	atomic_set(&exynos_hpgov.cur_cpu_max, PM_QOS_CPU_ONLINE_MAX_DEFAULT_VALUE);
 #ifndef CONFIG_SCHED_HMP

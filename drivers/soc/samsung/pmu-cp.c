@@ -19,7 +19,7 @@ static u32 exynos_smc_read(enum cp_control reg)
 	if (!(cp_ctrl & 0xffff)) {
 		cp_ctrl >>= 16;
 	} else {
-		pr_err("%s: ERR! read Fail: %d\n", __func__, cp_ctrl & 0xffff);
+		pr_err("%s: ERROR! read failed: %d\n", __func__, cp_ctrl & 0xffff);
 
 		return -1;
 	}
@@ -33,7 +33,7 @@ static u32 exynos_smc_write(enum cp_control reg, u32 value)
 
 	ret = exynos_smc(SMC_ID, WRITE_CTRL, value, reg);
 	if (ret > 0) {
-		pr_err("%s: ERR! CP_CTRL Write Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP_CTRL write failed: %d\n", __func__, ret);
 		return -1;
 	}
 
@@ -60,14 +60,14 @@ int exynos_cp_reset(void)
 
 	ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl | CP_RESET_SET);
 	if (ret < 0) {
-		pr_err("%s: ERR! CP Reset Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP reset failed: %d\n", __func__, ret);
 		return -1;
 	}
 #else
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS,
 			CP_RESET_SET, CP_RESET_SET);
 	if (ret < 0) {
-		pr_err("%s: ERR! CP Reset Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP reset failed: %d\n", __func__, ret);
 		return -1;
 	}
 #endif
@@ -94,14 +94,14 @@ int exynos_cp_release(void)
 
 	ret = exynos_smc_write(CP_CTRL_S, cp_ctrl | CP_START);
 	if (ret < 0)
-		pr_err("ERR! CP Release Fail: %d\n", ret);
+		pr_err("ERROR! CP release failed: %d\n", ret);
 	else
 		pr_info("%s, cp_ctrl[0x%08x] -> [0x%08x]\n", __func__, cp_ctrl,
 			exynos_smc_read(CP_CTRL_S));
 #else
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_S, CP_START, CP_START);
 	if (ret < 0)
-		pr_err("ERR! CP Release Fail: %d\n", ret);
+		pr_err("ERROR! CP release failed: %d\n", ret);
 	else {
 		exynos_pmu_read(EXYNOS_PMU_CP_CTRL_S, &cp_ctrl);
 		pr_info("%s, PMU_CP_CTRL_S[0x%08x]\n", __func__, cp_ctrl);
@@ -126,7 +126,7 @@ int exynos_cp_active_clear(void)
 
 	ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl | CP_ACTIVE_REQ_CLR);
 	if (ret < 0)
-		pr_err("%s: ERR! CP active_clear Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP active_clear failed: %d\n", __func__, ret);
 	else
 		pr_info("%s: cp_ctrl[0x%08x] -> [0x%08x]\n", __func__, cp_ctrl,
 			exynos_smc_read(CP_CTRL_NS));
@@ -134,7 +134,7 @@ int exynos_cp_active_clear(void)
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS, CP_ACTIVE_REQ_CLR,
 			CP_ACTIVE_REQ_CLR);
 	if (ret < 0)
-		pr_err("%s: ERR! CP active_clear Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP active_clear failed: %d\n", __func__, ret);
 	else {
 		exynos_pmu_read(EXYNOS_PMU_CP_CTRL_NS, &cp_ctrl);
 		pr_info("%s, PMU_CP_CTRL_NS[0x%08x]\n", __func__, cp_ctrl);
@@ -158,7 +158,7 @@ int exynos_clear_cp_reset(void)
 
 	ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl | CP_RESET_REQ_CLR);
 	if (ret < 0)
-		pr_err("%s: ERR! CP clear_cp_reset Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP clear_cp_reset failed: %d\n", __func__, ret);
 	else
 		pr_info("%s: cp_ctrl[0x%08x] -> [0x%08x]\n", __func__, cp_ctrl,
 			exynos_smc_read(CP_CTRL_NS));
@@ -166,7 +166,7 @@ int exynos_clear_cp_reset(void)
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS, CP_RESET_REQ_CLR,
 			CP_RESET_REQ_CLR);
 	if (ret < 0)
-		pr_err("%s: ERR! CP clear_cp_reset Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP clear_cp_reset failed: %d\n", __func__, ret);
 	else {
 		exynos_pmu_read(EXYNOS_PMU_CP_CTRL_NS, &cp_ctrl);
 		pr_info("%s, PMU_CP_CTRL_NS[0x%08x]\n", __func__, cp_ctrl);
@@ -208,7 +208,7 @@ int exynos_cp_init(void)
 
 	ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl & ~CP_RESET & ~CP_PWRON);
 	if (ret < 0)
-		pr_err("%s: ERR! write Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! write failed: %d\n", __func__, ret);
 
 	cp_ctrl = exynos_smc_read(CP_CTRL_S);
 	if (cp_ctrl == -1)
@@ -216,19 +216,19 @@ int exynos_cp_init(void)
 
 	ret = exynos_smc_write(CP_CTRL_S, cp_ctrl & ~CP_START);
 	if (ret < 0)
-		pr_err("%s: ERR! write Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! write failed: %d\n", __func__, ret);
 #else
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS, CP_RESET_SET, 0);
 	if (ret < 0)
-		pr_err("%s: ERR! CP_RESET_SET Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP_RESET_SET failed: %d\n", __func__, ret);
 
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS, CP_PWRON, 0);
 	if (ret < 0)
-		pr_err("%s: ERR! CP_PWRON Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP_PWRON failed: %d\n", __func__, ret);
 
 	ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_S, CP_START, 0);
 	if (ret < 0)
-		pr_err("%s: ERR! CP_START Fail: %d\n", __func__, ret);
+		pr_err("%s: ERROR! CP_START failed: %d\n", __func__, ret);
 #endif
 	return ret;
 }
@@ -250,7 +250,7 @@ int exynos_set_cp_power_onoff(enum cp_mode mode)
 		if (!(cp_ctrl & CP_PWRON)) {
 			ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl | CP_PWRON);
 			if (ret < 0)
-				pr_err("%s: ERR! write Fail: %d\n", __func__, ret);
+				pr_err("%s: ERROR! write failed: %d\n", __func__, ret);
 			else
 				pr_info("%s: CP Power: [0x%08X] -> [0x%08X]\n",
 					__func__, cp_ctrl, exynos_smc_read(CP_CTRL_NS));
@@ -261,14 +261,14 @@ int exynos_set_cp_power_onoff(enum cp_mode mode)
 
 		ret = exynos_smc_write(CP_CTRL_S, cp_ctrl | CP_START);
 		if (ret < 0)
-			pr_err("%s: ERR! write Fail: %d\n", __func__, ret);
+			pr_err("%s: ERROR! write failed: %d\n", __func__, ret);
 		else
 			pr_info("%s: CP Start: [0x%08X] -> [0x%08X]\n", __func__,
 				cp_ctrl, exynos_smc_read(CP_CTRL_S));
 	} else {
 		ret = exynos_smc_write(CP_CTRL_NS, cp_ctrl & ~CP_PWRON);
 		if (ret < 0)
-			pr_err("ERR! write Fail: %d\n", ret);
+			pr_err("ERROR! write failed: %d\n", ret);
 		else
 			pr_info("%s: CP Power Down: [0x%08X] -> [0x%08X]\n", __func__,
 				cp_ctrl, exynos_smc_read(CP_CTRL_NS));
@@ -280,19 +280,19 @@ int exynos_set_cp_power_onoff(enum cp_mode mode)
 			ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS,
 				CP_PWRON, CP_PWRON);
 			if (ret < 0)
-				pr_err("%s: ERR! write Fail: %d\n",
+				pr_err("%s: ERROR! write failed: %d\n",
 						__func__, ret);
 		}
 
 		ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_S,
 			CP_START, CP_START);
 		if (ret < 0)
-			pr_err("%s: ERR! write Fail: %d\n", __func__, ret);
+			pr_err("%s: ERROR! write failed: %d\n", __func__, ret);
 	} else {
 		ret = exynos_pmu_update(EXYNOS_PMU_CP_CTRL_NS,
 			CP_PWRON, 0);
 		if (ret < 0)
-			pr_err("ERR! write Fail: %d\n", ret);
+			pr_err("ERROR! write failed: %d\n", ret);
 	}
 #endif
 
@@ -321,7 +321,7 @@ void exynos_sys_powerdown_conf_cp(void)
 static void __init set_shdmem_size(int memsz)
 {
 	u32 tmp;
-	pr_info("[Modem_IF]Set shared mem size: %dMB\n", memsz);
+	pr_info("[Modem_IF] Setting shared memory size to %dMB\n", memsz);
 
 	memsz /= 4;
 	exynos_pmu_update(EXYNOS_PMU_CP2AP_MEM_CONFIG,
@@ -334,7 +334,7 @@ static void __init set_shdmem_size(int memsz)
 static void __init set_shdmem_base(void)
 {
 	u32 tmp, base_addr;
-	pr_info("[Modem_IF]Set shared mem baseaddr : 0x%x\n", SHDMEM_BASE);
+	pr_info("[Modem_IF] Setting shared memory baseaddr to 0x%x\n", SHDMEM_BASE);
 
 	base_addr = (SHDMEM_BASE >> 22);
 

@@ -283,10 +283,10 @@ static int exynos_pm_syscore_suspend(void)
 #endif
 
 	if (!exynos_check_cp_status()) {
-		pr_info("%s: sleep canceled by CP reset \n",__func__);
+		pr_info("%s: woken up by CP reset \n",__func__);
 		return -EINVAL;
 	}
-	
+
 #ifdef CONFIG_SEC_DEBUG
 	debug_level = sec_debug_get_debug_level();
 
@@ -308,11 +308,11 @@ static int exynos_pm_syscore_suspend(void)
 	if (is_cp_call) {
 		psci_index = PSCI_SYSTEM_CP_CALL;
 		exynos_prepare_cp_call();
-		pr_info("%s: Enter CP Call mode for voice call\n",__func__);
+		pr_info("%s: Entered CP Call mode for voice calls\n",__func__);
 	} else {
 		psci_index = PSCI_SYSTEM_SLEEP;
 		exynos_prepare_sys_powerdown(SYS_SLEEP);
-		pr_info("%s: Enter sleep mode\n",__func__);
+		pr_info("%s: Entered sleep mode\n",__func__);
 	}
 
 	return 0;
@@ -455,7 +455,7 @@ static __init int exynos_pm_drvinit(void)
 #endif
 	if (subsys_system_register(&exynos_info_subsys,
 					exynos_info_sysfs_groups))
-		pr_err("fail to register exynos_info subsys\n");
+		pr_err("Failed to register the exynos_info subsystem\n");
 
 	suspend_set_ops(&exynos_pm_ops);
 	register_syscore_ops(&exynos_pm_syscore_ops);
@@ -472,7 +472,7 @@ static __init int exynos_pm_drvinit(void)
 	/* create sysfs group */
 	ret = sysfs_create_file(power_kobj, &dev_attr_asv_info.attr);
 	if (ret) {
-		pr_err("%s: failed to create exynos8890 asv attribute file\n",
+		pr_err("%s: failed to create exynos8890 asv attribute sysfs file\n",
 				__func__);
 	}
 #endif

@@ -84,7 +84,7 @@ static void mngs_reset_control(int en)
 
 	if (en) {
 		/* reset disable for MNGS */
-		pr_err("%s: mngs cpu reset disable\n", __func__);
+		pr_err("%s: mngs cpu reset disabled\n", __func__);
 		reg_val = readl(exynos_pmu_base + EXYNOS_PMU_CPU_RESET_DISABLE_FROM_SOFTRESET);
 		if (reg_val & (PEND_MNGS | PEND_APOLLO)) {
 			reg_val &= ~(PEND_MNGS | PEND_APOLLO);
@@ -125,7 +125,7 @@ static void mngs_reset_control(int en)
                 writel(reg_val, exynos_pmu_base + EXYNOS_PMU_ATLAS_NONCPU_RESET);
 	} else {
 		/* reset enable for MNGS */
-		pr_err("%s: mngs cpu reset enable before s/w reset\n", __func__);
+		pr_err("%s: mngs cpu reset enabled before s/w reset\n", __func__);
 		for (val = 0; val < mngs_cpu_cnt; val++) {
 			reg_val = readl(exynos_pmu_base + EXYNOS_PMU_ATLAS_CPU0_RESET + (val * 0x80));
 #ifdef CONFIG_SOC_EXYNOS8890_EVT1
@@ -182,7 +182,7 @@ static void exynos_power_off(void)
 	of_node_put(np);
 
 	if (!gpio_is_valid(gpio_key)) {
-		pr_err("%s: There is no node of power key.\n", __func__);
+		pr_err("%s: There is no node for the power key.\n", __func__);
 		return;
 	}
 
@@ -191,7 +191,7 @@ static void exynos_power_off(void)
 	while (1) {
 		/* Wait until power button released */
 		if (gpio_get_value(gpio_key)) {
-			pr_emerg("%s: Set PS_HOLD Low.\n", __func__);
+			pr_emerg("%s: Setting PS_HOLD low.\n", __func__);
 
 			/*
 			 * Set PS_HOLD low.
@@ -203,8 +203,8 @@ static void exynos_power_off(void)
 			pr_emerg("%s: Should't be reached here! (retry cnt : %d)\n",
 			     __func__, retry);
 		} else {
-		/* If power button is not released, wait... */
-			pr_info("%s: Button is not released.\n", __func__);
+		/* If the power button has not been released, wait. */
+			pr_info("%s: Button has not been released.\n", __func__);
 		}
 		mdelay(1000);
 	}
@@ -212,7 +212,7 @@ static void exynos_power_off(void)
 #else
 static void exynos_power_off(void)
 {
-	pr_info("Exynos power off does not support.\n");
+	pr_info("Exynos power off isn't supported.\n");
 }
 #endif
 #endif
@@ -257,7 +257,7 @@ static int __init exynos_reboot_setup(struct device_node *np)
 	if (!of_property_read_u32(np, "pmu_base", &id)) {
 		exynos_pmu_base = ioremap(id, SZ_16K);
 		if (!exynos_pmu_base) {
-			pr_err("%s: failed to map to exynos-pmu-base address 0x%x\n",
+			pr_err("%s: failed to ioremap exynos-pmu-base to address 0x%x\n",
 				__func__, id);
 			err = -ENOMEM;
 		}

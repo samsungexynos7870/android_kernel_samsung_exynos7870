@@ -159,7 +159,7 @@ static int secmem_release(struct inode *inode, struct file *file)
 			int ret;
 			ret = drm_enable_locked(info, false);
 			if (ret < 0)
-				pr_err("fail to lock/unlock drm status. lock = %d\n", false);
+				pr_err("Failed to lock or unlock drm status. lock = %d\n", false);
 		}
 	}
 
@@ -248,14 +248,14 @@ static long secmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		if (ion_phys(client, ion_handle, &fd_info.phys, &len)) {
-			pr_err("%s: Failed to get phys. addr of DRM. fd(%d)\n",
+			pr_err("%s: Failed to get physical address of DRM. fd(%d)\n",
 				__func__, fd_info.fd);
 			ion_free(client, ion_handle);
 			ion_client_destroy(client);
 			return -ENOMEM;
 		}
 
-		pr_debug("%s: physical addr from kernel space = 0x%08x\n",
+		pr_debug("%s: physical address from kernel space = 0x%08x\n",
 				__func__, (unsigned int)fd_info.phys);
 
 		ion_free(client, ion_handle);
@@ -288,7 +288,7 @@ static long secmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			 */
 			ret = drm_enable_locked(info, val);
 			if (ret < 0)
-				pr_err("fail to lock/unlock drm status. lock = %d\n", val);
+				pr_err("Failed to lock or unlock drm status. lock = %d\n", val);
 		}
 		mutex_unlock(&drm_lock);
 		break;

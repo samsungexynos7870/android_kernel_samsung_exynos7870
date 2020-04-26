@@ -228,7 +228,7 @@ int exynos_get_idle_ip_index(const char *ip_name)
 
 	ip_index = of_property_match_string(np, "idle-ip", ip_name);
 	if (ip_index < 0) {
-		pr_err("%s: Fail to find %s in idle-ip list with err %d\n",
+		pr_err("%s: Failed to find %s in idle-ip list with error %d\n",
 					__func__, ip_name, ip_index);
 		return ip_index;
 	}
@@ -801,7 +801,7 @@ static int __init dt_init_exynos_powermode(void)
 
 	ret = parsing_dt_wakeup_mask(np);
 	if (ret)
-		pr_warn("Fail to initialize the wakeup mask with err = %d\n", ret);
+		pr_warn("Failed to initialize the wakeup mask with err = %d\n", ret);
 
 	if (of_property_read_u32(np, "cpd_residency", &pm_info->cpd_residency))
 		pr_warn("No matching property: cpd_residency\n");
@@ -821,7 +821,7 @@ int __init exynos_powermode_init(void)
 
 	pm_info = kzalloc(sizeof(struct exynos_powermode_info), GFP_KERNEL);
 	if (pm_info == NULL) {
-		pr_err("%s: failed to allocate exynos_powermode_info\n", __func__);
+		pr_err("%s: failed to allocate memory for exynos_powermode_info\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -835,13 +835,13 @@ int __init exynos_powermode_init(void)
 
 #ifdef CONFIG_PM
 	if (sysfs_create_file(power_kobj, &blocking_cpd.attr))
-		pr_err("%s: failed to create sysfs to control CPD\n", __func__);
+		pr_err("%s: failed to create sysfs for control on CPD\n", __func__);
 
 	if (sysfs_create_file(power_kobj, &sicd.attr))
-		pr_err("%s: failed to create sysfs to control CPD\n", __func__);
+		pr_err("%s: failed to create sysfs for control on CPD\n", __func__);
 
 	if (sysfs_create_file(power_kobj, &sicd_factory_mode.attr))
-		pr_err("%s: failed to create sysfs to control SICD Factory mode\n", __func__);
+		pr_err("%s: failed to create sysfs for control on SICD Factory mode\n", __func__);
 
 #endif
 

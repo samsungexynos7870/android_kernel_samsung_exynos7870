@@ -29,7 +29,7 @@ struct exynos_chipid_info exynos_soc_info;
 EXPORT_SYMBOL(exynos_soc_info);
 
 static const char *soc_ap_id;
-	
+
 static const char * __init product_id_to_name(unsigned int product_id)
 {
 	const char *soc_name;
@@ -285,22 +285,22 @@ void sysfs_create_svc_ap(void)
 		/* try to create svc kobject */
 		data = kobject_create_and_add("svc", &devices_kset->kobj);
 		if (IS_ERR_OR_NULL(data))
-			pr_info("Existing path sys/devices/svc : 0x%p\n", data);
+			pr_info("Existing path sys/devices/svc: 0x%p\n", data);
 		else
-			pr_info("Created sys/devices/svc svc : 0x%p\n", data);
+			pr_info("Created sys/devices/svc svc: 0x%p\n", data);
 	} else {
 		data = (struct kobject *)svc_sd->priv;
-		pr_info("Found svc_sd : 0x%p svc : 0x%p\n", svc_sd, data);
+		pr_info("Found svc_sd: 0x%p svc: 0x%p\n", svc_sd, data);
 	}
 
 	ap = kobject_create_and_add("AP", data);
 	if (IS_ERR_OR_NULL(ap))
-		pr_info("Failed to create sys/devices/svc/AP : 0x%p\n", ap);
+		pr_info("Failed to create sys/devices/svc/AP: 0x%p\n", ap);
 	else
-		pr_info("Success to create sys/devices/svc/AP : 0x%p\n", ap);
+		pr_info("Successfully created sys/devices/svc/AP: 0x%p\n", ap);
 
 	if (sysfs_create_file(ap, &svc_ap_attr.attr) < 0) {
-		pr_err("failed to create sys/devices/svc/AP/SVC_AP, %s\n",
+		pr_err("Failed to create sys/devices/svc/AP/SVC_AP, %s\n",
 		svc_ap_attr.attr.name);
 	}
 }
@@ -311,7 +311,7 @@ static int __init chipid_sysfs_init(void)
 
 	ret = subsys_system_register(&chipid_subsys, chipid_sysfs_groups);
 	if (ret)
-		pr_err("fail to register exynos-snapshop subsys\n");
+		pr_err("Failed to register the exynos-snapshot subsystem\n");
 
 	sysfs_create_svc_ap();
 

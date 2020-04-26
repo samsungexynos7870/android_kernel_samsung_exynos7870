@@ -191,7 +191,7 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 						"samsung,syscon-phandle");
 	if (IS_ERR(pmureg)) {
-		pr_err("Fail to get regmap of PMU\n");
+		pr_err("Failed to get regmap of PMU\n");
 		return PTR_ERR(pmureg);
 	}
 

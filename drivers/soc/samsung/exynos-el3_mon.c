@@ -25,7 +25,7 @@ static int  __init exynos_set_debug_mem(void)
 	smc_debug_mem = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	if (!smc_debug_mem) {
-		pr_err("%s: kmalloc for smc_debug failed.\n", __func__);
+		pr_err("%s: kmalloc for smc_debug has failed.\n", __func__);
 		return 0;
 	}
 
@@ -34,14 +34,14 @@ static int  __init exynos_set_debug_mem(void)
 	__dma_flush_range(smc_debug_mem, smc_debug_mem+PAGE_SIZE);
 
 	phys = (char *)virt_to_phys(smc_debug_mem);
-	pr_info("%s: alloc kmem for smc_dbg virt: 0x%p phys: 0x%p size: %ld.\n",
+	pr_info("%s: allocating kernel memory for smc_dbg virt: 0x%p phys: 0x%p size: %ld.\n",
 			__func__, smc_debug_mem, phys, PAGE_SIZE);
 	ret = exynos_smc(SMC_CMD_SET_DEBUG_MEM, (u64)phys, (u64)PAGE_SIZE, 0);
 
 	/* correct return value is input size */
 	if (ret != PAGE_SIZE) {
-		pr_err("%s: Can not set the address to el3 monitor. "
-				"ret = 0x%x. free the kmem\n", __func__, ret);
+		pr_err("%s: Could not set the address to the EL3 monitor. "
+				"ret = 0x%x. Freeing allocated kernel memory\n", __func__, ret);
 		kfree(smc_debug_mem);
 	}
 
@@ -54,7 +54,7 @@ static int  __init exynos_get_reason_mem(void)
 	smc_lockup = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	if (!smc_lockup) {
-		pr_err("%s: kmalloc for smc_lockup failed.\n", __func__);
+		pr_err("%s: kmalloc for smc_lockup has failed.\n", __func__);
 		smc_lockup = NULL;
 	}
 
@@ -120,9 +120,9 @@ static int exynos_parse_reason(struct __lockup_info *ptr)
 		sp_el3 = lockup_info->exception_info[i].sp_el3;
 		esr_el3 = lockup_info->exception_info[i].esr_el3;
 
-		/* it got stuck due to unexpected exception */
-		pr_emerg("%s: %dth core gets stuck in EL3 monitor due to " \
-			"%s exception from %s.\n", \
+		/* a core got stuck due to unexpected exception */
+		pr_emerg("%s: %dth core got stuck in the EL3 monitor due " \
+			"to %s exception from %s.\n", \
 			 __func__, i, ename[ekind], el_mode[efrom]);
 		pr_emerg("%s: elr 0x%lx sp_el1 0x%lx sp_el3 0x%lx " \
 			"esr_el3 0x%lx\n", __func__, elr_el3, sp_el1, \
@@ -139,7 +139,7 @@ int exynos_check_hardlockup_reason(void)
 	char *phys;
 
 	if (!smc_lockup) {
-		pr_err("%s: fail to alloc memory for storing lockup info.\n",
+		pr_err("%s: failed to allocate memory for storing lockup information.\n",
 			__func__);
 		return 0;
 	}
@@ -155,8 +155,8 @@ int exynos_check_hardlockup_reason(void)
 	ret = exynos_smc(SMC_CMD_GET_LOCKUP_REASON, (u64)phys, (u64)PAGE_SIZE, 0);
 
 	if (ret) {
-		pr_emerg("%s: SMC_CMD_GET_LOCKUP_REASON returns 0x%x. fail " \
-			"to get the information.\n",  __func__, ret);
+		pr_emerg("%s: SMC_CMD_GET_LOCKUP_REASON returned 0x%x. Failed " \
+			"to get lockup information.\n",  __func__, ret);
 		goto check_exit;
 	}
 

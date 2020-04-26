@@ -84,7 +84,7 @@ static irqreturn_t exynos_mc_irq_handler(int irq, void *p)
 #else
 static irqreturn_t exynos_mc_irq_handler(int irq, void *p)
 {
-	panic("[SW Trip]Memory temperature is too high");
+	panic("[SW Trip] Memory temperature is too high");
 
 	return IRQ_HANDLED;
 }

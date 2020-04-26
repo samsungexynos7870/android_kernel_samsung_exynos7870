@@ -28,13 +28,13 @@ static int cpu_hotplug_in(const struct cpumask *mask)
 			 * it is critical error
 			 */
 			if (ret == -EIO)
-				panic("I/O error(-EIO) occurs while CPU%d comes online\n", cpu);
+				panic("I/O error(-EIO) occured while CPU%d was coming online\n", cpu);
 
 			/*
 			 * If it fails to enable cpu,
 			 * it cancels cpu hotplug request and retries later.
 			 */
-			pr_err("%s: Failed to hotplug in CPU%d with error %d\n",
+			pr_err("%s: Failed to hotplug CPU%d with error %d\n",
 								__func__, cpu, ret);
 			break;
 		}
@@ -245,7 +245,7 @@ static int control_cpu_hotplug(bool enable)
 			 */
 			cpu_hotplug.enabled = false;
 		} else {
-			pr_err("Fail to disable cpu hotplug, please try again\n");
+			pr_err("Failed to disable cpu hotplugging, please try again\n");
 		}
 
 		mutex_unlock(&cpu_hotplug.lock);
@@ -493,19 +493,19 @@ static void __init cpu_hotplug_sysfs_init(void)
 {
 	cpu_hotplug.kobj = kobject_create_and_add("cpuhotplug", power_kobj);
 	if (!cpu_hotplug.kobj) {
-		pr_err("Fail to create cpu_hotplug kboject\n");
+		pr_err("Failed to create the cpuhotplug kobject\n");
 		return;
 	}
 
 	/* Create /sys/power/cpuhotplug */
 	if (sysfs_create_group(cpu_hotplug.kobj, &cpu_hotplug_group)) {
-		pr_err("Fail to create cpu_hotplug group\n");
+		pr_err("Failed to create the cpuhotplug group\n");
 		return;
 	}
 
 	/* link cpuhotplug directory to /sys/devices/system/cpu/cpuhotplug */
 	if (sysfs_create_link(&cpu_subsys.dev_root->kobj, cpu_hotplug.kobj, "cpuhotplug"))
-		pr_err("Fail to link cpuhotplug directory");
+		pr_err("Failed to link the cpuhotplug directory\n");
 }
 
 static int __init cpu_hotplug_init(void)
