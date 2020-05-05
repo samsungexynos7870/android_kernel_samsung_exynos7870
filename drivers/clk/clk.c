@@ -636,9 +636,6 @@ static int __init clk_debug_init(void)
 late_initcall(clk_debug_init);
 #else
 static inline int clk_debug_register(struct clk *clk) { return 0; }
-static inline void clk_debug_reparent(struct clk *clk, struct clk *new_parent)
-{
-}
 static inline void clk_debug_unregister(struct clk *clk)
 {
 }
