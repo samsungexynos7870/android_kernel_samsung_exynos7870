@@ -69,6 +69,7 @@
 	};
 
 	serial_0: uart@13810000 {
+		samsung,uart-logging;
 		status = "okay";
 	};
 
@@ -77,7 +78,6 @@
 	};
 
 	serial_2: uart@13820000 {
-		samsung,uart-logging;
 		status = "okay";
 	};
 
@@ -143,7 +143,7 @@
 			io-channel-names = "adc-jack";
 			#io-channel-cells = <1>;
 			io-channel-ranges;
-			but-zones-list = <&but_zones 226 0 220>, /* send/end */ 
+			but-zones-list = <&but_zones 226 0 220>, /* send/end */
 					<&but_zones 582 221 305>, /* google */
 					<&but_zones 115 306 510>, /* vol up */
 					<&but_zones 114 511 1107>; /* vol down */
@@ -265,21 +265,21 @@
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/SYSTEM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/VENDOR";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 				odm {
 					compatible = "android,odm";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/ODM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 			};
 		};
@@ -617,13 +617,13 @@
 		non_hw_trigger_levels = <7>;
 
 		/* Throttling Level */
-		trigger_levels_0 = <81>;
-		trigger_levels_1 = <86>;
-		trigger_levels_2 = <91>;
-		trigger_levels_3 = <96>;
-		trigger_levels_4 = <101>;
-		trigger_levels_5 = <106>;
-		trigger_levels_6 = <112>;
+		trigger_levels_0 = <76>;
+		trigger_levels_1 = <81>;
+		trigger_levels_2 = <86>;
+		trigger_levels_3 = <91>;
+		trigger_levels_4 = <96>;
+		trigger_levels_5 = <101>;
+		trigger_levels_6 = <111>;
 		trigger_levels_7 = <115>;
 
 		trigger_enable_0 = <ENABLE>;
@@ -644,26 +644,19 @@
 		trigger_type_6 = <THROTTLE_ACTIVE>;
 		trigger_type_7 = <HW_TRIP>;
 
-		freq_tab_count = <8>;
+		freq_tab_count = <5>;
 
-		freq_clip_max_0 = <1794000>;
-		freq_clip_max_1 = <1690000>;
-		freq_clip_max_2 = <1586000>;
-		freq_clip_max_3 = <1248000>;
-		freq_clip_max_4 = <1248000>;
-		freq_clip_max_5 = <546000>;
-		freq_clip_max_6 = <449000>;
-		freq_clip_max_7 = <343000>;	
-		
+		freq_clip_max_0 = <1586000>;
+		freq_clip_max_1 = <1248000>;
+		freq_clip_max_2 = <1248000>;
+		freq_clip_max_3 = <546000>;
+		freq_clip_max_4 = <546000>;
+
 		cooling_level_0 = <76>;
-		cooling_level_1 = <76>;
-		cooling_level_2 = <76>;
-		cooling_level_3 = <81>;
-		cooling_level_4 = <86>;
-		cooling_level_5 = <91>;
-		cooling_level_6 = <96>;
-		cooling_level_7 = <96>;
-		cooling_level_8 = <96>;		
+		cooling_level_1 = <81>;
+		cooling_level_2 = <86>;
+		cooling_level_3 = <91>;
+		cooling_level_4 = <96>;
 	};
 
 	tmuctrl_1: tmuctrl_CPUCL1@10130000 {
@@ -674,13 +667,13 @@
 		non_hw_trigger_levels = <7>;
 
 		/* Throttling Level */
-		trigger_levels_0 = <81>;
-		trigger_levels_1 = <86>;
-		trigger_levels_2 = <91>;
-		trigger_levels_3 = <96>;
-		trigger_levels_4 = <101>;
-		trigger_levels_5 = <106>;
-		trigger_levels_6 = <112>;
+		trigger_levels_0 = <76>;
+		trigger_levels_1 = <81>;
+		trigger_levels_2 = <86>;
+		trigger_levels_3 = <91>;
+		trigger_levels_4 = <96>;
+		trigger_levels_5 = <101>;
+		trigger_levels_6 = <111>;
 		trigger_levels_7 = <115>;
 
 		trigger_enable_0 = <ENABLE>;
@@ -701,27 +694,20 @@
 		trigger_type_6 = <THROTTLE_ACTIVE>;
 		trigger_type_7 = <HW_TRIP>;
 
-		freq_tab_count = <8>;
+		freq_tab_count = <5>;
 
-		freq_clip_max_0 = <1794000>;
-		freq_clip_max_1 = <1690000>;
-		freq_clip_max_2 = <1586000>;
-		freq_clip_max_3 = <1248000>;
-		freq_clip_max_4 = <1248000>;
-		freq_clip_max_5 = <546000>;
-		freq_clip_max_6 = <449000>;
-		freq_clip_max_7 = <343000>;	
-		
+		freq_clip_max_0 = <1586000>;
+		freq_clip_max_1 = <1248000>;
+		freq_clip_max_2 = <1248000>;
+		freq_clip_max_3 = <546000>;
+		freq_clip_max_4 = <546000>;
+
 		cooling_level_0 = <76>;
-		cooling_level_1 = <76>;
-		cooling_level_2 = <76>;
-		cooling_level_3 = <81>;
-		cooling_level_4 = <86>;
-		cooling_level_5 = <91>;
-		cooling_level_6 = <96>;
-		cooling_level_7 = <96>;
-		cooling_level_8 = <96>;	
-		
+		cooling_level_1 = <81>;
+		cooling_level_2 = <86>;
+		cooling_level_3 = <91>;
+		cooling_level_4 = <96>;
+
 		hotplug_enable = <1>;
 		hotplug_in_threshold = <91>;
 		hotplug_out_threshold = <96>;
@@ -735,12 +721,12 @@
 		non_hw_trigger_levels = <7>;
 
 		/* Throttling Level */
-		trigger_levels_0 = <81>;
-		trigger_levels_1 = <86>;
-		trigger_levels_2 = <91>;
-		trigger_levels_3 = <96>;
-		trigger_levels_4 = <101>;
-		trigger_levels_5 = <106>;
+		trigger_levels_0 = <76>;
+		trigger_levels_1 = <81>;
+		trigger_levels_2 = <86>;
+		trigger_levels_3 = <91>;
+		trigger_levels_4 = <96>;
+		trigger_levels_5 = <101>;
 		trigger_levels_6 = <111>;
 		trigger_levels_7 = <115>;
 
@@ -764,31 +750,29 @@
 
 		freq_tab_count = <6>;
 
-		freq_clip_max_0 = <1146000>;
-		freq_clip_max_1 = <1001000>;
-		freq_clip_max_2 = <728000>;
-		freq_clip_max_3 = <545000>;
+		freq_clip_max_0 = <1246000>;
+		freq_clip_max_1 = <1146000>;
+		freq_clip_max_2 = <1001000>;
+		freq_clip_max_3 = <728000>;
 		freq_clip_max_4 = <343000>;
-		freq_clip_max_5 = <160000>;
+		freq_clip_max_5 = <343000>;
 
-		cooling_level_0 = <81>;
-		cooling_level_1 = <86>;
-		cooling_level_2 = <91>;
-		cooling_level_3 = <96>;
-		cooling_level_4 = <101>;
-		cooling_level_5 = <106>;
+		cooling_level_0 = <76>;
+		cooling_level_1 = <81>;
+		cooling_level_2 = <86>;
+		cooling_level_3 = <91>;
+		cooling_level_4 = <96>;
+		cooling_level_5 = <101>;
 
 		/* gpu cooling related table */
-		gpu_idx_num = <8>;
+		gpu_idx_num = <6>;
 		/* flags, driver_data(index), frequency */
-		gpu_cooling_table = < 0 0 1146000
-				      0 1 1001000
-				      0 2 845000
-				      0 3 728000
-				      0 4 545000
-				      0 5 343000
-				      0 6 160000
-				      0 7 TABLE_END>;
+		gpu_cooling_table = < 0 0 1001000
+				      0 1 845000
+				      0 2 728000
+				      0 3 545000
+				      0 4 343000
+				      0 5 TABLE_END>;
 	};
 
 	/* modem_interface */
@@ -1374,6 +1358,7 @@
 			id = <0>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
 			setfile = "setB";
+			use_initial_ae;	/* for initial AE */
 		};
 	};
 
@@ -1412,6 +1397,7 @@
 			id = <1>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
 			setfile = "setB"; /*EVT 01*/
+			use_initial_ae;	/* for initial AE */
 		};
 	};
 
@@ -1436,7 +1422,7 @@
 			samsung,pin-val = <0>;
 		};
 	};
-	
+
 	hsi2c_6: hsi2c@138F0000 {
 		status = "okay";
 		clock-frequency = <400000>;
@@ -1500,29 +1486,29 @@
 	};
 
 	decon_board: decon_board {
-		gpio_lcd_rst = <&gpd3 4 0x1>;
+		gpio_lcd_rst = <&gpd3 4 0>;
 
 		dsim_set_panel_power_enable {
 			type =
 			"regulator,enable",	"LCD_3P0",
 			"regulator,enable",	"LCD_1P8",
-			"delay,usleep",	"5000 6000";
+			"delay,usleep",	"5000";
 		};
 		dsim_set_panel_power_disable {
 			type =
 			"gpio,low",	"gpio_lcd_rst",
-			"delay,usleep",	"1000 1100",
+			"delay,usleep",	"1000",
 			"regulator,disable",	"LCD_1P8",
 			"regulator,disable",	"LCD_3P0";
 		};
 		dsim_reset_panel {
 			type =
 			"gpio,high",	"gpio_lcd_rst",
-			"delay,usleep",	"5000 6000",
+			"delay,usleep",	"5000",
 			"gpio,low",	"gpio_lcd_rst",
-			"delay,usleep",	"5000 6000",
+			"delay,usleep",	"5000",
 			"gpio,high",	"gpio_lcd_rst",
-			"delay,usleep",	"10000 11000";
+			"delay,usleep",	"10000";
 		};
 	};
 
@@ -1719,8 +1705,8 @@
 			zinitix,firmware_name = "tsp_zinitix/zt7548_j6.fw";
 			/* zinitix,spay = "true"; */
 			/* zinitix,aod = "true"; */
-			zinitix,tclm_level = <0x01>;
-			zinitix,afe_base = <0x0000>;
+			zinitix,tclm_level = <0x02>;
+			zinitix,afe_base = <0x800D>;
 			zinitix,mis_cal_check = "true";
 			zinitix,factory_item_version = <2>;
 		};
