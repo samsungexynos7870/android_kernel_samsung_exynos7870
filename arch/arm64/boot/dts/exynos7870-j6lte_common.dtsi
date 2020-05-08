@@ -69,6 +69,7 @@
 	};
 
 	serial_0: uart@13810000 {
+		samsung,uart-logging;
 		status = "okay";
 	};
 
@@ -77,7 +78,6 @@
 	};
 
 	serial_2: uart@13820000 {
-		samsung,uart-logging;
 		status = "okay";
 	};
 
@@ -143,7 +143,7 @@
 			io-channel-names = "adc-jack";
 			#io-channel-cells = <1>;
 			io-channel-ranges;
-			but-zones-list = <&but_zones 226 0 220>, /* send/end */ 
+			but-zones-list = <&but_zones 226 0 220>, /* send/end */
 					<&but_zones 582 221 305>, /* google */
 					<&but_zones 115 306 510>, /* vol up */
 					<&but_zones 114 511 1107>; /* vol down */
@@ -265,21 +265,21 @@
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/SYSTEM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/VENDOR";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 				odm {
 					compatible = "android,odm";
 					dev = "/dev/block/platform/13540000.dwmmc0/by-name/ODM";
 					type = "ext4";
 					mnt_flags = "ro";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 			};
 		};
@@ -1358,6 +1358,7 @@
 			id = <0>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
 			setfile = "setB";
+			use_initial_ae;	/* for initial AE */
 		};
 	};
 
@@ -1396,6 +1397,7 @@
 			id = <1>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
 			setfile = "setB"; /*EVT 01*/
+			use_initial_ae;	/* for initial AE */
 		};
 	};
 
@@ -1420,7 +1422,7 @@
 			samsung,pin-val = <0>;
 		};
 	};
-	
+
 	hsi2c_6: hsi2c@138F0000 {
 		status = "okay";
 		clock-frequency = <400000>;
@@ -1484,29 +1486,29 @@
 	};
 
 	decon_board: decon_board {
-		gpio_lcd_rst = <&gpd3 4 0x1>;
+		gpio_lcd_rst = <&gpd3 4 0>;
 
 		dsim_set_panel_power_enable {
 			type =
 			"regulator,enable",	"LCD_3P0",
 			"regulator,enable",	"LCD_1P8",
-			"delay,usleep",	"5000 6000";
+			"delay,usleep",	"5000";
 		};
 		dsim_set_panel_power_disable {
 			type =
 			"gpio,low",	"gpio_lcd_rst",
-			"delay,usleep",	"1000 1100",
+			"delay,usleep",	"1000",
 			"regulator,disable",	"LCD_1P8",
 			"regulator,disable",	"LCD_3P0";
 		};
 		dsim_reset_panel {
 			type =
 			"gpio,high",	"gpio_lcd_rst",
-			"delay,usleep",	"5000 6000",
+			"delay,usleep",	"5000",
 			"gpio,low",	"gpio_lcd_rst",
-			"delay,usleep",	"5000 6000",
+			"delay,usleep",	"5000",
 			"gpio,high",	"gpio_lcd_rst",
-			"delay,usleep",	"10000 11000";
+			"delay,usleep",	"10000";
 		};
 	};
 
@@ -1703,8 +1705,8 @@
 			zinitix,firmware_name = "tsp_zinitix/zt7548_j6.fw";
 			/* zinitix,spay = "true"; */
 			/* zinitix,aod = "true"; */
-			zinitix,tclm_level = <0x01>;
-			zinitix,afe_base = <0x0000>;
+			zinitix,tclm_level = <0x02>;
+			zinitix,afe_base = <0x800D>;
 			zinitix,mis_cal_check = "true";
 			zinitix,factory_item_version = <2>;
 		};
