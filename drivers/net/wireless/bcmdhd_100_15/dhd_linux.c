@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux.c 859293 2020-01-14 06:10:15Z $
+ * $Id: dhd_linux.c 866169 2020-02-26 04:41:07Z $
  */
 
 #include <typedefs.h>
@@ -869,11 +869,11 @@ static int dhd_pm_callback(struct notifier_block *nfb, unsigned long action, voi
 	}
 #endif /* defined(SUPPORT_P2P_GO_PS) && defined(PROP_TXSTATUS) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && \
-	(LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && (LINUX_VERSION_CODE <= \
+	KERNEL_VERSION(2, 6, 39))
 	dhd_mmc_suspend = suspend;
 	smp_mb();
-#endif
+#endif // endif
 
 	return ret;
 }
@@ -1625,7 +1625,7 @@ static int dhd_wait_for_file_dump(dhd_pub_t *dhdp)
 	/* check for hal started and only then send event if not clear dump state here */
 	if (wl_cfg80211_is_hal_started(cfg)) {
 		int timeleft = 0;
-        
+
 		BCM_REFERENCE(timeleft);
 		DHD_ERROR(("[DUMP] %s: HAL started. send urgent event\n", __FUNCTION__));
 		dhd_dbg_send_urgent_evt(dhdp, NULL, 0);
@@ -4344,12 +4344,13 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	unsigned long flags;
 #endif // endif
 #ifdef DHD_WAKE_STATUS
-	int pkt_wake = 0;
 	wake_counts_t *wcp = NULL;
 #endif /* DHD_WAKE_STATUS */
+	int pkt_wake = 0;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 	BCM_REFERENCE(dump_data);
+	BCM_REFERENCE(pkt_wake);
 
 	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
 		struct ether_header *eh;
@@ -4624,6 +4625,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 #if defined(DHD_WAKE_STATUS) && defined(DHD_WAKEPKT_DUMP)
 		if (pkt_wake) {
 			prhex("[wakepkt_dump]", (char*)dump_data, MIN(len, 32));
+			dhd_prhex("[wakepkt_dump]", (char*)dump_data, MIN(len, 64), DHD_ERROR_VAL);
 			DHD_ERROR(("config check in_suspend: %d ", dhdp->in_suspend));
 #ifdef ARP_OFFLOAD_SUPPORT
 			DHD_ERROR(("arp hmac_update:%d \n", dhdp->hmac_updated));
@@ -4643,7 +4645,11 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 
 		DHD_DBG_PKT_MON_RX(dhdp, skb);
 #ifdef DHD_PKT_LOGGING
-		DHD_PKTLOG_RX(dhdp, skb);
+		if (pkt_wake) {
+			DHD_PKTLOG_WAKERX(dhdp, skb);
+		} else {
+			DHD_PKTLOG_RX(dhdp, skb);
+		}
 #endif /* DHD_PKT_LOGGING */
 		/* Strip header, count, deliver upward */
 		skb_pull(skb, ETH_HLEN);
@@ -9290,7 +9296,6 @@ bool dhd_validate_chipid(dhd_pub_t *dhdp)
 		return TRUE;
 	}
 #endif /* SUPPORT_MULTIPLE_CHIP_4345X */
-
 #if defined(BCM4354_CHIP) && defined(SUPPORT_MULTIPLE_REVISION)
 	if (chipid == BCM4350_CHIP_ID && config_chipid == BCM4354_CHIP_ID) {
 		return TRUE;
@@ -11164,7 +11169,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		dhd->pktfilter[DHD_LLC_STP_DROP_FILTER_NUM] = DISCARD_LLC_STP;
 		/* Immediately pkt filter TYPE 6 Dicard Cisco XID protocol */
 		dhd->pktfilter[DHD_LLC_XID_DROP_FILTER_NUM] = DISCARD_LLC_XID;
-		dhd->pktfilter_count = 10;
+		/* Immediately pkt filter TYPE 6 Dicard NETBIOS packet(port 137) */
+		dhd->pktfilter[DHD_UDPNETBIOS_DROP_FILTER_NUM] = DISCARD_UDPNETBIOS;
+		dhd->pktfilter_count = 11;
 	}
 
 #ifdef GAN_LITE_NAT_KEEPALIVE_FILTER
@@ -15600,7 +15607,6 @@ dhd_disable_vhtmode(dhd_pub_t *dhd)
 }
 #endif /* DHD_DISABLE_VHTMODE */
 
-
 void dhd_bus_band_set(struct net_device *dev, uint band)
 {
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
@@ -16393,6 +16399,18 @@ dhd_txfl_wake_lock_timeout(dhd_pub_t *pub, int val)
 #endif /* CONFIG_HAS_WAKE_LOCK */
 }
 
+void
+dhd_nan_wake_lock_timeout(dhd_pub_t *pub, int val)
+{
+#ifdef CONFIG_HAS_WAKELOCK
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+
+	if (dhd) {
+		wake_lock_timeout(&dhd->wl_nanwake, msecs_to_jiffies(val));
+	}
+#endif /* CONFIG_HAS_WAKE_LOCK */
+}
+
 int net_os_wake_lock(struct net_device *dev)
 {
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
@@ -16475,6 +16493,20 @@ void dhd_txfl_wake_unlock(dhd_pub_t *pub)
 #endif /* CONFIG_HAS_WAKELOCK */
 }
 
+void dhd_nan_wake_unlock(dhd_pub_t *pub)
+{
+#ifdef CONFIG_HAS_WAKELOCK
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+
+	if (dhd) {
+		/* if wl_nanwake is active, unlock it */
+		if (wake_lock_active(&dhd->wl_nanwake)) {
+			wake_unlock(&dhd->wl_nanwake);
+		}
+	}
+#endif /* CONFIG_HAS_WAKELOCK */
+}
+
 int dhd_os_check_wakelock(dhd_pub_t *pub)
 {
 #if defined(CONFIG_HAS_WAKELOCK) || defined(BCMSDIO)
@@ -16502,7 +16534,7 @@ dhd_os_check_wakelock_all(dhd_pub_t *pub)
 {
 #if defined(CONFIG_HAS_WAKELOCK) || defined(BCMSDIO)
 #if defined(CONFIG_HAS_WAKELOCK)
-	int l1, l2, l3, l4, l7, l8, l9;
+	int l1, l2, l3, l4, l7, l8, l9, l10;
 	int l5 = 0, l6 = 0;
 	int c, lock_active;
 #endif /* CONFIG_HAS_WAKELOCK */
@@ -16532,13 +16564,14 @@ dhd_os_check_wakelock_all(dhd_pub_t *pub)
 #endif /* DHD_USE_SCAN_WAKELOCK */
 	l8 = wake_lock_active(&dhd->wl_pmwake);
 	l9 = wake_lock_active(&dhd->wl_txflwake);
-	lock_active = (l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9);
+	l10 = wake_lock_active(&dhd->wl_nanwake);
+	lock_active = (l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10);
 
 	/* Indicate to the Host to avoid going to suspend if internal locks are up */
 	if (lock_active) {
 		DHD_ERROR(("%s wakelock c-%d wl-%d wd-%d rx-%d "
-			"ctl-%d intr-%d scan-%d evt-%d, pm-%d, txfl-%d\n",
-			__FUNCTION__, c, l1, l2, l3, l4, l5, l6, l7, l8, l9));
+			"ctl-%d intr-%d scan-%d evt-%d, pm-%d, txfl-%d nan-%d\n",
+			__FUNCTION__, c, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10));
 		return 1;
 	}
 #elif defined(BCMSDIO)
@@ -16756,6 +16789,7 @@ void dhd_os_wake_lock_init(struct dhd_info *dhd)
 #ifdef DHD_USE_SCAN_WAKELOCK
 	wake_lock_init(&dhd->wl_scanwake, WAKE_LOCK_SUSPEND, "wlan_scan_wake");
 #endif /* DHD_USE_SCAN_WAKELOCK */
+	wake_lock_init(&dhd->wl_nanwake, WAKE_LOCK_SUSPEND, "wlan_nan_wake");
 #endif /* CONFIG_HAS_WAKELOCK */
 #ifdef DHD_TRACE_WAKE_LOCK
 	dhd_wk_lock_trace_init(dhd);
@@ -16781,6 +16815,7 @@ void dhd_os_wake_lock_destroy(struct dhd_info *dhd)
 #ifdef DHD_USE_SCAN_WAKELOCK
 	wake_lock_destroy(&dhd->wl_scanwake);
 #endif /* DHD_USE_SCAN_WAKELOCK */
+	wake_lock_destroy(&dhd->wl_nanwake);
 #ifdef DHD_TRACE_WAKE_LOCK
 	dhd_wk_lock_trace_deinit(dhd);
 #endif /* DHD_TRACE_WAKE_LOCK */
@@ -16799,6 +16834,7 @@ bool dhd_os_check_if_up(dhd_pub_t *pub)
 void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 {
 	int i;
+	uint chip;
 
 	i = snprintf(info_string, sizeof(info_string),
 		"  Driver: %s\n  Firmware: %s ", EPI_VERSION_STR, fw);
@@ -16806,9 +16842,14 @@ void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 	if (!dhdp)
 		return;
 
+	chip = dhd_bus_chip_id(dhdp);
+	if (chip == BCM4347_CHIP_ID) {
+		chip = BCM4361_CHIP_ID;
+	}
+
 	i = snprintf(&info_string[i], sizeof(info_string) - i,
-		"\n  Chip: %x Rev %x Pkg %x", dhd_bus_chip_id(dhdp),
-		dhd_bus_chiprev_id(dhdp), dhd_bus_chippkg_id(dhdp));
+		"\n  Chip: %x Rev %x Pkg %x", chip, dhd_bus_chiprev_id(dhdp),
+		dhd_bus_chippkg_id(dhdp));
 }
 #endif /* BCMSDIO || BCMPCIE */
 int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd)
@@ -17244,10 +17285,10 @@ void dhd_schedule_memdump(dhd_pub_t *dhdp, uint8 *buf, uint32 size)
 
 #ifdef DHD_LOG_DUMP
 	dhd_print_buf_addr(dhdp, "memdump", buf, size);
-#if !defined(DHD_DUMP_FILE_WRITE_FROM_KERNEL) && defined(DHD_LOG_DUMP)
+#if !defined(DHD_DUMP_FILE_WRITE_FROM_KERNEL)
 	/* Print out buffer infomation */
 	dhd_log_dump_buf_addr(dhdp, &type);
-#endif /* !DHD_DUMP_FILE_WRITE_FROM_KERNEL && DHD_LOG_DUMP */
+#endif /* !DHD_DUMP_FILE_WRITE_FROM_KERNEL */
 #endif /* DHD_LOG_DUMP */
 
 	if (dhdp->memdump_enabled == DUMP_MEMONLY) {
@@ -18243,6 +18284,7 @@ dhd_log_flush(dhd_pub_t *dhdp, log_dump_type_t *type)
 #endif /* EWP_EDL */
 	dhd_info_t *dhd_info = NULL;
 	BCM_REFERENCE(dhd_info);
+
 	/* if dhdp is null, its extremely unlikely that log dump will be scheduled
 	 * so not freeing 'type' here is ok, even if we want to free 'type'
 	 * we cannot do so, since 'dhdp->osh' is unavailable
@@ -18292,7 +18334,7 @@ dhd_log_flush(dhd_pub_t *dhdp, log_dump_type_t *type)
 #else
 #if defined(SHOW_LOGTRACE)
 	dhd_flush_logtrace_process(dhd_info);
-#endif // endif
+#endif /* SHOW_LOGTRACE */
 #endif /* EWP_EDL */
 
 #ifdef CUSTOMER_HW4_DEBUG
@@ -20423,15 +20465,16 @@ dhd_set_irq_cpucore(dhd_pub_t *dhdp, int affinity_cmd)
 	switch (affinity_cmd) {
 		case PCIE_IRQ_AFFINITY_OFF:
 			break;
-		case PCIE_IRQ_AFFINITY_BIG_CORE_ANY:
 #if defined(CONFIG_ARCH_SM8150)
+		case PCIE_IRQ_AFFINITY_BIG_CORE_ANY:
+		case PCIE_IRQ_AFFINITY_BIG_CORE_EXYNOS:
 			irq_set_affinity_hint(pcie_irq, dhdp->info->cpumask_primary);
 			irq_set_affinity(pcie_irq, dhdp->info->cpumask_primary);
-#else /* Exynos and Others */
-			irq_set_affinity(pcie_irq, dhdp->info->cpumask_primary);
-#endif /* CONFIG_ARCH_SM8150 */
 			break;
-#if defined(CONFIG_SOC_EXYNOS9810) || defined(CONFIG_SOC_EXYNOS9820)
+#elif defined(CONFIG_SOC_EXYNOS9810) || defined(CONFIG_SOC_EXYNOS9820)
+		case PCIE_IRQ_AFFINITY_BIG_CORE_ANY:
+			irq_set_affinity(pcie_irq, dhdp->info->cpumask_primary);
+			break;
 		case PCIE_IRQ_AFFINITY_BIG_CORE_EXYNOS:
 			DHD_ERROR(("%s, PCIe IRQ:%u set Core %d\n",
 				__FUNCTION__, pcie_irq, PCIE_IRQ_CPU_CORE));
