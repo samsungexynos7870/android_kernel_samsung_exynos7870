@@ -102,6 +102,12 @@
 /* AMT logging and other related information */
 #define EVENT_LOG_SET_AMT		(26u)
 
+/* State machine logging. Part of preserve logs */
+#define EVENT_LOG_SET_FSM		(27u)
+
+/* wbus related logging */
+#define EVENT_LOG_SET_WBUS		(28u)
+
 #ifndef NUM_EVENT_LOG_SETS
 /* Set a maximum number of sets here.  It is not dynamic for
  * efficiency of the EVENT_LOG calls. Old branches could define
@@ -110,9 +116,9 @@
  */
 #ifdef NUM_EVENT_LOG_SETS_V2
 /* for v2, everything has became unsigned */
-#define NUM_EVENT_LOG_SETS (27u)
+#define NUM_EVENT_LOG_SETS (29u)
 #else /* NUM_EVENT_LOG_SETS_V2 */
-#define NUM_EVENT_LOG_SETS (27)
+#define NUM_EVENT_LOG_SETS (29)
 #endif /* NUM_EVENT_LOG_SETS_V2 */
 #endif /* NUM_EVENT_LOG_SETS */
 

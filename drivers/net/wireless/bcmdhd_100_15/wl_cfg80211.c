@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfg80211.c 860011 2020-01-20 04:19:10Z $
+ * $Id: wl_cfg80211.c 866158 2020-02-26 03:09:04Z $
  */
 /* */
 #include <typedefs.h>
@@ -9394,6 +9394,11 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 		WL_ERR(("bad length:%zu\n", len));
 		return BCME_BADLEN;
 	}
+
+	if (channel == NULL) {
+		WL_ERR(("channel is NULL\n"));
+		return -EINVAL;
+	}
 #ifdef DHD_IFDEBUG
 	PRINT_WDEV_INFO(cfgdev);
 #endif /* DHD_IFDEBUG */
@@ -17397,14 +17402,15 @@ static void wl_cfg80211_determine_vsdb_mode(struct bcm_cfg80211 *cfg)
 }
 
 int
-wl_cfg80211_determine_p2p_rsdb_mode(struct bcm_cfg80211 *cfg)
+wl_cfg80211_determine_p2p_rsdb_scc_mode(struct bcm_cfg80211 *cfg)
 {
 	struct net_info *iter, *next;
 	u32 chanspec = 0;
+	u32 pre_chanspec = 0;
 	u32 band = 0;
 	u32 pre_band = 0;
 	bool is_rsdb_supported = FALSE;
-	bool rsdb_mode = FALSE;
+	bool rsdb_or_scc_mode = FALSE;
 
 	is_rsdb_supported = DHD_OPMODE_SUPPORTED(cfg->pub, DHD_FLAG_RSDB_MODE);
 
@@ -17428,15 +17434,22 @@ wl_cfg80211_determine_p2p_rsdb_mode(struct bcm_cfg80211 *cfg)
 
 				if (!pre_band && band) {
 					pre_band = band;
-				} else if (pre_band && (pre_band != band)) {
-					rsdb_mode = TRUE;
+					pre_chanspec = chanspec;
+				} else {
+					if ((pre_band == band) && (pre_chanspec != chanspec)) {
+						/* VSDB case */
+						rsdb_or_scc_mode = FALSE;
+					} else {
+						/* RSDB/SCC case */
+						rsdb_or_scc_mode = TRUE;
+					}
 				}
 			}
 		}
 	}
-	WL_DBG(("RSDB mode is %s\n", rsdb_mode ? "enabled" : "disabled"));
+	WL_DBG(("RSDB or SCC mode is %s\n", rsdb_or_scc_mode ? "enabled" : "disabled"));
 
-	return rsdb_mode;
+	return rsdb_or_scc_mode;
 }
 
 static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_net_info,
@@ -17490,7 +17503,7 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 #ifdef DISABLE_FRAMEBURST_VSDB
 		if (!DHD_OPMODE_SUPPORTED(cfg->pub, DHD_FLAG_HOSTAP_MODE) &&
 			wl_cfg80211_is_concurrent_mode(primary_dev) &&
-			!wl_cfg80211_determine_p2p_rsdb_mode(cfg)) {
+			!wl_cfg80211_determine_p2p_rsdb_scc_mode(cfg)) {
 			wl_cfg80211_set_frameburst(cfg, FALSE);
 		}
 #endif /* DISABLE_FRAMEBURST_VSDB */
@@ -25095,6 +25108,8 @@ s32
 wl_cfg80211_handle_macaddr_change(struct net_device *dev, u8 *macaddr)
 {
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	uint8 wait_cnt = WAIT_FOR_DISCONNECT_MAX;
+	u32 status = TRUE;
 
 	if (IS_STA_IFACE(dev->ieee80211_ptr) &&
 		wl_get_drv_status(cfg, CONNECTED, dev)) {
@@ -25104,6 +25119,12 @@ wl_cfg80211_handle_macaddr_change(struct net_device *dev, u8 *macaddr)
 		 */
 		WL_INFORM_MEM(("macaddr change in connected state. Force disassoc.\n"));
 		wl_cfg80211_disassoc(dev, WLAN_REASON_DEAUTH_LEAVING);
+
+		while ((status = wl_get_drv_status(cfg, CONNECTED, dev)) && wait_cnt) {
+			WL_DBG(("Waiting for disconnection, wait_cnt: %d\n", wait_cnt));
+			wait_cnt--;
+			OSL_SLEEP(50);
+		}
 	}
 	return BCME_OK;
 }
