@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_android.c 858199 2020-01-07 09:24:44Z $
+ * $Id: wl_android.c 866938 2020-03-02 15:15:11Z $
  */
 
 #include <linux/module.h>
@@ -3426,6 +3426,12 @@ wl_cfg80211_get_sta_info(struct net_device *dev, char* command, int total_len)
 			iovar_buf, WLC_IOCTL_MAXLEN, NULL);
 		if (ret < 0) {
 			WL_ERR(("Get sta_info ERR %d\n", ret));
+#ifdef CONFIG_BCM43436
+			if (ret == BCME_BADADDR) {
+				bytes_written = BCME_UNSUPPORTED;
+				WL_ERR(("ret code is changed as %d\n", bytes_written));
+			}
+#endif /* CONFIG_BCM43436 */
 #ifdef BIGDATA_SOFTAP
 			goto get_bigdata;
 #else

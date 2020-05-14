@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: linux_osl.c 815919 2019-04-22 09:06:50Z $
+ * $Id: linux_osl.c 862862 2020-02-05 09:10:41Z $
  */
 
 #define LINUX_PORT
@@ -807,6 +807,10 @@ osl_mfree(osl_t *osh, void *addr, uint size)
 {
 #ifdef CONFIG_DHD_USE_STATIC_BUF
 	unsigned long flags;
+
+	if (addr == NULL) {
+		return;
+	}
 
 	if (bcm_static_buf)
 	{
