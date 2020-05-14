@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux_priv.h 842211 2019-09-20 10:52:20Z $
+ * $Id: dhd_linux_priv.h 860004 2020-01-20 02:39:12Z $
  */
 
 #ifndef __DHD_LINUX_PRIV_H__
@@ -123,6 +123,7 @@ typedef struct dhd_info {
 #ifdef DHD_USE_SCAN_WAKELOCK
 	struct wake_lock wl_scanwake;  /* Wifi scan wakelock */
 #endif /* DHD_USE_SCAN_WAKELOCK */
+	struct wake_lock wl_nanwake; /* NAN wakelock */
 #endif /* CONFIG_HAS_WAKELOCK */
 
 	/* net_device interface lock, prevent race conditions among net_dev interface

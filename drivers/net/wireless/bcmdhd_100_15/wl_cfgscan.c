@@ -2561,7 +2561,6 @@ wl_cfg80211_dhd_driven_random_mac_disable(struct net_device *dev)
 		/* Already randmac mac address disabled */
 		err = BCME_OK;
 	}
-	
 	return err;
 }
 

@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_sdio.c 859293 2020-01-14 06:10:15Z $
+ * $Id: dhd_sdio.c 864822 2020-02-17 08:48:57Z $
  */
 
 #include <typedefs.h>
@@ -9356,7 +9356,7 @@ static int concate_revision_bcm4354(dhd_bus_t *bus, char *fw_path, char *nv_path
 #ifdef SUPPORT_MULTIPLE_CHIP_4345X
 static int
 concate_revision_bcm4345x(dhd_bus_t *bus,
-	char *fw_path, char *nv_path)
+		char *fw_path, char *nv_path)
 {
 	uint32 chip_id;
 	char chipver_tag[10] = "_43454";
