@@ -1314,7 +1314,7 @@
 			reg = <0x2D>;
 			id = <0>; /* matching sensor id */
 			fnum = <2>; /* F1_9 : fimc-is-param.h */
-			setfile = "default";
+			setfile = "setB";
 		};
 	};
 
