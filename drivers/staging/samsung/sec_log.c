@@ -22,10 +22,6 @@
 #endif
 #include <linux/sec_debug.h>
 
-#ifdef CONFIG_KNOX_KAP
-extern int boot_mode_security;
-#endif
-
 /*
  * Example usage: sec_log=256K@0x45000000
  * In above case, log_buf size is 256KB and its base address is
@@ -667,9 +663,6 @@ static int __init sec_tima_log_setup(char *str)
 			goto out;
 	}
 	pr_info("tima :%s, base:%lx, size:%x \n", __func__,base, size);
-#ifdef CONFIG_KNOX_KAP
-	if (!boot_mode_security) goto out;
-#endif
 
 	return 1;
 out:

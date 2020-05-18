@@ -75,9 +75,6 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 				  unsigned long addr)
 {
 	int rkp_do = 0;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
 		rkp_do = 1;
 	if (rkp_do && (unsigned long)pmdp >= (unsigned long)RKP_RBUF_VA && (unsigned long)pmdp < ((unsigned long)RKP_RBUF_VA + TIMA_ROBUF_SIZE))
 		rkp_ro_free((void*)pmdp);

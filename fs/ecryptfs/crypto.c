@@ -42,39 +42,8 @@
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
-#ifdef CONFIG_SDP
-#include <sdp/fs_request.h>
-#include "ecryptfs_dek.h"
-#endif
-
 #define DECRYPT		0
 #define ENCRYPT		1
-
-#ifdef CONFIG_SDP_DUMP
-void ecryptfs_dump_hex2(char *data, struct page *page)
-{
-
-	printk(KERN_DEBUG "ecryptfs_db : index [%lu] : %.2x %.2x %.2x %.2x %.2x %.2x %.2x %.2x : %.2x %.2x %.2x %.2x %.2x %.2x %.2x %.2x\n",
-		page->index,
-		(unsigned char)data[0],
-		(unsigned char)data[1],
-		(unsigned char)data[2],
-		(unsigned char)data[3],
-		(unsigned char)data[4],
-		(unsigned char)data[5],
-		(unsigned char)data[6],
-		(unsigned char)data[7],
-		(unsigned char)data[16],
-		(unsigned char)data[17],
-		(unsigned char)data[18],
-		(unsigned char)data[19],
-		(unsigned char)data[20],
-		(unsigned char)data[21],
-		(unsigned char)data[22],
-		(unsigned char)data[23]);
-
-}
-#endif
 
 #ifdef CONFIG_CRYPTO_FIPS
 /**
@@ -675,38 +644,10 @@ int ecryptfs_encrypt_page(struct page *page)
 	loff_t extent_offset;
 	loff_t lower_offset;
 	int rc = 0;
-#ifdef CONFIG_SDP
-	sdp_fs_command_t *cmd = NULL;
-#endif
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
-#ifdef CONFIG_SDP
-	if (!(crypt_stat->flags & ECRYPTFS_KEY_SET) ||
-			!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
-		if((crypt_stat->flags & ECRYPTFS_DEK_SDP_ENABLED) &&
-			(crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE)) {
-			rc = ecryptfs_get_sdp_dek(crypt_stat);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "%s Get SDP key failed\n", __func__);
-				goto out;
-			}
-			rc = ecryptfs_compute_root_iv(crypt_stat);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "Error computing "
-						"the root IV\n");
-				goto out;
-			}
-		}
-	}
-#if ECRYPTFS_DEK_DEBUG
-	ecryptfs_printk(KERN_ERR, "\tKEY [%zd]:\n", crypt_stat->key_size);
-	ecryptfs_dump_hex(crypt_stat->key, crypt_stat->key_size);
-	ecryptfs_printk(KERN_ERR, "\tIV [%d]:\n", ECRYPTFS_MAX_IV_BYTES);
-	ecryptfs_dump_hex(crypt_stat->root_iv, ECRYPTFS_MAX_IV_BYTES);
-#endif
-#endif
 	enc_extent_page = alloc_page(GFP_USER);
 	if (!enc_extent_page) {
 		rc = -ENOMEM;
@@ -723,12 +664,6 @@ int ecryptfs_encrypt_page(struct page *page)
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
-#ifdef CONFIG_SDP
-			cmd = sdp_fs_command_alloc(FSOP_AUDIT_FAIL_ENCRYPT,
-					current->tgid, crypt_stat->mount_crypt_stat->userid,
-					crypt_stat->mount_crypt_stat->partition_id,
-					ecryptfs_inode->i_ino, GFP_KERNEL);
-#endif
 			goto out;
 		}
 	}
@@ -749,12 +684,6 @@ out:
 	if (enc_extent_page) {
 		__free_page(enc_extent_page);
 	}
-#ifdef CONFIG_SDP
-	if(cmd) {
-		sdp_fs_request(cmd, NULL);
-		sdp_fs_command_free(cmd);
-	}
-#endif
 	return rc;
 }
 
@@ -783,46 +712,11 @@ int ecryptfs_decrypt_page(struct page *page)
 	loff_t lower_offset;
 	int rc = 0;
 
-#ifdef CONFIG_SDP_DUMP
-	struct dentry *dentry = NULL;
-	void *tmp_page = NULL;
-#endif
-
-#ifdef CONFIG_SDP
-	sdp_fs_command_t *cmd = NULL;
-#endif
-
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 
-#ifdef CONFIG_SDP
-	if (!(crypt_stat->flags & ECRYPTFS_KEY_SET) ||
-			!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
-		if((crypt_stat->flags & ECRYPTFS_DEK_SDP_ENABLED) &&
-			(crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE)) {
-			rc = ecryptfs_get_sdp_dek(crypt_stat);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "%s Get SDP key failed\n", __func__);
-				goto out;
-			}
-			rc = ecryptfs_compute_root_iv(crypt_stat);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "Error computing "
-						"the root IV\n");
-				goto out;
-			}
-		}
-	}
-#if ECRYPTFS_DEK_DEBUG
-	ecryptfs_printk(KERN_ERR, "\tKEY [%zd]:\n", crypt_stat->key_size);
-	ecryptfs_dump_hex(crypt_stat->key, crypt_stat->key_size);
-	ecryptfs_printk(KERN_ERR, "\tIV [%d]:\n", ECRYPTFS_MAX_IV_BYTES);
-	ecryptfs_dump_hex(crypt_stat->root_iv, ECRYPTFS_MAX_IV_BYTES);
-#endif
-#endif
-	
 	lower_offset = lower_offset_for_page(crypt_stat, page);
 	page_virt = kmap(page);
 	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_CACHE_SIZE,
@@ -843,41 +737,10 @@ int ecryptfs_decrypt_page(struct page *page)
 		if (rc) {
 			printk(KERN_ERR "%s: Error decrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
-#ifdef CONFIG_SDP
-			cmd = sdp_fs_command_alloc(FSOP_AUDIT_FAIL_DECRYPT,
-					current->tgid, crypt_stat->mount_crypt_stat->userid,
-					crypt_stat->mount_crypt_stat->partition_id,
-					ecryptfs_inode->i_ino, GFP_KERNEL);
-#endif
 			goto out;
 		}
 	}
 out:
-
-#ifdef CONFIG_SDP_DUMP
-	spin_lock(&ecryptfs_inode->i_lock);
-	hlist_for_each_entry(dentry, &ecryptfs_inode->i_dentry, d_u.d_alias) {
-		if (!strcmp(dentry->d_name.name, "contacts2.db")) {
-			break;
-		}
-	}
-	spin_unlock(&ecryptfs_inode->i_lock);
-	if (dentry && !strcmp(dentry->d_name.name, "contacts2.db")) {
-		//Decrypted page
-		tmp_page = kmap(page);
-		if(tmp_page) {
-			ecryptfs_dump_hex2(tmp_page, page);
-			kunmap(tmp_page);
-		}
-	}
-#endif
-
-#ifdef CONFIG_SDP
-	if(cmd) {
-		sdp_fs_request(cmd, NULL);
-		sdp_fs_command_free(cmd);
-	}
-#endif
 	return rc;
 }
 
@@ -1049,11 +912,6 @@ static void ecryptfs_copy_mount_wide_flags_to_inode_flags(
 			 & ECRYPTFS_GLOBAL_ENCFN_USE_FEK)
 			crypt_stat->flags |= ECRYPTFS_ENCFN_USE_FEK;
 	}
-
-#ifdef CONFIG_SDP
-    if (mount_crypt_stat->flags & ECRYPTFS_MOUNT_SDP_ENABLED)
-        crypt_stat->flags |= ECRYPTFS_DEK_SDP_ENABLED;
-#endif
 }
 
 static int ecryptfs_copy_mount_wide_sigs_to_inode_sigs(
@@ -1103,12 +961,6 @@ static void ecryptfs_set_default_crypt_stat_vals(
 	crypt_stat->flags &= ~(ECRYPTFS_KEY_VALID);
 	crypt_stat->file_version = ECRYPTFS_FILE_VERSION;
 	crypt_stat->mount_crypt_stat = mount_crypt_stat;
-#ifdef CONFIG_SDP
-	crypt_stat->engine_id = -1;
-#endif
-#ifdef CONFIG_DLP
-	memset(&crypt_stat->expiry, 0, sizeof(struct knox_dlp_data));
-#endif
 }
 
 /**
@@ -1201,17 +1053,7 @@ static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
 	{0x00000001, ECRYPTFS_ENABLE_HMAC},
 	{0x00000002, ECRYPTFS_ENCRYPTED},
 	{0x00000004, ECRYPTFS_METADATA_IN_XATTR},
-#ifdef CONFIG_SDP
 	{0x00000008, ECRYPTFS_ENCRYPT_FILENAMES},
-	{0x00100000, ECRYPTFS_DEK_SDP_ENABLED},
-	{0x00200000, ECRYPTFS_DEK_IS_SENSITIVE},
-	{0x00400000, ECRYPTFS_DEK_MULTI_ENGINE},
-#else
-	{0x00000008, ECRYPTFS_ENCRYPT_FILENAMES},
-#endif
-#ifdef CONFIG_DLP
-	{0x00080000, ECRYPTFS_DLP_ENABLED},
-#endif
 };
 
 /**
@@ -1534,18 +1376,6 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 		rc = -EINVAL;
 		goto out;
 	}
-#ifdef CONFIG_SDP
-#if ECRYPTFS_DEK_DEBUG
-	ecryptfs_printk(KERN_INFO, "name is [%s], flag is %d\n",
-			ecryptfs_dentry->d_name.name, crypt_stat->flags);
-	if (crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE) {
-		ecryptfs_printk(KERN_INFO, "is sensitive\n");
-	}
-	else{
-		ecryptfs_printk(KERN_INFO, "is protected\n");
-	}
-#endif
-#endif
 	virt_len = crypt_stat->metadata_size;
 	order = get_order(virt_len);
 	/* Released in this function */
@@ -1791,14 +1621,6 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 		rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
 						ecryptfs_dentry,
 						ECRYPTFS_VALIDATE_HEADER_SIZE);
-#ifdef CONFIG_SDP
-	if ((rc) && crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE)
-		/*
-		 * metadata is not in the file header, SDP sensitive file.
-		 * Don't check xattr region. we don't put info there.
-		 */
-		goto out;
-#endif
 	if (rc) {
 		/* metadata is not in the file header, so try xattrs */
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
@@ -1832,25 +1654,6 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 			rc = -EINVAL;
 		}
 	}
-
-#ifdef CONFIG_SDP
-#if ECRYPTFS_DEK_DEBUG
-	ecryptfs_printk(KERN_INFO, "name is [%s], flag is %d\n",
-			ecryptfs_dentry->d_name.name, crypt_stat->flags);
-	if (crypt_stat->flags & ECRYPTFS_DEK_IS_SENSITIVE) {
-		ecryptfs_printk(KERN_INFO, "dek_file_type is sensitive, enc type=%d\n",
-				crypt_stat->sdp_dek.type);
-		if (ecryptfs_is_persona_locked(crypt_stat->engine_id)) {
-			ecryptfs_printk(KERN_INFO, "persona is locked, rc=%d\n", rc);
-		} else {
-			ecryptfs_printk(KERN_INFO, "persona is unlocked, rc=%d\n", rc);
-		}
-	} else {
-		ecryptfs_printk(KERN_INFO, "dek_file_type is protected\n");
-	}
-#endif
-#endif
-
 out:
 	if (page_virt) {
 		memset(page_virt, 0, PAGE_CACHE_SIZE);

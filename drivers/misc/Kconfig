@@ -314,12 +314,6 @@ config ISL29003
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29003.
 
-config KNOX_KAP
-       bool "Enable KNOX KAP mode"
-       default n
-       help
-              Knox Active Protection mode
-
 config ISL29020
 	tristate "Intersil ISL29020 ambient light sensor"
 	depends on I2C

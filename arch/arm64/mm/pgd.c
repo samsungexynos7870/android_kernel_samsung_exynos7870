@@ -47,10 +47,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret = NULL;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif
-		ret = (pgd_t *) rkp_ro_alloc();
+
+	ret = (pgd_t *) rkp_ro_alloc();
 	if (!ret) {
 		if (PGD_SIZE == PAGE_SIZE)
 			ret = (pgd_t *)get_zeroed_page(GFP_KERNEL);
@@ -63,10 +61,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		return ret;
 	}
 
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security && rkp_started)
-#endif  //CONFIG_KNOX_KAP
-		rkp_call(RKP_PGD_NEW, (unsigned long)ret, 0, 0, 0, 0);
+	rkp_call(RKP_PGD_NEW, (unsigned long)ret, 0, 0, 0, 0);
+
 	return ret;
 }
 #endif
@@ -83,11 +79,9 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	int rkp_do = 0;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
-		rkp_do = 1;
-	
+
+	rkp_do = 1;
+
 	if (rkp_do) rkp_call(RKP_PGD_FREE, (unsigned long)pgd, 0, 0, 0, 0);
 	/* if pgd memory come from read only buffer, the put it back */
 	/*TODO: use a macro*/

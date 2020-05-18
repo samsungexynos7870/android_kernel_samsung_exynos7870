@@ -75,9 +75,6 @@ typedef struct rkp_init rkp_init_t;
 extern u8 rkp_started;
 extern void *rkp_ro_alloc(void);
 extern void rkp_ro_free(void *free_addr);
-#ifdef CONFIG_KNOX_KAP
-extern int boot_mode_security;
-#endif  //CONFIG_KNOX_KAP
 
 struct rkp_init {
 	u32 magic;

@@ -17,9 +17,6 @@
 #ifdef CONFIG_TIMA_RKP
 #include <linux/rkp_entry.h>
 #endif
-#ifdef CONFIG_KNOX_KAP
-extern int boot_mode_security;
-#endif
 
 extern int tima_debug_modify_kernel(const char *val, struct kernel_param *kp);
 
@@ -144,10 +141,7 @@ static int tima_setup_rkp_mem(void){
 #endif
 static int __init tima_log_setup(char *str)
 {
-#ifdef CONFIG_KNOX_KAP
-	if (!boot_mode_security) goto out;
-#endif
-	if( !tima_setup_rkp_mem())  goto out; 
+	if (!tima_setup_rkp_mem())  goto out;
 
 	return 1;
 out:

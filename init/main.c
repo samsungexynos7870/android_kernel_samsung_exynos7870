@@ -102,10 +102,6 @@ static int kernel_init(void *);
 extern void init_IRQ(void);
 extern void fork_init(unsigned long);
 extern void radix_tree_init(void);
-#ifdef CONFIG_KNOX_KAP
-int boot_mode_security;
-EXPORT_SYMBOL(boot_mode_security);
-#endif
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
@@ -444,22 +440,11 @@ static int __init do_early_param(char *param, char *val, const char *unused)
 		    (strcmp(param, "console") == 0 &&
 		     strcmp(p->str, "earlycon") == 0)
 		) {
-			set_memsize_reserved_name(p->str);
 			if (p->setup_func(val) != 0)
 				pr_warn("Malformed early option '%s'\n", param);
 		}
 	}
 	/* We accept everything at this stage. */
-#ifdef CONFIG_KNOX_KAP
-	if ((strncmp(param, "androidboot.security_mode", 26) == 0)) {
-		pr_warn("val = %d\n",*val);
-	        if ((strncmp(val, "1526595585", 10) == 0)) {
-				pr_info("Security Boot Mode \n");
-				boot_mode_security = 1;
-			}
-	}
-#endif
-	unset_memsize_reserved_name();
 	return 0;
 }
 
@@ -624,14 +609,7 @@ asmlinkage __visible void __init start_kernel(void)
 			   set_init_arg);
 
 #ifdef CONFIG_TIMA_RKP
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-		vmm_init();
-	else
-		vmm_disable();
-#else
 	vmm_init();
-#endif //CONFIG_KNOX_KAP
 #endif //CONFIG_TIMA_RKP
 
 	/*
@@ -737,12 +715,7 @@ asmlinkage __visible void __init start_kernel(void)
 #endif
 	thread_info_cache_init();
 #ifdef CONFIG_TIMA_RKP
-
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security) 
-#endif
-		rkp_init();
-
+	rkp_init();
 #endif /* CONFIG_TIMA_RKP */
 	cred_init();
 	fork_init(totalram_pages);

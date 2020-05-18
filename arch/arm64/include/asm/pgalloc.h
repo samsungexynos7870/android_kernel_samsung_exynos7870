@@ -39,9 +39,6 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 	/* FIXME not zeroing the page */
 	int rkp_do = 0;
 	pmd_t *rkp_ropage = NULL;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
 		rkp_do = 1;
 	
 	if (rkp_do) rkp_ropage = (pmd_t *)rkp_ro_alloc();
@@ -69,9 +66,6 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	int rkp_do = 0;
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
 		rkp_do = 1;
 	if( rkp_do && (unsigned long)pmd >= (unsigned long)RKP_RBUF_VA && (unsigned long)pmd < ((unsigned long)RKP_RBUF_VA + TIMA_ROBUF_SIZE))
 		rkp_ro_free((void*)pmd);
@@ -103,9 +97,6 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
 	int rkp_do = 0;
 	pud_t *rkp_ropage = NULL;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
 		rkp_do = 1;
 	if (rkp_do) rkp_ropage = (pud_t *)rkp_ro_alloc();
 	if (rkp_ropage)
@@ -125,9 +116,6 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	int rkp_do = 0;
-#ifdef CONFIG_KNOX_KAP
-	if (boot_mode_security)
-#endif	//CONFIG_KNOX_KAP
 		rkp_do = 1;
 	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
 
