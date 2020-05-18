@@ -569,13 +569,6 @@ config SAMSUNG_JACK
 	 To samsung jack is reviewed and supported in all the
 	 samsung devices.
 
-config TIMA_LOG
-	tristate "Support for dumping TIMA log"
-	depends on TIMA
-	default y
-	help
-		This option enables support for dumping TIMA log.
-
 config LEDS_IRIS_IRLED_SUPPORT
 	tristate "this feature allows IRIS IRLED"
 	default n

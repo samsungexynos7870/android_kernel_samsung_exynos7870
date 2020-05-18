@@ -895,46 +895,6 @@ config EFI
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
 
-config TIMA
-	bool "Enable TIMA(Trustzone based Integrity Measurement Archtecture feature"
-	default n
-
-config TIMA_LKMAUTH
-	bool "Enable LKM authentication by TIMA"
-	help
-	  TIMA authenticates loaded kernel modules. Disable it if you don't
-	  want TIMA enabled.
-
-config TIMA_RKP
-	bool "Enable RKP (Realtime Kernel Protection) TIMA feature"
-	depends on TIMA
-	default n
-
-config TIMA_RKP_4G
-	bool "Support 4G model"
-	depends on TIMA_RKP
-	default n
-
-config RKP_KDP
-	bool "Protection for cred structure"
-	depends on TIMA_RKP
-	default n
-	help
-		Prevents unauthorized cred modification.
-
-config RKP_DMAP_PROT
-	bool "Page Double Mapping protection"
-	depends on (TIMA_RKP && RKP_KDP)
-	default n
-	help
-		Prevents unauthorized cred modification.
-
-config TIMA_TEST_INFRA
-	tristate "Testing infrastructure for TIMA"
-	default n
-	help
-	  Kernel bits of the TIMA test infrastructure
-
 config BUILD_ARM64_APPENDED_DTB_IMAGE
 	bool "Build a concatenated Image.gz/dtb by default"
 	depends on OF

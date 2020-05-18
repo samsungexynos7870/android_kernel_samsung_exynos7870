@@ -63,27 +63,12 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 }
 
 #if CONFIG_PGTABLE_LEVELS > 2
-#ifndef CONFIG_TIMA_RKP
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 				  unsigned long addr)
 {
 	__flush_tlb_pgtable(tlb->mm, addr);
 	tlb_remove_entry(tlb, virt_to_page(pmdp));
 }
-#else
-static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
-				  unsigned long addr)
-{
-	int rkp_do = 0;
-		rkp_do = 1;
-	if (rkp_do && (unsigned long)pmdp >= (unsigned long)RKP_RBUF_VA && (unsigned long)pmdp < ((unsigned long)RKP_RBUF_VA + TIMA_ROBUF_SIZE))
-		rkp_ro_free((void*)pmdp);
-	else {
-		__flush_tlb_pgtable(tlb->mm, addr);
-		tlb_remove_entry(tlb, virt_to_page(pmdp));
-	}
-}
-#endif
 #endif
 
 #if CONFIG_PGTABLE_LEVELS > 3

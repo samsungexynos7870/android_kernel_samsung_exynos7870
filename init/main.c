@@ -89,10 +89,6 @@
 #include <asm/smp.h>
 #endif
 
-#ifdef CONFIG_TIMA_RKP
-#include <linux/vmm.h>
-#include <linux/rkp_entry.h> 
-#endif //CONFIG_TIMA_RKP
 #ifdef CONFIG_SEC_EXT
 #include <linux/sec_ext.h>
 #endif
@@ -510,48 +506,6 @@ static void __init mm_init(void)
 	vmalloc_init();
 	set_memsize_kernel_type(MEMSIZE_KERNEL_OTHERS);
 }
-#ifdef	CONFIG_TIMA_RKP
-#ifdef CONFIG_TIMA_RKP_4G
-__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x20000] = {0};
-__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x20000] = {0};
-#else
-__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[0x18000] = {0};
-__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[0x18000] = {0};
-#endif
-extern void* vmm_extra_mem;
-u8 rkp_started = 0;
-static void rkp_init(void)
-{
-	rkp_init_t init;
-	init.magic = RKP_INIT_MAGIC;
-	init.vmalloc_start = VMALLOC_START;
-	init.vmalloc_end = (u64)high_memory;
-	init.init_mm_pgd = (u64)__pa(swapper_pg_dir);
-	init.id_map_pgd = (u64)__pa(idmap_pg_dir);
-	init.rkp_pgt_bitmap = (u64)__pa(rkp_pgt_bitmap);
-	init.rkp_map_bitmap = (u64)__pa(rkp_map_bitmap);
-	init.rkp_pgt_bitmap_size = RKP_PGT_BITMAP_LEN;
-	init.zero_pg_addr = (u64)__pa(empty_zero_page);
-	init._text = (u64) _text;
-	init._etext = (u64) _etext;
-	if (!vmm_extra_mem) {
-		printk(KERN_ERR"Disable RKP: Failed to allocate extra mem\n");
-		return;
-	}
-	init.extra_memory_addr = __pa(vmm_extra_mem);
-	init.extra_memory_size = 0x600000;
-	init._srodata = (u64) __start_rodata;
-	init._erodata =(u64) __end_rodata;
-#if defined(CONFIG_USE_HOST_FD_LIBRARY)
-	init.large_memory = (u32) virt_to_phys(fd_vaddr);
-#else
-	init.large_memory = 0;
-#endif
-	rkp_call(RKP_INIT, (u64)&init, 0, 0, 0, 0);
-	rkp_started = 1;
-	return;
-}
-#endif
 
 asmlinkage __visible void __init start_kernel(void)
 {
@@ -607,10 +561,6 @@ asmlinkage __visible void __init start_kernel(void)
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
 			   set_init_arg);
-
-#ifdef CONFIG_TIMA_RKP
-	vmm_init();
-#endif //CONFIG_TIMA_RKP
 
 	/*
 	 * These use large bootmem allocations and must precede
@@ -714,9 +664,6 @@ asmlinkage __visible void __init start_kernel(void)
 	init_espfix_bsp();
 #endif
 	thread_info_cache_init();
-#ifdef CONFIG_TIMA_RKP
-	rkp_init();
-#endif /* CONFIG_TIMA_RKP */
 	cred_init();
 	fork_init(totalram_pages);
 	proc_caches_init();

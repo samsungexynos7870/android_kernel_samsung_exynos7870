@@ -641,32 +641,3 @@ fs_initcall(__init_sec_tsp_raw_data);	/* earlier than device_initcall */
 
 #endif /* CONFIG_SEC_DEBUG_TSP_LOG */
 
-#ifdef CONFIG_SEC_DEBUG_TIMA_LOG
-
-static int __init sec_tima_log_setup(char *str)
-{
-	unsigned size = memparse(str, &str);
-	unsigned long base = 0;
-	/* If we encounter any problem parsing str ... */
-	if (!size || size != roundup_pow_of_two(size) || *str != '@'
-		|| kstrtoul(str + 1, 0, &base))
-			goto out;
-
-#ifdef CONFIG_NO_BOOTMEM
-	if (memblock_is_region_reserved(base, size) ||
-		memblock_reserve(base, size)) {
-#else
-	if (reserve_bootmem(base , size, BOOTMEM_EXCLUSIVE)) {
-#endif
-			pr_err("%s: failed reserving size %d " \
-						"at base 0x%lx\n", __func__, size, base);
-			goto out;
-	}
-	pr_info("tima :%s, base:%lx, size:%x \n", __func__,base, size);
-
-	return 1;
-out:
-	return 0;
-}
-__setup("sec_tima_log=", sec_tima_log_setup);
-#endif /* CONFIG_SEC_DEBUG_TIMA_LOG */

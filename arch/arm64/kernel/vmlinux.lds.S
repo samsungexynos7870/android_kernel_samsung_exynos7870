@@ -115,27 +115,6 @@ SECTIONS
 		*(.got)			/* Global offset table		*/
 	}
 	. = ALIGN(PAGE_SIZE);
-#ifdef CONFIG_TIMA_RKP
-	. = ALIGN(PAGE_SIZE);
-	.rkp.bitmap : {
-		rkp_pgt_bitmap = .;
-	}
-	.rkp.dblmap : {
-		rkp_map_bitmap = .;
-	}
-	. = ALIGN(PAGE_SIZE);
-	.empty_zero_page :{
-		*(.empty_zero_page)
-	}
-	.vmm : { *(.vmm*) }
-	. = ALIGN(PAGE_SIZE);
-	idmap_pg_dir = .;
-	. += IDMAP_DIR_SIZE;
-	. = ALIGN(PAGE_SIZE);
-	swapper_pg_dir = .;
-	. += SWAPPER_DIR_SIZE;
-	. = ALIGN(PAGE_SIZE);
-#endif
 	ALIGN_DEBUG_RO
 	_etext = .;			/* End of text section */
 
@@ -188,13 +167,11 @@ SECTIONS
 	_edata = .;
 
 	BSS_SECTION(0, 0, 0)
-#ifndef CONFIG_TIMA_RKP
 	. = ALIGN(PAGE_SIZE);
 	idmap_pg_dir = .;
 	. += IDMAP_DIR_SIZE;
 	swapper_pg_dir = .;
 	. += SWAPPER_DIR_SIZE;
-#endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	reserved_ttbr0 = .;
