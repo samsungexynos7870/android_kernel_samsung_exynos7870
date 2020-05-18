@@ -32,23 +32,20 @@ static void inherit_derived_state(struct inode *parent, struct inode *child)
 	ci->data->under_android = pi->data->under_android;
 	ci->data->under_cache = pi->data->under_cache;
 	ci->data->under_obb = pi->data->under_obb;
-	set_top(ci, pi->top_data);
 }
 
 /* helper function for derived state */
 void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
-					uid_t uid, bool under_android,
-					struct sdcardfs_inode_data *top)
+					uid_t uid)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
 
 	info->data->perm = perm;
 	info->data->userid = userid;
 	info->data->d_uid = uid;
-	info->data->under_android = under_android;
+	info->data->under_android = false;
 	info->data->under_cache = false;
 	info->data->under_obb = false;
-	set_top(info, top);
 }
 
 /* While renaming, there is a point where we want the path from dentry,
@@ -65,6 +62,7 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	int err;
 	struct qstr q_Android = QSTR_LITERAL("Android");
 	struct qstr q_data = QSTR_LITERAL("data");
+	struct qstr q_sandbox = QSTR_LITERAL("sandbox");
 	struct qstr q_obb = QSTR_LITERAL("obb");
 	struct qstr q_media = QSTR_LITERAL("media");
 	struct qstr q_cache = QSTR_LITERAL("cache");
@@ -80,9 +78,10 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	inherit_derived_state(parent->d_inode, dentry->d_inode);
 
 	/* Files don't get special labels */
-	if (!S_ISDIR(dentry->d_inode->i_mode))
+	if (!S_ISDIR(dentry->d_inode->i_mode)) {
 		set_top(info, parent_info);
 		return;
+	}
 	/* Derive custom permissions based on parent and current node */
 	switch (parent_data->perm) {
 	case PERM_INHERIT:
@@ -97,7 +96,6 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 			info->data->userid = 0;
 		else
 			info->data->userid = user_num;
-		set_top(info, info->data);
 		break;
 	case PERM_ROOT:
 		/* Assume masked off by default. */
@@ -105,12 +103,15 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID;
 			info->data->under_android = true;
-		} else  {
+		} else {
 			set_top(info, parent_info);
 		}
 		break;
 	case PERM_ANDROID:
 		if (qstr_case_eq(name, &q_data)) {
+			/* App-specific directories inside; let anyone traverse */
+			info->data->perm = PERM_ANDROID_DATA;
+		} else if (qstr_case_eq(name, &q_sandbox)) {
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID_DATA;
 		} else if (qstr_case_eq(name, &q_obb)) {
@@ -359,7 +360,8 @@ int need_graft_path(struct dentry *dentry)
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	struct qstr obb = QSTR_LITERAL("obb");
 
-	if (parent_info->data->perm == PERM_ANDROID &&
+	if (!sbi->options.unshared_obb &&
+			parent_info->data->perm == PERM_ANDROID &&
 			qstr_case_eq(&dentry->d_name, &obb)) {
 
 		/* /Android/obb is the base obbpath of DERIVED_UNIFIED */
