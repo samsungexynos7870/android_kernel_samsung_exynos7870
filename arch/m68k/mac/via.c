@@ -348,10 +348,14 @@ u32 mac_gettimeoffset(void)
  * the system into 24-bit mode for an instant.
  */
 
-void via_flush_cache(void)
+void via_l2_flush(int writeback)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	via2[gBufB] &= ~VIA2B_vMode32;
 	via2[gBufB] |= VIA2B_vMode32;
+	local_irq_restore(flags);
 }
 
 /*
