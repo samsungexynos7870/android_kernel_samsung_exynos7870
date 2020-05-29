@@ -881,7 +881,7 @@ static int universal7870_rt5659_audio_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, priv);
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to register card:%d\n", ret);
 
@@ -904,8 +904,6 @@ static int universal7870_rt5659_audio_remove(struct platform_device *pdev)
 	struct rt5659_machine_priv *priv = card->drvdata;
 
 	sec_jack_set_snd_card_registered(0);
-
-	snd_soc_unregister_card(card);
 
 	if (priv->mclk) {
 		clk_unprepare(priv->mclk);
