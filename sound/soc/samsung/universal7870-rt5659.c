@@ -799,9 +799,9 @@ static int universal7870_rt5659_audio_probe(struct platform_device *pdev)
 	} else
 		clk_prepare(priv->mclk);
 
-	ret = snd_soc_register_component(card->dev, &universal7870_rt5659_cmpnt,
-			universal7870_ext_dai,
-			ARRAY_SIZE(universal7870_ext_dai));
+	ret = devm_snd_soc_register_component(card->dev, &universal7870_rt5659_cmpnt,
+					      universal7870_ext_dai,
+					      ARRAY_SIZE(universal7870_ext_dai));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		return ret;
@@ -816,7 +816,7 @@ static int universal7870_rt5659_audio_probe(struct platform_device *pdev)
 				"Failed to parse audio routing: %d\n",
 				ret);
 			ret = -EINVAL;
-			goto err_audio_route;
+			return ret;
 		}
 	}
 
@@ -860,7 +860,7 @@ static int universal7870_rt5659_audio_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"Property 'samsung,auxdev' missing\n");
 			ret = -EINVAL;
-			goto err_audio_route;
+			return ret;
 		}
 
 		audmixer_aux_dev[n].codec_of_node = auxdev_np;
@@ -896,10 +896,6 @@ static int universal7870_rt5659_audio_probe(struct platform_device *pdev)
 	}
 
 	return ret;
-
-err_audio_route:
-	snd_soc_unregister_component(card->dev);
-	return ret;
 }
 
 static int universal7870_rt5659_audio_remove(struct platform_device *pdev)
@@ -909,7 +905,6 @@ static int universal7870_rt5659_audio_remove(struct platform_device *pdev)
 
 	sec_jack_set_snd_card_registered(0);
 
-	snd_soc_unregister_component(card->dev);
 	snd_soc_unregister_card(card);
 
 	if (priv->mclk) {
