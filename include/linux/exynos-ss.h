@@ -172,7 +172,7 @@ extern void exynos_ss_i2c_clk(struct clk *clk, int bus_id, int en);
 #define exynos_ss_get_item_size(a)	do { } while(0)
 #define exynos_ss_get_item_paddr(a)	do { } while(0)
 #define exynos_ss_check_crash_key(a, b)	do { } while (0)
-#define exynos_ss_i2c_clk(a, b)		do { } while (0)
+#define exynos_ss_i2c_clk(a, b, c)	do { } while (0)
 #endif /* CONFIG_EXYNOS_SNAPSHOT */
 
 /**
