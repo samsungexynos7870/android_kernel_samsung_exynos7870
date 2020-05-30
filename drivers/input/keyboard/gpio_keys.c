@@ -637,10 +637,11 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 {
 	struct gpio_button_data *bdata =
 		container_of(work, struct gpio_button_data, work);
+#ifdef CONFIG_EXYNOS_SNAPSHOT_CRASH_KEY
 	int state = (gpio_get_value_cansleep(bdata->button->gpio) ? 1 : 0) ^ bdata->button->active_low;
 
 	exynos_ss_check_crash_key(bdata->button->code, state);
-
+#endif
 	gpio_keys_gpio_report_event(bdata);
 
 	if (bdata->button->wakeup)
