@@ -320,13 +320,13 @@ static int exynos_hpgov_set_down_freq(uint32_t val)
 }
 
 #define HPGOV_PARAM(_name, _param) \
-static ssize_t exynos_hpgov_attr_##_name##_show(struct kobject *kobj, \
-			struct kobj_attribute *attr, char *buf) \
+static ssize_t __maybe_unused exynos_hpgov_attr_##_name##_show(struct kobject *kobj, \
+							       struct kobj_attribute *attr, char *buf) \
 { \
 	return snprintf(buf, PAGE_SIZE, "%d\n", _param); \
 } \
-static ssize_t exynos_hpgov_attr_##_name##_store(struct kobject *kobj, \
-		struct kobj_attribute *attr, const char *buf, size_t count) \
+static ssize_t __maybe_unused exynos_hpgov_attr_##_name##_store(struct kobject *kobj, \
+								struct kobj_attribute *attr, const char *buf, size_t count) \
 { \
 	int ret = 0; \
 	uint32_t val; \
