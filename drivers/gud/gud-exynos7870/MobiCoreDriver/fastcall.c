@@ -318,12 +318,10 @@ static int mobicore_cpu_callback(struct notifier_block *nfb,
 #endif
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
-		mc_dev_info("Cpu %d is going to die\n", cpu);
 		mc_cpu_offline(cpu);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		mc_dev_info("Cpu %d is dead\n", cpu);
 		break;
 	}
 	return NOTIFY_OK;
@@ -349,12 +347,9 @@ static cpumask_t mc_exec_core_switch(union mc_fc_generic *mc_fc_generic)
 			     raw_smp_processor_id(),
 			     mc_fc_generic->as_in.param[0],
 			     raw_smp_processor_id());
-	} else {
+	} else
 		active_cpu = new_cpu;
-		/* ExySp: print info */
-		mc_dev_info("CoreSwap ok %d -> %d\n",
-			     raw_smp_processor_id(), active_cpu);
-	}
+
 	cpumask_clear(&cpu);
 	cpumask_set_cpu(active_cpu, &cpu);
 	return cpu;
@@ -717,9 +712,6 @@ int mc_switch_core(int cpu)
 
 	mc_dev_devel("<- cmd=0x%08x, core_id=0x%08x\n",
 		     fc_switch_core.as_in.cmd, fc_switch_core.as_in.core_id);
-	/* ExySp: for sos performance */
-	mc_dev_info("<- cpu=0x%08x, active_cpu=0x%08x\n",
-		     cpu, active_cpu);
 	mc_fastcall(&fc_switch_core.as_generic);
 	ret = convert_fc_ret(fc_switch_core.as_out.ret);
 	mc_dev_devel("exit with %d/0x%08X\n", ret, ret);
