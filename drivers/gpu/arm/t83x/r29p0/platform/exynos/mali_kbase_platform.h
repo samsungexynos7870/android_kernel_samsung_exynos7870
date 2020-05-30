@@ -338,6 +338,7 @@ struct exynos_context {
 		int low_power_cluster1_clock;
 	} sustainable;
 	int *save_cpu_max_freq;
+	const struct kbase_pm_policy *cur_policy;
 };
 
 struct kbase_device *gpu_get_device_structure(void);
