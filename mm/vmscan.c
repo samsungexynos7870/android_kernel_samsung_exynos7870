@@ -135,7 +135,7 @@ struct scan_control {
 #endif
 
 /*
- * From 0 .. 100.  Higher means more swappy.
+ * From 0 .. 200.  Higher means more swappy.
  */
 #if CONFIG_MEMCG_HIGHER_SWAPPINESS
 int vm_swappiness = CONFIG_MEMCG_HIGHER_SWAPPINESS;
