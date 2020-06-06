@@ -88,21 +88,13 @@ static atomic_t extra_vsync_wait;
 
 /*----------------- function for systrace ---------------------------------*/
 /* history (1): 15.11.10
-* to make stamp in systrace, we can use trace_printk()/trace_puts().
-* but, when we tested them, this function-name is inserted in front of all systrace-string.
-* it make disable to recognize by systrace.
-* example log : decon0-1831  ( 1831) [001] ....   681.732603: decon_update_regs: tracing_mark_write: B|1831|decon_fence_wait
-* systrace error : /sys/kernel/debug/tracing/trace_marker: Bad file descriptor (9)
-* solution : make function-name to 'tracing_mark_write'
-*
-* history (2): 15.11.10
 * if we make argument to current-pid, systrace-log will be duplicated in Surfaceflinger as systrace-error.
 * example : EventControl-3184  ( 3066) [001] ...1    53.870105: tracing_mark_write: B|3066|eventControl\n\
 *           EventControl-3184  ( 3066) [001] ...1    53.870120: tracing_mark_write: B|3066|eventControl\n\
 *           EventControl-3184  ( 3066) [001] ....    53.870164: tracing_mark_write: B|3184|decon_DEactivate_vsync_0\n\
 * solution : store decon0's pid to static-variable.
 *
-* history (3) : 15.11.11
+* history (2) : 15.11.11
 * all code is registred in decon srtucture.
 */
 
@@ -125,8 +117,6 @@ static void tracing_mark_write( int pid, char id, char* str1, int value )
 		decon_err( "%s:argument fail\n", __func__ );
 		return;
 	}
-
-	trace_puts(buf);
 }
 /*-----------------------------------------------------------------*/
 
