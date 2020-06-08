@@ -416,7 +416,9 @@ struct exynos_ss_interface {
 
 #ifdef CONFIG_S3C2410_WATCHDOG
 extern int s3c2410wdt_set_emergency_stop(void);
+#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
 extern int s3c2410wdt_set_emergency_reset(unsigned int timeout);
+#endif
 extern int s3c2410wdt_keepalive_emergency(void);
 #else
 #define s3c2410wdt_set_emergency_stop() 	(-1)
@@ -1519,8 +1521,9 @@ void exynos_ss_panic_handler_safe(struct pt_regs *regs)
 
 	exynos_ss_report_reason(ESS_SIGN_SAFE_FAULT);
 	exynos_ss_dump_panic(text, len);
+#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
 	s3c2410wdt_set_emergency_reset(100);
-
+#endif
 }
 
 static size_t __init exynos_ss_remap(void)
