@@ -643,13 +643,6 @@ void __iomem *exynos_ss_get_base_paddr(void)
 	return (void __iomem *)(ess_base.paddr);
 }
 
-static void exynos_ss_core_power_stat(unsigned int val, unsigned cpu)
-{
-	if (exynos_ss_get_enable("log_kevents", true))
-		__raw_writel(val, (exynos_ss_get_base_vaddr() +
-					ESS_OFFSET_CORE_POWER_STAT + cpu * 4));
-}
-
 static unsigned int exynos_ss_get_core_panic_stat(unsigned cpu)
 {
 	if (exynos_ss_get_enable("log_kevents", true))
@@ -739,85 +732,6 @@ int exynos_ss_set_hardlockup(int val)
 	return 0;
 }
 EXPORT_SYMBOL(exynos_ss_set_hardlockup);
-
-int exynos_ss_prepare_panic(void)
-{
-	unsigned cpu;
-
-	if (unlikely(!ess_base.enabled))
-		return 0;
-	/*
-	 * kick watchdog to prevent unexpected reset during panic sequence
-	 * and it prevents the hang during panic sequence by watchedog
-	 */
-	s3c2410wdt_keepalive_emergency();
-
-	for (cpu = 0; cpu < ESS_NR_CPUS; cpu++) {
-		if (exynos_cpu.power_state(cpu))
-			exynos_ss_core_power_stat(ESS_SIGN_ALIVE, cpu);
-		else
-			exynos_ss_core_power_stat(ESS_SIGN_DEAD, cpu);
-	}
-
-	if(exynos_check_hardlockup_reason()) {
-		/* no core got stucks in EL3 monitor */
-		pr_emerg("%s: no core got stucks in EL3" \
-				" monitor.\n", __func__);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(exynos_ss_prepare_panic);
-
-int exynos_ss_post_panic(void)
-{
-	if (ess_base.enabled) {
-		exynos_ss_dump_sfr();
-		exynos_ss_save_context(NULL);
-		flush_cache_all();
-#ifdef CONFIG_EXYNOS_SNAPSHOT_PANIC_REBOOT
-		if (!ess_desc.no_wdt_dev) {
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
-			if (ess_desc.hardlockup || num_online_cpus() > 1) {
-			/* for stall cpu */
-				while(1)
-				wfi();
-			}
-#endif
-		}
-#endif
-	}
-#ifdef CONFIG_SEC_DEBUG
-	hard_reset_delay();
-	sec_debug_post_panic_handler();
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_PANIC_REBOOT
-	arm_pm_restart(0, "panic");
-#endif
-	/* for stall cpu when not enabling panic reboot */
-	while(1)
-		wfi();
-
-	/* Never run this function */
-	pr_emerg("exynos-snapshot: %s DO NOT RUN this function (CPU:%d)\n",
-					__func__, raw_smp_processor_id());
-	return 0;
-}
-EXPORT_SYMBOL(exynos_ss_post_panic);
-
-int exynos_ss_dump_panic(char *str, size_t len)
-{
-	if (unlikely(!ess_base.enabled) ||
-		!exynos_ss_get_enable("log_kevents", true))
-		return 0;
-
-	/*  This function is only one which runs in panic funcion */
-	if (str && len && len < 1024)
-		memcpy(exynos_ss_get_base_vaddr() + ESS_OFFSET_PANIC_STRING, str, len);
-
-	return 0;
-}
-EXPORT_SYMBOL(exynos_ss_dump_panic);
 
 int exynos_ss_post_reboot(void)
 {
@@ -1507,24 +1421,6 @@ static struct notifier_block nb_reboot_block = {
 static struct notifier_block nb_panic_block = {
 	.notifier_call = exynos_ss_panic_handler,
 };
-
-void exynos_ss_panic_handler_safe(struct pt_regs *regs)
-{
-	char text[1024];
-	size_t len;
-
-	if (unlikely(!ess_base.enabled))
-		return;
-
-	snprintf(text, 1024, "safe panic handler at cpu %d", (int)raw_smp_processor_id());
-	len = (size_t)strnlen(text, 1024);
-
-	exynos_ss_report_reason(ESS_SIGN_SAFE_FAULT);
-	exynos_ss_dump_panic(text, len);
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
-	s3c2410wdt_set_emergency_reset(100);
-#endif
-}
 
 static size_t __init exynos_ss_remap(void)
 {
