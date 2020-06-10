@@ -1051,7 +1051,6 @@ CONFIG_RFKILL_PM=y
 # CONFIG_NFC_FELICA is not set
 # CONFIG_SEC_NFC is not set
 CONFIG_HAVE_BPF_JIT=y
-CONFIG_NETPM=y
 
 #
 # Device Drivers
