@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/ctype.h>
+#include <linux/random.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/quotaops.h>
@@ -51,7 +52,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
 			F2FS_I(inode)->i_crtime = current_time(inode);
-	inode->i_generation = sbi->s_next_generation++;
+	inode->i_generation = prandom_u32();
 
 	if (S_ISDIR(inode->i_mode))
 		F2FS_I(inode)->i_current_depth = 1;
@@ -62,7 +63,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		goto fail;
 	}
 
-	if (f2fs_sb_has_project_quota(sbi->sb) &&
+	if (f2fs_sb_has_project_quota(sbi) &&
 		(F2FS_I(dir)->i_flags & F2FS_PROJINHERIT_FL))
 		F2FS_I(inode)->i_projid = F2FS_I(dir)->i_projid;
 	else
@@ -77,7 +78,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 				f2fs_may_encrypt(inode))
 		f2fs_set_encrypted_inode(inode);
 
-	if (f2fs_sb_has_extra_attr(sbi->sb)) {
+	if (f2fs_sb_has_extra_attr(sbi)) {
 		set_inode_flag(inode, FI_EXTRA_ATTR);
 		F2FS_I(inode)->i_extra_isize = F2FS_TOTAL_EXTRA_ATTR_SIZE;
 	}
@@ -90,7 +91,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	if (f2fs_may_inline_dentry(inode))
 		set_inode_flag(inode, FI_INLINE_DENTRY);
 
-	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)) {
+	if (f2fs_sb_has_flexible_inline_xattr(sbi)) {
 		f2fs_bug_on(sbi, !f2fs_has_extra_attr(inode));
 		if (f2fs_has_inline_xattr(inode))
 			xattr_size = F2FS_OPTION(sbi).inline_xattr_size;
@@ -130,7 +131,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-static int is_extension_exist(const unsigned char *s, const char *sub)
+static inline int is_extension_exist(const unsigned char *s, const char *sub)
 {
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
@@ -285,8 +286,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	f2fs_alloc_nid_done(sbi, ino);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 
 	if (IS_DIRSYNC(dir))
 		f2fs_sync_fs(sbi->sb, 1);
@@ -369,9 +369,8 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 	int err = 0;
 
 	if (f2fs_readonly(sbi->sb)) {
-		f2fs_msg(sbi->sb, KERN_INFO,
-			"skip recovering inline_dots inode (ino:%lu, pino:%u) "
-			"in readonly mountpoint", dir->i_ino, pino);
+		f2fs_info(sbi, "skip recovering inline_dots inode (ino:%lu, pino:%u) in readonly mountpoint",
+			  dir->i_ino, pino);
 		return 0;
 	}
 
@@ -462,9 +461,8 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (f2fs_encrypted_inode(dir) &&
 	    (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
 	    !fscrypt_has_permitted_context(dir, inode)) {
-		f2fs_msg(inode->i_sb, KERN_WARNING,
-			 "Inconsistent encryption contexts: %lu/%lu",
-			 dir->i_ino, inode->i_ino);
+		f2fs_warn(F2FS_I_SB(inode), "Inconsistent encryption contexts: %lu/%lu",
+			  dir->i_ino, inode->i_ino);
 		err = -EPERM;
 		goto out_iput;
 	}
@@ -592,8 +590,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	err = page_symlink(inode, disk_link.name, disk_link.len);
 
 err_out:
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 
 	/*
 	 * Let's flush symlink data in order to avoid broken symlink as much as
@@ -621,7 +618,7 @@ out_f2fs_handle_failed_inode:
 	f2fs_handle_failed_inode(inode);
 out_free_encrypted_link:
 	if (disk_link.name != (unsigned char *)symname)
-		kfree(disk_link.name);
+		kvfree(disk_link.name);
 	return err;
 }
 
@@ -654,8 +651,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	f2fs_alloc_nid_done(sbi, inode->i_ino);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 
 	if (IS_DIRSYNC(dir))
 		f2fs_sync_fs(sbi->sb, 1);
@@ -709,8 +705,7 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 
 	f2fs_alloc_nid_done(sbi, inode->i_ino);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 
 	if (IS_DIRSYNC(dir))
 		f2fs_sync_fs(sbi->sb, 1);
