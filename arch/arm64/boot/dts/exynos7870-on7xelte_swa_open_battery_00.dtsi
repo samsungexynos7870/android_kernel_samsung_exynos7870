@@ -306,7 +306,7 @@
 		battery,recharge_check_count = <2>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4280>;
+		battery,recharge_condition_vcell = <4250>;
 
 		battery,expired_time = <15000>;
 		battery,recharging_expired_time = <5400>;
@@ -354,11 +354,11 @@
 		battery,siop_charging_limit_current = <1000>;
 
 		/* cycle, chg_float_voltage, recharge_condition_vcell, full_condition_vcell, full_condition_soc */
-		battery,age_data = <0 4350 4280 4250 92	/*4.35*/
-				200 4330 4260 4230 91	/*4.33*/
-				250 4310 4240 4210 89	/*4.31*/
-				300 4290 4220 4190 87	/*4.29*/
-				1000 4240 4170 4140 83	/*4.24*/
+		battery,age_data = <0 4350 4250 4250 92	/*4.35*/
+				200 4330 4230 4230 91	/*4.33*/
+				250 4310 4210 4210 89	/*4.31*/
+				300 4290 4190 4190 87	/*4.29*/
+				1000 4240 4140 4140 83	/*4.24*/
 				>;
 
 		io-channels = <&exynos_adc 1>,<&exynos_adc 3>;
