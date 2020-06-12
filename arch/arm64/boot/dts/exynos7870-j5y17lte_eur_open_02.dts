@@ -94,19 +94,21 @@
 	};
 
 	s1402x: s1402x@14880000 {
-		pinctrl-names = "default", "idle", "bt", "bt-idle";
+		pinctrl-names = "default", "idle", "bt", "bt-idle", "fm", "fm-idle";
 		pinctrl-0 = <&i2s_pmic_amp_bus
-			&i2s_bt_bus>;
-		pinctrl-1 = <&i2s_pmic_amp_bus_idle
-			&i2s_bt_bus_idle> ;
-		pinctrl-2 = <&i2s_pmic_bus
 			&i2s_amp_bus>;
+		pinctrl-1 = <&i2s_pmic_amp_bus_idle
+			&i2s_amp_bus_idle> ;
+		pinctrl-2 = <&i2s_bt_bus>;
 		pinctrl-3 = <&i2s_bt_bus_idle>;
+		pinctrl-4 = <&i2s_bt_bus>;
+		pinctrl-5 = <&i2s_bt_bus_idle>;
 
 		bt-fm-combo;
 		/delete-property/ bck-mcko-mode;
 		status = "okay";
 	};
+
 	pinctrl@139B0000 {
 		spk_amp_i2c: spk-amp-i2c {
 			samsung,pins = "gpc9-1", "gpc9-0";
