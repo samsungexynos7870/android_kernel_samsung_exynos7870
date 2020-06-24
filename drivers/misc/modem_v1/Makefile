@@ -5,6 +5,9 @@ EXTRA_CFLAGS += -Idrivers/misc/modem_v1 \
 
 obj-y += modem_main.o modem_variation.o modem_io_device.o modem_utils.o
 
+CFLAGS_link_device_memory_flow_control.o += $(call cc-disable-warning, enum-compare)
+CFLAGS_link_device_memory_debug.o += $(call cc-disable-warning, enum-compare)
+
 obj-$(CONFIG_LINK_DEVICE_MEMORY) += link_device_memory_main.o \
 				    link_device_memory_snapshot.o \
 				    link_device_memory_command.o \
