@@ -357,8 +357,8 @@ static void asv_set_freq_limit(void)
 notfused:
 
 #ifdef PWRCAL_TARGET_LINUX
-	asv_dvfs_cpucl0->table->max_freq = 1586000;
-	asv_dvfs_cpucl1->table->max_freq = 1586000;
+	asv_dvfs_cpucl0->table->max_freq = 1690000;
+	asv_dvfs_cpucl1->table->max_freq = 1690000;
 	asv_dvfs_g3d->table->max_freq = 1246000;
 	asv_dvfs_mif->table->max_freq = 900000;
 #endif
