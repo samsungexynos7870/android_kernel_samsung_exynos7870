@@ -699,6 +699,7 @@ halRoundS32(tANI_S32 p)
 
     i = p/10;
     j = p%10;
+
     if (p > 0)
         k = i + (j > 4 ? 1 : 0);
     else if (p < 0)
@@ -706,7 +707,7 @@ halRoundS32(tANI_S32 p)
     else
         k = p;
 
-        return(k);
+    return(k);
 }
 
 /* New functions for endianness conversion */

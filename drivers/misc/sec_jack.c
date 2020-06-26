@@ -290,7 +290,7 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 	}
 
 	if ((jack_type == SEC_HEADSET_4POLE) ||
-		(jack_type == SEC_EXTERNAL_ANTENNA)) {
+	    (jack_type == SEC_EXTERNAL_ANTENNA)) {
 		/* for a 4 pole headset, enable detection of send/end key */
 		if (hi->send_key_dev == NULL)
 			/* enable to get events again */
@@ -299,8 +299,8 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 				hi->dev_id,
 				&sec_jack_input_data,
 				sizeof(sec_jack_input_data));
-			mod_timer(&hi->timer,
-				jiffies + msecs_to_jiffies(1000));
+		mod_timer(&hi->timer,
+			  jiffies + msecs_to_jiffies(1000));
 	} else {
 		/* micbias is left enabled for 4pole and disabled otherwise */
 		set_sec_micbias_state(hi, false);

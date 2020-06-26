@@ -785,27 +785,31 @@ static int alloc_tx_buffer(struct eth_dev *dev)
 				/* size of rndis_packet_msg_type */
 				+ 44
 				+ 22));
+
 #ifdef CONFIG_USB_NCM_ACCUMULATE_MULTPKT
-	if(dev->port_usb->is_fixed) {
+	if (dev->port_usb->is_fixed) {
 		dev->tx_req_bufsize = dev->port_usb->fixed_in_len;
 		DEBUG_NCM("usb: tx_req_bufsize(%ld) \n",dev->tx_req_bufsize);
 	}
 #endif
+
 	list_for_each(act, &dev->tx_reqs) {
 		req = container_of(act, struct usb_request, list);
-		if (!req->buf)
+		if (!req->buf) {
 			req->buf = kmalloc(dev->tx_req_bufsize,
 						GFP_ATOMIC);
-			if (!req->buf)
-				goto free_buf;
+			goto free_buf;
+		}
+
 #ifdef CONFIG_USB_NCM_ACCUMULATE_MULTPKT
-			if(dev->port_usb->is_fixed) {
-				memcpy(req->buf,dev->port_usb->header,dev->port_usb->header_len);
-				req->length = dev->port_usb->header_len;
-				DEBUG_NCM(KERN_ERR"usb: request(%p) req->len(%d) \n",req,req->length);
-			}
+		if (dev->port_usb->is_fixed) {
+			memcpy(req->buf,dev->port_usb->header,dev->port_usb->header_len);
+			req->length = dev->port_usb->header_len;
+			DEBUG_NCM(KERN_ERR"usb: request(%p) req->len(%d) \n",req,req->length);
+		}
 #endif
 	}
+
 	return 0;
 
 free_buf:
@@ -817,7 +821,6 @@ free_buf:
 		req->buf = NULL;
 	}
 	return -ENOMEM;
-
 }
 #endif
 

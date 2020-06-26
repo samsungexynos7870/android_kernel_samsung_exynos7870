@@ -53,7 +53,7 @@ extern void sec_gaf_supply_rqinfo(unsigned short curr_offset, unsigned short rq_
 
 #ifdef CONFIG_SEC_DEBUG_MDM_SEPERATE_CRASH
 extern int  sec_debug_is_enabled_for_ssr(void);
-else
+#else
 #define sec_debug_is_enabled_for_ssr()		(0)
 #endif /* CONFIG_SEC_DEBUG_MDM_SEPERATE_CRASH */
 
