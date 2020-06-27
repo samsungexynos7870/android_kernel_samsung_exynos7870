@@ -333,7 +333,7 @@ static struct zs_ops zs_zpool_ops = {
 
 static void *zs_zpool_create(char *name, gfp_t gfp, struct zpool_ops *zpool_ops)
 {
-	return zs_create_pool(name, gfp, &zs_zpool_ops);
+	return zs_create_pool(name, gfp);
 }
 
 static void zs_zpool_destroy(void *pool)
@@ -1900,7 +1900,7 @@ EXPORT_SYMBOL_GPL(zs_compactable);
  * On success, a pointer to the newly created pool is returned,
  * otherwise NULL.
  */
-struct zs_pool *zs_create_pool(char *name, gfp_t flags, struct zs_ops *ops)
+struct zs_pool *zs_create_pool(char *name, gfp_t flags)
 {
 	int i;
 	struct zs_pool *pool;
@@ -1971,7 +1971,6 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags, struct zs_ops *ops)
 	}
 
 	pool->flags = flags;
-	pool->ops = ops;
 
 	if (zs_pool_stat_create(name, pool))
 		goto err;
