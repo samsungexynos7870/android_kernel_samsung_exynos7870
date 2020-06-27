@@ -105,12 +105,6 @@ extern struct rw_semaphore nommu_region_sem;
 extern unsigned int kobjsize(const void *objp);
 #endif
 
-#ifdef CONFIG_ZSWAP
-extern int sysctl_zswap_compact;
-extern int sysctl_zswap_compaction_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *length, loff_t *ppos);
-#endif
-
 /*
  * vm_flags in vm_area_struct, see mm_types.h.
  */

@@ -573,16 +573,6 @@ config ZSWAP
 	  they have not be fully explored on the large set of potential
 	  configurations and workloads that exist.
 
-config ZSWAP_ENABLE_WRITEBACK
-	bool "Enable zswap writeback"
-	depends on ZSWAP
-	default n
-
-config ZSWAP_COMPACTION
-	bool "Enable runtime zswap compaction"
-	depends on ZSWAP && ZPOOL && ZSMALLOC
-	default n
-
 config ZPOOL
 	tristate "Common API for compressed memory storage"
 	default n

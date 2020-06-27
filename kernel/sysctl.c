@@ -1363,15 +1363,6 @@ static struct ctl_table vm_table[] = {
 	},
 
 #endif /* CONFIG_COMPACTION */
-#ifdef CONFIG_ZSWAP
-	{
-		.procname	= "zswap_compact",
-		.data		= &sysctl_zswap_compact,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= sysctl_zswap_compaction_handler,
-	},
-#endif
 	{
 		.procname	= "min_free_kbytes",
 		.data		= &min_free_kbytes,
