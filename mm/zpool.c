@@ -161,7 +161,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
 		return NULL;
 	}
 
-	zpool = kmalloc(sizeof(*zpool), GFP_KERNEL);
+	zpool = kmalloc(sizeof(*zpool), gfp);
 	if (!zpool) {
 		pr_err("couldn't create zpool - out of memory\n");
 		zpool_put_driver(driver);
@@ -345,16 +345,6 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 u64 zpool_get_total_size(struct zpool *zpool)
 {
 	return zpool->driver->total_size(zpool->pool);
-}
-
-unsigned long zpool_compact(struct zpool *zpool)
-{
-	return zpool->driver->compact(zpool->pool);
-}
-
-bool zpool_compactable(struct zpool *zpool, unsigned int pages)
-{
-	return zpool->driver->compactable(zpool->pool, pages);
 }
 
 static int __init init_zpool(void)
