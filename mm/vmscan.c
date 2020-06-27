@@ -2874,11 +2874,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 		.priority = DEF_PRIORITY,
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
-#ifdef CONFIG_DIRECT_RECLAIM_FILE_PAGES_ONLY
-		.may_swap = 0,
-#else
 		.may_swap = 1,
-#endif
 #ifdef CONFIG_ZSWAP
 		.swappiness = vm_swappiness / 2,
 #else
@@ -3073,11 +3069,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
 	}
 
 	if (order)
-#ifdef CONFIG_TIGHT_PGDAT_BALANCE
-		return balanced_pages >= (managed_pages >> 1);
-#else
 		return balanced_pages >= (managed_pages >> 2);
-#endif
 	else
 		return true;
 }
