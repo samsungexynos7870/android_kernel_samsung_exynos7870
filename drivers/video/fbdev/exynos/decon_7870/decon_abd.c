@@ -310,6 +310,7 @@ static int decon_debug_fto_print(struct seq_file *m, struct abd_trace *trace)
 	return 0;
 }
 
+#ifdef CONFIG_DECON_EVENT_LOG
 static int decon_debug_ss_log_print(struct seq_file *m)
 {
 	unsigned int ss_log_max = 200, i, idx;
@@ -336,6 +337,7 @@ static int decon_debug_ss_log_print(struct seq_file *m)
 
 	return 0;
 }
+#endif
 
 static int decon_debug_show(struct seq_file *m, void *unused)
 {
@@ -354,8 +356,9 @@ static int decon_debug_show(struct seq_file *m, void *unused)
 	decon_debug_fto_print(m, &abd->f_event);
 
 	abd_printf(m, "===============================\n");
+#ifdef CONFIG_DECON_EVENT_LOG
 	decon_debug_ss_log_print(m);
-
+#endif
 	return 0;
 }
 
