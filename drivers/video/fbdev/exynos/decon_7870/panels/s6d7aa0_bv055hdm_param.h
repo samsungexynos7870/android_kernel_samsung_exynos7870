@@ -6,13 +6,6 @@
 #define EXTEND_BRIGHTNESS	306
 #define UI_MAX_BRIGHTNESS	255
 #define UI_DEFAULT_BRIGHTNESS	128
-#define DEFAULT_CANDELA		92
-#define DIM_BRIGHTNESS		15
-
-struct i2c_rom_data {
-	u8 addr;
-	u8 val;
-};
 
 static char UI_MDNIE_1[] = {
 	//start
@@ -292,36 +285,36 @@ static char OUTDOOR_MDNIE_6[] = {
 	//end
 };
 
-static const struct i2c_rom_data backlight_ic_tuning[] = {//LM3632_eprom_drv_arr[] = {
-	{ 0x09, 0x41},
-	{ 0x02, 0x50},
-	{ 0x03, 0x0D},
-	{ 0x04, 0x05},
-	{ 0x0A, 0x19},
-	{ 0x05, 0xCC},
-	{ 0x0D, 0x1E},
-	{ 0x0E, 0x1E},
-	{ 0x0F, 0x1E},
-	{ 0x0C, 0x1F},
+static u8 backlight_ic_tuning[] = {//LM3632_eprom_drv_arr[] = {
+	0x09, 0x41,
+	0x02, 0x50,
+	0x03, 0x0D,
+	0x04, 0x05,
+	0x0A, 0x19,
+	0x05, 0xCC,
+	0x0D, 0x1E,
+	0x0E, 0x1E,
+	0x0F, 0x1E,
+	0x0C, 0x1F,
 };
 
 #if 0
-static const struct i2c_rom_data backlight_i2c_bl_ctrl[] = {	//LM3632_eprom_drv_arr_off[] = {
-	{ 0x04, 0x00},
-	{ 0x05, 0x00},
+static u8 backlight_i2c_bl_ctrl[] = {	//LM3632_eprom_drv_arr_off[] = {
+	0x04, 0x00,
+	0x05, 0x00,
 
 };
 #endif
-static const struct i2c_rom_data backlight_ic_tuning_outdoor[] = {//LM3632_eprom_drv_arr_outdoor_on[] = {
-	{ 0x09, 0x01},
-	{ 0x04, 0x07},
-	{ 0x05, 0xCB},
+static u8 backlight_ic_tuning_outdoor[] = {//LM3632_eprom_drv_arr_outdoor_on[] = {
+	0x09, 0x01,
+	0x04, 0x07,
+	0x05, 0xCB,
 };
 
-static const struct i2c_rom_data backlight_ic_tuning_normal[] = {//LM3632_eprom_drv_arr_outdoor_off[] = {
-	{ 0x04, 0x05},
-	{ 0x05, 0xCC},
-	{ 0x09, 0x41},
+static u8 backlight_ic_tuning_normal[] = {//LM3632_eprom_drv_arr_outdoor_off[] = {
+	0x04, 0x05,
+	0x05, 0xCC,
+	0x09, 0x41,
 };
 /* init seq 1 */
 static const unsigned char SEQ_PASSWD1[] = {
@@ -521,6 +514,41 @@ const const unsigned char SEQ_SLEEP_IN[] = {
 const const unsigned char SEQ_DISPLAY_OFF[] = {
 	0x28,
 	0x00, 0x00
+};
+
+static unsigned int brightness_table[EXTEND_BRIGHTNESS + 1] = {
+	0,
+	2, 2, 3, 4, 5, 6, 7, 8, 9, 10, /* 1: 2 */
+	11, 12, 13, 14, 15, 15, 16, 17, 17, 18,
+	19, 19, 20, 21, 21, 22, 23, 23, 24, 25,
+	25, 26, 27, 27, 28, 29, 29, 30, 31, 32,
+	32, 33, 34, 34, 35, 36, 36, 37, 38, 38,
+	39, 40, 40, 41, 42, 42, 43, 44, 44, 45,
+	46, 47, 47, 48, 49, 49, 50, 51, 51, 52,
+	53, 53, 54, 55, 55, 56, 57, 57, 58, 59,
+	59, 60, 61, 62, 62, 63, 64, 64, 65, 66,
+	66, 67, 68, 68, 69, 70, 70, 71, 72, 72,
+	73, 74, 74, 75, 76, 77, 77, 78, 79, 79,
+	80, 81, 81, 82, 83, 83, 84, 85, 85, 86,
+	87, 87, 88, 89, 89, 90, 91, 92, 92, 93, /* 128: 92 */
+	94, 95, 96, 97, 98, 99, 100, 100, 101, 102,
+	103, 104, 105, 106, 107, 108, 108, 109, 110, 111,
+	112, 113, 114, 115, 116, 116, 117, 118, 119, 120,
+	121, 122, 123, 124, 124, 125, 126, 127, 128, 129,
+	130, 131, 132, 132, 133, 134, 135, 136, 137, 138,
+	139, 140, 140, 141, 142, 143, 144, 145, 146, 147,
+	148, 148, 149, 150, 151, 152, 153, 154, 155, 156,
+	156, 157, 158, 159, 160, 161, 162, 163, 164, 164,
+	165, 166, 167, 168, 169, 170, 171, 172, 172, 173,
+	174, 175, 176, 177, 178, 179, 180, 180, 181, 182,
+	183, 184, 185, 186, 187, 188, 188, 189, 190, 191,
+	192, 193, 194, 195, 196, 196, 197, 198, 199, 200,
+	201, 202, 203, 204, 205, 205, 205, 205, 205, 205, /* 255: 205 */
+	205, 205, 205, 205, 205, 205, 205, 205, 205, 205,
+	205, 205, 205, 205, 205, 205, 205, 205, 205, 205,
+	205, 205, 205, 205, 205, 205, 205, 205, 205, 205,
+	205, 205, 205, 205, 205, 205, 205, 205, 205, 205,
+	205, 205, 205, 205, 205, 255,
 };
 
 #endif /* __S6D7AA0_PARAM_H__ */

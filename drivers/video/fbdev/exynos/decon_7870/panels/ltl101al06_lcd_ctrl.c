@@ -15,20 +15,19 @@
 #include <video/mipi_display.h>
 #include <linux/i2c.h>
 #include <linux/pwm.h>
+
 #include "../dsim.h"
 #include "dsim_panel.h"
 
 #include "ltl101al06_param.h"
 
-#define POWER_IS_ON(pwr)			(pwr <= FB_BLANK_NORMAL)
-#define LEVEL_IS_HBM(brightness)		(brightness == EXTEND_BRIGHTNESS)
+#define PANEL_STATE_SUSPENED	0
+#define PANEL_STATE_RESUMED	1
+#define PANEL_STATE_SUSPENDING	2
 
 struct lcd_info {
 	unsigned int			connected;
-	unsigned int			bl;
 	unsigned int			brightness;
-	unsigned int			current_bl;
-	unsigned int			current_hbm;
 	unsigned int			state;
 
 	struct lcd_device		*ld;
@@ -38,7 +37,7 @@ struct lcd_info {
 	struct mutex			lock;
 
 	struct pinctrl			*pins;
-	struct pinctrl_state	*pins_state[2];
+	struct pinctrl_state		*pins_state[2];
 
 	struct pwm_device		*pwm;
 	unsigned int			pwm_period;
@@ -71,7 +70,7 @@ static int tc358764_array_write(struct lcd_info *lcd, u16 addr, u32 w_data)
 
 	ret = i2c_smbus_write_i2c_block_data(lcd->tc358764_client, buf[0], 5, &buf[1]);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: fail. %d, %4x, %8x\n", __func__, ret, addr, w_data);
+		dev_info(&lcd->ld->dev, "%s: fail. %d, %4x, %8x\n", __func__, ret, addr, w_data);
 
 	return 0;
 }
@@ -101,26 +100,16 @@ static int dsim_panel_set_brightness(struct lcd_info *lcd, int force)
 
 	lcd->brightness = lcd->bd->props.brightness;
 
-	lcd->bl = lcd->brightness;
-
 	if (!force && lcd->state != PANEL_STATE_RESUMED) {
 		dev_info(&lcd->ld->dev, "%s: panel is not active state\n", __func__);
 		goto exit;
 	}
 
-	lcd->bl = (lcd->bl > UI_MAX_BRIGHTNESS) ? UI_MAX_BRIGHTNESS : lcd->bl;
-
-	if (LEVEL_IS_HBM(lcd->brightness))
-		duty = lcd->pwm_outdoor;
-	else
-		duty = lcd->bl * (lcd->pwm_max - lcd->pwm_min) / 255 + lcd->pwm_min;
-
-	if (duty <= lcd->pwm_min)
-		duty = 0;	// duty must set over 0.7 percent.
+	duty = brightness_table[lcd->brightness];
 
 	pwm_config(lcd->pwm, duty, lcd->pwm_period);
 
-	dev_info(&lcd->ld->dev, "%s: brightness: %d, bl: %d, duty: %d/%d\n", __func__, lcd->brightness, lcd->bl, duty, lcd->pwm_period);
+	dev_info(&lcd->ld->dev, "%s: brightness: %3d, duty: %d\n", __func__, lcd->brightness, duty);
 
 	lcd->current_bl = lcd->bl;
 exit:
@@ -131,7 +120,9 @@ exit:
 
 static int panel_get_brightness(struct backlight_device *bd)
 {
-	return bd->props.brightness;
+	struct lcd_info *lcd = bl_get_data(bd);
+
+	return brightness_table[lcd->brightness];
 }
 
 static int panel_set_brightness(struct backlight_device *bd)
@@ -142,7 +133,7 @@ static int panel_set_brightness(struct backlight_device *bd)
 	if (lcd->state == PANEL_STATE_RESUMED) {
 		ret = dsim_panel_set_brightness(lcd, 0);
 		if (ret < 0)
-			dev_err(&lcd->ld->dev, "%s: failed to set brightness\n", __func__);
+			dev_info(&lcd->ld->dev, "%s: failed to set brightness\n", __func__);
 	}
 
 	return ret;
@@ -248,7 +239,7 @@ static int tc358764_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&lcd->ld->dev, "%s: need I2C_FUNC_I2C\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: need I2C_FUNC_I2C\n", __func__);
 		ret = -ENODEV;
 		goto exit;
 	}
@@ -302,7 +293,7 @@ static int pwm_probe(struct lcd_info *lcd)
 
 	lcd->pins = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(lcd->pins))
-		dev_err(&lcd->ld->dev, "%s: devm_pinctrl_get fail\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: devm_pinctrl_get fail\n", __func__);
 	else {
 		lcd->pins_state[0] = pinctrl_lookup_state(lcd->pins, "pwm_off");
 		lcd->pins_state[1] = pinctrl_lookup_state(lcd->pins, "pwm_on");
@@ -314,7 +305,7 @@ static int pwm_probe(struct lcd_info *lcd)
 
 	np_pwm = of_parse_phandle(np_lcd, "pwm_info", 0);
 	if (!np_pwm) {
-		dev_err(&lcd->ld->dev, "%s: %s node does not exist!!!\n", __func__, "pwm_info");
+		dev_info(&lcd->ld->dev, "%s: %s node does not exist!!!\n", __func__, "pwm_info");
 		ret = -ENODEV;
 	}
 
@@ -329,7 +320,7 @@ static int pwm_probe(struct lcd_info *lcd)
 
 	lcd->pwm = pwm_request(pwm_id, "lcd_pwm");
 	if (IS_ERR(lcd->pwm)) {
-		dev_err(&lcd->ld->dev, "%s: error : setting fail : %d\n", __func__, ret);
+		dev_info(&lcd->ld->dev, "%s: error : setting fail : %d\n", __func__, ret);
 		ret = -EFAULT;
 	}
 
@@ -359,12 +350,12 @@ static int ltl101al06_probe(struct lcd_info *lcd)
 
 	ret = pwm_probe(lcd);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: add_PWM_driver fail.\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: add_PWM_driver fail.\n", __func__);
 
 	tc358764_id->driver_data = (kernel_ulong_t)lcd;
 	ret = i2c_add_driver(&tc358764_i2c_driver);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: add_i2c_driver fail.\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: add_i2c_driver fail.\n", __func__);
 
 	dev_info(&lcd->ld->dev, "- %s\n", __func__);
 
@@ -396,7 +387,7 @@ static void lcd_init_sysfs(struct lcd_info *lcd)
 
 	ret = sysfs_create_group(&lcd->ld->dev.kobj, &lcd_sysfs_attr_group);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "failed to add lcd sysfs\n");
+		dev_info(&lcd->ld->dev, "failed to add lcd sysfs\n");
 }
 
 
@@ -412,7 +403,7 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 		goto probe_err;
 	}
 
-	dsim->lcd = lcd->ld = lcd_device_register("panel", dsim->dev, lcd, NULL);
+	lcd->ld = lcd_device_register("panel", dsim->dev, lcd, NULL);
 	if (IS_ERR(lcd->ld)) {
 		pr_err("%s: failed to register lcd device\n", __func__);
 		ret = PTR_ERR(lcd->ld);
@@ -431,7 +422,7 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 	lcd->dsim = dsim;
 	ret = ltl101al06_probe(lcd);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: failed to probe panel\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: failed to probe panel\n", __func__);
 
 	lcd_init_sysfs(lcd);
 
@@ -486,6 +477,7 @@ exit:
 }
 
 struct mipi_dsim_lcd_driver ltl101al06_mipi_lcd_driver = {
+	.name		= "ltl101al06",
 	.probe		= dsim_panel_probe,
 	.displayon	= dsim_panel_displayon,
 	.suspend	= dsim_panel_suspend,

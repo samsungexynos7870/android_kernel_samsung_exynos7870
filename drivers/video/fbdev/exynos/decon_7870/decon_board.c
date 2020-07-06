@@ -38,7 +38,7 @@ There are 5 pre-defined types
 - GPIO(HIGH, LOW) needs gpio name information. 1 at a time.
 - REGULATOR(ENABLE, DISABLE) needs regulator name information. 1 at a time.
 - DELAY(MDELAY, MSLEEP) needs delay information for duration. 1 at a time.
-- DELAY(USLEEP) needs delay information. 2 at a time.
+- DELAY(USLEEP) needs delay information. 1 at a time. or 2 at a time.
 - PINCTRL needs pinctrl name information. 1 at a time.
 - TIMER(START, DELAY, CLEAR) needs name which is used for identification keyword. 1 at a time.
 - TIMER(START) also needs delay information. 1 at a time.
@@ -53,7 +53,7 @@ There are 5 pre-defined types
 4. example:
 decon_board = <&node>;
 node: node {
-	compatible = "simple-bus"; <- add this when you need pinctrol to create platform_device with name 'node'
+	compatible = "simple-bus"; <- add this when you need pinctrl to create platform_device with name 'node'
 
 	pinctrl-names = "pin_off", "pin_on", "backlight_pin_only"; <- pinctrl position is here not in each subnode
 	pinctrl-0 = <&backlight_pin_off &lcd_pin_off>;
@@ -67,6 +67,7 @@ node: node {
 		"regulator,enable",	"ldo1",
 		"gpio,high",	"gpio_lcd_en",
 		"delay,usleep",	"10000 11000",
+		"delay,usleep",	"10000", <- fill automatically 2nd delay 15000 (1st delay + 1st delay >> 1)
 		"pinctrl",	"pin_on",
 		"delay,msleep",	"30";
 	};
@@ -99,12 +100,12 @@ run_list(dev, "subnode_4"); pre-configured lcd_pin pinctrl at subnode_1 will be 
 #define DECON_BOARD_DTS_NAME	"decon_board"
 
 #if defined(CONFIG_BOARD_DEBUG)
-#define bd_dbg(fmt, ...)		pr_debug(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_dbg(fmt, ...)		pr_debug(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
 #else
-#define bd_dbg(fmt, ...)
+#define dbg_dbg(fmt, ...)
 #endif
-#define bd_info(fmt, ...)		pr_info(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
-#define bd_warn(fmt, ...)		pr_warn(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_info(fmt, ...)		pr_info(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
+#define dbg_warn(fmt, ...)		pr_warn(pr_fmt("%s: %3d: %s: " fmt), DECON_BOARD_DTS_NAME, __LINE__, __func__, ##__VA_ARGS__)
 
 #define STREQ(a, b)			(*(a) == *(b) && strcmp((a), (b)) == 0)
 #define STRNEQ(a, b)			(strncmp((a), (b), (strlen(a))) == 0)
@@ -177,44 +178,44 @@ static struct dt_node_info	*dt_nodes[10];
 static int print_action(struct action_info *action)
 {
 	if (!IS_ERR_OR_NULL(action->desc))
-		bd_dbg("[%2d] %s\n", action->idx, action->desc);
+		dbg_dbg("[%2d] %s\n", action->idx, action->desc);
 
 	switch (action->idx) {
 	case ACTION_GPIO_HIGH:
-		bd_dbg("[%2d] gpio(%d) high\n", action->idx, action->gpio);
+		dbg_dbg("[%2d] gpio(%d) high\n", action->idx, action->gpio);
 		break;
 	case ACTION_GPIO_LOW:
-		bd_dbg("[%2d] gpio(%d) low\n", action->idx, action->gpio);
+		dbg_dbg("[%2d] gpio(%d) low\n", action->idx, action->gpio);
 		break;
 	case ACTION_REGULATOR_ENABLE:
-		bd_dbg("[%2d] regulator(%s) enable\n", action->idx, action->supply->supply);
+		dbg_dbg("[%2d] regulator(%s) enable\n", action->idx, action->supply->supply);
 		break;
 	case ACTION_REGULATOR_DISABLE:
-		bd_dbg("[%2d] regulator(%s) disable\n", action->idx, action->supply->supply);
+		dbg_dbg("[%2d] regulator(%s) disable\n", action->idx, action->supply->supply);
 		break;
 	case ACTION_DELAY_MDELAY:
-		bd_dbg("[%2d] mdelay(%d)\n", action->idx, action->delay[0]);
+		dbg_dbg("[%2d] mdelay(%d)\n", action->idx, action->delay[0]);
 		break;
 	case ACTION_DELAY_MSLEEP:
-		bd_dbg("[%2d] msleep(%d)\n", action->idx, action->delay[0]);
+		dbg_dbg("[%2d] msleep(%d)\n", action->idx, action->delay[0]);
 		break;
 	case ACTION_DELAY_USLEEP:
-		bd_dbg("[%2d] usleep(%d %d)\n", action->idx, action->delay[0], action->delay[1]);
+		dbg_dbg("[%2d] usleep(%d %d)\n", action->idx, action->delay[0], action->delay[1]);
 		break;
 	case ACTION_PINCTRL:
-		bd_dbg("[%2d] pinctrl(%s)\n", action->idx, action->state->name);
+		dbg_dbg("[%2d] pinctrl(%s)\n", action->idx, action->state->name);
 		break;
 	case ACTION_TIMER_START:
-		bd_dbg("[%2d] timer,start(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
+		dbg_dbg("[%2d] timer,start(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
 		break;
 	case ACTION_TIMER_DELAY:
-		bd_dbg("[%2d] timer,delay(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
+		dbg_dbg("[%2d] timer,delay(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
 		break;
 	case ACTION_TIMER_CLEAR:
-		bd_dbg("[%2d] timer,clear(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
+		dbg_dbg("[%2d] timer,clear(%s %d)\n", action->idx, action->timer->name, action->timer->delay);
 		break;
 	default:
-		bd_info("[%2d] unknown idx\n", action->idx);
+		dbg_info("[%2d] unknown idx\n", action->idx);
 		break;
 	}
 
@@ -245,7 +246,7 @@ static void print_timer(struct timer_info *timer)
 	len += scnprintf(buf + len, sizeof(buf) - len, ", remain: %s", timer->end < timer->now ? "-" : "");
 	len += secprintf(buf + len, sizeof(buf) - len, remain);
 
-	bd_info("%s: delay: %d, %s\n", timer->name, timer->delay, buf);
+	dbg_info("%s: delay: %d, %s\n", timer->name, timer->delay, buf);
 }
 
 static void dump_list(struct list_head *lh)
@@ -283,7 +284,7 @@ static void dump_list(struct list_head *lh)
 		}
 	}
 
-	bd_info("gpio: %d, regulator: %d, delay: %d, pinctrl: %d, timer: %d\n", gpio, regulator, delay, pinctrl, timer);
+	dbg_info("gpio: %d, regulator: %d, delay: %d, pinctrl: %d, timer: %d\n", gpio, regulator, delay, pinctrl, timer);
 }
 
 static struct timer_info *find_timer(const char *name)
@@ -294,15 +295,15 @@ static struct timer_info *find_timer(const char *name)
 	struct action_info *action;
 	int idx = 0;
 
-	bd_dbg("%s\n", name);
+	dbg_dbg("%s\n", name);
 	while (!IS_ERR_OR_NULL(dt_nodes[idx])) {
 		dt_node = dt_nodes[idx];
 		lh = &dt_node->node;
-		bd_dbg("%dth dt_node name is %s\n", idx, dt_node->name);
+		dbg_dbg("%dth dt_node name is %s\n", idx, dt_node->name);
 		list_for_each_entry(action, lh, node) {
 			if (STRNEQ("timer", action->type)) {
 				if (action->timer && action->timer->name && STREQ(action->timer->name, name)) {
-					bd_dbg("%s is found in %s\n", action->timer->name, dt_node->name);
+					dbg_dbg("%s is found in %s\n", action->timer->name, dt_node->name);
 					return action->timer;
 				}
 			}
@@ -311,7 +312,7 @@ static struct timer_info *find_timer(const char *name)
 		BUG_ON(idx == ARRAY_SIZE(dt_nodes));
 	};
 
-	bd_info("%s is not exist, so create it\n", name);
+	dbg_info("%s is not exist, so create it\n", name);
 	timer = kzalloc(sizeof(struct timer_info), GFP_KERNEL);
 	timer->name = kstrdup(name, GFP_KERNEL);
 
@@ -341,7 +342,7 @@ static int decide_type(struct action_info *action)
 
 exit:
 	if (idx == ACTION_DUMMY || idx == ACTION_MAX) {
-		bd_warn("there is no valid idx for %s\n", type);
+		dbg_warn("there is no valid idx for %s\n", type);
 		idx = ACTION_DUMMY;
 		ret = -EINVAL;
 	}
@@ -360,7 +361,7 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 	unsigned int delay = 0;
 
 	if (!action) {
-		bd_warn("invalid action\n");
+		dbg_warn("invalid action\n");
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -368,7 +369,7 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 	subinfo = action->subinfo;
 
 	if (!subinfo || !strlen(subinfo)) {
-		bd_warn("invalid subinfo\n");
+		dbg_warn("invalid subinfo\n");
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -376,9 +377,9 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 	switch (action->idx) {
 	case ACTION_GPIO_HIGH:
 	case ACTION_GPIO_LOW:
-		action->gpio = of_get_named_gpio_flags(np->parent, subinfo, 0, NULL);
+		action->gpio = of_get_named_gpio(np->parent, subinfo, 0);
 		if (!gpio_is_valid(action->gpio)) {
-			bd_warn("of_get_named_gpio fail %d %s\n", action->gpio, subinfo);
+			dbg_warn("of_get_named_gpio fail %d %s\n", action->gpio, subinfo);
 			ret = -EINVAL;
 		}
 		break;
@@ -388,67 +389,68 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 		action->supply->supply = subinfo;
 		ret = regulator_bulk_get(NULL, 1, action->supply);
 		if (ret < 0)
-			bd_warn("regulator_bulk_get fail %d %s\n", ret, subinfo);
+			dbg_warn("regulator_bulk_get fail %d %s\n", ret, subinfo);
 		break;
 	case ACTION_DELAY_MDELAY:
 	case ACTION_DELAY_MSLEEP:
 		if (!isdigit(subinfo[0])) {
-			bd_warn("delay need digit parameter %s\n", subinfo);
+			dbg_warn("delay need digit parameter %s\n", subinfo);
 			ret = -EINVAL;
 			goto exit;
 		}
 
 		ret = kstrtouint(subinfo, 0, &action->delay[0]);
 		if (ret < 0)
-			bd_warn("kstrtouint for delay fail %d %s\n", ret, subinfo);
+			dbg_warn("kstrtouint for delay fail %d %s\n", ret, subinfo);
 		break;
 	case ACTION_DELAY_USLEEP:
 		if (!isdigit(subinfo[0])) {
-			bd_warn("delay need digit parameter %s\n", subinfo);
+			dbg_warn("delay need digit parameter %s\n", subinfo);
 			ret = -EINVAL;
 			goto exit;
 		}
 
 		ret = sscanf(subinfo, "%8d %8d", &action->delay[0], &action->delay[1]);
 		if (ret < 0) {
-			bd_warn("sscanf for delay fail %d %s\n", ret, subinfo);
+			dbg_warn("sscanf for delay fail %d %s\n", ret, subinfo);
 			ret = -EINVAL;
 		} else if (ret < 2) {
-			bd_warn("usleep need two parameters\n");
-			action->delay[1] = action->delay[0] + (action->delay[0] >> 2);
+			action->delay[1] = action->delay[0] + (action->delay[0] >> 1);
+			action->delay[1] = (action->delay[0] == action->delay[1]) ? action->delay[1] + 1 : action->delay[1];
+			dbg_warn("usleep need two parameters. 2nd delay is %d\n", action->delay[1]);
 		} else if (ret > 2) {
-			bd_warn("usleep need only two parameters\n");
+			dbg_warn("usleep need only two parameters\n");
 			ret = -EINVAL;
 		}
 
 		if (!action->delay[0] || !action->delay[1]) {
-			bd_warn("usleep parameter (%d %d) invalid\n", action->delay[0], action->delay[1]);
+			dbg_warn("usleep parameter (%d %d) invalid\n", action->delay[0], action->delay[1]);
 			ret = -EINVAL;
 		} else if (action->delay[0] > action->delay[1]) {
-			bd_warn("usleep parameter (%d %d) invalid\n", action->delay[0], action->delay[1]);
+			dbg_warn("usleep parameter (%d %d) invalid\n", action->delay[0], action->delay[1]);
 			ret = -EINVAL;
 		} else if (action->delay[0] >= MSEC_TO_USEC(SMALL_MSECS)) {
-			bd_warn("use msleep instead of usleep for (%d)us\n", action->delay[0]);
+			dbg_warn("use msleep instead of usleep for (%d)us\n", action->delay[0]);
 			ret = -EINVAL;
 		}
 		break;
 	case ACTION_PINCTRL:
 		pdev = of_find_device_by_node(np->parent);
 		if (!pdev) {
-			bd_warn("of_find_device_by_node fail\n");
+			dbg_warn("of_find_device_by_node fail\n");
 			ret = -EINVAL;
 			goto exit;
 		} else
-			bd_info("of_find_device_by_node %s for pinctrl %s\n", dev_name(&pdev->dev), subinfo);
+			dbg_info("of_find_device_by_node %s for pinctrl %s\n", dev_name(&pdev->dev), subinfo);
 
 		action->pins = devm_pinctrl_get(&pdev->dev);
 		if (IS_ERR(action->pins)) {
-			bd_warn("devm_pinctrl_get fail\n");
+			dbg_warn("devm_pinctrl_get fail\n");
 			ret = -EINVAL;
 		}
 		action->state = pinctrl_lookup_state(action->pins, subinfo);
 		if (IS_ERR(action->state)) {
-			bd_warn("pinctrl_lookup_state fail %s\n", subinfo);
+			dbg_warn("pinctrl_lookup_state fail %s\n", subinfo);
 			ret = -EINVAL;
 		}
 		break;
@@ -456,7 +458,7 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 		timer_name = kzalloc(strlen(subinfo) + 1, GFP_KERNEL);
 		ret = sscanf(subinfo, "%s %8d\n", timer_name, &delay);
 		if (ret != 2) {
-			bd_warn("timer start parameter invalid %d %s\n", ret, subinfo);
+			dbg_warn("timer start parameter invalid %d %s\n", ret, subinfo);
 			ret = -EINVAL;
 		} else {
 			action->timer = find_timer(timer_name);
@@ -464,7 +466,7 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 		}
 
 		if (action->timer->delay < SMALL_MSECS) {
-			bd_warn("use usleep instead of timer for (%d)ms\n", action->timer->delay);
+			dbg_warn("use usleep instead of timer for (%d)ms\n", action->timer->delay);
 			ret = -EINVAL;
 		}
 		kfree(timer_name);
@@ -474,12 +476,12 @@ static int decide_subinfo(struct device_node *np, struct action_info *action)
 		action->timer = find_timer(subinfo);
 		break;
 	default:
-		bd_warn("idx: %d, type: %s is invalid\n", action->idx, action->type);
+		dbg_warn("idx: %d, type: %s is invalid\n", action->idx, action->type);
 		ret = -EINVAL;
 		break;
 	}
 
-	bd_info("idx: %d, type: %s, subinfo: %s\n", action->idx, action->type, action->subinfo);
+	dbg_info("idx: %d, type: %s, subinfo: %s\n", action->idx, action->type, action->subinfo);
 exit:
 
 	return ret;
@@ -493,13 +495,21 @@ static int make_list(struct device *dev, struct list_head *lh, const char *name)
 	const char *type = NULL;
 	const char *subinfo = NULL;
 
-	np = of_parse_phandle(dev->of_node, DECON_BOARD_DTS_NAME, 0);
+	np = (dev && dev->of_node) ? dev->of_node : of_find_node_with_property(NULL, DECON_BOARD_DTS_NAME);
+	if (!np) {
+		dbg_warn("%s property does not exist, so create dummy\n", DECON_BOARD_DTS_NAME);
+		action = kzalloc(sizeof(struct action_info), GFP_KERNEL);
+		list_add_tail(&action->node, lh);
+		return -EINVAL;
+	}
+
+	np = of_parse_phandle(np, DECON_BOARD_DTS_NAME, 0);
 	if (!np)
-		bd_warn("%s node does not exist, so create dummy\n", DECON_BOARD_DTS_NAME);
+		dbg_warn("%s node does not exist, so create dummy\n", DECON_BOARD_DTS_NAME);
 
 	np = of_find_node_by_name(np, name);
 	if (!np) {
-		bd_warn("%s node does not exist, so create dummy\n", name);
+		dbg_warn("%s node does not exist in %s, so create dummy\n", name, DECON_BOARD_DTS_NAME);
 		action = kzalloc(sizeof(struct action_info), GFP_KERNEL);
 		list_add_tail(&action->node, lh);
 		return -EINVAL;
@@ -508,7 +518,7 @@ static int make_list(struct device *dev, struct list_head *lh, const char *name)
 	count = of_property_count_strings(np, "type");
 
 	if (count < 0 || !count || count % 2) {
-		bd_info("%s node type count %d invalid\n", name, count);
+		dbg_info("%s node type count %d invalid\n", name, count);
 		action = kzalloc(sizeof(struct action_info), GFP_KERNEL);
 		list_add_tail(&action->node, lh);
 		return -EINVAL;
@@ -521,7 +531,7 @@ static int make_list(struct device *dev, struct list_head *lh, const char *name)
 		of_property_read_string_index(np, "type", i * 2 + 1, &subinfo);
 
 		if (!lcdtype && !STRNEQ("delay", type) && !STRNEQ("timer", type)) {
-			bd_info("lcdtype is zero, so skip to add %s: %2d: %s\n", name, count, type);
+			dbg_info("lcdtype is zero, so skip to add %s: %2d: %s\n", name, count, type);
 			continue;
 		}
 
@@ -562,24 +572,24 @@ static int do_list(struct list_head *lh)
 		case ACTION_GPIO_HIGH:
 			ret = gpio_request_one(action->gpio, GPIOF_OUT_INIT_HIGH, NULL);
 			if (ret < 0)
-				bd_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
+				dbg_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
 			gpio_free(action->gpio);
 			break;
 		case ACTION_GPIO_LOW:
 			ret = gpio_request_one(action->gpio, GPIOF_OUT_INIT_LOW, NULL);
 			if (ret < 0)
-				bd_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
+				dbg_warn("gpio_request_one fail %d, %d, %s\n", ret, action->gpio, action->subinfo);
 			gpio_free(action->gpio);
 			break;
 		case ACTION_REGULATOR_ENABLE:
 			ret = regulator_enable(action->supply->consumer);
 			if (ret < 0)
-				bd_warn("regulator_enable fail %d, %s\n", ret, action->supply->supply);
+				dbg_warn("regulator_enable fail %d, %s\n", ret, action->supply->supply);
 			break;
 		case ACTION_REGULATOR_DISABLE:
 			ret = regulator_disable(action->supply->consumer);
 			if (ret < 0)
-				bd_warn("regulator_disable fail %d, %s\n", ret, action->supply->supply);
+				dbg_warn("regulator_disable fail %d, %s\n", ret, action->supply->supply);
 			break;
 		case ACTION_DELAY_MDELAY:
 			mdelay(action->delay[0]);
@@ -620,7 +630,7 @@ static int do_list(struct list_head *lh)
 		case ACTION_DUMMY:
 			break;
 		default:
-			bd_warn("unknown idx(%d)\n", action->idx);
+			dbg_warn("unknown idx(%d)\n", action->idx);
 			ret = -EINVAL;
 			break;
 		}
@@ -637,17 +647,17 @@ static inline struct list_head *find_list(const char *name)
 	struct dt_node_info *dt_node = NULL;
 	int idx = 0;
 
-	bd_dbg("%s\n", name);
+	dbg_dbg("%s\n", name);
 	while (!IS_ERR_OR_NULL(dt_nodes[idx])) {
 		dt_node = dt_nodes[idx];
-		bd_dbg("%dth list name is %s\n", idx, dt_node->name);
+		dbg_dbg("%dth list name is %s\n", idx, dt_node->name);
 		if (STREQ(dt_node->name, name))
 			return &dt_node->node;
 		idx++;
 		BUG_ON(idx == ARRAY_SIZE(dt_nodes));
 	};
 
-	bd_info("%s is not exist, so create it\n", name);
+	dbg_info("%s is not exist, so create it\n", name);
 	dt_node = kzalloc(sizeof(struct dt_node_info), GFP_KERNEL);
 	dt_node->name = kstrdup(name, GFP_KERNEL);
 	INIT_LIST_HEAD(&dt_node->node);
@@ -662,11 +672,49 @@ void run_list(struct device *dev, const char *name)
 	struct list_head *lh = find_list(name);
 
 	if (unlikely(list_empty(lh))) {
-		bd_info("%s is empty, so make list\n", name);
+		dbg_info("%s is empty, so make list\n", name);
 		make_list(dev, lh, name);
 		dump_list(lh);
 	}
 
 	do_list(lh);
+}
+
+static struct platform_device *of_find_device_by_path(const char *name)
+{
+	struct device_node *np = NULL;
+	struct platform_device *pdev = NULL;
+
+	if (!name) {
+		dbg_info("name is null\n");
+		return NULL;
+	}
+
+	np = of_find_node_by_path(name);
+	if (!np) {
+		dbg_info("of_find_node_by_path fail for %s\n", name);
+		return NULL;
+	}
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		dbg_info("of_find_device_by_node fail\n");
+		return NULL;
+	}
+
+	if (pdev)
+		platform_device_put(pdev);
+
+	return pdev;
+}
+
+struct platform_device *of_find_dsim_platform_device(void)
+{
+	return of_find_device_by_path("dsim0");
+}
+
+struct platform_device *of_find_decon_platform_device(void)
+{
+	return of_find_device_by_path("decon0");
 }
 

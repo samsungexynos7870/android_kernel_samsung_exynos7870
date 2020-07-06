@@ -12,45 +12,48 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <video/mipi_display.h>
-#include "../dsim.h"
-#include "../decon.h"
-#include "../decon_board.h"
-#include "dsim_panel.h"
-#include "../decon_notify.h"
-
-#include "td4310_param.h"
-#include "dd.h"
-
-#if defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
-#include "mdnie.h"
-#include "mdnie_lite_table_on7xe_td4310.h"
-#endif
-
-#define TD4310_ID_REG			0xDA	/* LCD ID1,ID2,ID3 */
-#define TD4310_ID_LEN			3
-#define BRIGHTNESS_REG			0x51
 
 #if defined(CONFIG_SEC_INCELL)
 #include <linux/sec_incell.h>
 #endif
 
+#include "../decon.h"
+#include "../decon_board.h"
+#include "../decon_notify.h"
+#include "../dsim.h"
+#include "dsim_panel.h"
+
+#include "td4310_param.h"
+#include "dd.h"
+
+#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#include "mdnie.h"
+#include "mdnie_lite_table_on7xe_td4310.h"
+#endif
+
+#define PANEL_STATE_SUSPENED	0
+#define PANEL_STATE_RESUMED	1
+#define PANEL_STATE_SUSPENDING	2
+
+#define TD4310_ID_REG			0xDA	/* LCD ID1,ID2,ID3 */
+#define TD4310_ID_LEN			3
+#define BRIGHTNESS_REG			0x51
+
 #define DSI_WRITE(cmd, size)		do {				\
 	ret = dsim_write_hl_data(lcd, cmd, size);			\
 	if (ret < 0)							\
-		dev_err(&lcd->ld->dev, "%s: failed to write %s\n", __func__, #cmd);	\
+		dev_info(&lcd->ld->dev, "%s: failed to write %s\n", __func__, #cmd);	\
 } while (0)
 
 #define DSI_WRITE_G(cmd, size)		do {				\
 	ret = dsim_write_hl_data_generic(lcd, cmd, size);			\
 	if (ret < 0)							\
-		dev_err(&lcd->ld->dev, "%s: failed to write %s\n", __func__, #cmd); \
+		dev_info(&lcd->ld->dev, "%s: failed to write %s\n", __func__, #cmd); \
 } while (0)
 
 struct lcd_info {
 	unsigned int			connected;
-	unsigned int			bl;
 	unsigned int			brightness;
-	unsigned int			current_bl;
 	unsigned int			state;
 
 	struct lcd_device		*ld;
@@ -64,31 +67,48 @@ struct lcd_info {
 		u32			value;
 	} id_info;
 
-	int						lux;
+	int				lux;
 	struct class			*mdnie_class;
 
 	struct dsim_device		*dsim;
 	struct mutex			lock;
 
 	struct notifier_block		fb_notif_panel;
-	struct i2c_client		*backlight_client;
+	struct i2c_client		*blic_client;
 };
 
 
-static int isl98611_array_write(struct lcd_info *lcd, const struct i2c_rom_data *eprom_ptr, int eprom_size)
+static int isl98611_array_write(struct i2c_client *client, u8 *ptr, u8 len)
 {
-	int i = 0;
+	unsigned int i = 0;
 	int ret = 0;
+	u8 command = 0, value = 0;
+	struct lcd_info *lcd = NULL;
 
-	if (!lcd->backlight_client || !lcdtype) {
+	if (!client)
+		return ret;
+
+	lcd = i2c_get_clientdata(client);
+	if (!lcd)
+		return ret;
+
+	if (!lcdtype) {
 		dev_info(&lcd->ld->dev, "%s: lcdtype: %d\n", __func__, lcdtype);
 		return ret;
 	}
 
-	for (i = 0; i < eprom_size; i++) {
-		ret = i2c_smbus_write_byte_data(lcd->backlight_client, eprom_ptr[i].addr, eprom_ptr[i].val);
+	if (len % 2) {
+		dev_info(&lcd->ld->dev, "%s: length(%d) invalid\n", __func__, len);
+		return ret;
+	}
+
+	for (i = 0; i < len; i += 2) {
+		command = ptr[i + 0];
+		value = ptr[i + 1];
+
+		ret = i2c_smbus_write_byte_data(client, command, value);
 		if (ret < 0)
-			dev_err(&lcd->ld->dev, "%s: fail. %d, %2x, %2x\n", __func__, ret, eprom_ptr[i].addr, eprom_ptr[i].val);
+			dev_info(&lcd->ld->dev, "%s: fail. %2x, %2x, %d\n", __func__, command, value, ret);
 	}
 
 	return ret;
@@ -110,14 +130,14 @@ static int isl98611_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&lcd->ld->dev, "%s: need I2C_FUNC_I2C\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: need I2C_FUNC_I2C\n", __func__);
 		ret = -ENODEV;
 		goto exit;
 	}
 
 	i2c_set_clientdata(client, lcd);
 
-	lcd->backlight_client = client;
+	lcd->blic_client = client;
 
 	dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, dev_name(&client->adapter->dev), of_node_full_name(client->dev.of_node));
 
@@ -125,12 +145,12 @@ exit:
 	return ret;
 }
 
-static struct i2c_device_id isl98611_id[] = {
+static struct i2c_device_id isl98611_i2c_id[] = {
 	{"isl98611", 0},
 	{},
 };
 
-MODULE_DEVICE_TABLE(i2c, isl98611_id);
+MODULE_DEVICE_TABLE(i2c, isl98611_i2c_id);
 
 static const struct of_device_id isl98611_i2c_dt_ids[] = {
 	{ .compatible = "i2c,isl98611" },
@@ -145,7 +165,7 @@ static struct i2c_driver isl98611_i2c_driver = {
 		.name	= "isl98611",
 		.of_match_table	= of_match_ptr(isl98611_i2c_dt_ids),
 	},
-	.id_table = isl98611_id,
+	.id_table = isl98611_i2c_id,
 	.probe = isl98611_probe,
 };
 
@@ -169,7 +189,7 @@ try_write:
 		if (--retry)
 			goto try_write;
 		else
-			dev_err(&lcd->ld->dev, "%s: fail. %02x, ret: %d\n", __func__, cmd[0], ret);
+			dev_info(&lcd->ld->dev, "%s: fail. %02x, ret: %d\n", __func__, cmd[0], ret);
 	}
 
 	return ret;
@@ -195,13 +215,13 @@ try_write:
 		if (--retry)
 			goto try_write;
 		else
-			dev_err(&lcd->ld->dev, "%s: fail. %02x, ret: %d\n", __func__, cmd[0], ret);
+			dev_info(&lcd->ld->dev, "%s: fail. %02x, ret: %d\n", __func__, cmd[0], ret);
 	}
 
 	return ret;
 }
 
-#if defined(CONFIG_SEC_FACTORY) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
+#if defined(CONFIG_SEC_FACTORY) || defined(CONFIG_EXYNOS_DECON_MDNIE)
 static int dsim_read_hl_data(struct lcd_info *lcd, u8 addr, u32 size, u8 *buf)
 {
 	int ret = 0, rx_size = 0;
@@ -219,12 +239,13 @@ try_read:
 	else
 		rx_size = dsim_read_data(lcd->dsim, MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM, (u32)addr, size, buf);
 
-	dev_info(&lcd->ld->dev, "%s: %02x, %d, %d\n", __func__, addr, size, rx_size);
+	dev_info(&lcd->ld->dev, "%s: %2d(%2d), %02x, %*ph%s\n", __func__, size, rx_size, addr,
+		min_t(u32, min_t(u32, size, rx_size), 5), buf, (rx_size > 5) ? "..." : "");
 	if (rx_size != size) {
 		if (--retry)
 			goto try_read;
 		else {
-			dev_err(&lcd->ld->dev, "%s: fail. %02x, %d\n", __func__, addr, rx_size);
+			dev_info(&lcd->ld->dev, "%s: fail. %02x, %d(%d)\n", __func__, addr, size, rx_size);
 			ret = -EPERM;
 		}
 	}
@@ -233,39 +254,50 @@ try_read:
 }
 #endif
 
+#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+static int dsim_write_set(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
+{
+	int ret = 0, i;
+
+	for (i = 0; i < num; i++) {
+		if (seq[i].cmd) {
+			if (seq[i].cmd[0] < 0xA0)
+				ret = dsim_write_hl_data(lcd, seq[i].cmd, seq[i].len);
+			else
+				ret = dsim_write_hl_data_generic(lcd, seq[i].cmd, seq[i].len);
+			if (ret < 0) {
+				dev_info(&lcd->ld->dev, "%s: %dth fail\n", __func__, i);
+				return ret;
+			}
+		}
+		if (seq[i].sleep)
+			usleep_range(seq[i].sleep * 1000, seq[i].sleep * 1100);
+	}
+	return ret;
+}
+#endif
+
 static int dsim_panel_set_brightness(struct lcd_info *lcd, int force)
 {
 	int ret = 0;
-	unsigned char bl_reg[2];
+	unsigned char bl_reg[2] = {0, };
 
 	mutex_lock(&lcd->lock);
 
 	lcd->brightness = lcd->bd->props.brightness;
 
-	lcd->bl = lcd->brightness;
-	lcd->bl = (lcd->bl > UI_MAX_BRIGHTNESS) ? UI_MAX_BRIGHTNESS : lcd->bl;
-
 	if (!force && lcd->state != PANEL_STATE_RESUMED) {
 		dev_info(&lcd->ld->dev, "%s: panel is not active state\n", __func__);
 		goto exit;
 	}
+
 	bl_reg[0] = BRIGHTNESS_REG;
-
-	if (lcd->bl >= UI_DEFAULT_BRIGHTNESS) {
-		bl_reg[1] = (lcd->bl - UI_DEFAULT_BRIGHTNESS) *
-			(DDI_MAX_BRIGHTNESS - DDI_DEFAULT_BRIGHTNESS) / (UI_MAX_BRIGHTNESS - UI_DEFAULT_BRIGHTNESS) + DDI_DEFAULT_BRIGHTNESS;
-	} else if (lcd->bl >= UI_MIN_BRIGHTNESS) {
-		bl_reg[1] = (lcd->bl - UI_MIN_BRIGHTNESS) *
-			(DDI_DEFAULT_BRIGHTNESS - DDI_MIN_BRIGHTNESS) / (UI_DEFAULT_BRIGHTNESS - UI_MIN_BRIGHTNESS) + DDI_MIN_BRIGHTNESS;
-	} else
-		bl_reg[1] = 0x00;
-
-	if (LEVEL_IS_HBM(lcd->brightness))
-		bl_reg[1] = DDI_OUTDOOR_BRIGHTNESS;
+	bl_reg[1] = brightness_table[lcd->brightness];
 
 	DSI_WRITE(bl_reg, ARRAY_SIZE(bl_reg));
-	dev_info(&lcd->ld->dev, "%s: platform BL : %d panel BL reg : %d\n", __func__, lcd->bd->props.brightness, bl_reg[1]);
 
+	dev_info(&lcd->ld->dev, "%s: brightness: %3d, %3d(%2x), lx: %d\n", __func__,
+		lcd->brightness, bl_reg[1], bl_reg[1], lcd->lux);
 exit:
 	mutex_unlock(&lcd->lock);
 
@@ -274,7 +306,9 @@ exit:
 
 static int panel_get_brightness(struct backlight_device *bd)
 {
-	return bd->props.brightness;
+	struct lcd_info *lcd = bl_get_data(bd);
+
+	return brightness_table[lcd->brightness];
 }
 
 static int panel_set_brightness(struct backlight_device *bd)
@@ -285,7 +319,7 @@ static int panel_set_brightness(struct backlight_device *bd)
 	if (lcd->state == PANEL_STATE_RESUMED) {
 		ret = dsim_panel_set_brightness(lcd, 0);
 		if (ret < 0)
-			dev_err(&lcd->ld->dev, "%s: failed to set brightness\n", __func__);
+			dev_info(&lcd->ld->dev, "%s: failed to set brightness\n", __func__);
 	}
 
 	return ret;
@@ -316,6 +350,10 @@ static int td4310_read_id(struct lcd_info *lcd)
 {
 	struct panel_private *priv = &lcd->dsim->priv;
 	int i, ret = 0;
+	struct decon_device *decon = get_decon_drvdata(0);
+	static char *LDI_BIT_DESC_ID[BITS_PER_BYTE * TD4310_ID_LEN] = {
+		[0 ... 23] = "ID Read Fail",
+	};
 
 	lcd->id_info.value = 0;
 	priv->lcdconnected = lcd->connected = lcdtype ? 1 : 0;
@@ -337,7 +375,10 @@ static int td4310_read_id(struct lcd_info *lcd)
 
 	if (ret < 0 || !lcd->id_info.value) {
 		priv->lcdconnected = lcd->connected = 0;
-		dev_err(&lcd->ld->dev, "%s: connected lcd is invalid\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: connected lcd is invalid\n", __func__);
+
+		if (!lcdtype && decon)
+			decon_abd_save_bit(&decon->abd, BITS_PER_BYTE * TD4310_ID_LEN, cpu_to_be32(lcd->id_info.value), LDI_BIT_DESC_ID);
 	}
 
 	dev_info(&lcd->ld->dev, "%s: %x\n", __func__, cpu_to_be32(lcd->id_info.value));
@@ -358,8 +399,6 @@ static int td4310_displayon_late(struct lcd_info *lcd)
 
 	DSI_WRITE(SEQ_DISPLAY_ON, ARRAY_SIZE(SEQ_DISPLAY_ON));
 	DSI_WRITE(SEQ_TD4310_BLON, ARRAY_SIZE(SEQ_TD4310_BLON));
-
-	dsim_panel_set_brightness(lcd, 1);
 
 	return ret;
 }
@@ -461,8 +500,13 @@ static int fb_notifier_callback(struct notifier_block *self,
 	if (evdata->info->node)
 		return NOTIFY_DONE;
 
-	if (fb_blank == FB_BLANK_UNBLANK)
+	if (fb_blank == FB_BLANK_UNBLANK) {
+		mutex_lock(&lcd->lock);
 		td4310_displayon_late(lcd);
+		mutex_unlock(&lcd->lock);
+
+		dsim_panel_set_brightness(lcd, 1);
+	}
 
 	return NOTIFY_DONE;
 }
@@ -500,7 +544,7 @@ static int td4310_probe(struct lcd_info *lcd)
 
 	ret = td4310_read_init_info(lcd);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: failed to init information\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: failed to init information\n", __func__);
 
 	lcd->fb_notif_panel.notifier_call = fb_notifier_callback;
 	decon_register_notifier(&lcd->fb_notif_panel);
@@ -509,7 +553,7 @@ static int td4310_probe(struct lcd_info *lcd)
 	incell_data.blank_unblank = incell_blank_unblank;
 #endif
 
-	isl98611_id->driver_data = (kernel_ulong_t)lcd;
+	isl98611_i2c_id->driver_data = (kernel_ulong_t)lcd;
 	i2c_add_driver(&isl98611_i2c_driver);
 
 	dev_info(&lcd->ld->dev, "- %s\n", __func__);
@@ -532,7 +576,7 @@ static ssize_t window_type_show(struct device *dev,
 {
 	struct lcd_info *lcd = dev_get_drvdata(dev);
 
-	sprintf(buf, "%x %x %x\n", lcd->id_info.id[0], lcd->id_info.id[1], lcd->id_info.id[2]);
+	sprintf(buf, "%02x %02x %02x\n", lcd->id_info.id[0], lcd->id_info.id[1], lcd->id_info.id[2]);
 
 	return strlen(buf);
 }
@@ -563,7 +607,7 @@ static ssize_t lux_store(struct device *dev,
 		lcd->lux = value;
 		mutex_unlock(&lcd->lock);
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE)
 		attr_store_for_each(lcd->mdnie_class, attr->attr.name, buf, size);
 #endif
 	}
@@ -589,38 +633,17 @@ static const struct attribute_group lcd_sysfs_attr_group = {
 static void lcd_init_sysfs(struct lcd_info *lcd)
 {
 	int ret = 0;
-	struct i2c_client *clients[] = {lcd->backlight_client, NULL};
+	struct i2c_client *clients[] = {lcd->blic_client, NULL};
 
 	ret = sysfs_create_group(&lcd->ld->dev.kobj, &lcd_sysfs_attr_group);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "failed to add lcd sysfs\n");
+		dev_info(&lcd->ld->dev, "failed to add lcd sysfs\n");
 
 	init_debugfs_backlight(lcd->bd, NULL, clients);
 }
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
-static int mdnie_lite_write_set(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
-{
-	int ret = 0, i;
-
-	for (i = 0; i < num; i++) {
-		if (seq[i].cmd) {
-			if (seq[i].cmd[0] < 0xA0)
-				ret = dsim_write_hl_data(lcd, seq[i].cmd, seq[i].len);
-			else
-				ret = dsim_write_hl_data_generic(lcd, seq[i].cmd, seq[i].len);
-			if (ret < 0) {
-				dev_info(&lcd->ld->dev, "%s: %dth fail\n", __func__, i);
-				return ret;
-			}
-		}
-		if (seq[i].sleep)
-			usleep_range(seq[i].sleep * 1000, seq[i].sleep * 1100);
-	}
-	return ret;
-}
-
-static int mdnie_lite_send_seq(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+static int mdnie_send_seq(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
 {
 	int ret = 0;
 
@@ -630,13 +653,13 @@ static int mdnie_lite_send_seq(struct lcd_info *lcd, struct lcd_seq_info *seq, u
 	}
 
 	mutex_lock(&lcd->lock);
-	ret = mdnie_lite_write_set(lcd, seq, num);
+	ret = dsim_write_set(lcd, seq, num);
 	mutex_unlock(&lcd->lock);
 
 	return ret;
 }
 
-static int mdnie_lite_read(struct lcd_info *lcd, u8 addr, u8 *buf, u32 size)
+static int mdnie_read(struct lcd_info *lcd, u8 addr, u8 *buf, u32 size)
 {
 	int ret = 0;
 
@@ -665,7 +688,7 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 		goto probe_err;
 	}
 
-	dsim->lcd = lcd->ld = lcd_device_register("panel", dsim->dev, lcd, NULL);
+	lcd->ld = lcd_device_register("panel", dsim->dev, lcd, NULL);
 	if (IS_ERR(lcd->ld)) {
 		pr_err("%s: failed to register lcd device\n", __func__);
 		ret = PTR_ERR(lcd->ld);
@@ -684,12 +707,12 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 	lcd->dsim = dsim;
 	ret = td4310_probe(lcd);
 	if (ret < 0)
-		dev_err(&lcd->ld->dev, "%s: failed to probe panel\n", __func__);
+		dev_info(&lcd->ld->dev, "%s: failed to probe panel\n", __func__);
 
 	lcd_init_sysfs(lcd);
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
-	mdnie_register(&lcd->ld->dev, lcd, (mdnie_w)mdnie_lite_send_seq, (mdnie_r)mdnie_lite_read, NULL, &tune_info);
+#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+	mdnie_register(&lcd->ld->dev, lcd, (mdnie_w)mdnie_send_seq, (mdnie_r)mdnie_read, NULL, &tune_info);
 	lcd->mdnie_class = get_mdnie_class();
 #endif
 
@@ -704,13 +727,12 @@ static int dsim_panel_resume_early(struct dsim_device *dsim)
 
 	dev_info(&lcd->ld->dev, "+ %s\n", __func__);
 
-	/* VSP VSN setting, So, It should be called before power enabling */
 #if defined(CONFIG_SEC_FACTORY)
-	isl98611_array_write(lcd, ISL98611_RESET, ARRAY_SIZE(ISL98611_RESET));
+	isl98611_array_write(lcd->blic_client, ISL98611_RESET, ARRAY_SIZE(ISL98611_RESET));
 	msleep(100);
 	dev_info(&lcd->ld->dev, "%s: BLIC_RESET\n", __func__);
 #else
-	isl98611_array_write(lcd, ISL98611_INIT, ARRAY_SIZE(ISL98611_INIT));
+	isl98611_array_write(lcd->blic_client, ISL98611_INIT, ARRAY_SIZE(ISL98611_INIT));
 	dev_info(&lcd->ld->dev, "%s: BLIC_Configuration\n", __func__);
 #endif
 
@@ -763,6 +785,7 @@ exit:
 }
 
 struct mipi_dsim_lcd_driver td4310_mipi_lcd_driver = {
+	.name		= "td4310",
 	.probe		= dsim_panel_probe,
 	.resume_early	= dsim_panel_resume_early,
 	.displayon	= dsim_panel_displayon,
@@ -780,3 +803,4 @@ static int td4310_module_init(void)
 }
 
 module_init(td4310_module_init);
+
