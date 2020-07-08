@@ -1749,9 +1749,6 @@ struct task_struct {
 	unsigned int	sequential_io;
 	unsigned int	sequential_io_avg;
 #endif
-#ifdef CONFIG_SDP
-	unsigned int sensitive;
-#endif
 #ifdef CONFIG_FIVE
 	struct task_integrity *integrity;
 #endif
