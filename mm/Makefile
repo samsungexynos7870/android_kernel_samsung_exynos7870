@@ -91,4 +91,3 @@ obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
 obj-$(CONFIG_CMA)	+= cma.o
 obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
 obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
-obj-$(CONFIG_SEC_PHCOMP)+= phcomp.o

@@ -2449,16 +2449,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	 * should succeed, so it did not defer compaction. But here we know
 	 * that it didn't succeed, so we do the defer.
 	 */
-	 
-#ifdef CONFIG_SEC_PHCOMP	 
-	if (last_compact_zone && mode != MIGRATE_ASYNC) {
-	    count_vm_event(COMPACTCALLDEFER);
-		defer_compaction(last_compact_zone, order);	 
-	}
-#else 	 
 	if (last_compact_zone && mode != MIGRATE_ASYNC)
 		defer_compaction(last_compact_zone, order);
-#endif
 	/*
 	 * It's bad if compaction run occurs and fails. The most likely reason
 	 * is that pages exist, but not enough to satisfy watermarks.

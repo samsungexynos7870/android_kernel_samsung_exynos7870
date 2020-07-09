@@ -858,12 +858,6 @@ const char * const vmstat_text[] = {
 	"compact_stall",
 	"compact_fail",
 	"compact_success",
-#ifdef CONFIG_SEC_PHCOMP	
-	"compact_defered",
-	"compact_call_defer",
-	"phcomp_defered",
-	"phcomp_call_defer",
-#endif	
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE

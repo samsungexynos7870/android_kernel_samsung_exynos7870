@@ -1374,9 +1374,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			 * succeeds in this zone.
 			 */
 			compaction_defer_reset(zone, order, false);
-#ifdef CONFIG_SEC_PHCOMP
-			count_vm_event(COMPACTCALLDEFER);
-#endif			
 			/*
 			 * It is possible that async compaction aborted due to
 			 * need_resched() and the watermarks were ok thanks to
@@ -1508,40 +1505,6 @@ static void compact_nodes(void)
 	for_each_online_node(nid)
 		compact_node(nid);
 }
-
-#ifdef CONFIG_SEC_PHCOMP
-void call_compact_node(int nid, struct zone* zone, int order)
-{
-	int ret;
-	struct compact_control cc = {
-		.nr_freepages = 0,
-		.nr_migratepages = 0,
-		.ignore_skip_hint = true,
-		.order = order,
-		.zone = zone,
-		.mode = MIGRATE_SYNC_LIGHT,
-	};
-	INIT_LIST_HEAD(&cc.freepages);
-	INIT_LIST_HEAD(&cc.migratepages);
-	
-	ret = compact_zone(zone, &cc);
-	
-	if( zone_watermark_ok(zone, cc.order, low_wmark_pages(zone), 0, 0) )
-	{
-		if( cc.order >= zone->compact_order_failed )
-			zone->compact_order_failed = cc.order + 1;	
-	}
-	else if( ret == COMPACT_COMPLETE )
-	{
-		count_vm_event(PHCOMPCALLDEFER);
-		defer_compaction( zone, cc.order );
-	}
-
-	VM_BUG_ON(!list_empty(&cc.freepages));
-	VM_BUG_ON(!list_empty(&cc.migratepages));	
-	
-}
-#endif
 
 /* The written value is actually unused, all memory is compacted */
 int sysctl_compact_memory;

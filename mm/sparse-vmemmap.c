@@ -126,10 +126,9 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
 
 pud_t * __meminit vmemmap_pud_populate(pgd_t *pgd, unsigned long addr, int node)
 {
-	void *p = NULL ;
 	pud_t *pud = pud_offset(pgd, addr);
 	if (pud_none(*pud)) {
-		p = vmemmap_alloc_block(PAGE_SIZE, node);
+		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
 		if (!p)
 			return NULL;
 		pud_populate(&init_mm, pud, p);

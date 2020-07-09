@@ -2432,7 +2432,7 @@ bool single_task_running(void)
 }
 EXPORT_SYMBOL(single_task_running);
 
-#if defined(CONFIG_SCHED_HMP) || defined(CONFIG_SEC_PHCOMP)
+#if defined(CONFIG_SCHED_HMP)
 unsigned long nr_running_cpu(unsigned int cpu)
 {
 	return cpu_rq(cpu)->nr_running;

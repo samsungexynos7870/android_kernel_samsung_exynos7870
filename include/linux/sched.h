@@ -187,9 +187,6 @@ extern int register_hmp_task_migration_notifier(struct notifier_block *nb);
 #define HMP_UP_MIGRATION       0
 #define HMP_DOWN_MIGRATION     1
 #endif
-#ifdef CONFIG_SEC_PHCOMP
-extern unsigned long nr_running_cpu(unsigned int cpu);
-#endif
 
 extern void calc_global_load(unsigned long ticks);
 extern void update_cpu_load_nohz(void);
