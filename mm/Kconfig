@@ -259,12 +259,6 @@ config COMPACTION
 	depends on MMU
 	help
 	  Allows the compaction of memory for the allocation of huge pages.
-config SEC_PHCOMP
-	bool "Allow for Predictive Hidden Compaction"
-	def_bool n
-	depends on COMPACTION
-	help
-	  do compaction during cpu c2 state
 
 #
 # support for page migration
@@ -327,7 +321,6 @@ config VIRT_TO_BUS
 	  An architecture should select this if it implements the
 	  deprecated interface virt_to_bus().  All new architectures
 	  should probably not select this.
-
 
 config MMU_NOTIFIER
 	bool
@@ -643,44 +636,11 @@ config MAX_STACK_SIZE_MB
 
 	  A sane initial value is 80 MB.
 
-config MMAP_READAROUND_LIMIT
-	int "Limit mmap readaround upperbound"
-	default 0
-	help
-	  Inappropriate mmap readaround size can hurt device performance
-	  during the sluggish situation. Add the hard upper-limit for
-	  mmap readaround.
-
-config BALANCE_ANON_FILE_RECLAIM
-	bool "During reclaim treat anon and file backed pages equally"
-	depends on SWAP
-	help
-	  When performing memory reclaim treat anonymous and file backed pages
-	  equally.
-	  Swapping anonymous pages out to memory can be efficient enough to justify
-	  treating anonymous and file backed pages equally.
-
 config VMPRESSURE_LEVEL_MED
 	int "Threshold to account memory pressure"
 	default 60
 	help
 	  This supports to adjust vmpressure_level_med threshold value
-
-config LARGE_DIRTY_BUFFER
-    bool "Use large dirty_threshold value by enabling dirty_ratio"
-    default n
-    help
-     This config enables dirty_ratio/dirty_background_ratio,
-     and it means large dirty_threshold value in 64bit architectures.
-     If unsure, say N to use kernel default value
-
-config MAX_DIRTY_THRESH_PAGES
-   int "The upper bound of VM dirty_thresh value in number of pages"
-   default 0
-   help
-    This value is the upper bound of VM dirty-thresh. (0 means no limit.)
-    It is only effective when dirty_ratio is used.
-    (Setting dirty_bytes disables this option.)
 
 config FAULT_AROUND_4KB
 	bool "Fault around bytes 4KB"

@@ -71,21 +71,13 @@ static long ratelimit_pages = 32;
 /*
  * Start background writeback (via writeback threads) at this percentage
  */
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
-int dirty_background_ratio = 5;
-#else
-int dirty_background_ratio;
-#endif
+int dirty_background_ratio = 10;
 
 /*
  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
  * dirty_background_ratio * the amount of dirtyable memory
  */
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long dirty_background_bytes;
-#else
-unsigned long dirty_background_bytes = 25 * 1024 * 1024;
-#endif
 
 /*
  * free highmem will not be subtracted from the total free memory
@@ -96,21 +88,13 @@ int vm_highmem_is_dirtyable;
 /*
  * The generator of dirty data starts writeback at this percentage
  */
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
 int vm_dirty_ratio = 20;
-#else
-int vm_dirty_ratio;
-#endif
 
 /*
  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
  * vm_dirty_ratio * the amount of dirtyable memory
  */
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long vm_dirty_bytes;
-#else
-unsigned long vm_dirty_bytes = 50 * 1024 * 1024;
-#endif
 
 /*
  * The interval between `kupdate'-style writebacks
