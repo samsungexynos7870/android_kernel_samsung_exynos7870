@@ -312,12 +312,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		 */
 		mq->queue->nr_requests = BLKDEV_MAX_RQ / 8;
 		if (mq->queue->nr_requests < 32) mq->queue->nr_requests = 32;
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
-		/* apply more throttle on external sdcard */
-		mq->queue->backing_dev_info.capabilities |= BDI_CAP_STRICTLIMIT;
-		bdi_set_min_ratio(&mq->queue->backing_dev_info, 30);
-		bdi_set_max_ratio(&mq->queue->backing_dev_info, 60);
-#endif
 		pr_info("Parameters for external-sdcard: min/max_ratio: %u/%u "
 			"strictlimit: on nr_requests: %lu read_ahead_kb: %lu\n",
 			mq->queue->backing_dev_info.min_ratio,
@@ -365,12 +359,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
-
-#ifdef CONFIG_LARGE_DIRTY_BUFFER
-	/* Restore bdi min/max ratio before device removal */
-	bdi_set_min_ratio(&q->backing_dev_info, 0);
-	bdi_set_max_ratio(&q->backing_dev_info, 100);
-#endif
 
 	/* Empty the queue */
 	spin_lock_irqsave(q->queue_lock, flags);
