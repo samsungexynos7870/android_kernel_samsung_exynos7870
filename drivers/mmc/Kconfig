@@ -24,11 +24,6 @@ config MMC_BLOCK_DEFERRED_RESUME
 	depends on MMC != n
 	default n
 
-config MMC_SUPPORT_STLOG
-	bool "Enable storage log"
-	depends on MMC && PROC_STLOG
-	default y
-
 if MMC
 
 source "drivers/mmc/core/Kconfig"

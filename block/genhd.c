@@ -20,11 +20,7 @@
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
 
-#ifdef CONFIG_BLOCK_SUPPORT_STLOG
-#include <linux/fslog.h>
-#else
 #define ST_LOG(fmt, ...)
-#endif
 
 #include "blk.h"
 
@@ -518,11 +514,6 @@ static void register_disk(struct gendisk *disk)
 	struct hd_struct *part;
 	int err;
 
-#ifdef CONFIG_BLOCK_SUPPORT_STLOG
-	int major = disk->major;
-	int first_minor = disk->first_minor;
-#endif
-
 	ddev->parent = disk->driverfs_dev;
 
 	dev_set_name(ddev, "%s", disk->disk_name);
@@ -652,10 +643,6 @@ void del_gendisk(struct gendisk *disk)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-#ifdef CONFIG_BLOCK_SUPPORT_STLOG
-	struct device *dev;
-#endif
-
 	disk_del_events(disk);
 
 	/* invalidate stuff */
@@ -685,11 +672,6 @@ void del_gendisk(struct gendisk *disk)
 	if (!sysfs_deprecated)
 		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
-#ifdef CONFIG_BLOCK_SUPPORT_STLOG
-	dev = disk_to_dev(disk);
-	ST_LOG("<%s> KOBJ_REMOVE %d:%d %s", __func__,
-		MAJOR(dev->devt), MINOR(dev->devt), dev->kobj.name);
-#endif
 	device_del(disk_to_dev(disk));
 }
 EXPORT_SYMBOL(del_gendisk);

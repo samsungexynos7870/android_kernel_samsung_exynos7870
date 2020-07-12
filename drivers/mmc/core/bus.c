@@ -26,11 +26,7 @@
 #include "sdio_cis.h"
 #include "bus.h"
 
-#ifdef CONFIG_MMC_SUPPORT_STLOG
-#include <linux/fslog.h>
-#else
 #define ST_LOG(fmt,...)
-#endif
 
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
 

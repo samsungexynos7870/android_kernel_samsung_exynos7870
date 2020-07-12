@@ -112,8 +112,3 @@ config FAT_VIRTUAL_XATTR_SELINUX_LABEL
 	default "u:object_r:sdcard_external:s0"
 	help
 	  Set this to the default string for SELinux label.
-
-config FAT_SUPPORT_STLOG
-	bool "Enable storage log"
-	default y
-	depends on FAT_FS && PROC_STLOG

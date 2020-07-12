@@ -49,11 +49,7 @@
 #include "queue.h"
 #include "../core/core.h"
 
-#ifdef CONFIG_MMC_SUPPORT_STLOG
-#include <linux/fslog.h>
-#else
 #define ST_LOG(fmt,...)
-#endif
 
 MODULE_ALIAS("mmc:block");
 
