@@ -2056,7 +2056,7 @@ struct ect_bin *ect_binary_get_bin(void *block, char *binary_name)
 	return NULL;
 }
 
-int ect_parse_binary_header(void)
+int __init ect_parse_binary_header(void)
 {
 	int ret = 0;
 	int i, j;
