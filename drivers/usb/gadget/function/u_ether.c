@@ -785,14 +785,12 @@ static int alloc_tx_buffer(struct eth_dev *dev)
 				/* size of rndis_packet_msg_type */
 				+ 44
 				+ 22));
-
 #ifdef CONFIG_USB_NCM_ACCUMULATE_MULTPKT
 	if (dev->port_usb->is_fixed) {
 		dev->tx_req_bufsize = dev->port_usb->fixed_in_len;
 		DEBUG_NCM("usb: tx_req_bufsize(%ld) \n",dev->tx_req_bufsize);
 	}
 #endif
-
 	list_for_each(act, &dev->tx_reqs) {
 		req = container_of(act, struct usb_request, list);
 		if (!req->buf) {
@@ -800,7 +798,6 @@ static int alloc_tx_buffer(struct eth_dev *dev)
 						GFP_ATOMIC);
 			goto free_buf;
 		}
-
 #ifdef CONFIG_USB_NCM_ACCUMULATE_MULTPKT
 		if (dev->port_usb->is_fixed) {
 			memcpy(req->buf,dev->port_usb->header,dev->port_usb->header_len);
@@ -809,7 +806,6 @@ static int alloc_tx_buffer(struct eth_dev *dev)
 		}
 #endif
 	}
-
 	return 0;
 
 free_buf:
@@ -909,8 +905,13 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	list_del(&req->list);
 
 	/* temporarily stop TX queue when the freelist empties */
+#ifdef CONFIG_USB_RNDIS_MULTIPACKET
+	if (list_empty(&dev->tx_reqs) && (dev->tx_skb_hold_count >= (dev->dl_max_pkts_per_xfer -1)))
+		netif_stop_queue(net);
+#else
 	if (list_empty(&dev->tx_reqs))
 		netif_stop_queue(net);
+#endif
 	spin_unlock_irqrestore(&dev->req_lock, flags);
 
 	/* no buffer copies needed, unless the network stack did it
