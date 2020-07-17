@@ -48,15 +48,6 @@
 /*  FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY                       */
 /************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
-	/* EMPTY */
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) */
-static struct backing_dev_info *inode_to_bdi(struct inode *bd_inode)
-{
-	return bd_inode->i_mapping->backing_dev_info;
-}
-#endif
-
 /*======================================================================*/
 /*  Function Definitions                                                */
 /*======================================================================*/
