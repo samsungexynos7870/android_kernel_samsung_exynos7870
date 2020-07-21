@@ -157,10 +157,6 @@ struct fuse_file {
 
 	/** Has flock been performed on this file? */
 	bool flock:1;
-
-	/* the read write file */
-	struct file *rw_lower_file;
-	bool shortcircuit_enabled;
 };
 
 /** One input argument of a request */
@@ -369,9 +365,6 @@ struct fuse_req {
 
 	/** Request is stolen from fuse_file->reserved_req */
 	struct file *stolen_file;
-
-	/** fuse shortcircuit file  */
-	struct file *private_lower_rw_file;
 };
 
 /**
@@ -404,9 +397,6 @@ struct fuse_conn {
 
 	/** Maximum write size */
 	unsigned max_write;
-
-	/** Free space reserve size */
-	unsigned reserved_space_mb;
 
 	/** Readers of the connection are waiting on this */
 	wait_queue_head_t waitq;
@@ -495,9 +485,6 @@ struct fuse_conn {
 
 	/** write-back cache policy (default is write-through) */
 	unsigned writeback_cache:1;
-
-	/** Shortcircuited IO. */
-	unsigned shortcircuit_io:1;
 
 	/*
 	 * The following bitfields are only for optimization purposes

@@ -250,7 +250,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			spin_unlock(&fc->lock);
 		}
 		kfree(forget);
-		if (err || fuse_invalid_attr(&outarg.attr) ||
+		if (ret || fuse_invalid_attr(&outarg.attr) ||
 		    (outarg.attr.mode ^ inode->i_mode) & S_IFMT)
 			goto invalid;
 
@@ -511,9 +511,6 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	err = req->out.h.error;
 	if (err)
 		goto out_free_ff;
-
-	if (req->private_lower_rw_file != NULL)
-		ff->rw_lower_file = req->private_lower_rw_file;
 
 	err = -EIO;
 	if (!S_ISREG(outentry.attr.mode) || invalid_nodeid(outentry.nodeid) ||
