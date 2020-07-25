@@ -15,11 +15,6 @@
 		#size-cells = <1>;
 		ranges;
 
-		tima_mem: tima_region@0x52A00000 {
-			compatible = "removed-dma-pool";
-			reg = <0x0 0x52A00000 0x200000>;
-		};
-
 		gnss_if {
 			compatible = "exynos7870,gnss_if";
 			reg = <0 0xB7C00000 0x400000>;
