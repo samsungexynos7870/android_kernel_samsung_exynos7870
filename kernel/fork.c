@@ -89,10 +89,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-#endif
-
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
  */
@@ -589,7 +585,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 	mm_init_cpumask(mm);
 	mm_init_aio(mm);
 	mm_init_owner(mm, p);
-	RCU_INIT_POINTER(mm->exe_file, NULL);
 	mmu_notifier_mm_init(mm);
 	clear_tlb_flush_pending(mm);
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
@@ -1812,10 +1807,6 @@ long do_fork(unsigned long clone_flags,
 
 		pid = get_task_pid(p, PIDTYPE_PID);
 		nr = pid_vnr(pid);
-
-#ifdef CONFIG_SECURITY_DEFEX
-		task_defex_zero_creds(p);
-#endif
 
 		if (clone_flags & CLONE_PARENT_SETTID)
 			put_user(nr, parent_tidptr);

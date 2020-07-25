@@ -61,10 +61,6 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-#endif
-
 static void exit_mm(struct task_struct *tsk);
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
@@ -675,10 +671,6 @@ void do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 	TASKS_RCU(int tasks_rcu_i);
-
-#ifdef CONFIG_SECURITY_DEFEX
-	task_defex_zero_creds(current);
-#endif
 
 	profile_task_exit(tsk);
 
