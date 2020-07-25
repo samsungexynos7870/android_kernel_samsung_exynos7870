@@ -13,7 +13,7 @@ obj-				:=
 # Samsung Battery
 obj-$(CONFIG_BATTERY_SAMSUNG)	+= sec_batt.o
 
-# Samsung TN Features 
+# Samsung TN Features
 obj-$(CONFIG_SEC_EXT)		+= sec_log.o
 # Samsung TN Sysfs Feature
 obj-$(CONFIG_SEC_SYSFS)		+= sec_sysfs.o

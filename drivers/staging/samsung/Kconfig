@@ -115,13 +115,6 @@ config ARGOS
 	  Check throughput and set appropriate system parameters(CPU freq, affinity, etc)
 
 comment "Samsung TN Logging Options"
-config SEC_AVC_LOG
-	default n
-	bool "Enable avc audit log support" if EMBEDDED
-	depends on SEC_EXT
-	help
-	  This option enables additional log buffer for audit log.
-
 config SEC_DEBUG_TSP_LOG
 	default n
 	bool "Enable tsp log support" if EMBEDDED

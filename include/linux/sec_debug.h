@@ -237,15 +237,6 @@ extern void sec_debug_save_last_kmsg(unsigned char *head_ptr, unsigned char *cur
 #define sec_debug_save_last_kmsg(a, b, c)		do { } while (0)
 #endif /* CONFIG_SEC_DEBUG_LAST_KMSG */
 
-/*
- * Samsung TN Logging Options
- */
-#ifdef CONFIG_SEC_AVC_LOG
-extern void sec_debug_avc_log(char *fmt, ...);
-#else
-#define sec_debug_avc_log(a, ...)		do { } while (0)
-#endif /* CONFIG_SEC_AVC_LOG */
-
 /**
  * sec_debug_tsp_log : Leave tsp log in tsp_msg file.
  * ( Timestamp + Tsp logs )
