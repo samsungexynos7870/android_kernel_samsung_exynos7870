@@ -74,7 +74,6 @@
 #include <linux/uprobes.h>
 #include <linux/aio.h>
 #include <linux/compiler.h>
-#include <linux/workqueue.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -636,15 +635,12 @@ static void check_mm(struct mm_struct *mm)
 struct mm_struct *mm_alloc(void)
 {
 	struct mm_struct *mm;
-	struct work_struct putwork;
 
 	mm = allocate_mm();
 	if (!mm)
 		return NULL;
 
-	putwork = mm->async_put_work;
 	memset(mm, 0, sizeof(*mm));
-	mm->async_put_work = putwork;
 	return mm_init(mm, current);
 }
 
@@ -910,16 +906,13 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 static struct mm_struct *dup_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm, *oldmm = current->mm;
-	struct work_struct putwork;
 	int err;
 
 	mm = allocate_mm();
 	if (!mm)
 		goto fail_nomem;
 
-	putwork = mm->async_put_work;
 	memcpy(mm, oldmm, sizeof(*mm));
-	mm->async_put_work = putwork;
 
 	if (!mm_init(mm, tsk))
 		goto fail_nomem;
