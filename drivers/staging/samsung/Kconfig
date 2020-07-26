@@ -33,28 +33,12 @@ config SEC_DEBUG_RESET_REASON
 	  This option enables storing reset reason history file
 	  This option enables reading the reset reason history using proc/reset_reason file
 
-config SEC_DEBUG_EXTRA_INFO
-	bool "Enable TN reset reason extra info"
-	depends on SEC_DEBUG && SEC_DEBUG_RESET_REASON
-	default n
-	help
-	  This option enables storing reset reason extra info
-	  This option enables ap reset info bigdata based on reset reason extra info
-
 config SEC_DEBUG_HW_PARAM
 	bool "Enable TN HW PARAM bigdata info"
 	depends on SEC_DEBUG && SEC_DEBUG_RESET_REASON
 	default n
 	help
 	  This option enables storing hw param bigdata info
-
-config SEC_DEBUG_AUTO_SUMMARY
-	bool "Enable TN kernel fault auto summary"
-	depends on SEC_DEBUG
-	default n
-	help
-	  This option enables kernel fault auto summary feature
-	  This option also requires bootloader change that enables auto summary extraction along with ramdump
 
 config SEC_DEBUG_LAST_KMSG
 	bool "Write last_kmsg at /proc/last_kmsg"

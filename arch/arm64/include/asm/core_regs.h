@@ -75,12 +75,6 @@
 #define ARMV8_CORTEXA57	(0xd07)
 #endif
 
-#ifdef CONFIG_EXYNOS_CORESIGHT_PC_INFO
-extern void exynos_cs_show_pcval(void);
-#else
-#define exynos_cs_show_pcval()	do { } while(0)
-#endif
-
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETM
 /* TMC(ETB/ETF/ETR) registers  */
 #define TMCRSZ			(0x004)

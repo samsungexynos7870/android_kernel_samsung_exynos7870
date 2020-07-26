@@ -53,16 +53,12 @@ static void spin_dump(raw_spinlock_t *lock, const char *msg)
 {
 	struct task_struct *owner = READ_ONCE(lock->owner);
 
-	if (!printk_ratelimit())
-		return;
-
 	if (owner == SPINLOCK_OWNER_INIT)
 		owner = NULL;
-
-	pr_auto(ASL8, "BUG: spinlock %s on CPU#%d, %s/%d\n",
+	printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
 		msg, raw_smp_processor_id(),
 		current->comm, task_pid_nr(current));
-	pr_auto(ASL8, " lock: %pS, .magic: %08x, .owner: %s/%d, "
+	printk(KERN_EMERG " lock: %pS, .magic: %08x, .owner: %s/%d, "
 			".owner_cpu: %d\n",
 		lock, READ_ONCE(lock->magic),
 		owner ? owner->comm : "<none>",

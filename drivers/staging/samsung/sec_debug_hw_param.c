@@ -236,19 +236,6 @@ static ssize_t sec_hw_param_ddr_info_show(struct kobject *kobj,
 	return info_size;
 }
 
-static ssize_t sec_hw_param_extra_info_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf)
-{
-	ssize_t info_size = 0;
-
-	if (reset_reason == RR_K || reset_reason == RR_D) {
-		strncpy(buf, (char *)SEC_DEBUG_EXTRA_INFO_VA, SZ_1K);
-		info_size = strlen(buf);
-	}
-
-	return info_size;
-}
-
 static ssize_t sec_hw_param_pcb_info_store(struct kobject *kobj,
 				struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -285,9 +272,6 @@ static struct kobj_attribute sec_hw_param_ap_info_attr =
 static struct kobj_attribute sec_hw_param_ddr_info_attr =
         __ATTR(ddr_info, 0440, sec_hw_param_ddr_info_show, NULL);
 
-static struct kobj_attribute sec_hw_param_extra_info_attr =
-	__ATTR(extra_info, 0440, sec_hw_param_extra_info_show, NULL);
-
 static struct kobj_attribute sec_hw_param_pcb_info_attr =
         __ATTR(pcb_info, 0660, NULL, sec_hw_param_pcb_info_store);
 
@@ -297,7 +281,6 @@ static struct kobj_attribute sec_hw_param_smd_info_attr =
 static struct attribute *sec_hw_param_attributes[] = {
 	&sec_hw_param_ap_info_attr.attr,
 	&sec_hw_param_ddr_info_attr.attr,
-	&sec_hw_param_extra_info_attr.attr,
 	&sec_hw_param_pcb_info_attr.attr,
 	&sec_hw_param_smd_info_attr.attr,
 	NULL,

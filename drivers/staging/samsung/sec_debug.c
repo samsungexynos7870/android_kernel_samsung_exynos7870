@@ -140,14 +140,9 @@ static void sec_debug_set_upload_magic(unsigned magic, char *str)
 	*(unsigned int *)SEC_DEBUG_MAGIC_VA = magic;
 	*(unsigned int *)(SEC_DEBUG_MAGIC_VA + SZ_4K - 4) = magic;
 
-	if (str) {
+	if (str)
 		strncpy((char *)SEC_DEBUG_MAGIC_VA + 4, str, SZ_1K - 4);
 
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
-		sec_debug_set_extra_info_panic(str);
-		sec_debug_finish_extra_info();
-#endif
-	}
 	pr_emerg("sec_debug: set magic code (0x%x)\n", magic);
 }
 
@@ -508,11 +503,6 @@ static void sec_debug_init_base_buffer(unsigned long base, unsigned long size)
 		sec_debug_info->magic[1] = SEC_DEBUG_SHARED_MAGIC1;
 		sec_debug_info->magic[2] = SEC_DEBUG_SHARED_MAGIC2;
 		sec_debug_info->magic[3] = SEC_DEBUG_SHARED_MAGIC3;
-
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
-		sec_debug_set_kallsyms_info(sec_debug_info);
-		sec_debug_init_extra_info(sec_debug_info);
-#endif
 	}
 	pr_info("%s, base(virt):0x%lx size:0x%lx\n", __func__, (unsigned long)sec_debug_info, size);
 

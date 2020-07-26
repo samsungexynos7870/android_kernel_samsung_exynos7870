@@ -31,10 +31,6 @@
 
 #include "exynos-iommu.h"
 
-#ifdef CONFIG_SEC_DEBUG
-#include <linux/sec_debug.h>
-#endif
-
 #define CFG_MASK	0x01101FBC /* Selecting bit 24, 20, 12-7, 5-2 */
 
 #define PB_INFO_NUM(reg)	((reg) & 0xFF)
@@ -569,11 +565,11 @@ void dump_sysmmu_tlb_pb(void __iomem *sfrbase)
 
 	phys = pte_pfn(*pte) << PAGE_SHIFT;
 
-	pr_auto(ASL4, "ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+	pr_emerg("ADDR: %pa(VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		&phys, sfrbase,
 		__raw_readl(sfrbase + REG_MMU_CTRL),
 		__raw_readl(sfrbase + REG_PT_BASE_PPN));
-	pr_auto(ASL4, "VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+	pr_emerg("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(lmm), MMU_MIN_VER(lmm), MMU_REV_VER(lmm),
 		__raw_readl(sfrbase + REG_MMU_CFG),
 		__raw_readl(sfrbase + REG_MMU_STATUS));
@@ -653,31 +649,19 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int info;
 	phys_addr_t pgtable;
 	int fault_id = SYSMMU_FAULT_ID(flags);
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
-	char temp_buf[SZ_128];
-#endif
 
 	pgtable = __raw_readl(drvdata->sfrbase + REG_PT_BASE_PPN);
 	pgtable <<= PAGE_SHIFT;
 
-	pr_auto_once(4);
-	pr_auto(ASL4, "----------------------------------------------------------\n");
-	pr_auto(ASL4, "%s %s %s at %#010lx (page table @ %pa)\n",
+	pr_emerg("----------------------------------------------------------\n");
+	pr_emerg("%s %s %s at %#010lx (page table @ %pa)\n",
 		dev_name(drvdata->sysmmu),
 		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
 		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
-
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
-	snprintf(temp_buf, SZ_128, "%s %s %s at %#010lx (%pa)",
-		dev_name(drvdata->sysmmu),
-		(flags & IOMMU_FAULT_WRITE) ? "WRITE" : "READ",
-		sysmmu_fault_name[fault_id], fault_addr, &pgtable);
-	sec_debug_set_extra_info_sysmmu(temp_buf);
-#endif
 
 	if (fault_id == SYSMMU_FAULT_UNKNOWN) {
-		pr_auto(ASL4, "The fault is not caused by this System MMU.\n");
-		pr_auto(ASL4, "Please check IRQ and SFR base address.\n");
+		pr_emerg("The fault is not caused by this System MMU.\n");
+		pr_emerg("Please check IRQ and SFR base address.\n");
 		goto finish;
 	}
 
@@ -685,28 +669,28 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 			((flags & IOMMU_FAULT_WRITE) ?
 			REG_FAULT_AW_TRANS_INFO : REG_FAULT_AR_TRANS_INFO));
 
-	pr_auto(ASL4, "AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+	pr_emerg("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
 
 	if (pgtable != drvdata->pgtable) {
-		pr_auto(ASL4, "Page table base of driver: %pa\n",
+		pr_emerg("Page table base of driver: %pa\n",
 			&drvdata->pgtable);
 	}
 
 	if (fault_id == SYSMMU_FAULT_PTW_ACCESS){
-		pr_auto(ASL4, "System MMU has failed to access page table\n");
+		pr_emerg("System MMU has failed to access page table\n");
 	}
 
 	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
-		pr_auto(ASL4, "Page table base is not in a valid memory region\n");
+		pr_emerg("Page table base is not in a valid memory region\n");
 	} else {
 		sysmmu_pte_t *ent;
 
 		ent = section_entry(phys_to_virt(pgtable), fault_addr);
-		pr_auto(ASL4, "Lv1 entry: %#010x\n", *ent);
+		pr_emerg("Lv1 entry: %#010x\n", *ent);
 
 		if (lv1ent_page(ent)) {
 			ent = page_entry(ent, fault_addr);
-			pr_auto(ASL4, "Lv2 entry: %#010x\n", *ent);
+			pr_emerg("Lv2 entry: %#010x\n", *ent);
 		}
 	}
 
@@ -714,8 +698,7 @@ static void show_fault_information(struct sysmmu_drvdata *drvdata,
 
 finish:
 
-	pr_auto(ASL4, "----------------------------------------------------------\n");
-	pr_auto_disable(4);
+	pr_emerg("----------------------------------------------------------\n");
 }
 
 #define REG_INT_STATUS_WRITE_BIT 16

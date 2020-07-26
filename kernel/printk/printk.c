@@ -47,12 +47,7 @@
 #include <linux/utsname.h>
 #include <linux/ctype.h>
 
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-#include <linux/sec_debug.h>
-#endif
-
 #include <asm/uaccess.h>
-#include <asm/cputype.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
@@ -232,16 +227,6 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
-#ifdef CONFIG_PRINTK_PROCESS
-	char process[16];	/* process name */
-	pid_t pid;		/* process id */
-	u8 cpu;			/* cpu id */
-	u8 in_interrupt;	/* interrupt context */
-#endif
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-	u8 for_auto_summary;
-	u8 type_auto_summary;
-#endif
 };
 
 /*
@@ -276,11 +261,7 @@ static enum log_flags console_prev;
 static u64 clear_seq;
 static u32 clear_idx;
 
-#ifdef CONFIG_PRINTK_PROCESS
-#define PREFIX_MAX		48
-#else
 #define PREFIX_MAX		32
-#endif
 #define LOG_LINE_MAX		(1024 - PREFIX_MAX)
 
 /* record buffer */
@@ -405,40 +386,6 @@ static u32 msg_used_size(u16 text_len, u16 dict_len, u32 *pad_len)
 	return size;
 }
 
-#ifdef CONFIG_PRINTK_PROCESS
-static bool printk_process = 1;
-static size_t print_process(const struct printk_log *msg, char *buf)
-
-{
-	if (!printk_process)
-		return 0;
-
-	if (!buf)
-		return snprintf(NULL, 0, "%c[%1d:%15s:%5d] ", ' ', 0, " ", 0);
-
-	return sprintf(buf, "%c[%1d:%15s:%5d] ",
-			msg->in_interrupt ? 'I' : ' ',
-			msg->cpu,
-			msg->process,
-			msg->pid);
-}
-#else
-static bool printk_process = 0;
-static size_t print_process(const struct printk_log *msg, char *buf)
-{
-	return 0;
-}
-#endif
-module_param_named(process, printk_process, bool, S_IRUGO | S_IWUSR);
-
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-static void (*func_hook_auto_comm)(int type, const char *buf, size_t size);
-void register_set_auto_comm_buf(void (*func)(int type, const char *buf, size_t size))
-{
-	func_hook_auto_comm = func;
-}
-#endif
-
 #ifdef CONFIG_EXYNOS_SNAPSHOT
 static size_t hook_size;
 static char hook_text[LOG_LINE_MAX + PREFIX_MAX];
@@ -545,13 +492,6 @@ static int log_store(int facility, int level,
 	memcpy(log_dict(msg), dict, dict_len);
 	msg->dict_len = dict_len;
 	msg->facility = facility;
-
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-	msg->for_auto_summary = (level / 10 == 9) ? 1 : 0;
-	msg->type_auto_summary = (level / 10 == 9) ? level - LOGLEVEL_PR_AUTO_BASE : 0;
-	level = (msg->for_auto_summary) ? 0 : level;
-#endif
-
 	msg->level = level & 7;
 	msg->flags = flags & 0x1f;
 	if (ts_nsec > 0)
@@ -561,24 +501,11 @@ static int log_store(int facility, int level,
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = size;
 
-#ifdef CONFIG_PRINTK_PROCESS
-	if (printk_process) {
-		strncpy(msg->process, current->comm, sizeof(msg->process));
-		msg->pid = task_pid_nr(current);
-		msg->cpu = smp_processor_id();
-		msg->in_interrupt = in_interrupt() ? 1 : 0;
-	}
-#endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT
 	if (func_hook_logbuf) {
 		hook_size = msg_print_text(msg, msg->flags,
 				true, hook_text, LOG_LINE_MAX + PREFIX_MAX);
 		func_hook_logbuf(hook_text, hook_size);
-
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-		if (msg->for_auto_summary && func_hook_auto_comm)
-			func_hook_auto_comm(msg->type_auto_summary, hook_text, hook_size);
-#endif		
 	}
 #endif
 	/* insert message */
@@ -1131,9 +1058,6 @@ static inline void boot_delay_msec(int level)
 }
 #endif
 
-static bool printk_core_num = IS_ENABLED(CONFIG_PRINTK_CORE_NUM);
-module_param_named(core_num, printk_core_num, bool, S_IRUGO | S_IWUSR);
-
 static bool printk_time = IS_ENABLED(CONFIG_PRINTK_TIME);
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
@@ -1173,7 +1097,6 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
-	len += print_process(msg, buf ? buf + len : NULL);
 	return len;
 }
 
@@ -1727,8 +1650,6 @@ static size_t cont_print_text(char *text, size_t size)
 
 	if (cont.cons == 0 && (console_prev & LOG_NEWLINE)) {
 		textlen += print_time(cont.ts_nsec, text);
-		*(text+textlen) = ' ';
-		textlen += print_process(NULL, NULL);
 		size -= textlen;
 	}
 
@@ -1763,8 +1684,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 	int this_cpu;
 	int printed_len = 0;
 	bool in_sched = false;
-	static bool prev_new_line = true;
-
 	/* cpu currently holding logbuf_lock in this function */
 	static volatile unsigned int logbuf_cpu = UINT_MAX;
 
@@ -1818,29 +1737,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 	 * The printf needs to come first; we need the syslog
 	 * prefix which might be passed-in as a parameter.
 	 */
-	if (printk_core_num && prev_new_line) {
-		char tempbuf[LOG_LINE_MAX];
-		char *temp = tempbuf;
-
-		vscnprintf(temp, sizeof(tempbuf), fmt, args);
-		if (printk_get_level(tempbuf))
-			text_len = snprintf(text, sizeof(textbuf),
-					    "%c%c[c%d] %s", tempbuf[0],
-					    tempbuf[1], this_cpu, &tempbuf[2]);
-		else
-			text_len = snprintf(text, sizeof(textbuf), "[c%d] %s",
-					    this_cpu, &tempbuf[0]);
-	} else {
-		text_len = vscnprintf(text, sizeof(textbuf), fmt, args);
-	}
+	text_len = vscnprintf(text, sizeof(textbuf), fmt, args);
 
 	/* mark and strip a trailing newline */
 	if (text_len && text[text_len-1] == '\n') {
 		text_len--;
 		lflags |= LOG_NEWLINE;
-		prev_new_line = true;
-	} else {
-		prev_new_line = false;
 	}
 
 	/* strip kernel syslog prefix and extract log level or control flags */
@@ -1853,13 +1755,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 			case '0' ... '7':
 				if (level == -1)
 					level = kern_level - '0';
-				/* fallthrough */
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-			case 'B' ... 'J':
-				if (level == -1)
-					level = LOGLEVEL_PR_AUTO_BASE + (kern_level - 'A'); /* 91 ~ 99 */
-				/* fallthrough */
-#endif
 			case 'd':	/* KERN_DEFAULT */
 				lflags |= LOG_PREFIX;
 			}
@@ -2217,20 +2112,6 @@ void resume_console(void)
 }
 
 /**
- * console_flush - flush dmesg if console isn't suspended
- *
- * console_unlock always flushes the dmesg buffer, so just try to
- * grab&drop the console lock. If that fails we know that the current
- * holder will eventually drop the console lock and so flush the dmesg
- * buffers at the earliest possible time.
- */
-void console_flush(void)
-{
-	if (console_trylock())
-		console_unlock();
-}
-
-/**
  * console_cpu_notify - print deferred console messages after CPU hotplug
  * @self: notifier struct
  * @action: CPU hotplug event
@@ -2249,7 +2130,8 @@ static int console_cpu_notify(struct notifier_block *self,
 	case CPU_DEAD:
 	case CPU_DOWN_FAILED:
 	case CPU_UP_CANCELED:
-		console_flush();
+		console_lock();
+		console_unlock();
 	}
 	return NOTIFY_OK;
 }
@@ -2351,7 +2233,6 @@ void console_unlock(void)
 	unsigned long flags;
 	bool wake_klogd = false;
 	bool do_cond_resched, retry;
-	u64 next_seq_in_this_turn;
 
 	if (console_suspended) {
 		up_console_sem();
@@ -2374,7 +2255,6 @@ void console_unlock(void)
 	/* flush buffered message fragment immediately to console */
 	console_cont_flush(text, sizeof(text));
 again:
-	next_seq_in_this_turn = log_next_seq;
 	for (;;) {
 		struct printk_log *msg;
 		size_t len;
@@ -2398,7 +2278,7 @@ again:
 			len = 0;
 		}
 skip:
-		if (console_seq >= next_seq_in_this_turn)
+		if (console_seq == log_next_seq)
 			break;
 
 		msg = log_from_idx(console_idx);
@@ -3244,22 +3124,12 @@ void __init dump_stack_set_arch_desc(const char *fmt, ...)
  */
 void dump_stack_print_info(const char *log_lvl)
 {
-#ifdef CONFIG_ARM64
-	printk("%sCPU: %d MPIDR: %llx PID: %d Comm: %.20s %s %s %.*s\n",
-	       log_lvl, raw_smp_processor_id(), read_cpuid_mpidr(),
-	       current->pid, current->comm,
-	       print_tainted(), init_utsname()->release,
-	       (int)strcspn(init_utsname()->version, " "),
-	       init_utsname()->version);
-
-#else
 	printk("%sCPU: %d PID: %d Comm: %.20s %s %s %.*s\n",
 	       log_lvl, raw_smp_processor_id(), current->pid, current->comm,
 	       print_tainted(), init_utsname()->release,
 	       (int)strcspn(init_utsname()->version, " "),
 	       init_utsname()->version);
 
-#endif
 	if (dump_stack_arch_desc_str[0] != '\0')
 		printk("%sHardware name: %s\n",
 		       log_lvl, dump_stack_arch_desc_str);

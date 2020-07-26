@@ -599,59 +599,6 @@ int s3c2410wdt_keepalive_emergency(void)
 	return 0;
 }
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
-static int s3c2410wdt_panic_handler(struct notifier_block *nb,
-				   unsigned long l, void *buf)
-{
-	struct s3c2410_wdt *wdt = s3c_wdt;
-
-	if (!wdt)
-		return -ENODEV;
-
-	/* We assumed that num_online_cpus() > 1 status is abnormal */
-	if (exynos_ss_get_hardlockup() || num_online_cpus() > 1) {
-
-		pr_emerg("%s: watchdog reset is started on panic after 5secs\n", __func__);
-
-		/* set watchdog timer is started and  set by 5 seconds*/
-		s3c2410wdt_set_heartbeat(&wdt->wdt_device, 5);
-		s3c2410wdt_start(&wdt->wdt_device);
-	} else {
-		/*
-		 * kick watchdog to prevent unexpected reset during panic sequence
-		 * and it prevents the hang during panic sequence by watchedog
-		 */
-		s3c2410wdt_keepalive(&wdt->wdt_device);
-	}
-
-	return 0;
-}
-
-int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt)
-{
-	struct s3c2410_wdt *wdt = s3c_wdt;
-	unsigned int wtdat = 0x100;
-	unsigned int wtcnt = wtdat + timeout_cnt;
-	unsigned long wtcon;
-
-	if (!wdt)
-		return -ENODEV;
-
-	/* emergency reset with wdt reset */
-	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
-	wtcon |= S3C2410_WTCON_RSTEN | S3C2410_WTCON_ENABLE;
-
-	writel(wtdat, wdt->reg_base + S3C2410_WTDAT);
-	writel(wtcnt, wdt->reg_base + S3C2410_WTCNT);
-	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
-
-	return 0;
-}
-static struct notifier_block nb_panic_block = {
-	.notifier_call = s3c2410wdt_panic_handler,
-};
-#endif
-
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev;
@@ -806,10 +753,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
-	/* register panic handler for watchdog reset */
-	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
-#endif
 	dev_info(dev, "watchdog %sactive, reset %sabled, irq %sabled\n",
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",

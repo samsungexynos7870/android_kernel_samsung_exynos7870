@@ -36,7 +36,6 @@
 #define DBG_REG_MAX_SIZE	(8)
 #define DBG_BW_REG_MAX_SIZE	(30)
 #define OS_LOCK_FLAG		(DBG_REG_MAX_SIZE - 1)
-#define ITERATION		CONFIG_PC_ITERATION
 #define CORE_CNT		CONFIG_NR_CPUS
 #define MSB_PADDING		(0xFFFFFFC000000000)
 #define MSB_MASKING		(0x0001ffc000000000)
@@ -91,122 +90,6 @@ static inline void dbg_os_unlock(void __iomem *base)
 		break;
 	}
 }
-
-#ifdef CONFIG_EXYNOS_CORESIGHT_PC_INFO
-static int exynos_cs_stat;
-unsigned long exynos_cs_pc[CORE_CNT][ITERATION];
-
-static inline bool have_pc_offset(void __iomem *base)
-{
-	 return !(CS_READ(base, DBGDEVID1) & 0xf);
-}
-
-unsigned long exynos_cs_get_pcval(int cpu)
-{
-	unsigned long valLo, valHi;
-	void __iomem *base = dbg.cpu[cpu].base;
-
-	if(!cpu_online(cpu) || !exynos_cpu.power_state(cpu))
-		return 0;
-
-	DBG_UNLOCK(base);
-	dbg_os_unlock(base);
-	valLo = CS_READ(base, DBGPCSRlo);
-	valHi = CS_READ(base, DBGPCSRhi);
-	dbg_os_lock(base);
-	DBG_LOCK(base);
-
-	return ((valHi << 32UL) | valLo);
-}
-EXPORT_SYMBOL(exynos_cs_get_pcval);
-
-void exynos_cs_show_pcval(void)
-{
-	unsigned long flags;
-	unsigned int cpu, iter, curr_cpu;
-	unsigned long val = 0, valHi = 0;
-	void __iomem *base;
-	char buf[KSYM_SYMBOL_LEN];
-
-	if (exynos_cs_stat < 0)
-		return;
-
-	spin_lock_irqsave(&debug_lock, flags);
-	curr_cpu = raw_smp_processor_id();
-
-	for (iter = 0; iter < ITERATION; iter++) {
-		for (cpu = 0; cpu < CORE_CNT; cpu++) {
-			base = dbg.cpu[cpu].base;
-			exynos_cs_pc[cpu][iter] = 0;
-			if (base == NULL || cpu == curr_cpu)
-				continue;
-
-			if (!exynos_cpu.power_state(cpu))
-				continue;
-
-			DBG_UNLOCK(base);
-			dbg_os_unlock(base);
-
-			val = CS_READ(base, DBGPCSRlo);
-			valHi = CS_READ(base, DBGPCSRhi);
-
-			val |= (valHi << 32L);
-			if (have_pc_offset(base))
-				val -= 0x8;
-
-			dbg_os_lock(base);
-			DBG_LOCK(base);
-
-			if(MSB_MASKING == (MSB_MASKING & val)) {
-				exynos_cs_pc[cpu][iter] = MSB_PADDING | val;
-			}
-			else exynos_cs_pc[cpu][iter] = val;
-		}
-	}
-
-	spin_unlock_irqrestore(&debug_lock, flags);
-
-	for (cpu = 0; cpu < CORE_CNT; cpu++) {
-		pr_err("CPU[%d] saved pc value\n", cpu);
-		for (iter = 0; iter < ITERATION; iter++) {
-			if (exynos_cs_pc[cpu][iter] == 0)
-				continue;
-
-			sprint_symbol(buf, exynos_cs_pc[cpu][iter]);
-			pr_err("      0x%016zx : %s\n",
-				exynos_cs_pc[cpu][iter], buf);
-		}
-	}
-}
-EXPORT_SYMBOL(exynos_cs_show_pcval);
-
-/* check sjtag status */
-static int __init exynos_cs_sjtag_init(void)
-{
-	void __iomem *sjtag_base;
-	unsigned int sjtag;
-
-	/* Check Secure JTAG */
-	sjtag_base = ioremap(cs_reg_base + CS_SJTAG_OFFSET, SZ_8);
-	if (!sjtag_base) {
-		pr_err("%s: cannot ioremap cs base.\n", __func__);
-		exynos_cs_stat = -ENOMEM;
-		goto err_func;
-	}
-
-	sjtag = __raw_readl(sjtag_base + SJTAG_STATUS);
-	iounmap(sjtag_base);
-
-	if (sjtag & SJTAG_SOFT_LOCK) {
-		exynos_cs_stat = -EIO;
-		goto err_func;
-	}
-
-	pr_info("exynos-coresight Secure Jtag state is soft unlock.\n");
-err_func:
-	return exynos_cs_stat;
-}
-#endif
 
 #ifdef CONFIG_EXYNOS_CORESIGHT_MAINTAIN_DBG_REG
 /* save debug resgisters when suspending */
@@ -542,11 +425,6 @@ static int __init exynos_cs_init(void)
 
 	get_arm_arch_version();
 
-#ifdef CONFIG_EXYNOS_CORESIGHT_PC_INFO
-	ret = exynos_cs_sjtag_init();
-	if (ret < 0)
-		goto err;
-#endif
 #ifdef CONFIG_EXYNOS_CORESIGHT_MAINTAIN_DBG_REG
 	ret = exynos_cs_debug_init();
 	if (ret < 0)

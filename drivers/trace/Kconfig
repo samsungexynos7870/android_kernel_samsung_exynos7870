@@ -105,11 +105,6 @@ config EXYNOS_SNAPSHOT_PANIC_REBOOT
 	depends on EXYNOS_SNAPSHOT
 	default y
 
-config EXYNOS_SNAPSHOT_WATCHDOG_RESET
-	bool "Support watchdog reset when hardlockup detect"
-	depends on EXYNOS_SNAPSHOT && EXYNOS_SNAPSHOT_PANIC_REBOOT
-	default y
-
 config EXYNOS_SNAPSHOT_CRASH_KEY
 	bool "Support Crash Key to artificial panic for debugging"
 	depends on EXYNOS_SNAPSHOT && KEYBOARD_GPIO
@@ -134,21 +129,6 @@ menuconfig EXYNOS_CORESIGHT
 	bool "Enable Coresight of exynos"
 	depends on ARCH_EXYNOS
 	default n
-
-config EXYNOS_CORESIGHT_PC_INFO
-	bool "Show Porgram Counter information"
-	depends on EXYNOS_CORESIGHT
-	default y
-	help
-	  Show Program Counter information When kernel panic.
-
-config PC_ITERATION
-	int "Number of Program Coutner information"
-	depends on EXYNOS_CORESIGHT_PC_INFO
-	range 1 10
-	default 5
-	help
-	  Print out Program Counter as iteration value.
 
 config EXYNOS_CORESIGHT_MAINTAIN_DBG_REG
 	bool "Save/Restore Debug Registers"

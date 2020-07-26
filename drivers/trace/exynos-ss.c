@@ -416,20 +416,13 @@ struct exynos_ss_interface {
 
 #ifdef CONFIG_S3C2410_WATCHDOG
 extern int s3c2410wdt_set_emergency_stop(void);
-#ifdef CONFIG_EXYNOS_SNAPSHOT_WATCHDOG_RESET
-extern int s3c2410wdt_set_emergency_reset(unsigned int timeout);
-#endif
 extern int s3c2410wdt_keepalive_emergency(void);
 #else
 #define s3c2410wdt_set_emergency_stop() 	(-1)
-#define s3c2410wdt_set_emergency_reset(a)	do { } while(0)
 #define s3c2410wdt_keepalive_emergency()	do { } while(0)
 #endif
 extern void *return_address(int);
 extern void (*arm_pm_restart)(char str, const char *cmd);
-#ifdef CONFIG_EXYNOS_CORESIGHT_PC_INFO
-extern unsigned long exynos_cs_pc[NR_CPUS][ESS_ITERATION];
-#endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,5,00)
 extern void register_hook_logbuf(void (*)(const char));
 #else
@@ -452,11 +445,6 @@ static bool sec_log_full;
 unsigned char *debug_curr_ptr;
 const char *debug_buf;
 size_t debug_size;
-
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-static void (*func_hook_auto_comm_lastfreq)(int type, int old_freq, int new_freq, u64 time);
-#endif
-
 
 /*
  * ---------------------------------------------------------------------------
@@ -713,26 +701,6 @@ unsigned int exynos_ss_get_item_paddr(char* name)
 }
 EXPORT_SYMBOL(exynos_ss_get_item_paddr);
 
-int exynos_ss_get_hardlockup(void)
-{
-	return ess_desc.hardlockup;
-}
-EXPORT_SYMBOL(exynos_ss_get_hardlockup);
-
-int exynos_ss_set_hardlockup(int val)
-{
-	unsigned long flags;
-
-	if (unlikely(!ess_base.enabled))
-		return 0;
-
-	spin_lock_irqsave(&ess_desc.lock, flags);
-	ess_desc.hardlockup = val;
-	spin_unlock_irqrestore(&ess_desc.lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(exynos_ss_set_hardlockup);
-
 int exynos_ss_post_reboot(void)
 {
 	int cpu;
@@ -753,32 +721,6 @@ int exynos_ss_post_reboot(void)
 }
 EXPORT_SYMBOL(exynos_ss_post_reboot);
 
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
-
-unsigned long merr_symptom;
-
-#define L2MERR0SR	0
-#define TBWMERR0SR	1
-#define LSMERR0SR	2
-#define FEMERR0SR	3
-#define L2MERRSR	4
-#define CPUMERRSR	5
-
-#define FATAL_MASK_M	(BIT(1) | BIT(0))
-#define FATAL_MASK_A	(BIT(63) | BIT(31))
-
-#define hook_merr(merr, reg, mask)		\
-({						\
-	if ((reg & mask) == mask)		\
-		merr_symptom |= (1 << merr);	\
-})
-
-#else
-
-#define hook_merr(merr, reg, mask)	({})
-
-#endif
-
 int exynos_ss_dump(void)
 {
 	/*
@@ -791,8 +733,6 @@ int exynos_ss_dump(void)
 		"mrs %1, S3_1_c15_c2_3\n"
 		: "=r" (reg1), "=r" (reg2));
 	pr_emerg("CPUMERRSR: %016lx, L2MERRSR: %016lx\n", reg1, reg2);
-	hook_merr(CPUMERRSR, reg1, FATAL_MASK_A);
-	hook_merr(L2MERRSR, reg2, FATAL_MASK_A);	
 #else
 	unsigned long reg0;
 	asm ("mrc p15, 0, %0, c0, c0, 0\n": "=r" (reg0));
@@ -990,13 +930,6 @@ static inline int exynos_ss_check_eob(struct exynos_ss_item *item,
 	else
 		return 0;
 }
-
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-void register_set_auto_comm_lastfreq(void (*func)(int type, int old_freq, int new_freq, u64 time))
-{
-	func_hook_auto_comm_lastfreq = func;
-}
-#endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_HOOK_LOGGER
 static inline void exynos_ss_hook_logger(const char *name,
@@ -1397,10 +1330,6 @@ static int exynos_ss_panic_handler(struct notifier_block *nb,
 	exynos_ss_report_reason(ESS_SIGN_PANIC);
 	pr_emerg("exynos-snapshot: panic - reboot[%s]\n", __func__);
 	exynos_ss_dump_task_info();
-#ifdef CONFIG_EXYNOS_CORESIGHT_PC_INFO
-	if (exynos_ss_get_enable("log_kevents", true))
-		memcpy(ess_log->core, exynos_cs_pc, sizeof(ess_log->core));
-#endif
 	flush_cache_all();
 #else
 	exynos_ss_report_reason(ESS_SIGN_PANIC);
@@ -2207,10 +2136,6 @@ void exynos_ss_freq(int type, unsigned long old_freq, unsigned long target_freq,
 		ess_log->freq[i].old_freq = old_freq;
 		ess_log->freq[i].target_freq = target_freq;
 		ess_log->freq[i].en = en;
-#ifdef CONFIG_SEC_DEBUG_AUTO_SUMMARY
-		if(func_hook_auto_comm_lastfreq && en == ESS_FLAG_OUT)
-			func_hook_auto_comm_lastfreq(type, old_freq, target_freq, ess_log->freq[i].time);
-#endif
 	}
 }
 #endif
