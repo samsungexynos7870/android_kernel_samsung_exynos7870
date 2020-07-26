@@ -27,7 +27,6 @@ extern void exynos_ss_irq(int irq, void *fn, unsigned int val, int en);
 extern int exynos_ss_try_enable(const char *name, unsigned long long duration);
 extern int exynos_ss_set_enable(const char *name, int en);
 extern int exynos_ss_get_enable(const char *name, bool init);
-extern int exynos_ss_save_context(void *regs);
 extern int exynos_ss_save_reg(void *regs);
 extern int exynos_ss_post_reboot(void);
 extern unsigned int exynos_ss_get_item_size(char *);
@@ -152,7 +151,6 @@ extern void exynos_ss_i2c_clk(struct clk *clk, int bus_id, int en);
 #define exynos_ss_hook_pmsg(a,b)	do { } while(0)
 #define exynos_ss_printk(...)		do { } while(0)
 #define exynos_ss_printkl(a,b)		do { } while(0)
-#define exynos_ss_save_context(a)	do { } while(0)
 #define exynos_ss_try_enable(a,b)	do { } while(0)
 #define exynos_ss_set_enable(a,b)	do { } while(0)
 #define exynos_ss_get_enable(a)		do { } while(0)

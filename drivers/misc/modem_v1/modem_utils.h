@@ -509,7 +509,5 @@ int argos_task_affinity_setup_label(struct task_struct *p, const char *label,
 		struct cpumask *affinity_cpu_mask,
 		struct cpumask *default_cpu_mask);
 #endif
-
-void mif_set_snapshot(bool enable);
 #endif/*__MODEM_UTILS_H__*/
 

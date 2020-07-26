@@ -256,9 +256,6 @@ static void shmem_forced_cp_crash(struct mem_link_device *mld)
 		return;
 	}
 
-	/* Disable debug Snapshot */
-	mif_set_snapshot(false);
-
 	if (mld->attrs & LINK_ATTR(LINK_ATTR_MEM_DUMP)) {
 		stop_net_ifaces(ld);
 
@@ -484,9 +481,6 @@ static void cmd_crash_exit_handler(struct mem_link_device *mld)
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
 	unsigned long flags;
-
-	/* Disable debug Snapshot */
-	mif_set_snapshot(false);
 
 	spin_lock_irqsave(&mld->state_lock, flags);
 	mld->state = LINK_STATE_CP_CRASH;

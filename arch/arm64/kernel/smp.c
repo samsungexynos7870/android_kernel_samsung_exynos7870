@@ -566,8 +566,6 @@ static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 
 	local_irq_disable();
 
-	exynos_ss_save_context(regs);
-
 	while (1)
 		wfi();
 }
