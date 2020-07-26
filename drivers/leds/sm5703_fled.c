@@ -256,8 +256,8 @@ static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(rear_flash, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH, NULL, flash_store);
-static DEVICE_ATTR(rear_torch_flash, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH, NULL, flash_store);
+static DEVICE_ATTR(rear_flash, 0660, NULL, flash_store);
+static DEVICE_ATTR(rear_torch_flash, 0660, NULL, flash_store);
 
 int create_flash_sysfs(void)
 {
