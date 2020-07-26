@@ -188,12 +188,6 @@ config PGTABLE_LEVELS
 	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
 	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
 
-config SEC_FACTORY
-	bool "Sec factory mode support"
-	default n
-	help
-	  It will support a sec factory mode
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
