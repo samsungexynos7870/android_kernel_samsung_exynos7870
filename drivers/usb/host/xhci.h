@@ -1518,12 +1518,8 @@ struct xhci_hcd {
 #define CMD_RING_STATE_STOPPED         (1 << 2)
 	struct list_head        cmd_list;
 	unsigned int		cmd_ring_reserved_trbs;
-#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
 	struct delayed_work	cmd_timer;
 	struct completion	cmd_ring_stop_completion;
-#else
-	struct timer_list	cmd_timer;
-#endif
 	struct xhci_command	*current_cmd;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
@@ -1642,10 +1638,24 @@ struct xhci_hcd {
 #define COMP_MODE_RCVRY_MSECS 2000
 };
 
+/* Platform specific overrides to generic XHCI hc_driver ops */
+struct xhci_driver_overrides {
+	size_t extra_priv_size;
+	int (*reset)(struct usb_hcd *hcd);
+	int (*start)(struct usb_hcd *hcd);
+};
+
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)
 {
-	return *((struct xhci_hcd **) (hcd->hcd_priv));
+	struct usb_hcd *primary_hcd;
+
+	if (usb_hcd_is_primary_hcd(hcd))
+		primary_hcd = hcd;
+	else
+		primary_hcd = hcd->primary_hcd;
+
+	return (struct xhci_hcd *) (primary_hcd->hcd_priv);
 }
 
 static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
@@ -1821,7 +1831,8 @@ void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
 int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 void xhci_shutdown(struct usb_hcd *hcd);
-void xhci_init_driver(struct hc_driver *drv, int (*setup_fn)(struct usb_hcd *));
+void xhci_init_driver(struct hc_driver *drv,
+		      const struct xhci_driver_overrides *over);
 
 #ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup);
@@ -1908,11 +1919,7 @@ void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state);
 void xhci_stop_endpoint_command_watchdog(unsigned long arg);
-#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
 void xhci_handle_command_timeout(struct work_struct *work);
-#else
-void xhci_handle_command_timeout(unsigned long data);
-#endif
 void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 		unsigned int ep_index, unsigned int stream_id);
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci);
