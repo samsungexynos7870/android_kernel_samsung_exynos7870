@@ -906,9 +906,6 @@ static int i2s_startup(struct snd_pcm_substream *substream,
 	char dai_name[10];
 
 	i2s_print_dai_name(i2s, dai_name);
-	pr_info("%s : %s --\n", __func__, dai_name);
-#else
-	pr_info("%s : %s --\n", __func__, is_secondary(i2s)? "sec" : "pri");
 #endif
 
 #ifdef USE_EXYNOS_AUD_SCHED
@@ -955,11 +952,6 @@ static int i2s_startup(struct snd_pcm_substream *substream,
 	i2s->stream_cnt++;
 	spin_unlock_irqrestore(&lock, flags);
 
-#ifdef CONFIG_SND_SAMSUNG_COMPR
-	pr_info("%s : %s --\n", __func__, dai_name);
-#else
-	pr_info("%s : %s --\n", __func__, is_secondary(i2s)? "sec" : "pri");
-#endif
 	return 0;
 }
 
@@ -974,9 +966,6 @@ static void i2s_shutdown(struct snd_pcm_substream *substream,
 	char dai_name[10];
 
 	i2s_print_dai_name(i2s, dai_name);
-	pr_info("%s : %s --\n", __func__, dai_name);
-#else
-	pr_info("%s : %s ++\n", __func__, is_secondary(i2s)? "sec" : "pri");
 #endif
 	spin_lock_irqsave(&lock, flags);
 
@@ -1017,11 +1006,6 @@ static void i2s_shutdown(struct snd_pcm_substream *substream,
 #ifdef USE_EXYNOS_AUD_CPU_HOTPLUG
 	if (!is_secondary(i2s))
 		lpass_put_cpu_hotplug();
-#endif
-#ifdef CONFIG_SND_SAMSUNG_COMPR
-	pr_info("%s : %s --\n", __func__, dai_name);
-#else
-	pr_info("%s : %s --\n", __func__, is_secondary(i2s)? "sec" : "pri");
 #endif
 }
 
