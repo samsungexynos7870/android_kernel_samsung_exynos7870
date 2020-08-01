@@ -88,38 +88,30 @@ void universal7870_set_mclk(int enable)
 				return;
 			}
 			mclk_usecount++;
-			dev_info(card->dev, "mclk enabled: cnt %d\n", mclk_usecount);
 		} else {
 			clk_disable(priv->mclk);
 			mclk_usecount--;
-			dev_info(card->dev, "mclk disbled: cnt %d\n", mclk_usecount);
 		}
 	} else {
-		dev_info(card->dev, "%s: %d usecount %d\n", __func__, enable, mclk_usecount);
-
 		if (pmureg == NULL) {
 			dev_info(card->dev, "pmureg is NULL\n");
 			return;
 		}
 
 		if (enable) {
-			if (mclk_usecount == 0) {
-				dev_info(card->dev, "%s: mclk_enable\n", __func__);
+			if (mclk_usecount == 0)
 				regmap_update_bits(pmureg,
 						EXYNOS_PMU_PMU_DEBUG_OFFSET,
 						0x1F01, 0x1F00);
-			}
 			mclk_usecount++;
 		} else {
 			if (mclk_usecount > 0)
 				mclk_usecount--;
-		
-			if (mclk_usecount == 0) {
-				dev_info(card->dev, "%s: mclk_disable\n", __func__);
+
+			if (mclk_usecount == 0)
 				regmap_update_bits(pmureg,
 						EXYNOS_PMU_PMU_DEBUG_OFFSET,
 						0x1F01, 0x1F01);
-			}
 		}
 	}
 }
@@ -129,8 +121,6 @@ int rt5659_enable_ear_micbias(bool state)
 	struct snd_soc_card *card = &universal7870_rt5659_card;
 	struct rt5659_machine_priv *priv = snd_soc_card_get_drvdata(card);
 	int mic_bias;
-
-	pr_info("%s: bias%d(%d)\n", __func__, priv->earmic_bias, state);
 
 	switch (priv->earmic_bias) {
 	case 2:
@@ -152,8 +142,6 @@ int universal7870_get_jack_adc(void)
 	struct snd_soc_card *card = &universal7870_rt5659_card;
 	struct rt5659_machine_priv *priv = snd_soc_card_get_drvdata(card);
 
-	pr_info("%s\n", __func__);
-
 	ret = iio_read_channel_raw(priv->adc_channel, &adc_data);
 
 	return adc_data;
@@ -169,11 +157,6 @@ static int universal7870_aif1_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 	int rfs, bfs, codec_pll;
-
-	dev_info(card->dev, "%s-%d %dch, %dHz, %dbytes\n",
-			rtd->dai_link->name, substream->stream,
-			params_channels(params), params_rate(params),
-			params_buffer_bytes(params));
 
 	universal7870_set_mclk(1);
 
@@ -251,7 +234,7 @@ static int universal7870_aif1_hw_params(struct snd_pcm_substream *substream,
 			CODEC_SAMPLE_RATE_192KHZ * 32 * 2, codec_pll);
 
 		if (ret < 0) {
-			dev_err(card->dev, "codec_dai pll not set\n");
+			dev_err(card->dev, "codec_dai pll is not set\n");
 			return ret;
 		}
 	} else {
@@ -261,7 +244,7 @@ static int universal7870_aif1_hw_params(struct snd_pcm_substream *substream,
 			JOSHUA_MCLK_FREQ, codec_pll);
 
 		if (ret < 0) {
-			dev_err(card->dev, "codec_dai pll not set\n");
+			dev_err(card->dev, "codec_dai pll is not set\n");
 			return ret;
 		}
 	}
@@ -293,7 +276,7 @@ static int universal7870_aif2_hw_params(struct snd_pcm_substream *substream,
 		 params_channels(params), params_rate(params),
 		 params_buffer_bytes(params));
 
-	dev_info(card->dev, "Fix up the rate to 48KHz\n");
+	dev_info(card->dev, "fixing the sampling rate to 48KHz\n");
 	rate->min = rate->max = 48000;
 
 	universal7870_set_mclk(1);
@@ -352,10 +335,6 @@ static int universal7870_aif3_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *amixer_dai = rtd->codec_dais[0];
 	int bfs, ret;
-
-	dev_info(card->dev, "aif3: %dch, %dHz, %dbytes\n",
-		 params_channels(params), params_rate(params),
-		 params_buffer_bytes(params));
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_U24:
@@ -454,8 +433,6 @@ static int universal7870_set_bias_level(struct snd_soc_card *card,
 	if (!priv->codec || dapm != &priv->codec->dapm)
 		return 0;
 
-	dev_info(card->dev, "%s: %d\n", __func__, level);
-
 	switch (level) {
 	case SND_SOC_BIAS_OFF:
 		if (card->dapm.bias_level == SND_SOC_BIAS_STANDBY)
@@ -483,8 +460,6 @@ static int universal7870_late_probe(struct snd_soc_card *card)
 	struct snd_soc_codec *codec = card->rtd[0].codec_dais[1]->codec;
 	struct rt5659_machine_priv *priv = snd_soc_card_get_drvdata(card);
 
-	dev_info(card->dev, "%s\n", __func__);
-
 	priv->codec = codec;
 
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Main Mic");
@@ -508,8 +483,6 @@ static int universal7870_late_probe(struct snd_soc_card *card)
 
 static int audmixer_init(struct snd_soc_component *cmp)
 {
-	dev_dbg(cmp->dev, "%s called\n", __func__);
-
 	return 0;
 }
 
