@@ -1257,8 +1257,6 @@ static int rt5659_clk_sel_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *em =
 		(struct soc_enum *)kcontrol->private_value;
 
-	pr_debug("%s\n", __func__);
-
 	switch (em->reg) {
 	case RT5659_ASRC_2:
 		switch (em->shift_l) {
@@ -1505,12 +1503,12 @@ int rt5659_check_jd_status(struct snd_soc_codec *codec)
 
 	val = snd_soc_read(codec, RT5659_INT_ST_1) & 0x0800;
 
-	if (!val) {  /* Jack insert */
-		pr_debug("%s-Jack In\n", __func__);
+	if (!val) {
+		pr_debug("%s: jack inserted\n", __func__);
 		return 1;
 	}
-	else { /* jack out */
-		pr_debug("%s-Jack Out\n", __func__);
+	else {
+		pr_debug("%s: jack removed\n", __func__);
 		return 0;
 	}
 }
@@ -1863,8 +1861,6 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	int div[] = { 2, 3, 4, 6, 8, 12 }, idx =
 	    -EINVAL, i, rate, red, bound, temp;
 
-	pr_debug("%s\n", __func__);
-
 	rate = rt5659->lrck[RT5659_AIF1] << 8;
 	red = 3000000 * 12;
 	for (i = 0; i < ARRAY_SIZE(div); i++) {
@@ -1916,8 +1912,6 @@ static int rt5659_charge_pump_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		rt5659_imp_detect(codec);
@@ -1940,8 +1934,6 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	struct snd_soc_codec *codec = w->codec;
 
-	pr_debug("%s\n", __func__);
-
 	val = snd_soc_read(codec, RT5659_GLB_CLK);
 	val &= RT5659_SCLK_SRC_MASK;
 	if (val == RT5659_SCLK_SRC_PLL1)
@@ -1955,8 +1947,6 @@ static int is_using_asrc(struct snd_soc_dapm_widget *w,
 {
 	unsigned int reg, shift, val;
 	struct snd_soc_codec *codec = w->codec;
-
-	pr_debug("%s\n", __func__);
 
 	switch (w->shift) {
 	case RT5659_ADC_MONO_R_ASRC_SFT:
@@ -2799,8 +2789,6 @@ static int rt5659_mono_vref_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RT5659_PWR_ANLG_1, RT5659_PWR_FV3,
@@ -2845,8 +2833,6 @@ static int rt5659_hp_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
-
-	pr_debug("%s\n", __func__);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -2974,7 +2960,6 @@ static int set_dmic_power(struct snd_soc_dapm_widget *w,
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		pr_debug("%s\n", __func__);
 		/*Add delay to avoid pop noise*/
 		msleep(dmic_power_delay);
 		break;
@@ -2990,8 +2975,6 @@ static int rt5659_i2s_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
-
-	pr_debug("%s\n", __func__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -3063,8 +3046,6 @@ static int rt5659_sto1_filter_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		rt5659->dac1_sto_dac_mixer =
@@ -3104,8 +3085,6 @@ static int rt5659_monol_filter_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		rt5659->dac2l_sto_dac_mixer =
@@ -3141,8 +3120,6 @@ static int rt5659_monor_filter_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		rt5659->dac2r_sto_dac_mixer =
@@ -3175,9 +3152,6 @@ static int rt5659_monor_filter_event(struct snd_soc_dapm_widget *w,
 static int rt5659_adc_depop_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-
-	pr_debug("%s\n", __func__);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		msleep(adc_power_delay);
@@ -3195,8 +3169,6 @@ static int rt5659_dac1_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
-
-	pr_debug("%s\n", __func__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -3220,8 +3192,6 @@ static int rt5659_dac2_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
-
-	pr_debug("%s\n", __func__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -4083,8 +4053,6 @@ static int rt5659_hw_params(struct snd_pcm_substream *substream,
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int pre_div, bclk_ms, frame_size;
 
-	pr_debug("%s\n", __func__);
-
 	rt5659->lrck[dai->id] = params_rate(params);
 	pre_div = get_clk_info(rt5659->sysclk, rt5659->lrck[dai->id]);
 	if (pre_div < 0) {
@@ -4101,11 +4069,6 @@ static int rt5659_hw_params(struct snd_pcm_substream *substream,
 	/* TODO: should bclk_ms be set by set_bclk_ratio? */
 	bclk_ms = frame_size > 32 ? 1 : 0;
 	rt5659->bclk[dai->id] = rt5659->lrck[dai->id] * (32 << bclk_ms);
-
-	dev_dbg(dai->dev, "bclk is %dHz and lrck is %dHz\n",
-		rt5659->bclk[dai->id], rt5659->lrck[dai->id]);
-	dev_dbg(dai->dev, "bclk_ms is %d and pre_div is %d for iis %d\n",
-				bclk_ms, pre_div, dai->id);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -4162,7 +4125,7 @@ static int rt5659_hw_params(struct snd_pcm_substream *substream,
 				0);
 		break;
 	case 96000:
-		snd_soc_update_bits(codec, RT5659_ADDA_CLK_1, 
+		snd_soc_update_bits(codec, RT5659_ADDA_CLK_1,
 			RT5659_DAC_OSR_MASK | RT5659_ADC_OSR_MASK,
 			RT5659_DAC_OSR_64 | RT5659_ADC_OSR_64);
 		if (dai->id == RT5659_AIF1)
@@ -4191,8 +4154,6 @@ static int rt5659_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
-
-	pr_debug("%s\n", __func__);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -4258,8 +4219,6 @@ static int rt5659_set_dai_sysclk(struct snd_soc_dai *dai,
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
 
-	pr_debug("%s\n", __func__);
-
 	if (freq == rt5659->sysclk && clk_id == rt5659->sysclk_src)
 		return 0;
 
@@ -4282,19 +4241,17 @@ static int rt5659_set_dai_sysclk(struct snd_soc_dai *dai,
 	rt5659->sysclk = freq;
 	rt5659->sysclk_src = clk_id;
 
-	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
-
 	return 0;
 }
 
 /**
- * rt5659_pll_calc - Calcualte PLL M/N/K code.
- * @freq_in: external clock provided to codec.
- * @freq_out: target clock which codec works on.
+ * rt5659_pll_calc - Calculate PLL M/N/K code.
+ * @freq_in: external clock provided to the codec.
+ * @freq_out: target clock on which the codec works.
  * @pll_code: Pointer to structure with M, N, K and bypass flag.
  *
- * Calcualte M/N/K code to configure PLL for codec. And K is assigned to 2
- * which make calculation more efficiently.
+ * Calculate M/N/K code to configure PLL for codec. K is assigned to 2
+ * which makes calculation more efficient.
  *
  * Returns 0 for success or negative error code.
  */
@@ -4312,10 +4269,12 @@ static int rt5659_pll_calc(const unsigned int freq_in,
 	k = 100000000 / freq_out - 2;
 	if (k > RT5659_PLL_K_MAX)
 		k = RT5659_PLL_K_MAX;
+
 	if (k < 0) {
 		k = 0;
 		k_bypass = true;
 	}
+
 	for (n_t = 0; n_t <= max_n; n_t++) {
 		in_t = freq_in / (k_bypass ? 1 : (k + 2));
 		pll_out = freq_out / (n_t + 2);
@@ -4326,6 +4285,7 @@ static int rt5659_pll_calc(const unsigned int freq_in,
 			n = n_t;
 			goto code_find;
 		}
+
 		red = abs(in_t - pll_out);
 		if (red < red_t) {
 			m_bypass = true;
@@ -4335,6 +4295,7 @@ static int rt5659_pll_calc(const unsigned int freq_in,
 				goto code_find;
 			red_t = red;
 		}
+
 		for (m_t = 0; m_t <= max_m; m_t++) {
 			out_t = in_t / (m_t + 2);
 			red = abs(out_t - pll_out);
@@ -4348,10 +4309,10 @@ static int rt5659_pll_calc(const unsigned int freq_in,
 			}
 		}
 	}
-	pr_debug("Only get approximation about PLL\n");
+
+	pr_debug("%s: only got an approximation\n", __func__);
 
 code_find:
-
 	pll_code->m_bp = m_bypass;
 	pll_code->k_bp = k_bypass;
 	pll_code->m_code = m;
@@ -4367,8 +4328,6 @@ static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	struct rt5659_pll_code pll_code;
 	int ret;
-
-	pr_debug("%s\n", __func__);
 
 	if (Source == rt5659->pll_src && freq_in == rt5659->pll_in &&
 	    freq_out == rt5659->pll_out)
@@ -4411,10 +4370,6 @@ static int rt5659_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
 	}
-
-	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=%d\n",
-		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
-		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_write(codec, RT5659_PLL_CTRL_1,
 		pll_code.n_code << RT5659_PLL_N_SFT | pll_code.k_code);
@@ -4541,6 +4496,7 @@ static ssize_t rt5659_codec_store(struct device *dev,
 			break;
 	}
 	pr_debug("addr=0x%x val=0x%x\n", addr, val);
+
 	if (addr > RT5659_ADC_R_EQ_POST_VOL || val > 0xffff || val < 0)
 		return count;
 
@@ -4664,8 +4620,6 @@ static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	unsigned int value;
 
-	pr_debug("%s: level = %d\n", __func__, level);
-
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		regmap_update_bits(rt5659->regmap, RT5659_DIG_MISC,
@@ -4776,8 +4730,6 @@ static int rt5659_probe(struct snd_soc_codec *codec)
 {
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	pr_debug("%s\n", __func__);
 
 	rt5659->codec = codec;
 
