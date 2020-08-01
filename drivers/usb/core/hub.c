@@ -939,11 +939,7 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
  */
 static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 {
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
-	dev_info(&hub->ports[port1 - 1]->dev, "logical disconnect\n");
-#else
 	dev_dbg(&hub->ports[port1 - 1]->dev, "logical disconnect\n");
-#endif
 	hub_port_disable(hub, port1, 1);
 
 	/* FIXME let caller ask to power down the port:
@@ -4707,15 +4703,6 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 	struct usb_device *udev = port_dev->child;
 	static int unreliable_port = -1;
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
-	dev_info (&port_dev->dev,
-		"port %d, status %04x, change %04x, %s\n",
-		port1, portstatus, portchange, portspeed(hub, portstatus));
-#else
-	dev_dbg (&port_dev->dev,
-		"port %d, status %04x, change %04x, %s\n",
-		port1, portstatus, portchange, portspeed(hub, portstatus));
-#endif
 
 	/* Disconnect any existing devices under this port */
 	if (udev) {
@@ -4946,13 +4933,8 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	struct usb_device *udev = port_dev->child;
 	int status = -ENODEV;
 
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
-	dev_info(&port_dev->dev, "status %04x, change %04x, %s\n", portstatus,
-			portchange, portspeed(hub, portstatus));
-#else
 	dev_dbg(&port_dev->dev, "status %04x, change %04x, %s\n", portstatus,
 			portchange, portspeed(hub, portstatus));
-#endif
 
 	if (hub->has_indicators) {
 		set_port_led(hub, port1, HUB_LED_AUTO);

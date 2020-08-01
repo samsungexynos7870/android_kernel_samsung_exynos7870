@@ -849,11 +849,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 static int dwc3_exynos_runtime_suspend(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
-	dev_info(dev, "%s\n", __func__);
-#else
-	dev_dbg(dev, "%s\n", __func__);
-#endif
+
 	dwc3_exynos_clk_disable(exynos);
 
 	/* inform what USB state is idle to IDLE_IP */
@@ -870,11 +866,6 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
 	int ret = 0;
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
-	dev_info(dev, "%s\n", __func__);
-#else
-	dev_dbg(dev, "%s\n", __func__);
-#endif
 
 #ifdef CONFIG_PM_DEVFREQ
 	if (exynos->int_min_lock)
