@@ -239,7 +239,6 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		return;
 	}
 
-<<<<<<< HEAD
 	dev_dbg(priv->adapter->dev, "info: WMM Parameter IE: version=%d, "
 		"qos_info Parameter Set Count=%d, Reserved=%#x\n",
 		wmm_ie->version, wmm_ie->qos_info_bitmap &
