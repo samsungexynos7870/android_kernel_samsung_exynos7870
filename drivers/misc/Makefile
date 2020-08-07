@@ -76,8 +76,5 @@ obj-y				+= tzic64.o
 # Samsung Jack Support
 obj-$(CONFIG_SAMSUNG_JACK)	+= sec_jack.o
 
-# for DMVerity
-obj-$(CONFIG_DM_VERITY)		+= dmverity_query.o
-
 # FPGA for IRIS
 obj-$(CONFIG_LEDS_IRIS_FPGA_ICE40XX)  += ice40xx_iris.o
