@@ -4616,6 +4616,33 @@ static ssize_t rt5659_codec_adb_store(struct device *dev,
 static DEVICE_ATTR(codec_reg_adb, 0664, rt5659_codec_adb_show,
 			rt5659_codec_adb_store);
 
+static int rt5659_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rt5659_priv *rt5659 = snd_soc_component_get_drvdata(component);
+
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
+
+	rt5659->bclk[dai->id] = ratio;
+
+	if (ratio == 64) {
+		switch (dai->id) {
+		case RT5659_AIF2:
+			snd_soc_component_update_bits(component, RT5659_ADDA_CLK_1,
+				RT5659_I2S_BCLK_MS2_MASK,
+				RT5659_I2S_BCLK_MS2_64);
+			break;
+		case RT5659_AIF3:
+			snd_soc_component_update_bits(component, RT5659_ADDA_CLK_1,
+				RT5659_I2S_BCLK_MS3_MASK,
+				RT5659_I2S_BCLK_MS3_64);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
@@ -4799,8 +4826,7 @@ struct snd_soc_dai_ops rt5659_aif_dai_ops = {
 	.hw_params = rt5659_hw_params,
 	.set_fmt = rt5659_set_dai_fmt,
 	.set_tdm_slot = rt5659_set_tdm_slot,
-	/*.set_bclk_ratio = rt5659_set_bclk_ratio, */
-/* TODO: implement rt5659_set_bclk_ratio for MX0077 bit 13, and bclk_ms */
+	.set_bclk_ratio = rt5659_set_bclk_ratio,
 };
 
 struct snd_soc_dai_driver rt5659_dai[] = {
