@@ -40,13 +40,13 @@ struct blk_flush_queue;
 struct pr_ops;
 
 #define BLKDEV_MIN_RQ	4
-#define BLKDEV_MAX_RQ  128     /* Default maximum */
+#define BLKDEV_MAX_RQ	128	/* Default maximum */
 
 /*
  * Maximum number of blkcg policies allowed to be registered concurrently.
  * Defined here to simplify include dependency.
  */
-#define BLKCG_MAX_POLS		3
+#define BLKCG_MAX_POLS		2
 
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
@@ -431,8 +431,6 @@ struct request_queue {
 
 	unsigned int		nr_sorted;
 	unsigned int		in_flight[2];
-	unsigned long long	in_flight_time;
-	ktime_t			in_flight_stamp;
 	/*
 	 * Number of active block driver functions for which blk_drain_queue()
 	 * must wait. Must be incremented around functions that unlock the
@@ -469,7 +467,6 @@ struct request_queue {
 	unsigned int		flush_flags;
 	unsigned int		flush_not_queueable:1;
 	struct blk_flush_queue	*fq;
-	unsigned long		flush_ios;
 
 	struct list_head	requeue_list;
 	spinlock_t		requeue_lock;
@@ -1170,7 +1167,6 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 }
 
 #define BLKDEV_DISCARD_SECURE  0x01    /* secure discard */
-#define BLKDEV_DISCARD_SYNC    0x02    /* handle discard command as sync req */
 
 extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
@@ -1740,12 +1736,5 @@ static inline int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 
 #endif /* CONFIG_BLOCK */
-
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
-#define SIO_PATCH_VERSION(name, major, minor, description)	\
-	static const char *sio_##name##_##major##_##minor __attribute__ ((used, section("sio_patches"))) = (#name " " #major "." #minor " " description)
-#else
-#define SIO_PATCH_VERSION(name, major, minor, description)
-#endif
 
 #endif

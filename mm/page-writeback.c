@@ -38,7 +38,6 @@
 #include <linux/sched/rt.h>
 #include <linux/mm_inline.h>
 #include <trace/events/writeback.h>
-#include <linux/version.h>
 
 #include "internal.h"
 
@@ -1339,9 +1338,6 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
  * If we're over `background_thresh' then the writeback threads are woken to
  * perform some writeout.
  */
-
-SIO_PATCH_VERSION(prevent_infinite_writeback, 1, 0, "");
-
 static void balance_dirty_pages(struct address_space *mapping,
 				unsigned long pages_dirtied)
 {
@@ -1496,20 +1492,6 @@ pause:
 					  period,
 					  pause,
 					  start_time);
-
-		/* Do not sleep if the backing device is removed */
-		if (unlikely(!bdi->dev))
-			return;
-
-		/* Just collecting approximate value. No lock required. */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
-		bdi->last_thresh = strictlimit ? bdi_thresh : dirty_thresh;
-		bdi->last_nr_dirty = strictlimit ? bdi_dirty : nr_dirty;
-#else
-		bdi->last_thresh = dirty_thresh;
-		bdi->last_nr_dirty = nr_dirty;
-#endif
-		bdi->paused_total += pause;
 
 		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);

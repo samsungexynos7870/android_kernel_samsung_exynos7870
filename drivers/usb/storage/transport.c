@@ -875,9 +875,6 @@ Retry_Sense:
 	/* We must release the device lock because the pre_reset routine
 	 * will want to acquire it. */
 	mutex_unlock(&us->dev_mutex);
-#ifdef CONFIG_USB_STORAGE_DETECT
-	msleep(200);
-#endif
 	result = usb_stor_port_reset(us);
 	mutex_lock(&us->dev_mutex);
 

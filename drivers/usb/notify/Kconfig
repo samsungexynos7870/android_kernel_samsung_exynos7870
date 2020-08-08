@@ -26,17 +26,6 @@ config USB_NOTIFIER
 	  Added platform driver to call usb notify.
 	  The usb_notifier.c can be fixed for each models.
 
-config USB_STORAGE_DETECT
-	boolean "USB storage detect function"
-	depends on USB && SCSI
-	depends on USB_STORAGE
-	help
-	  This feature enables to detect inserting or removing
-          sd card in sd reader device.
-          This must to be defined in /usb/storage/Kconfig 
-          directory originally. But this feature is defined
-          in this Kconfig to gather samsung feature about usb host.
-
 config USB_HMT_SAMSUNG_INPUT
 	boolean "USB HMT inputs for samsung hmt devices"
 	depends on HID
