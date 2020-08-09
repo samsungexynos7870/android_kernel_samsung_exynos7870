@@ -5158,7 +5158,7 @@ static int ext4_expand_extra_isize(struct inode *inode,
 		EXT4_ERROR_INODE(inode, "bad extra_isize %u (inode size %u)",
 				 ei->i_extra_isize,
 				 EXT4_INODE_SIZE(inode->i_sb));
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 	if ((new_extra_isize < ei->i_extra_isize) ||
 	    (new_extra_isize < 4) ||

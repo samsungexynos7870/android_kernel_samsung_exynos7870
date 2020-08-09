@@ -888,7 +888,7 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 	if (depth < 0 || depth > EXT4_MAX_EXTENT_DEPTH) {
 		EXT4_ERROR_INODE(inode, "inode has invalid extent depth: %d",
 				 depth);
-		ret = -EIO;
+		ret = -EFSCORRUPTED;
 		goto err;
 	}
 
