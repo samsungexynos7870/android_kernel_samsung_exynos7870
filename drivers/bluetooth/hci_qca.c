@@ -482,10 +482,10 @@ static void qca_debugfs_init(struct hci_dev *hdev)
 			   &qca->ibs_recv_wakes);
 	debugfs_create_u64("ibs_recv_wake_acks", mode, ibs_dir,
 			   &qca->ibs_recv_wacks);
-	debugfs_create_bool("tx_vote", mode, ibs_dir, &qca->tx_vote);
+	debugfs_create_bool("tx_vote", mode, ibs_dir, (u32 *)&qca->tx_vote);
 	debugfs_create_u64("tx_votes_on", mode, ibs_dir, &qca->tx_votes_on);
 	debugfs_create_u64("tx_votes_off", mode, ibs_dir, &qca->tx_votes_off);
-	debugfs_create_bool("rx_vote", mode, ibs_dir, &qca->rx_vote);
+	debugfs_create_bool("rx_vote", mode, ibs_dir, (u32 *)&qca->rx_vote);
 	debugfs_create_u64("rx_votes_on", mode, ibs_dir, &qca->rx_votes_on);
 	debugfs_create_u64("rx_votes_off", mode, ibs_dir, &qca->rx_votes_off);
 	debugfs_create_u64("votes_on", mode, ibs_dir, &qca->votes_on);
