@@ -423,12 +423,6 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		btintel_check_bdaddr(hdev);
 		break;
 #endif
-#ifdef CONFIG_BT_HCIUART_BCM
-	case 15:
-		hdev->set_bdaddr = btbcm_set_bdaddr;
-		btbcm_check_bdaddr(hdev);
-		break;
-#endif
 	}
 
 done:
@@ -814,9 +808,6 @@ static int __init hci_uart_init(void)
 #ifdef CONFIG_BT_HCIUART_INTEL
 	intel_init();
 #endif
-#ifdef CONFIG_BT_HCIUART_BCM
-	bcm_init();
-#endif
 #ifdef CONFIG_BT_HCIUART_QCA
 	qca_init();
 #endif
@@ -845,9 +836,6 @@ static void __exit hci_uart_exit(void)
 #endif
 #ifdef CONFIG_BT_HCIUART_INTEL
 	intel_deinit();
-#endif
-#ifdef CONFIG_BT_HCIUART_BCM
-	bcm_deinit();
 #endif
 #ifdef CONFIG_BT_HCIUART_QCA
 	qca_deinit();
