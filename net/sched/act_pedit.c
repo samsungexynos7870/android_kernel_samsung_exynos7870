@@ -52,6 +52,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_PEDIT_PARMS]);
 	if (!parm->nkeys)
 		return -EINVAL;
+
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
 	if (nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm) + ksize)
 		return -EINVAL;
