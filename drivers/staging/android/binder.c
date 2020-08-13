@@ -266,7 +266,6 @@ struct binder_context {
 
 	kuid_t binder_context_mgr_uid;
 	const char *name;
- 	bool inherit_fifo_prio; 
 };
 
 struct binder_device {
@@ -1246,7 +1245,6 @@ static void binder_transaction_priority(struct task_struct *task,
 					struct binder_priority node_prio,
 					bool inherit_rt)
 {
-  	bool inherit_fifo = t->buffer->target_node->proc->context->inherit_fifo_prio;
 	struct binder_priority desired_prio = t->priority;
 
 	if (t->set_priority_called)
@@ -1256,7 +1254,7 @@ static void binder_transaction_priority(struct task_struct *task,
 	t->saved_priority.sched_policy = task->policy;
 	t->saved_priority.prio = task->normal_prio;
 
- 	if (!inherit_rt && is_rt_policy(desired_prio.sched_policy) && !inherit_fifo) {
+	if (!inherit_rt && is_rt_policy(desired_prio.sched_policy)) {
 		desired_prio.prio = NICE_TO_PRIO(0);
 		desired_prio.sched_policy = SCHED_NORMAL;
 	}
@@ -4731,29 +4729,6 @@ out:
 	return ret;
 }
 
-static int binder_ioctl_set_inherit_fifo_prio(struct file *filp)
-{
-	int ret = 0;
-	struct binder_proc *proc = filp->private_data;
-	struct binder_context *context = proc->context;
-	kuid_t curr_euid = current_euid();
-	mutex_lock(&context->context_mgr_node_lock);
-	if (uid_valid(context->binder_context_mgr_uid)) {
-		if (!uid_eq(context->binder_context_mgr_uid, curr_euid)) {
-			pr_err("BINDER_SET_INHERIT_FIFO_PRIO bad uid %d != %d\n",
-			       from_kuid(&init_user_ns, curr_euid),
-			       from_kuid(&init_user_ns,
-					 context->binder_context_mgr_uid));
-			ret = -EPERM;
-			goto out;
-		}
-	}
-	context->inherit_fifo_prio = true;
- out:
-	mutex_unlock(&context->context_mgr_node_lock);
-	return ret;
-}
-
 static int binder_ioctl_set_ctx_mgr(struct file *filp,
 				    struct flat_binder_object *fbo)
 {
@@ -4924,12 +4899,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (ret)
 			goto err;
 		break;
-	case BINDER_SET_INHERIT_FIFO_PRIO:
-		ret = binder_ioctl_set_inherit_fifo_prio(filp);
-		if (ret)
-			goto err;
-		break;
-
 	case BINDER_THREAD_EXIT:
 		binder_debug(BINDER_DEBUG_THREADS, "%d:%d exit\n",
 			     proc->pid, thread->pid);
@@ -5725,7 +5694,6 @@ static void print_binder_proc_stats(struct seq_file *m,
 
 	seq_printf(m, "proc %d\n", proc->pid);
 	seq_printf(m, "context %s\n", proc->context->name);
- 	seq_printf(m, "context FIFO: %d\n", proc->context->inherit_fifo_prio);
 	count = 0;
 	ready_threads = 0;
 	binder_inner_proc_lock(proc);
