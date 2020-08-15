@@ -25,7 +25,6 @@
 #include <linux/spinlock.h>
 #include <linux/stat.h>
 #include <linux/uid_stat.h>
-#include <net/activity_stats.h>
 
 static DEFINE_SPINLOCK(uid_lock);
 static LIST_HEAD(uid_list);
@@ -121,7 +120,6 @@ static struct uid_stat *find_or_create_uid_stat(uid_t uid)
 
 int uid_stat_tcp_snd(uid_t uid, int size) {
 	struct uid_stat *entry;
-	activity_stats_update();
 	entry = find_or_create_uid_stat(uid);
 	if (!entry)
 		return -1;
@@ -131,7 +129,6 @@ int uid_stat_tcp_snd(uid_t uid, int size) {
 
 int uid_stat_tcp_rcv(uid_t uid, int size) {
 	struct uid_stat *entry;
-	activity_stats_update();
 	entry = find_or_create_uid_stat(uid);
 	if (!entry)
 		return -1;
