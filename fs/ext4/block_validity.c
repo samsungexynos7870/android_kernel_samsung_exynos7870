@@ -137,13 +137,6 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 	printk("\n");
 }
 
-#ifdef VERIFY_META_ONLY
-struct rb_root *ext4_system_zone_root(struct super_block *sb)
-{
-	return &EXT4_SB(sb)->system_blks;
-}
-#endif
-
 static int ext4_protect_reserved_inode(struct super_block *sb, u32 ino)
 {
 	struct inode *inode;
@@ -255,10 +248,8 @@ void ext4_release_system_zone(struct super_block *sb)
 int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 			  unsigned int count)
 {
-#ifndef VERIFY_META_ONLY
 	struct ext4_system_zone *entry;
 	struct rb_node *n = sbi->system_blks.rb_node;
-#endif
 
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
 	    (start_blk + count < start_blk) ||
@@ -266,7 +257,6 @@ int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 		sbi->s_es->s_last_error_block = cpu_to_le64(start_blk);
 		return 0;
 	}
-#ifndef VERIFY_META_ONLY
 	while (n) {
 		entry = rb_entry(n, struct ext4_system_zone, node);
 		if (start_blk + count - 1 < entry->start_blk)
@@ -278,7 +268,6 @@ int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 			return 0;
 		}
 	}
-#endif
 	return 1;
 }
 

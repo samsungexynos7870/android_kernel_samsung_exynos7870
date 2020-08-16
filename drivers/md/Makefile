@@ -1,14 +1,6 @@
 #
 # Makefile for the kernel software RAID and LVM drivers.
 #
-ifeq ($(SEC_BUILD_CONF_QUICK_DMVERITY),true)
-EXTRA_CFLAGS += -DVERIFY_META_ONLY=true
-endif
-
-ifeq ($(SEC_BUILD_CONF_DMV_ALTA),true)
-EXTRA_CFLAGS += -DDMV_ALTA=true
-EXTRA_CFLAGS += -DDMV_ALTA_PROF=true
-endif
 
 dm-mod-y	+= dm.o dm-table.o dm-target.o dm-linear.o dm-stripe.o \
 		   dm-ioctl.o dm-io.o dm-kcopyd.o dm-sysfs.o dm-stats.o
