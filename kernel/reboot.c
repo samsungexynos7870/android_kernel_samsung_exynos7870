@@ -43,7 +43,6 @@ int reboot_default = 1;
 int reboot_cpu;
 enum reboot_type reboot_type = BOOT_ACPI;
 int reboot_force;
-int ignore_fs_panic = 0; // To prevent kernel panic by EIO during shutdown
 
 /*
  * If set, this is used for preparing the system to power off.
@@ -74,9 +73,7 @@ void kernel_restart_prepare(char *cmd)
 	/* user process should be freezed before device shutdown */
 	events_check_enabled = false;
 	freeze_processes();
-
 	usermodehelper_disable();
-	ignore_fs_panic = 1;
 	device_shutdown();
 }
 
@@ -243,7 +240,6 @@ static void kernel_shutdown_prepare(enum system_states state)
 	freeze_processes();
 
 	usermodehelper_disable();
-	ignore_fs_panic = 1;
 	device_shutdown();
 }
 /**

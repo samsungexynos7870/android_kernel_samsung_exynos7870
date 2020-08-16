@@ -92,7 +92,7 @@ extern ushort ext4_mballoc_debug;
 
 struct ext4_free_data {
 	/* MUST be the first member */
-	struct ext4_journal_cb_entry    efd_jce;
+	struct ext4_journal_cb_entry	efd_jce;
 
 	/* ext4_free_data private data starts from here */
 

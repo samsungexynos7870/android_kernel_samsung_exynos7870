@@ -23,7 +23,6 @@
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <asm/byteorder.h>
-#include <linux/ratelimit.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -1080,11 +1079,6 @@ fail_drop:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
 out:
-	if (err == -ENOSPC) {
-		printk_ratelimited(KERN_INFO "Return ENOSPC : No free inode (%d/%u)\n",
-			(int) percpu_counter_read_positive(&sbi->s_freeinodes_counter),
-			le32_to_cpu(sbi->s_es->s_inodes_count));
-	}
 	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	iput(inode);
