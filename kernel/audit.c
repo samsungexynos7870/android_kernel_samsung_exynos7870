@@ -392,7 +392,7 @@ static void audit_printk_skb(struct sk_buff *skb)
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 	char *data = nlmsg_data(nlh);
 
-	if (nlh->nlmsg_type != AUDIT_EOE && nlh->nlmsg_type != AUDIT_NETFILTER_CFG) {
+	if (nlh->nlmsg_type != AUDIT_EOE) {
 		if (printk_ratelimit())
 			pr_notice("type=%d %s\n", nlh->nlmsg_type, data);
 		else
@@ -418,10 +418,9 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		}
 		/* we might get lucky and get this in the next auditd */
 		audit_hold_skb(skb);
-	} else {
+	} else
 		/* drop the extra reference if sent ok */
 		consume_skb(skb);
-	}
 }
 
 /*
