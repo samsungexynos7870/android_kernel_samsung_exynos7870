@@ -571,7 +571,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	info.si_errno = 0;
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("Oops - Debug exception", regs, &info, 0);
+	arm64_notify_die("", regs, &info, 0);
 
 	return 0;
 }

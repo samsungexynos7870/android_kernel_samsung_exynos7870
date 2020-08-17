@@ -11,12 +11,6 @@ if ARCH_EXYNOS
 
 menu "SAMSUNG EXYNOS SoCs Support"
 
-config SKIP_HW_BREAKPOINT
-	bool "support skip hw breakpoint"
-	default n
-	help
-	  Support early param for T32 onchip breakpoint
-
 config SEC_BAT_AUT
 	bool "Samsung TN Bat Automation Test Feature"
 	default n
