@@ -1147,7 +1147,7 @@ static void exynos_ufs_config_smu(struct exynos_ufs *ufs)
 
 	/* SMU protection initialization */
 
-#if defined(CONFIG_UFS_FMP_DM_CRYPT) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
+#if defined(CONFIG_UFS_FMP_DM_CRYPT)
 	ret = exynos_smc(SMC_CMD_SMU, FMP_SMU_INIT, 1, 0);
 #else
 	ret = exynos_smc(SMC_CMD_SMU, FMP_SMU_INIT, 0, 0);

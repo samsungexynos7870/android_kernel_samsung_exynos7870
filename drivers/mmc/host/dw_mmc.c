@@ -39,9 +39,6 @@
 #include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/smc.h>
-#if defined(CONFIG_MMC_DW_FMP_ECRYPT_FS)
-#include <linux/ecryptfs.h>
-#endif
 
 #include <soc/samsung/exynos-pm.h>
 #include <soc/samsung/exynos-powermode.h>

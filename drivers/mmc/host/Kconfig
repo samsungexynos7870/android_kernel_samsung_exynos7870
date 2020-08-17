@@ -595,15 +595,6 @@ config MMC_DW_FMP_DM_CRYPT
 	  This option accelerates dm-crypt by using the flash
 	  memory protector feature of the eMMC controller.
 
-config MMC_DW_FMP_ECRYPT_FS
-	bool "FMP acceleration for eCrypt filesystem"
-	depends on ECRYPT_FS
-	select FMP_MMC
-	select FMP_ECRYPT_FS
-	help
-	  This option activates flash memory protector of the eMMC controller to
-	  accelerate eCryptfs.
-
 config MMC_DW_IDMAC
 	bool "Internal DMAC interface"
 	depends on MMC_DW

@@ -353,7 +353,7 @@ struct ufshcd_sg_entry {
 	((d)->size = ((d)->size & 0xcfffffff) | v << 28)
 #define SET_DAS(d, v) \
 	((d)->size = ((d)->size & 0x3fffffff) | v << 30)
-#if defined(CONFIG_UFS_FMP_DM_CRYPT) || defined(CONFIG_UFS_FMP_ECRYPT_FS)
+#if defined(CONFIG_UFS_FMP_DM_CRYPT)
 	__le32	file_iv0;
 	__le32	file_iv1;
 	__le32	file_iv2;

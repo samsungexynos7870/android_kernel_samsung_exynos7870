@@ -42,9 +42,6 @@
 #include <linux/devfreq.h>
 #endif
 #include <linux/nls.h>
-#if defined(CONFIG_UFS_FMP_ECRYPT_FS)
-#include <linux/ecryptfs.h>
-#endif
 #include <linux/blkdev.h>
 
 #include "ufshcd.h"
@@ -221,10 +218,6 @@ static int ufshcd_send_request_sense(struct ufs_hba *hba, struct scsi_device *sd
 extern int fmp_map_sg(struct ufshcd_sg_entry *prd_table, struct scatterlist *sg,
 					uint32_t sector_key, uint32_t idx,
 					uint32_t sector);
-
-#if defined(CONFIG_UFS_FMP_ECRYPT_FS)
-extern void fmp_clear_sg(struct ufshcd_lrb *lrbp);
-#endif
 
 #if defined(CONFIG_FIPS_FMP)
 extern int fmp_map_sg_st(struct ufs_hba *hba, struct ufshcd_sg_entry *prd_table,
@@ -1204,27 +1197,6 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 				cpu_to_le32(upper_32_bits(sg->dma_address));
 			hba->transferred_sector += prd_table[i].size;
 
-#if defined(CONFIG_UFS_FMP_ECRYPT_FS)
-			if (!PageAnon(sg_page(sg))) {
-				if (sg_page(sg)->mapping && sg_page(sg)->mapping->key && \
-						!sg_page(sg)->mapping->plain_text) {
-					if (page_index(sg_page(sg)) >= ECRYPTFS_HEADER_SIZE)
-						sector_key |= UFS_FILE_ENCRYPTION_SECTOR_BEGIN;
-						if ((strncmp(sg_page(sg)->mapping->alg, "aes", sizeof("aes")) &&
-								strncmp(sg_page(sg)->mapping->alg, "aesxts", sizeof("aesxts"))) ||
-								!sg_page(sg)->mapping->key_length) {
-							dev_info(hba->dev, "FMP file encryption is skipped due to invalid alg or key length\n");
-							sector_key &= ~UFS_FILE_ENCRYPTION_SECTOR_BEGIN;
-						}
-					} else
-						sector_key &= ~UFS_FILE_ENCRYPTION_SECTOR_BEGIN;
-				} else {
-					sector_key &= ~UFS_FILE_ENCRYPTION_SECTOR_BEGIN;
-				}
-			} else {
-				sector_key &= ~UFS_FILE_ENCRYPTION_SECTOR_BEGIN;
-			}
-#endif
 			if (sector_key == UFS_BYPASS_SECTOR_BEGIN) {
 				SET_DAS(&prd_table[i], CLEAR);
 				SET_FAS(&prd_table[i], CLEAR);
@@ -3697,9 +3669,6 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason)
 		lrbp = &hba->lrb[index];
 		cmd = lrbp->cmd;
 		if (cmd) {
-#if defined(CONFIG_UFS_FMP_ECRYPT_FS)
-			fmp_clear_sg(lrbp);
-#endif
 			result = ufshcd_transfer_rsp_status(hba, lrbp);
 			cmd->result = result;
 				if (reason)

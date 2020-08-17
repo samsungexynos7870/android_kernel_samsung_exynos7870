@@ -1,7 +1,7 @@
 config FMP_MMC
 	tristate "Samsung EXYNOS FMP Driver for MMC"
 	depends on MMC_DW
-	depends on MMC_DW_FMP_DM_CRYPT || MMC_DW_FMP_ECRYPT_FS
+	depends on MMC_DW_FMP_DM_CRYPT
 	---help---
 	  This is EXYNOS FMP MMC driver.
 
@@ -15,15 +15,6 @@ config FMP_DM_CRYPT
 	  This is EXYNOS FMP DM_CRYPT driver.
 
 	  It is enabled automatically when any FMP DM_CRYPT feature is enabled.
-
-config FMP_ECRYPT_FS
-	tristate "Samsung EXYNOS FMP ECRYPT_FS Driver"
-        depends on ECRYPT_FS
-	depends on UFS_FMP_ECRYPT_FS || MMC_DW_FMP_ECRYPT_FS
-	---help---
-	  This is EXYNOS FMP ECRYPT_FS driver.
-
-	  It is enabled automatically when any FMP ECRYPT_FS feature is enabled.
 
 config FIPS_FMP
 	tristate "Samsung EXYNOS FMP Validation Driver for FIPS"

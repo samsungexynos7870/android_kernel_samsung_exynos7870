@@ -39,10 +39,6 @@
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
-#if defined(CONFIG_FMP_ECRYPT_FS)
-#include "sdcardfs.h"
-#endif
-
 /**
  * Module parameter that defines the ecryptfs_verbosity level.
  */

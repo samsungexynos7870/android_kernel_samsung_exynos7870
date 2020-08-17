@@ -226,7 +226,7 @@ void dw_mci_exynos_cfg_smu(struct dw_mci *host)
 {
 	int ret, id;
 
-#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT) || defined(CONFIG_MMC_DW_FMP_ECRYPT_FS)
+#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT)
 	if (!((host->pdata->quirks & DW_MCI_QUIRK_USE_SMU) ||
 		(host->pdata->quirks & DW_MCI_QUIRK_BYPASS_SMU)))
 		return;
@@ -237,7 +237,7 @@ void dw_mci_exynos_cfg_smu(struct dw_mci *host)
 	id = host->channel;
 	switch (id) {
 		case 0:
-#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT) || defined(CONFIG_MMC_DW_FMP_ECRYPT_FS)
+#if defined(CONFIG_MMC_DW_FMP_DM_CRYPT)
 			ret = exynos_smc(SMC_CMD_FMP, FMP_SECURITY, EMMC0_FMP, FMP_DESC_ON);
 #else
 			ret = exynos_smc(SMC_CMD_FMP, FMP_SECURITY, EMMC0_FMP, FMP_DESC_OFF);
