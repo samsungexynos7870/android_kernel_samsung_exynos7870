@@ -305,13 +305,6 @@ struct mmc_host {
 #define MMC_CAP2_STROBE_ENHANCED	(1 << 18) /* enhanced strobe */
 #define MMC_CAP2_SKIP_INIT_SCAN		(1 << 19) /* skip init mmc scan */
 #define MMC_CAP2_DETECT_ON_ERR	(1 << 20)	/* On I/O err check card removal */
-#if defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
-	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
-#define MMC_CAP2_BROKEN_VOLTAGE		(1 << 21) /* broken voltage */
-#endif /*(CONFIG_BCM43454) || (CONFIG_BCM43454_MODULE) || \
-	(CONFIG_BCM43455) || (CONFIG_BCM43455_MODULE)|| \
-	(CONFIG_BCM43456) || (CONFIG_BCM43456_MODULE)*/
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
 #ifdef CONFIG_MMC_CLKGATE

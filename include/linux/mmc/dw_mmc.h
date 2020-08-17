@@ -454,19 +454,8 @@ struct dw_mci_board {
 	unsigned char io_mode;
 
 	enum dw_mci_cd_types cd_type;
-#if defined(CONFIG_BCM4343)  || defined(CONFIG_BCM4343_MODULE) || \
-	defined(CONFIG_BCM43454) || defined(CONFIG_BCM43454_MODULE) || \
-	defined(CONFIG_BCM43455) || defined(CONFIG_BCM43455_MODULE) || \
-	defined(CONFIG_BCM43456) || defined(CONFIG_BCM43456_MODULE)
-	int (*ext_cd_init)(void (*notify_func)
-		(void *dev_id, int state), void *dev_id, struct mmc_host *mmc);
-#else
 	int (*ext_cd_init)(void (*notify_func)
 			(void *dev_id, int state), void *dev_id);
-#endif /* CONFIG_BCM4343 || CONFIG_BCM4343_MODULE || \
-	CONFIG_BCM43454 || CONFIG_BCM43454_MODULE || \
-	CONFIG_BCM43455 || CONFIG_BCM43455_MODULE || \
-	CONFIG_BCM43456 || CONFIG_BCM43456_MODULE */
 	int (*ext_cd_cleanup)(void (*notify_func)
 			(void *dev_id, int state), void *dev_id);
 	struct dw_mci_dma_ops *dma_ops;
