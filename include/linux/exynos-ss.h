@@ -35,13 +35,6 @@ extern unsigned int exynos_ss_get_item_paddr(char *);
 extern int disable_mc_powerdn(void);
 #endif
 
-/* option */
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-extern void exynos_ss_regulator(char* f_name, unsigned int addr, unsigned int volt, int en);
-#else
-#define exynos_ss_regulator(a,b,c,d)         do { } while(0)
-#endif
-
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
 extern void exynos_ss_thermal(void *data, unsigned int temp, char *name, unsigned int max_cooling);
 #else
@@ -74,12 +67,6 @@ extern void exynos_ss_irqs_disabled(unsigned long flags);
 extern void exynos_ss_hrtimer(void *timer, s64 *now, void *fn, int en);
 #else
 #define exynos_ss_hrtimer(a,b,c,d)	do { } while(0);
-#endif
-
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-extern void exynos_ss_reg(unsigned int read, size_t val, size_t reg, int en);
-#else
-#define exynos_ss_reg(a,b,c,d)		do { } while(0);
 #endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_SPINLOCK
@@ -136,7 +123,6 @@ extern void exynos_ss_i2c_clk(struct clk *clk, int bus_id, int en);
 #define exynos_ss_clockevent(a,b,c)	do { } while(0)
 #define exynos_ss_cpuidle(a,b,c,d)	do { } while(0)
 #define exynos_ss_suspend(a,b,c)	do { } while(0)
-#define exynos_ss_regulator(a,b,c,d)	do { } while(0)
 #define exynos_ss_thermal(a,b,c,d)	do { } while(0)
 #define exynos_ss_mailbox(a,b,c,d)	do { } while(0)
 #define exynos_ss_irq(a,b,c,d)		do { } while(0)
@@ -146,7 +132,6 @@ extern void exynos_ss_i2c_clk(struct clk *clk, int bus_id, int en);
 #define exynos_ss_clk(a,b,c)		do { } while(0)
 #define exynos_ss_freq(a,b,c,d)		do { } while(0)
 #define exynos_ss_irq_exit_var(v)	do { v = 0; } while(0)
-#define exynos_ss_reg(a,b,c,d)		do { } while(0)
 #define exynos_ss_hrtimer(a,b,c,d)	do { } while(0)
 #define exynos_ss_hook_pmsg(a,b)	do { } while(0)
 #define exynos_ss_printk(...)		do { } while(0)

@@ -67,16 +67,6 @@ config EXYNOS_SNAPSHOT_HRTIMER
 	depends on EXYNOS_SNAPSHOT && !EXYNOS_SNAPSHOT_MINIMIZED_MODE
 	default n
 
-config EXYNOS_SNAPSHOT_REG
-	bool "Enable debugging of accessing register by kevent"
-	depends on EXYNOS_SNAPSHOT && !EXYNOS_SNAPSHOT_MINIMIZED_MODE
-	default n
-
-config EXYNOS_SNAPSHOT_REGULATOR
-	bool "Enable debugging of regulator and pmic driver"
-	depends on EXYNOS_SNAPSHOT && !EXYNOS_SNAPSHOT_MINIMIZED_MODE
-	default y
-
 config EXYNOS_SNAPSHOT_THERMAL
 	bool "Enable debugging of thermal driver"
 	depends on EXYNOS_SNAPSHOT && !EXYNOS_SNAPSHOT_MINIMIZED_MODE && EXYNOS_THERMAL

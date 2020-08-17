@@ -207,16 +207,6 @@ struct exynos_ss_log {
 		int en;
 	} freq[ESS_LOG_MAX_NUM];
 #endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-	struct reg_log {
-		unsigned long long time;
-		int read;
-		size_t val;
-		size_t reg;
-		int en;
-		void *caller[ESS_CALLSTACK_MAX_NUM];
-	} reg[ESS_NR_CPUS][ESS_LOG_MAX_NUM];
-#endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_HRTIMER
 	struct hrtimer_log {
 		unsigned long long time;
@@ -225,16 +215,6 @@ struct exynos_ss_log {
 		void *fn;
 		int en;
 	} hrtimers[ESS_NR_CPUS][ESS_LOG_MAX_NUM];
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-	struct regulator_log {
-		unsigned long long time;
-		int cpu;
-		char name[SZ_16];
-		unsigned int reg;
-		unsigned int voltage;
-		int en;
-	} regulator[ESS_LOG_MAX_NUM];
 #endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
 	struct thermal_log {
@@ -310,9 +290,6 @@ struct exynos_ss_log_idx {
 #ifdef CONFIG_EXYNOS_SNAPSHOT_IRQ_EXIT
 	atomic_t irq_exit_log_idx[ESS_NR_CPUS];
 #endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-	atomic_t reg_log_idx[ESS_NR_CPUS];
-#endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_HRTIMER
 	atomic_t hrtimer_log_idx[ESS_NR_CPUS];
 #endif
@@ -321,12 +298,6 @@ struct exynos_ss_log_idx {
 #endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_FREQ
 	atomic_t freq_log_idx;
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-	atomic_t regulator_log_idx;
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-	atomic_t thermal_log_idx;
 #endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_MBOX
 	atomic_t mailbox_log_idx;
@@ -495,31 +466,6 @@ static int ess_irqexit_exlist[] = {
 
 static unsigned ess_irqexit_threshold =
 		CONFIG_EXYNOS_SNAPSHOT_IRQ_EXIT_THRESHOLD;
-#endif
-
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-struct ess_reg_list {
-	size_t addr;
-	size_t size;
-};
-
-static struct ess_reg_list ess_reg_exlist[] = {
-/*
- *  if it wants to reduce effect enabled reg feautre to system,
- *  you must add these registers - mct, serial
- *  because they are called very often.
- *  physical address, size ex) {0x10C00000, 0x1000},
- */
-	{ESS_REG_MCT_ADDR, ESS_REG_MCT_SIZE},
-	{ESS_REG_UART_ADDR, ESS_REG_UART_SIZE},
-	{0, 0},
-	{0, 0},
-	{0, 0},
-	{0, 0},
-	{0, 0},
-	{0, 0},
-	{0, 0},
-};
 #endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_FREQ
@@ -1334,9 +1280,6 @@ static void __init exynos_ss_fixmap_header(void)
 	atomic_set(&(ess_idx.printk_log_idx), -1);
 	atomic_set(&(ess_idx.printkl_log_idx), -1);
 #endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-	atomic_set(&(ess_idx.regulator_log_idx), -1);
-#endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
 	atomic_set(&(ess_idx.thermal_log_idx), -1);
 #endif
@@ -1366,9 +1309,6 @@ static void __init exynos_ss_fixmap_header(void)
 #endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_IRQ_EXIT
 		atomic_set(&(ess_idx.irq_exit_log_idx[i]), -1);
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-		atomic_set(&(ess_idx.reg_log_idx[i]), -1);
 #endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_HRTIMER
 		atomic_set(&(ess_idx.hrtimer_log_idx[i]), -1);
@@ -1584,30 +1524,6 @@ void exynos_ss_suspend(void *fn, void *dev, int en)
 		ess_log->suspend[cpu][i].en = en;
 	}
 }
-
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REGULATOR
-void exynos_ss_regulator(char* f_name, unsigned int addr, unsigned int volt, int en)
-{
-	struct exynos_ss_item *item = &ess_items[ess_desc.kevents_num];
-
-	if (unlikely(!ess_base.enabled || !item->entry.enabled || !item->entry.enabled_init))
-		return;
-	{
-		int cpu = raw_smp_processor_id();
-		unsigned long i = atomic_inc_return(&ess_idx.regulator_log_idx) &
-				(ARRAY_SIZE(ess_log->regulator) - 1);
-		int size = strlen(f_name);
-		if (size >= SZ_16)
-			size = SZ_16 - 1;
-		ess_log->regulator[i].time = cpu_clock(cpu);
-		ess_log->regulator[i].cpu = cpu;
-		strncpy(ess_log->regulator[i].name, f_name, size);
-		ess_log->regulator[i].reg = addr;
-		ess_log->regulator[i].en = en;
-		ess_log->regulator[i].voltage = volt;
-	}
-}
-#endif
 
 #ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
 void exynos_ss_thermal(void *data, unsigned int temp, char *name, unsigned int max_cooling)
@@ -1921,84 +1837,6 @@ void exynos_ss_hrtimer(void *timer, s64 *now, void *fn, int en)
 		ess_log->hrtimers[cpu][i].timer = (struct hrtimer *)timer;
 		ess_log->hrtimers[cpu][i].fn = fn;
 		ess_log->hrtimers[cpu][i].en = en;
-	}
-}
-#endif
-
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-static phys_addr_t virt_to_phys_high(size_t vaddr)
-{
-	phys_addr_t paddr = 0;
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	if (virt_addr_valid((void *) vaddr)) {
-		paddr = virt_to_phys((void *) vaddr);
-		goto out;
-	}
-
-	pgd = pgd_offset_k(vaddr);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto out;
-
-	if (pgd_val(*pgd) & 2) {
-		paddr = pgd_val(*pgd) & SECTION_MASK;
-		goto out;
-	}
-
-	pmd = pmd_offset((pud_t *)pgd, vaddr);
-	if (pmd_none_or_clear_bad(pmd))
-		goto out;
-
-	pte = pte_offset_kernel(pmd, vaddr);
-	if (pte_none(*pte))
-		goto out;
-
-	paddr = pte_val(*pte) & PAGE_MASK;
-
-out:
-	return paddr | (vaddr & UL(SZ_4K - 1));
-}
-
-void exynos_ss_reg(unsigned int read, size_t val, size_t reg, int en)
-{
-	struct exynos_ss_item *item = &ess_items[ess_desc.kevents_num];
-	int cpu = raw_smp_processor_id();
-	unsigned long i, j;
-	size_t phys_reg, start_addr, end_addr;
-
-	if (unlikely(!ess_base.enabled || !item->entry.enabled || !item->entry.enabled_init))
-		return;
-
-	if (ess_reg_exlist[0].addr == 0)
-		return;
-
-	phys_reg = virt_to_phys_high(reg);
-	if (unlikely(!phys_reg))
-		return;
-
-	for (j = 0; j < ARRAY_SIZE(ess_reg_exlist); j++) {
-		if (ess_reg_exlist[j].addr == 0)
-			break;
-		start_addr = ess_reg_exlist[j].addr;
-		end_addr = start_addr + ess_reg_exlist[j].size;
-		if (start_addr <= phys_reg && phys_reg <= end_addr)
-			return;
-	}
-
-	i = atomic_inc_return(&ess_idx.reg_log_idx[cpu]) &
-		(ARRAY_SIZE(ess_log->reg[0]) - 1);
-
-	ess_log->reg[cpu][i].time = cpu_clock(cpu);
-	ess_log->reg[cpu][i].read = read;
-	ess_log->reg[cpu][i].val = val;
-	ess_log->reg[cpu][i].reg = phys_reg;
-	ess_log->reg[cpu][i].en = en;
-
-	for (j = 0; j < ess_desc.callstack; j++) {
-		ess_log->reg[cpu][i].caller[j] =
-			(void *)((size_t)return_address(j + 1));
 	}
 }
 #endif
@@ -2937,46 +2775,6 @@ static ssize_t ess_irqexit_threshold_store(struct kobject *kobj,
 }
 #endif
 
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-static ssize_t ess_reg_exlist_show(struct kobject *kobj,
-			         struct kobj_attribute *attr, char *buf)
-{
-	unsigned long i;
-	ssize_t n = 0;
-
-	n = scnprintf(buf, 36, "excluded register address\n");
-	for (i = 0; i < ARRAY_SIZE(ess_reg_exlist); i++) {
-		if (ess_reg_exlist[i].addr == 0)
-			break;
-		n += scnprintf(buf + n, 40, "register addr: %08zx size: %08zx\n",
-				ess_reg_exlist[i].addr, ess_reg_exlist[i].size);
-        }
-	return n;
-}
-
-static ssize_t ess_reg_exlist_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
-				const char *buf, size_t count)
-{
-	unsigned long i;
-	size_t addr;
-
-	addr = simple_strtoul(buf, NULL, 0);
-	pr_info("register addr: %zx\n", addr);
-
-	for (i = 0; i < ARRAY_SIZE(ess_reg_exlist); i++) {
-		if (ess_reg_exlist[i].addr == 0)
-			break;
-	}
-	if (addr != 0) {
-		ess_reg_exlist[i].size = SZ_4K;
-		ess_reg_exlist[i].addr = addr;
-		pr_info("success %zx to threshold\n", (addr));
-	}
-	return count;
-}
-#endif
-
 static struct kobj_attribute ess_enable_attr =
         __ATTR(enabled, 0644, ess_enable_show, ess_enable_store);
 static struct kobj_attribute ess_callstack_attr =
@@ -2992,10 +2790,6 @@ static struct kobj_attribute ess_irqexit_threshold_attr =
         __ATTR(threshold_irqexit, 0644, ess_irqexit_threshold_show,
 					ess_irqexit_threshold_store);
 #endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-static struct kobj_attribute ess_reg_attr =
-        __ATTR(exlist_reg, 0644, ess_reg_exlist_show, ess_reg_exlist_store);
-#endif
 
 static struct attribute *ess_sysfs_attrs[] = {
 	&ess_enable_attr.attr,
@@ -3004,9 +2798,6 @@ static struct attribute *ess_sysfs_attrs[] = {
 #ifdef CONFIG_EXYNOS_SNAPSHOT_IRQ_EXIT
 	&ess_irqexit_attr.attr,
 	&ess_irqexit_threshold_attr.attr,
-#endif
-#ifdef CONFIG_EXYNOS_SNAPSHOT_REG
-	&ess_reg_attr.attr,
 #endif
 	NULL,
 };

@@ -254,7 +254,6 @@ static int s2m_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 	/* voltage information logging to snapshot feature */
 	snprintf(name, sizeof(name), "LDO%d", (reg_id - S2MPU05_LDO1) + 1);
 	voltage = ((sel & rdev->desc->vsel_mask) * S2MPU05_LDO_STEP2) + S2MPU05_LDO_MIN1;
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_IN);
 
 	ret = sec_reg_update(s2mpu05->iodev, rdev->desc->vsel_reg,
 				  sel, rdev->desc->vsel_mask);
@@ -265,13 +264,9 @@ static int s2m_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 		ret = sec_reg_update(s2mpu05->iodev, rdev->desc->apply_reg,
 					 rdev->desc->apply_bit,
 					 rdev->desc->apply_bit);
-
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_OUT);
-
 	return ret;
 out:
 	pr_warn("%s: failed to set voltage_sel_regmap\n", rdev->desc->name);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_ON);
 	return ret;
 }
 
@@ -287,7 +282,6 @@ static int s2m_set_voltage_sel_regmap_buck(struct regulator_dev *rdev,
 	/* voltage information logging to snapshot feature */
 	snprintf(name, sizeof(name), "BUCK%d", (reg_id - S2MPU05_BUCK1) + 1);
 	voltage = (sel * S2MPU05_BUCK_STEP1) + S2MPU05_BUCK_MIN1;
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_IN);
 
 	ret = sec_reg_write(s2mpu05->iodev, rdev->desc->vsel_reg, sel);
 	if (ret < 0)
@@ -297,13 +291,9 @@ static int s2m_set_voltage_sel_regmap_buck(struct regulator_dev *rdev,
 		ret = sec_reg_update(s2mpu05->iodev, rdev->desc->apply_reg,
 					 rdev->desc->apply_bit,
 					 rdev->desc->apply_bit);
-
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_OUT);
-
 	return ret;
 out:
 	pr_warn("%s: failed to set voltage_sel_regmap\n", rdev->desc->name);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_ON);
 	return ret;
 }
 

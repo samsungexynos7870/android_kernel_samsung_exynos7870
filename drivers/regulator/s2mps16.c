@@ -28,7 +28,6 @@
 #include <linux/mfd/samsung/s2mps16.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
-#include <linux/exynos-ss.h>
 
 #include <soc/samsung/exynos-pmu.h>
 #if defined(CONFIG_PWRCAL)
@@ -258,7 +257,6 @@ static int s2m_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 	/* voltage information logging to snapshot feature */
 	snprintf(name, sizeof(name), "LDO%d", (reg_id - S2MPS16_LDO1) + 1);
 	voltage = ((sel & rdev->desc->vsel_mask) * S2MPS16_LDO_STEP2) + S2MPS16_LDO_MIN1;
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_IN);
 
 	ret = sec_reg_update(s2mps16->iodev, rdev->desc->vsel_reg,
 				  sel, rdev->desc->vsel_mask);
@@ -269,12 +267,9 @@ static int s2m_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 		ret = sec_reg_update(s2mps16->iodev, rdev->desc->apply_reg,
 					 rdev->desc->apply_bit,
 					 rdev->desc->apply_bit);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_OUT);
-
 	return ret;
 out:
 	pr_warn("%s: failed to set voltage_sel_regmap\n", rdev->desc->name);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_ON);
 	return ret;
 }
 
@@ -296,7 +291,6 @@ static int s2m_set_voltage_sel_regmap_buck(struct regulator_dev *rdev,
 	/* voltage information logging to snapshot feature */
 	snprintf(name, sizeof(name), "BUCK%d", (reg_id - S2MPS16_BUCK1) + 1);
 	voltage = (sel * S2MPS16_BUCK_STEP1) + S2MPS16_BUCK_MIN1;
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_IN);
 
 	if (reg_id == S2MPS16_BUCK1 || reg_id == S2MPS16_BUCK2 ||
 		reg_id == S2MPS16_BUCK3 || reg_id == S2MPS16_BUCK4 ||
@@ -311,13 +305,10 @@ static int s2m_set_voltage_sel_regmap_buck(struct regulator_dev *rdev,
 		ret = sec_reg_update(s2mps16->iodev, rdev->desc->apply_reg,
 					 rdev->desc->apply_bit,
 					 rdev->desc->apply_bit);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_OUT);
-
 	return ret;
 
 i2c_out:
 	pr_warn("%s: failed to set voltage_sel_regmap\n", rdev->desc->name);
-	exynos_ss_regulator(name, rdev->desc->vsel_reg, voltage, ESS_FLAG_ON);
 	return ret;
 }
 
