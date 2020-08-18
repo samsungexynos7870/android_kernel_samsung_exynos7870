@@ -181,6 +181,10 @@ config GENERIC_BUG
 	def_bool y
 	depends on BUG
 
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+	depends on GENERIC_BUG
+
 config PGTABLE_LEVELS
 	int
 	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
