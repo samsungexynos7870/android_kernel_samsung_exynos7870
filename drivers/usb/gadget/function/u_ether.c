@@ -111,7 +111,7 @@ MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");
 static inline int qlen(struct usb_gadget *gadget)
 {
 	if (gadget_is_dualspeed(gadget) && (gadget->speed == USB_SPEED_HIGH ||
-					    gadget->speed == USB_SPEED_SUPER))
+					    gadget->speed >= USB_SPEED_SUPER))
 		return qmult * DEFAULT_QLEN;
 	else
 		return DEFAULT_QLEN;
