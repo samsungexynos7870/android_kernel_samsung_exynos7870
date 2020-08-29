@@ -37,13 +37,6 @@
 
 #define DM_VERITY_OPTS_MAX		(2 + DM_VERITY_OPTS_FEC)
 
-#define SEC_HEX_DEBUG
-
-#ifdef SEC_HEX_DEBUG
-static void print_block_data(unsigned long long blocknr, unsigned char *data_to_dump
-		, int start, int len);
-#endif
-
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
 
 module_param_named(prefetch_cluster, dm_verity_prefetch_cluster, uint, S_IRUGO | S_IWUSR);
@@ -200,91 +193,6 @@ static void verity_hash_at_level(struct dm_verity *v, sector_t block, int level,
 /*
  * Handle verification errors.
  */
- #ifdef SEC_HEX_DEBUG
-static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
-			     unsigned long long block, struct dm_verity_io *io , struct bvec_iter *iter)
-{
-	char verity_env[DM_VERITY_ENV_LENGTH];
-	char *envp[] = { verity_env, NULL };
-	const char *type_str = "";
-	struct dm_buffer *buf;
-	struct mapped_device *md = dm_table_get_md(v->ti->table);
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_bio_data_size);
-	struct bio_vec bv ;
-	u8 *data;
-	u8 *page;
-
-	int i;
-	char hex_str[65] = {0, };
-	/* Corruption should be visible in device status in all modes */
-	v->hash_failed = 1;
-
-	if(block == 0){
-		DMERR("%s: block 0 is superblock. Skipping verity_handle_err" , v->data_dev->name);
-			return 0 ;
-	}
-
-	if (v->corrupted_errs >= DM_VERITY_MAX_CORRUPTED_ERRS)
-		goto out;
-
-	v->corrupted_errs++;
-
-	switch (type) {
-	case DM_VERITY_BLOCK_TYPE_DATA:
-		type_str = "data";
-		break;
-	case DM_VERITY_BLOCK_TYPE_METADATA:
-		type_str = "metadata";
-		break;
-	default:
-		BUG();
-	}
-
-	DMERR("%s: %s block %llu is corrupted", v->data_dev->name, type_str,
-		block);
-	for(i=0 ; i < v->salt_size; i++){
-		sprintf(hex_str + (i * 2), "%02x", *(v->salt + i)); 
-	}
-	DMERR("dm-verity salt: %s", hex_str);
-
-	if(!(strcmp(type_str, "metadata"))){
-		data = dm_bufio_read(v->bufio, block, &buf);
-		print_block_data(0, (unsigned char *)(verity_io_real_digest(v, io)), 0, v->digest_size);
-		print_block_data(0, (unsigned char *)(verity_io_want_digest(v, io)), 0, v->digest_size);
-		print_block_data((unsigned long long)block, (unsigned char *)data, 0, PAGE_SIZE);
-	}else if(!(strcmp(type_str, "data"))){
-		bv= bio_iter_iovec(bio, *iter);
-		page = kmap_atomic(bv.bv_page);
-		print_block_data(0, (unsigned char *)(verity_io_real_digest(v, io)), 0, v->digest_size);
-		print_block_data(0, (unsigned char *)(verity_io_want_digest(v, io)), 0, v->digest_size);
-		print_block_data((unsigned long long)block, (unsigned char *)page, 0, PAGE_SIZE);
-		kunmap_atomic(page);
-	}
-	else{
-		DMERR("%s: %s block : Unknown block type", v->data_dev->name, type_str);
-	}
-	
-  panic("dmv corrupt");
-
-	if (v->corrupted_errs == DM_VERITY_MAX_CORRUPTED_ERRS)
-		DMERR("%s: reached maximum errors", v->data_dev->name);
-
-	snprintf(verity_env, DM_VERITY_ENV_LENGTH, "%s=%d,%llu",
-		DM_VERITY_ENV_VAR_NAME, type, block);
-
-	kobject_uevent_env(&disk_to_dev(dm_disk(md))->kobj, KOBJ_CHANGE, envp);
-
-out:
-	if (v->mode == DM_VERITY_MODE_LOGGING)
-		return 0;
-
-	if (v->mode == DM_VERITY_MODE_RESTART)
-		kernel_restart("dm-verity device corrupted");
-
-	return 1;
-}
-#else
- 
 static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 			     unsigned long long block)
 {
@@ -337,7 +245,7 @@ out:
 
 	return 1;
 }
-#endif
+
 /*
  * Verify hash of a metadata block pertaining to the specified data block
  * ("block" argument) at a specified level ("level" argument).
@@ -387,18 +295,12 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 					   DM_VERITY_BLOCK_TYPE_METADATA,
 					   hash_block, data, NULL) == 0)
 			aux->hash_verified = 1;
-#ifdef SEC_HEX_DEBUG
-			else if (verity_handle_err(v,
-						   DM_VERITY_BLOCK_TYPE_METADATA,
-						   hash_block, io, NULL)) {
-#else
-			else if (verity_handle_err(v,
-						   DM_VERITY_BLOCK_TYPE_METADATA,
-						   hash_block)) {
-#endif
-		 		r = -EIO;
-				goto release_ret_r;
-			}
+		else if (verity_handle_err(v,
+					   DM_VERITY_BLOCK_TYPE_METADATA,
+					   hash_block)) {
+			r = -EIO;
+			goto release_ret_r;
+		}
 	}
 
 	data += offset;
@@ -409,52 +311,6 @@ release_ret_r:
 	dm_bufio_release(buf);
 	return r;
 }
-
-#ifdef SEC_HEX_DEBUG
-static void print_block_data(unsigned long long blocknr, unsigned char *data_to_dump
-			, int start, int len)
-{
-	int i, j;
-	int bh_offset = (start / 16) * 16;
-	char row_data[17] = { 0, };
-	char row_hex[50] = { 0, };
-	char ch;
-	if (blocknr == 0) {
-		printk(KERN_ERR "printing Hash dump %dbyte\n", len);
-	} else {
-		printk(KERN_ERR "dm-verity corrupted, printing data in hex\n");
-		printk(KERN_ERR " dump block# : %llu, start offset(byte) : %d\n"
-				, blocknr, start);
-		printk(KERN_ERR " length(byte) : %d, data_to_dump 0x%p\n"
-				, len, (void *)data_to_dump);
-		printk(KERN_ERR "-------------------------------------------------\n");
-	}
-	for (i = 0; i < (len + 15) / 16; i++) {
-		for (j = 0; j < 16; j++) {
-			ch = *(data_to_dump + bh_offset + j);
-			if (start <= bh_offset + j
-				&& start + len > bh_offset + j) {
-
-				if (isascii(ch) && isprint(ch))
-					sprintf(row_data + j, "%c", ch);
-				else
-					sprintf(row_data + j, ".");
-
-				sprintf(row_hex + (j * 3), "%2.2x ", ch);
-			} else {
-				sprintf(row_data + j, " ");
-				sprintf(row_hex + (j * 3), "-- ");
-			}
-		}
-
-		printk(KERN_ERR "0x%4.4x : %s | %s\n"
-				, bh_offset, row_hex, row_data);
-		bh_offset += 16;
-	}
-	printk(KERN_ERR "---------------------------------------------------\n");
-}
-#endif
-
 
 /*
  * Find a hash for a given block, write it to digest and verify the integrity
@@ -597,13 +453,8 @@ static int verity_verify_io(struct dm_verity_io *io)
 		else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
 					   io->block + b, NULL, &start) == 0)
 			continue;
-#ifdef SEC_HEX_DEBUG
-			else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-						   io->block + b, io , &start)) 
-#else
-			else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-						   io->block + b)) 
-#endif
+		else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
+					   io->block + b))
 			return -EIO;
 	}
 
