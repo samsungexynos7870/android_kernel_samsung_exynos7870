@@ -12,6 +12,25 @@ config INTERRUPTIBLE_SYNC
 	bool "Support interruptible sync for Samsung Mobile Device"
 	default y
 
+choice
+	prompt "Default mount option (RELATIME/NOATIME)"
+	default DEFAULT_MNT_RELATIME
+	help
+	  Select default mount option.
+
+	config DEFAULT_MNT_RELATIME
+		bool "RELATIME"
+
+	config DEFAULT_MNT_NOATIME
+		bool "NOATIME"
+endchoice
+
+config DYNAMIC_FSYNC
+	bool "dynamic file sync control"
+	default n
+	help
+	  An experimental file sync control using new power_suspend driver 
+
 if BLOCK
 
 source "fs/ext2/Kconfig"
