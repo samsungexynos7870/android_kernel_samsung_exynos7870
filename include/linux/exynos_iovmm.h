@@ -260,15 +260,6 @@ dma_addr_t exynos_iovmm_map_userptr(struct device *dev, unsigned long vaddr,
 void exynos_iovmm_unmap_userptr(struct device *dev, dma_addr_t iova);
 
 /*
- * The handle_pte_fault() is called by exynos_sysmmu_map_user_pages().
- * Driver cannot include include/linux/huge_mm.h because
- * CONFIG_TRANSPARENT_HUGEPAGE is disabled.
- */
-extern int handle_pte_fault(struct mm_struct *mm,
-			    struct vm_area_struct *vma, unsigned long address,
-			    pte_t *pte, pmd_t *pmd, unsigned int flags);
-
-/*
  * sysmmu_set_prefetch_buffer_by_region() - set prefetch buffer configuration
  *
  * @dev: device descriptor of master device
