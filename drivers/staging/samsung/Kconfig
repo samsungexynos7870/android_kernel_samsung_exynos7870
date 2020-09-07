@@ -47,11 +47,6 @@ config SEC_DEBUG_LAST_KMSG
 	help
 	  This option enables /proc/last_kmsg support.
 
-config SEC_DEBUG_FILE_LEAK
-	bool "Panic when file leak detected"
-	depends on !SAMSUNG_PRODUCT_SHIP
-	default y
-
 config SEC_UPLOAD
 	bool "Enable TN upload mode"
 	depends on SEC_DEBUG

@@ -30,9 +30,6 @@ int sysctl_nr_open_min = BITS_PER_LONG;
 int sysctl_nr_open_max = __const_max(INT_MAX, ~(size_t)0/sizeof(void *)) &
 			 -BITS_PER_LONG;
 
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
-extern void	sec_debug_EMFILE_error_proc(unsigned long files_addr);
-#endif
 static void *alloc_fdmem(size_t size)
 {
 	/*
@@ -158,9 +155,6 @@ static int expand_fdtable(struct files_struct *files, int nr)
 	 * caller and alloc_fdtable().  Cheaper to catch it here...
 	 */
 	if (unlikely(new_fdt->max_fds <= nr)) {
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
-		sec_debug_EMFILE_error_proc((unsigned long)files);
-#endif
 		__free_fdtable(new_fdt);
 		return -EMFILE;
 	}
@@ -201,12 +195,8 @@ static int expand_files(struct files_struct *files, int nr)
 		return 0;
 
 	/* Can we expand? */
-	if (nr >= sysctl_nr_open) {
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
-		sec_debug_EMFILE_error_proc((unsigned long)files);
-#endif	
+	if (nr >= sysctl_nr_open)
 		return -EMFILE;
-	}
 
 	/* All good, so we try */
 	return expand_fdtable(files, nr);
@@ -294,9 +284,6 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 		/* beyond sysctl_nr_open; nothing to do */
 		if (unlikely(new_fdt->max_fds < open_files)) {
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
-			sec_debug_EMFILE_error_proc((unsigned long)oldf);
-#endif
 			__free_fdtable(new_fdt);
 			*errorp = -EMFILE;
 			goto out_release;
@@ -477,12 +464,8 @@ repeat:
 	 * will limit the total number of files that can be opened.
 	 */
 	error = -EMFILE;
-	if (fd >= end) {
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
-		sec_debug_EMFILE_error_proc((unsigned long)files);
-#endif		
+	if (fd >= end)
 		goto out;
-	}
 
 	error = expand_files(files, fd);
 	if (error < 0)
@@ -848,12 +831,8 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 	if (unlikely(oldfd == newfd))
 		return -EINVAL;
 
-	if (newfd >= rlimit(RLIMIT_NOFILE)) {
-#ifdef CONFIG_SEC_DEBUG_FILE_LEAK
- 		sec_debug_EMFILE_error_proc((unsigned long)files);
-#endif
+	if (newfd >= rlimit(RLIMIT_NOFILE))
 		return -EBADF;
-	}
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, newfd);
