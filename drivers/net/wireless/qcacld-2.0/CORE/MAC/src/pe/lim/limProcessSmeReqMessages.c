@@ -2907,11 +2907,10 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         /// Disassociation is triggered by Link Monitoring
         limLog(pMac, LOG1, FL("Sending Disasscoc with reason Link Monitoring"));
         disassocTrigger = eLIM_LINK_MONITORING_DISASSOC;
-    }
-    else
+    } else {
         disassocTrigger = eLIM_HOST_DISASSOC;
-
-    reasonCode      = smeDisassocReq.reasonCode;
+        reasonCode      = smeDisassocReq.reasonCode;
+    }
 
     if (smeDisassocReq.doNotSendOverTheAir)
     {

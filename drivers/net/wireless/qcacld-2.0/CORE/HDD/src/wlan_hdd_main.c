@@ -219,6 +219,8 @@ static struct attribute_group sec_sysfs_attr_group = {
 
 void sec_sysfs_create(void);
 void sec_sysfs_destroy(void);
+extern tANI_U8 sec_versionString[128];
+extern tANI_U8 sec_softapinfoString[256];
 #endif /* SEC_READ_MACADDR || SEC_WRITE_VERSION_IN_SYSFS || SEC_WRITE_SOFTAP_INFO_IN_SYSFS */
 
 #ifndef MODULE
@@ -14338,6 +14340,8 @@ static inline void hdd_remove_pm_qos(void)
 }
 #endif
 
+extern int g_force_hang;
+extern int g_avoid_command;
 /**---------------------------------------------------------------------------
 
   \brief hdd_driver_init() - Core Driver Init Function
@@ -14356,6 +14360,10 @@ static int hdd_driver_init( void)
    v_CONTEXT_t pVosContext = NULL;
    int ret_status = 0;
    unsigned long rc;
+
+// reset HANG related flags
+   g_force_hang = 0;
+   g_avoid_command = 0;
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
    wlan_logging_sock_init_svc();
@@ -14695,40 +14703,8 @@ static ssize_t __show_verinfo(struct kobject *kobj,
 				 struct kobj_attribute *attr,
 				 char *buf)
 {
-	int status;
-	v_CONTEXT_t pVosContext = NULL;
-	hdd_context_t *pHddContext;
-	tSirVersionString wcnss_SW_version;
-	const char *pSWversion;
-	const char *pHWversion;
-	v_U32_t MSPId = 0, mSPId = 0, SIId = 0, CRMId = 0;
-
-	pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
-	if (!pVosContext)
-		return -1;
-
-	pHddContext = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
-
-	status = wlan_hdd_validate_context(pHddContext);
-	if (0 != status)
-	{
-		VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-			"%s: HDD context is not valid", __func__);
-		return -1;
-	}
-
-	snprintf(wcnss_SW_version, sizeof(tSirVersionString), "%08x",
-		pHddContext->target_fw_version);
-
-	pSWversion = wcnss_SW_version;
-	MSPId = (pHddContext->target_fw_version & 0xf0000000) >> 28;
-	mSPId = (pHddContext->target_fw_version & 0xf000000) >> 24;
-	SIId = (pHddContext->target_fw_version & 0xf00000) >> 20;
-	CRMId = pHddContext->target_fw_version & 0x7fff;
-	pHWversion = pHddContext->target_hw_name;
-
 	return scnprintf(buf, PAGE_SIZE,
-			   "Host SW:%s, FW:%d.%d.%d.%d, HW:%s\n", QWLAN_VERSIONSTR, MSPId, mSPId, SIId, CRMId, pHWversion);
+			   "%s\n", sec_versionString);
 }
 
 static ssize_t show_verinfo(struct kobject *kobj,
@@ -14748,33 +14724,8 @@ static ssize_t __show_softapinfo(struct kobject *kobj,
 				 struct kobj_attribute *attr,
 				 char *buf)
 {
-	int status;
-	hdd_context_t *pHddCtx;
-	v_CONTEXT_t pVosContext = NULL;
-
-	pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
-	if (!pVosContext)
-		return -1;
-
-	pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
-
-	status = wlan_hdd_validate_context(pHddCtx);
-	if (0 != status)
-	{
-		VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-			"%s: HDD context is not valid", __func__);
-		return -1;
-	}
-
 	return scnprintf(buf, PAGE_SIZE,
-		"#softap.info\nDualBandConcurrency=%s\n5G=%s\nmaxClient=%d\nHalFn_setCountryCodeHal=%s\nHalFn_getValidChannels=%s\nDualInterface=%s\n",
-        "no",
-        pHddCtx->cfg_ini->nBandCapability ? "no" : "yes",
-        (WLAN_MAX_STA_COUNT > 10) ? 10 : WLAN_MAX_STA_COUNT,
-        "yes",
-        "yes",
-        "yes"
-		);
+			   "%s\n", sec_softapinfoString);
 }
 
 static ssize_t show_softapinfo(struct kobject *kobj,
@@ -14870,6 +14821,13 @@ static int fwpath_changed_handler(const char *kmessage,
 		strlcpy(fwpath_mode_local, kmessage,
 			sizeof(fwpath_mode_local));
 
+		if (!strncmp(fwpath_mode_local, "ftm", 3)) {
+			pr_info("%s : ftm mode\n", __func__);
+			con_mode = 5;
+		} else {
+			pr_info("%s : mission mode\n", __func__);
+			con_mode = 0;
+		}
 		ready = vos_is_load_unload_ready(__func__);
 
 		if (!ready) {

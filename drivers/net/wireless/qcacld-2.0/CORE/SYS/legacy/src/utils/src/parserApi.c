@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -4180,7 +4180,7 @@ sirConvertAddtsReq2Struct(tpAniSirGlobal    pMac,
         if ( addts.num_WMMTCLAS )
         {
             j = (tANI_U8)(pAddTs->numTclas + addts.num_WMMTCLAS);
-            if ( SIR_MAC_TCLASIE_MAXNUM > j ) j = SIR_MAC_TCLASIE_MAXNUM;
+            if ( SIR_MAC_TCLASIE_MAXNUM < j ) j = SIR_MAC_TCLASIE_MAXNUM;
 
             for ( i = pAddTs->numTclas; i < j; ++i )
             {
@@ -4362,7 +4362,7 @@ sirConvertAddtsRsp2Struct(tpAniSirGlobal    pMac,
         if ( addts.num_WMMTCLAS )
         {
             j = (tANI_U8)(pAddTs->numTclas + addts.num_WMMTCLAS);
-            if ( SIR_MAC_TCLASIE_MAXNUM > j ) j = SIR_MAC_TCLASIE_MAXNUM;
+            if ( SIR_MAC_TCLASIE_MAXNUM < j ) j = SIR_MAC_TCLASIE_MAXNUM;
 
             for ( i = pAddTs->numTclas; i < j; ++i )
             {
@@ -5571,18 +5571,18 @@ sap_auth_offload_construct_rsn_opaque( tDot11fIERSN *pdot11f_rsn,
         ptr += element_len;
         data_len += element_len;
 
-        if (pdot11f_rsn->pwise_cipher_suite_count) {
-            element_len = sizeof(pdot11f_rsn->pwise_cipher_suite_count);
+        if (pdot11f_rsn->pwise_cipher_suite_cnt) {
+            element_len = sizeof(pdot11f_rsn->pwise_cipher_suite_cnt);
             vos_mem_copy(ptr,
-                         &pdot11f_rsn->pwise_cipher_suite_count,
+                         &pdot11f_rsn->pwise_cipher_suite_cnt,
                          element_len);
             ptr += element_len;
             data_len += element_len;
-            for (count = 0; count < pdot11f_rsn->pwise_cipher_suite_count;
+            for (count = 0; count < pdot11f_rsn->pwise_cipher_suite_cnt;
                  count++) {
                 element_len = DOT11F_RSN_OUI_SIZE;
                 vos_mem_copy(ptr,
-                             &pdot11f_rsn->pwise_cipher_suites[count][0],
+                             &pdot11f_rsn->pwise_cipher_suite[count][0],
                              element_len);
                 ptr += element_len;
                 data_len += element_len;
@@ -5636,8 +5636,8 @@ sap_auth_offload_update_rsn_ie( tpAniSirGlobal pmac,
             vos_mem_copy(&(pdot11f_rsn->pwise_cipher_suites[0][0]),
                          &sirRSNOui[DOT11F_RSN_CSE_CCMP][0],
                          DOT11F_RSN_OUI_SIZE);
-            pdot11f_rsn->akm_suite_count = 1;
-            vos_mem_copy(&(pdot11f_rsn->akm_suites[0][0]),
+            pdot11f_rsn->akm_suite_cnt = 1;
+            vos_mem_copy(&(pdot11f_rsn->akm_suite[0][0]),
                          &sirRSNOui[DOT11F_RSN_CSE_TKIP][0],
                          DOT11F_RSN_OUI_SIZE);
             pdot11f_rsn->pmkid_count = 0;

@@ -517,16 +517,16 @@ tpPESession pe_find_session_by_sme_session_id(tpAniSirGlobal mac_ctx,
   --------------------------------------------------------------------------*/
  tpPESession peFindSessionBySessionId(tpAniSirGlobal pMac, tANI_U8 sessionId)
 {
-    if(sessionId >=  pMac->lim.maxBssId)
+    if (sessionId >= pMac->lim.maxBssId)
     {
         limLog(pMac, LOGE, FL("Invalid sessionId: %d \n "), sessionId);
-        return(NULL);
+        return (NULL);
     }
-    if(pMac->lim.gpSession[sessionId].valid == TRUE)
-    {
-        return(&pMac->lim.gpSession[sessionId]);
-    }
-    return(NULL);
+
+    if (pMac->lim.gpSession[sessionId].valid == TRUE)
+        return (&pMac->lim.gpSession[sessionId]);
+
+    return (NULL);
 
 }
 

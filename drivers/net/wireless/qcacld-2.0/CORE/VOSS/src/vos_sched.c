@@ -112,6 +112,7 @@ static VOS_STATUS vos_alloc_tlshim_pkt_freeq(pVosSchedContext pSchedContext);
 void vos_sched_flush_rx_mqs(pVosSchedContext SchedContext);
 extern v_VOID_t vos_core_return_msg(v_PVOID_t pVContext, pVosMsgWrapper pMsgWrapper);
 
+
 #ifdef QCA_CONFIG_SMP
 
 /*Maximum 2 clusters supported*/
