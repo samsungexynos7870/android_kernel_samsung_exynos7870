@@ -116,13 +116,6 @@ menuconfig SEC_PM
 	help
 	  Samsung TN Power Management.
 
-config SEC_PM_DEBUG
-	bool "Enable Samsung TN Power management debug support"
-	default y
-	depends on SEC_PM
-	help
-	  Enable Samsung TN Power management debug support.
-
 config SEC_EVENT_LOG
 	bool "Enable Event log parser"
 	depends on SEC_EXT

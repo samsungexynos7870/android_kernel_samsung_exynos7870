@@ -152,7 +152,7 @@ enum S2MPU05_regulators {
 #define S2MPU05_PMIC_EN_SHIFT	6
 #define S2MPU05_REGULATOR_MAX (S2MPU05_REG_MAX)
 
-#ifdef CONFIG_SEC_PM_DEBUG
+#ifdef CONFIG_SEC_DEBUG
 extern int pmic_reset_enabled(int reset_enabled);
 #endif
 #endif /*  __LINUX_MFD_S2MPU05_H */

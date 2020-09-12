@@ -34,10 +34,6 @@
 #include <linux/clk-private.h>
 #include <linux/input.h>
 #include <linux/of_address.h>
-#ifdef CONFIG_SEC_PM_DEBUG
-#include <linux/uaccess.h>
-#include <linux/proc_fs.h>
-#endif
 
 #include <asm/cacheflush.h>
 #include <asm/ptrace.h>
@@ -404,10 +400,6 @@ extern void register_hook_logger_sec(void (*)(const char *, const char *, size_t
 extern int exynos_check_hardlockup_reason(void);
 
 typedef int (*ess_initcall_t)(const struct device_node *);
-
-#ifdef CONFIG_SEC_PM_DEBUG
-static bool sec_log_full;
-#endif
 
 /* purpose of debugging : should be removed */
 unsigned char *debug_curr_ptr;
@@ -790,9 +782,6 @@ static inline void exynos_ss_hook_logbuf(const char buf)
 	if (likely(ess_base.enabled == true && item->entry.enabled == true)) {
 		if (exynos_ss_check_eob(item, 1)) {
 			item->curr_ptr = item->head_ptr;
-#ifdef CONFIG_SEC_PM_DEBUG
-			sec_log_full = true;
-#endif
 			*((unsigned long long *)(item->head_ptr + item->entry.size - (size_t)0x08)) = SEC_LKMSG_MAGICKEY;
 		}
 
@@ -815,9 +804,6 @@ static inline void exynos_ss_hook_logbuf(const char *buf, size_t size)
 
 		if (exynos_ss_check_eob(item, size)) {
 			item->curr_ptr = item->head_ptr;
-#ifdef CONFIG_SEC_PM_DEBUG
-			sec_log_full = true;
-#endif
 			*((unsigned long long *)(item->head_ptr + item->entry.size - (size_t)0x08)) = SEC_LKMSG_MAGICKEY;
 		}
 
@@ -2822,62 +2808,6 @@ static int __init exynos_ss_sysfs_init(void)
 	return ret;
 }
 late_initcall(exynos_ss_sysfs_init);
-
-#ifdef CONFIG_SEC_PM_DEBUG
-static ssize_t sec_log_read_all(struct file *file, char __user *buf,
-				size_t len, loff_t *offset)
-{
-	loff_t pos = *offset;
-	ssize_t count;
-	size_t size;
-	struct exynos_ss_item *item = &ess_items[ess_desc.log_kernel_num];
-
-	if (sec_log_full)
-		size = item->entry.size;
-	else
-		size = (size_t)(item->curr_ptr - item->head_ptr);
-
-	if (pos >= size)
-		return 0;
-
-	count = min(len, size);
-
-	if ((pos + count) > size)
-		count = size - pos;
-
-	if (copy_to_user(buf, item->head_ptr + pos, count))
-		return -EFAULT;
-
-	*offset += count;
-	return count;
-}
-
-static const struct file_operations sec_log_file_ops = {
-	.owner = THIS_MODULE,
-	.read = sec_log_read_all,
-};
-
-static int __init sec_log_late_init(void)
-{
-	struct proc_dir_entry *entry;
-	struct exynos_ss_item *item = &ess_items[ess_desc.log_kernel_num];
-
-	if (!item->head_ptr)
-		return 0;
-
-	entry = proc_create("sec_log", S_IRUSR | S_IRGRP, NULL, &sec_log_file_ops);
-	if (!entry) {
-		pr_err("%s: failed to create proc entry\n", __func__);
-		return 0;
-	}
-
-	proc_set_size(entry, item->entry.size);
-
-	return 0;
-}
-
-late_initcall(sec_log_late_init);
-#endif
 
 #if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP) && defined(CONFIG_EXYNOS_SNAPSHOT_SAVE_SLUGGISHINFO)
 static int schedinfo_proc_show(struct seq_file *m, void *v)

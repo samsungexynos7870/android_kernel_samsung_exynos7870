@@ -77,11 +77,6 @@ module_param_cb(enable_mask, &enable_mask_param_ops, &enable_mask, 0644);
 MODULE_PARM_DESC(enable_mask, "bitmask for C states - C2, C3(LPM)");
 #endif /* CONFIG_SEC_PM */
 
-#ifdef CONFIG_SEC_PM_DEBUG
-unsigned int log_en;
-module_param_named(log_en, log_en, uint, 0644);
-#endif /* CONFIG_SEC_PM_DEBUG */
-
 /*
  * Exynos cpuidle driver supports the below idle states
  *
@@ -149,11 +144,6 @@ static int exynos_enter_c2(struct cpuidle_device *dev,
 {
 	int ret, entry_index;
 
-#ifdef CONFIG_SEC_PM_DEBUG
-	if (unlikely(log_en & ENABLE_C2))
-		pr_info("+++c2\n");
-#endif
-
 	prepare_idle(dev->cpu);
 
 	entry_index = enter_c2(dev->cpu, index);
@@ -170,10 +160,6 @@ static int exynos_enter_c2(struct cpuidle_device *dev,
 
 	post_idle(dev->cpu);
 
-#ifdef CONFIG_SEC_PM_DEBUG
-	if (unlikely(log_en & ENABLE_C2))
-		pr_info("---c2\n");
-#endif
 	return index;
 }
 
@@ -184,10 +170,6 @@ static int exynos_enter_lpm(struct cpuidle_device *dev,
 
 	mode = determine_lpm();
 
-#ifdef CONFIG_SEC_PM_DEBUG
-	if (unlikely(log_en & ENABLE_C3_LPM))
-		pr_info("+++lpm:%d\n", mode);
-#endif
 	prepare_idle(dev->cpu);
 
 	exynos_prepare_sys_powerdown(mode);
@@ -202,10 +184,6 @@ static int exynos_enter_lpm(struct cpuidle_device *dev,
 
 	post_idle(dev->cpu);
 
-#ifdef CONFIG_SEC_PM_DEBUG
-	if (unlikely(log_en & ENABLE_C3_LPM))
-		pr_info("---lpm:%d\n", mode);
-#endif
 	return index;
 }
 
