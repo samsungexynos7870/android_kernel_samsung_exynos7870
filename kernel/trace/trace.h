@@ -1324,6 +1324,7 @@ void trace_event_init(void);
 static inline void __init trace_event_init(void) { }
 #endif
 
+
 /*
  * Reset the state of the trace_iterator so that it can read consumed data.
  * Normally, the trace_iterator is used for reading the data when it is not

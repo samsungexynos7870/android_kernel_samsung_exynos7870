@@ -34,7 +34,6 @@ extern void sec_debug_disable_printk_process(void);
 /* getlog support */
 extern void sec_getlog_supply_kernel(void *klog_buf);
 extern void sec_getlog_supply_platform(unsigned char *buffer, const char *name);
-extern void sec_gaf_supply_rqinfo(unsigned short curr_offset, unsigned short rq_offset);
 #else
 #define sec_debug_setup()			(-1)
 #define sec_debug_reboot_handler()		do { } while(0)
@@ -46,8 +45,6 @@ extern void sec_gaf_supply_rqinfo(unsigned short curr_offset, unsigned short rq_
 
 #define sec_getlog_supply_kernel(a)		do { } while(0)
 #define sec_getlog_supply_platform(a,b)		do { } while(0)
-
-#define sec_gaf_supply_rqinfo(a,b)		do { } while(0)
 #endif /* CONFIG_SEC_DEBUG */
 
 #ifdef CONFIG_SEC_DEBUG_MDM_SEPERATE_CRASH

@@ -15,7 +15,6 @@
 #include <linux/security.h>
 #include <linux/evm.h>
 #include <linux/ima.h>
-#include <linux/task_integrity.h>
 
 /**
  * inode_change_ok - check if attribute changes to an inode are allowed
@@ -287,7 +286,6 @@ int notify_change2(struct vfsmount *mnt, struct dentry *dentry, struct iattr *at
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);
-		five_inode_post_setattr(current, dentry);
 		ima_inode_post_setattr(dentry);
 		evm_inode_post_setattr(dentry, ia_valid);
 	}

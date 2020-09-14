@@ -126,9 +126,8 @@ config SEC_NAD
 	bool "Samsung TN NAD Feature"
 	default n
 	help
-
 	  Samsung TN NAD Feature, support AT CMD for NAD 2.0
-	  	  
+
 config SEC_NAD_MANUAL_PARAM_READTIME
 	int "Samsung TN NAD Feature"
 	depends on SEC_NAD
@@ -142,20 +141,3 @@ config SEC_NAD_API
 	default n
 	help
 	  Samsung TN NAD Feature, Support NAD API to check gpio pull-up registance
-
-choice
-	prompt "Version of GAF structure"
-	depends on SEC_DEBUG
-	default SEC_DEBUG_GAF_V4 if FIVE
-	default SEC_DEBUG_GAF_V3
-
-	config SEC_DEBUG_GAF_V3
-		bool "Use GAF structure version 3"
-		help
-		  Default option for FIVE-disabled kernel
-
-	config SEC_DEBUG_GAF_V4
-		bool "Use GAF structure version 4"
-		help
-		  Default option for FIVE-enabled kernel
-endchoice

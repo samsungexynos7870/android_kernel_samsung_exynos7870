@@ -1630,6 +1630,7 @@ int file_remove_suid(struct file *file)
 	int killsuid;
 	int killpriv;
 	int error = 0;
+
 	/*
 	 * Fast path for nothing security related.
 	 * As well for non-regular files, e.g. blkdev inodes.
@@ -1673,7 +1674,6 @@ int file_update_time(struct file *file)
 	struct inode *inode = file_inode(file);
 	struct timespec now;
 	int sync_it = 0;
-	int need_sync = 0;
 	int ret;
 
 	/* First try to exhaust all avenues to not sync */
@@ -1687,19 +1687,7 @@ int file_update_time(struct file *file)
 	if (!timespec_equal(&inode->i_ctime, &now))
 		sync_it |= S_CTIME;
 
-	/* iversion impacts on "write" performance. This code just filter inodes
-	 * by presence in integrity cache (S_IMA flag, security/integrity/iint.c).
-	 * Because only FIVE uses iversion in Samsung Kernel this patch shouldn't
-	 * affect other code.
-	 * NOTICE: iversion code has been optimized in v4.17-rc4. So this patch should be
-	 * removed since v4.17-rc4
-	 */
-	#ifdef CONFIG_FIVE
-	need_sync = IS_I_VERSION(inode) && (inode->i_flags & S_IMA);
-	#else
-	need_sync = IS_I_VERSION(inode);
-	#endif
-	if (need_sync)
+	if (IS_I_VERSION(inode))
 		sync_it |= S_VERSION;
 
 	if (!sync_it)

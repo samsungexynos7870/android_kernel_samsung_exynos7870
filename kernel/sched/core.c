@@ -85,8 +85,6 @@
 #include <asm/paravirt.h>
 #endif
 
-#include <linux/sec_debug.h>
-
 #include "sched.h"
 #include "../workqueue_internal.h"
 #include "../smpboot.h"
@@ -7039,10 +7037,6 @@ void __init sched_init(void)
 {
 	int i, j;
 	unsigned long alloc_size = 0, ptr;
-
-	sec_gaf_supply_rqinfo(offsetof(struct rq, curr),
-		         offsetof(struct cfs_rq, rq));
-
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	alloc_size += 2 * nr_cpu_ids * sizeof(void **);

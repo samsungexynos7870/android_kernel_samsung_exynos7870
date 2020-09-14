@@ -214,6 +214,4 @@ source "drivers/gps/Kconfig"
 
 source "drivers/sensorhub/Kconfig"
 
-source "drivers/five/Kconfig"
-
 endmenu
