@@ -49,3 +49,9 @@ obj-y += xilinx/
 obj-$(CONFIG_INTEL_MIC_X100_DMA) += mic_x100_dma.o
 obj-$(CONFIG_NBPFAXI_DMA) += nbpfaxi.o
 obj-$(CONFIG_DMA_SUN6I) += sun6i-dma.o
+
+# The -fno-store-merging flag is needed for the pl330
+# driver because there are alignment faults when it's
+# compiled with the -fstore-merging flag causing kernel
+# panics.
+CFLAGS_pl330.o += $(call cc-option,-fno-store-merging)
