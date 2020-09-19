@@ -1467,6 +1467,19 @@ ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
 EXTRA_CFLAGS += -Wmaybe-uninitialized
 endif
 
+ifeq ($(cc-name),clang)
+EXTRA_CFLAGS += -Wno-shift-count-negative
+EXTRA_CFLAGS += -Wno-enum-conversion
+EXTRA_CFLAGS += -Wno-typedef-redefinition 
+EXTRA_CFLAGS += -Wno-shift-count-overflow
+EXTRA_CFLAGS += -Wno-non-literal-null-conversion
+EXTRA_CFLAGS += -Wno-logical-not-parentheses
+EXTRA_CFLAGS += -Wno-uninitialized
+EXTRA_CFLAGS += -Wno-unknown-warning-option
+EXTRA_CFLAGS += -Wno-header-guard
+EXTRA_CFLAGS += -Wno-pointer-bool-conversion
+endif
+
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
 # same a the module name. The host driver will then append MULTI_IF_NAME to
 # any string that must be unique for all instances of the driver on the system.

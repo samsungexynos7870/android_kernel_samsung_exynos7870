@@ -1636,7 +1636,7 @@ static const char *rt5659_push_btn_mode[] = {
 	"Disable", "Read"
 };
 
-static const SOC_ENUM_SINGLE_DECL(rt5659_push_btn_enum, 0, 0,
+static SOC_ENUM_SINGLE_DECL(rt5659_push_btn_enum, 0, 0,
 	rt5659_push_btn_mode);
 
 static int rt5659_push_btn_get(struct snd_kcontrol *kcontrol,
@@ -1662,7 +1662,7 @@ static const char *rt5659_jack_type_mode[] = {
 	"Disable", "Read"
 };
 
-static const SOC_ENUM_SINGLE_DECL(rt5659_jack_type_enum, 0, 0,
+static SOC_ENUM_SINGLE_DECL(rt5659_jack_type_enum, 0, 0,
 	rt5659_jack_type_mode);
 
 static int rt5659_jack_type_get(struct snd_kcontrol *kcontrol,

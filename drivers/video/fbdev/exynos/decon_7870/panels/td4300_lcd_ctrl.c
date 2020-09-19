@@ -11,6 +11,7 @@
 #include <linux/of_device.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/fb.h>
 #include <video/mipi_display.h>
 
 #if defined(CONFIG_SEC_INCELL)

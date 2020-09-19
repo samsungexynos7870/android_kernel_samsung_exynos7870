@@ -38,8 +38,6 @@ int exynos_mipi_dsi_enable_frame_done_int(struct mipi_dsim_device *dsim,
 int exynos_mipi_dsi_get_frame_done_status(struct mipi_dsim_device *dsim);
 int exynos_mipi_dsi_clear_frame_done(struct mipi_dsim_device *dsim);
 
-extern struct fb_info *registered_fb[FB_MAX] __read_mostly;
-
 int exynos_mipi_dsi_fifo_clear(struct mipi_dsim_device *dsim,
 				unsigned int val);
 
