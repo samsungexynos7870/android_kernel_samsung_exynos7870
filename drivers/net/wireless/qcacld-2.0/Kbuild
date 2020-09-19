@@ -1468,6 +1468,7 @@ EXTRA_CFLAGS += -Wno-logical-not-parentheses
 EXTRA_CFLAGS += -Wno-uninitialized
 EXTRA_CFLAGS += -Wno-unknown-warning-option
 EXTRA_CFLAGS += -Wno-header-guard
+EXTRA_CFLAGS += -Wno-pointer-bool-conversion
 endif
 
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
