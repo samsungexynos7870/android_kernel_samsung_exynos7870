@@ -1776,8 +1776,6 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	}
 
 #endif
-	clk_disable(i2c->clk);
-
 	return 0;
 
  err_clk:
