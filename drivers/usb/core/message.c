@@ -1183,13 +1183,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
 	int i;
 
-#ifdef CONFIG_USB_EXTERNAL_DETECT
-	for (i = skip_ep0; i < 16; ++i) {
-		usb_disable_endpoint(dev, i, false);
-		usb_disable_endpoint(dev, i + USB_DIR_IN, false);
-	}
-#endif
-
 	/* getting rid of interfaces will disconnect
 	 * any drivers bound to them (a key side effect)
 	 */
