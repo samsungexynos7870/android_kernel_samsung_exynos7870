@@ -147,22 +147,13 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438) += tsp_melfas/mms438_j7x.fw tsp_m
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT1664) += tsp_atmel/mxt1664t_matisse.fw
 
-TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_stm
-ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS7) += tsp_stm/matisse.fw tsp_stm/stm_gtaxl.fw tsp_stm/fts1a096_gtaxl_rev03.fw \
 					tsp_stm/fts1a096_gtaxl_note.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS) += tsp_stm/fts8cd56_gtactive2.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS1BA90A) += tsp_stm/fts1ba90a_gtadv2.fw
-else
-$(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
-endif
-TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_zinitix
-ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
+
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX) += tsp_zinitix/zt7548_degas2.fw tsp_zinitix/zt7538_o7.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX_TCLM) += tsp_zinitix/zt7548_a6lte.fw tsp_zinitix/zt7548_j6.fw
-else
-$(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
-endif
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_BT541C) += tsp_zinitix/bt541c_GPPIris.fw
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX2) += tsp_synaptics/td4300_on7xelte.fw  tsp_synaptics/td4300_on7xelte_recovery.fw
@@ -190,14 +181,14 @@ fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_FT1804) += abov/abov_a7_max.fw
 fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_T316) += abov/a96t316_a3y17.fw abov/a96t316_j5y17.fw abov/a96t316_a3xpre.fw abov/a96t316_a3xpre_new.fw abov/a96t316_a3xpre_0506.fw
 fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_3X6) += abov/a96t326_next_a3p.fw
 
-#touch based grip sensor
+# touch based grip sensor
 fw-shipped-$(CONFIG_SENSORS_ABOV_A96T316) += abov/a96t316_gppiris.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_J8) += abov/a96t326_j8lte.fw abov/a96t346_j8lte.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_A6) += abov/a96t326_a6lte.fw abov/a96t346_a6lte.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_J6) += abov/a96t326_j6lte.fw
 fw-shipped-$(CONFIG_SENSORS_A96T3X6_J6KOR) += abov/a96t326_j6ltekor.fw
 
-#Sensor Hub
+# Sensor Hub
 fw-shipped-$(CONFIG_SENSORS_SSP_2017A3) += ssp_stmf410_a2017.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_A3XPREMIUM) += ssp_stmf410_a3p.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_A3Y17PREMIUM) += ssp_stmf410_a2017_p.fw
