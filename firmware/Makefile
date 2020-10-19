@@ -200,9 +200,6 @@ fw-shipped-$(CONFIG_LEDS_IRIS_FPGA_ICE40XX) += ice40xx/ice40_fpga_iris_V01.fw
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
-quiet_cmd_copy  = COPY    $@
-      cmd_copy  = cp -u $< $@
-
 quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
 
@@ -223,7 +220,7 @@ quiet_cmd_fwbin = MK_FW   $@
 		  echo "    .section .rodata"				>>$@;\
 		  echo "    .p2align 4"					>>$@;\
 		  echo "_fw_$${FWSTR}_bin:"				>>$@;\
-		  echo "    .incbin \"$(srctree)/$(2)\""				>>$@;\
+		  echo "    .incbin \"$(2)\""				>>$@;\
 		  echo "_fw_end:"					>>$@;\
 		  echo "   .section .rodata.str,\"aMS\",$${PROGBITS},1"	>>$@;\
 		  echo "    .p2align $${ASM_ALIGN}"			>>$@;\
@@ -252,10 +249,6 @@ $(patsubst %,$(obj)/%.gen.S, $(fw-external-y)): %: $(wordsize_deps) \
 # The .o files depend on the binaries directly; the .S files don't.
 $(patsubst %,$(obj)/%.gen.o, $(fw-shipped-y)): %.gen.o: %
 $(patsubst %,$(obj)/%.gen.o, $(fw-external-y)): $(obj)/%.gen.o: $(fwdir)/%
-
-# Manufacturers don't like to distribute in ihex, I guess I can't blame them.
-$(obj)/%: $(obj)/%.cp
-	$(call cmd,copy)
 
 # .ihex is used just as a simple way to hold binary files in a source tree
 # where binaries are frowned upon. They are directly converted with objcopy.
