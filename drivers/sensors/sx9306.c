@@ -134,7 +134,7 @@ early_param("gsp_backoff", set_gsp_backoff);
 
 #ifdef CONFIG_SENSORS_GRIP_CHK_HALLIC
 static int sx9306_check_hallic_state(char *file_path,
-		unsigned char hall_ic_status[])
+		unsigned char hall_ic_status[5])
 {
 	int iRet = 0;
 	mm_segment_t old_fs;
@@ -165,7 +165,7 @@ static int sx9306_check_hallic_state(char *file_path,
 
 		iRet = -EIO;
 	} else
-		strlcpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
+		strlcpy(hall_ic_status, hall_sysfs, 5);
 
 	filp_close(filep, current->files);
 	set_fs(old_fs);

@@ -114,7 +114,7 @@ struct sx9306_p {
 #define HALLIC_PATH		"/sys/class/sec/sec_key/hall_detect"
 
 static int sx9306_wifi_check_hallic_state(char *file_path,
-		unsigned char hall_ic_status[])
+		unsigned char hall_ic_status[5])
 {
 	int iRet = 0;
 	mm_segment_t old_fs;
@@ -145,7 +145,7 @@ static int sx9306_wifi_check_hallic_state(char *file_path,
 
 		iRet = -EIO;
 	} else
-		strlcpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
+		strlcpy(hall_ic_status, hall_sysfs, 5);
 
 	filp_close(filep, current->files);
 	set_fs(old_fs);
