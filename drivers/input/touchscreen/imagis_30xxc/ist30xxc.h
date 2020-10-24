@@ -26,10 +26,6 @@
 #include <linux/vbus_notifier.h>
 #endif
 
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
-
 extern unsigned int lcdtype;
 
 #define USE_OPEN_CLOSE
@@ -568,9 +564,6 @@ struct ist30xx_data {
 	bool gesture;
 #endif
 	int touch_pressed_num;
-#ifdef CONFIG_INPUT_BOOSTER
-	struct input_booster *tsp_booster;
-#endif
 	int scan_count;
 	int scan_retry;
 	int max_scan_retry;

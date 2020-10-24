@@ -55,10 +55,6 @@
 #include <linux/sec_sysfs.h>
 #endif
 
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
-
 #ifdef CONFIG_SEC_ABC
 #include <linux/sti/abc_common.h>
 #endif

@@ -378,9 +378,6 @@ static void wacom_power_off(struct wacom_i2c *wac_i2c)
 		goto out_power_off;
 	}
 
-#ifdef CONFIG_INPUT_BOOSTER
-	input_booster_send_event(BOOSTER_DEVICE_PEN, BOOSTER_MODE_FORCE_OFF);
-#endif
 	wacom_enable_irq(wac_i2c, false);
 
 	/* release pen, if it is pressed */
@@ -1513,29 +1510,6 @@ static ssize_t epen_wcharging_mode_store(struct device *dev,
 
 }
 
-#if defined(CONFIG_INPUT_BOOSTER)
-static ssize_t epen_boost_level(struct device *dev,
-	struct device_attribute *attr, const char *buf,
-	size_t count)
-{
-	struct wacom_i2c *wac_i2c = dev_get_drvdata(dev);
-	int level;
-
-	sscanf(buf, "%d", &level);
-
-	if (level < 0 || level >= BOOSTER_LEVEL_MAX) {
-		dev_err(&wac_i2c->client->dev, "err to set boost_level %d\n", level);
-		return count;
-	}
-	change_booster_level_for_pen(level);
-
-	dev_info(&wac_i2c->client->dev, "%s %d\n", __func__, level);
-
-	return count;
-
-}
-#endif
-
 /* firmware update */
 static DEVICE_ATTR(epen_firm_update,
 			S_IWUSR | S_IWGRP, NULL, epen_firmware_update_store);
@@ -1565,9 +1539,6 @@ static DEVICE_ATTR(epen_reset_result,
 static DEVICE_ATTR(epen_checksum, S_IWUSR | S_IWGRP, NULL, epen_checksum_store);
 static DEVICE_ATTR(epen_checksum_result, S_IRUSR | S_IRGRP,
 			epen_checksum_result_show, NULL);
-#ifdef CONFIG_INPUT_BOOSTER
-static DEVICE_ATTR(boost_level, S_IWUSR | S_IWGRP, NULL, epen_boost_level);
-#endif
 
 #ifdef WACOM_USE_AVE_TRANSITION
 static DEVICE_ATTR(epen_ave, S_IWUSR | S_IWGRP, NULL, epen_ave_store);
@@ -1610,9 +1581,6 @@ static struct attribute *epen_attributes[] = {
 	&dev_attr_epen_saving_mode.attr,
 	&dev_attr_epen_wcharging_mode.attr,
 	&dev_attr_epen_insert.attr,
-#ifdef CONFIG_INPUT_BOOSTER
-	&dev_attr_boost_level.attr,
-#endif
 	NULL,
 };
 

@@ -92,11 +92,6 @@ static void cyttsp5_report_slot_liftoff(struct cyttsp5_mt_data *md,
 		input_mt_report_slot_state(md->input,
 			MT_TOOL_FINGER, false);
 	}
-#ifdef CONFIG_INPUT_BOOSTER
-	if(md->finger_flag)
-		input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_FORCE_OFF);
-	md->finger_flag = false;
-#endif
 }
 
 static int cyttsp5_input_register_device(struct input_dev *input,
@@ -383,14 +378,6 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 				goto cyttsp5_get_mt_touches_pr_tch; // means continue for()
 			}
 
-#ifdef CONFIG_INPUT_BOOSTER
-			if ((tch->abs[CY_TCH_O] != CY_OBJ_HOVER) &&
-				(tch->abs[CY_TCH_E] == CY_EV_TOUCHDOWN)) {
-				if(!md->finger_flag)
-					input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_ON);
-				md->finger_flag = true;
-			}
-#endif
 			if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF)
 				goto cyttsp5_get_mt_touches_pr_tch;
 

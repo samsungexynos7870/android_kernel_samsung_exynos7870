@@ -11,9 +11,6 @@
 #ifdef CONFIG_SEC_DEBUG_TSP_LOG
 #include <linux/sec_debug.h>
 #endif
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
 
 #ifdef CONFIG_SEC_DEBUG_TSP_LOG
 #define tsp_debug_dbg(mode, dev, fmt, ...)	\

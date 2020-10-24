@@ -644,9 +644,6 @@ static void synaptics_rmi4_release_all_finger(struct synaptics_rmi4_data *rmi4_d
 			SW_GLOVE, false);
 	rmi4_data->touchkey_glove_mode_status = false;
 #endif
-#ifdef TSP_BOOSTER
-	INPUT_BOOSTER_SEND_EVENT(KEY_BOOSTER_TOUCH, BOOSTER_MODE_FORCE_OFF);
-#endif
 	input_sync(rmi4_data->input_dev);
 
 	rmi4_data->fingers_on_2d = false;
@@ -1042,12 +1039,6 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 
 	input_sync(rmi4_data->input_dev);
 
-#ifdef TSP_BOOSTER
-	if (new_finger_pressed)
-		INPUT_BOOSTER_SEND_EVENT(KEY_BOOSTER_TOUCH, BOOSTER_MODE_ON);
-	if (!touch_count)
-		INPUT_BOOSTER_SEND_EVENT(KEY_BOOSTER_TOUCH, BOOSTER_MODE_OFF);
-#endif
 	return touch_count;
 }
 
@@ -3359,9 +3350,6 @@ static int synaptics_rmi4_set_input_device(struct synaptics_rmi4_data *rmi4_data
 	set_bit(EV_ABS, rmi4_data->input_dev->evbit);
 	set_bit(BTN_TOUCH, rmi4_data->input_dev->keybit);
 	set_bit(BTN_TOOL_FINGER, rmi4_data->input_dev->keybit);
-#ifdef TSP_BOOSTER
-	set_bit(KEY_BOOSTER_TOUCH, rmi4_data->input_dev->keybit);
-#endif
 
 	input_set_abs_params(rmi4_data->input_dev,
 			ABS_MT_POSITION_X, 0,

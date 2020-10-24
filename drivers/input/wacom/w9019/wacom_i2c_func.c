@@ -39,9 +39,6 @@ void forced_release(struct wacom_i2c *wac_i2c)
 	input_report_key(wac_i2c->input_dev, BTN_TOOL_RUBBER, 0);
 	input_report_key(wac_i2c->input_dev, BTN_TOOL_PEN, 0);
 	input_sync(wac_i2c->input_dev);
-#ifdef CONFIG_INPUT_BOOSTER
-	input_booster_send_event(BOOSTER_DEVICE_PEN, BOOSTER_MODE_FORCE_OFF);
-#endif
 
 	wac_i2c->pen_prox = 0;
 	wac_i2c->pen_pressed = 0;
@@ -788,9 +785,6 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 				printk(KERN_DEBUG"epen:pdct is not active\n");
 				return 0;
 			}
-#ifdef CONFIG_INPUT_BOOSTER
-			input_booster_send_event(BOOSTER_DEVICE_PEN, BOOSTER_MODE_ON);
-#endif
 			wac_i2c->pen_prox = 1;
 
 			if (data[0] & 0x40)
@@ -896,9 +890,6 @@ int wacom_i2c_coord(struct wacom_i2c *wac_i2c)
 				BTN_TOOL_RUBBER, 0);
 			input_report_key(wac_i2c->input_dev, BTN_TOOL_PEN, 0);
 			input_sync(wac_i2c->input_dev);
-#ifdef CONFIG_INPUT_BOOSTER
-			input_booster_send_event(BOOSTER_DEVICE_PEN, BOOSTER_MODE_OFF);
-#endif
 #ifdef WACOM_USE_SOFTKEY_BLOCK
 			if (wac_i2c->pen_pressed) {
 				cancel_delayed_work_sync(&wac_i2c->softkey_block_work);

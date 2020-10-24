@@ -48,9 +48,6 @@
 #include <linux/workqueue.h>
 #include <linux/cyttsp5_core.h>
 
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
 #ifdef CONFIG_VBUS_NOTIFIER
 #include <linux/muic/muic.h>
 #include <linux/muic/muic_notifier.h>
@@ -739,10 +736,6 @@ struct cyttsp5_mt_data {
 	struct early_suspend es;
 	bool is_suspended;
 #endif
-#ifdef CONFIG_INPUT_BOOSTER
-		u8 finger_flag;
-#endif
-
 	bool input_device_registered;
 	char phys[NAME_MAX];
 	int num_prv_tch;

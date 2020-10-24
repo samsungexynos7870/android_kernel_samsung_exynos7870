@@ -37,9 +37,6 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
 #include <linux/regulator/consumer.h>
 #include <linux/sec_sysfs.h>
 #ifdef CONFIG_BATTERY_SAMSUNG
@@ -510,15 +507,9 @@ static void tc300k_release_all_fingers(struct tc300k_data *data)
 
 	input_dbg(true, &client->dev, "%s\n", __func__);
 
-	for (i = 0; i < data->key_num ; i++) {
+	for (i = 0; i < data->key_num ; i++)
 		input_report_key(data->input_dev,
 			data->tsk_ev_val[i].tsk_keycode, 0);
-#ifdef CONFIG_INPUT_BOOSTER
-		input_booster_send_event(data->tsk_ev_val[i].tsk_keycode,
-			BOOSTER_MODE_FORCE_OFF);
-#endif
-
-	}
 	input_sync(data->input_dev);
 }
 
@@ -913,10 +904,6 @@ static irqreturn_t tc300k_interrupt(int irq, void *dev_id)
 				data->tsk_ev_val[i].tsk_status? "P" : "R",
 				data->tsk_ev_val[i].tsk_keyname, key_val,
 				data->fw_ver);
-#endif
-#ifdef CONFIG_INPUT_BOOSTER
-			input_booster_send_event(data->tsk_ev_val[i].tsk_keycode,
-				data->tsk_ev_val[i].tsk_status ? BOOSTER_MODE_ON : BOOSTER_MODE_OFF);
 #endif
 		}
 	}

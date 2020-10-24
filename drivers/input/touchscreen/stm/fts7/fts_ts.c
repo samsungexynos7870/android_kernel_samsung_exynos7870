@@ -879,9 +879,6 @@ void fts_release_all_key(struct fts_ts_info *info)
 		input_sync(info->input_dev);
 
 		info->tsp_keystatus = TOUCH_KEY_NULL;
-#if defined (CONFIG_INPUT_BOOSTER)
-		input_booster_send_event(BOOSTER_DEVICE_TOUCHKEY, BOOSTER_MODE_OFF);
-#endif
 	}
 }
 #endif
@@ -1067,9 +1064,6 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 	unsigned char LastLeftEvent = 0;
 	int x = 0, y = 0, z = 0;
 	int bw = 0, bh = 0, palm = 0, sumsize = 0;
-#if defined (CONFIG_INPUT_BOOSTER)
-	bool booster_restart = false;
-#endif
 #ifdef FTS_SUPPORT_2NDSCREEN
 	u8 currentSideFlag = 0;
 #endif
@@ -1157,12 +1151,6 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 						input_report_key(info->input_dev, KEY_BACK, key_state != 0 ? KEY_PRESS : KEY_RELEASE);
 						tsp_debug_info(true, &info->client->dev, "[TSP_KEY] BACK %s\n" , key_state != 0 ? "P" : "R");
 					}
-
-#if defined (CONFIG_INPUT_BOOSTER)
-					if ((change_keys & key_recent)||(change_keys & key_back)) {
-						input_booster_send_event(BOOSTER_DEVICE_TOUCHKEY, (key_state != 0 ? KEY_PRESS : KEY_RELEASE));
-					}
-#endif
 					input_sync(info->input_dev);
 				}
 
@@ -1294,11 +1282,7 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 		case EVENTID_ENTER_POINTER:
 			if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER)
 				break;
-
 			info->touch_count++;
-#if defined (CONFIG_INPUT_BOOSTER)
-			booster_restart = true;
-#endif
 		case EVENTID_MOTION_POINTER:
 			if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER) {
 				tsp_debug_info(true, &info->client->dev, "%s: low power mode\n", __func__);
@@ -1640,16 +1624,6 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 	}
 
 	input_sync(info->input_dev);
-
-#if defined (CONFIG_INPUT_BOOSTER)
-	if ((EventID == EVENTID_ENTER_POINTER)
-			|| (EventID == EVENTID_LEAVE_POINTER)) {
-		if (booster_restart)
-			input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_ON);
-		if (!info->touch_count)
-			input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_OFF);
-	}
-#endif
 
 	return LastLeftEvent;
 }
@@ -2906,10 +2880,6 @@ void fts_release_all_finger(struct fts_ts_info *info)
 		input_report_key(info->input_dev, KEY_SIDE_GESTURE_RIGHT, 0);
 		input_report_key(info->input_dev, KEY_SIDE_GESTURE_LEFT, 0);
 	}
-#endif
-
-#ifdef CONFIG_INPUT_BOOSTER
-	input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_FORCE_OFF);
 #endif
 
 	input_sync(info->input_dev);

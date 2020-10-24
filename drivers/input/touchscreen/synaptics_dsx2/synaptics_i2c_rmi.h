@@ -31,9 +31,6 @@
 #ifdef CONFIG_SEC_DEBUG_TSP_LOG
 #include <linux/sec_debug.h>
 #endif
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
 #ifdef CONFIG_FB
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -60,9 +57,6 @@
 #define INPUT_PRESSURE_MAX	255
 #endif
 
-#ifdef CONFIG_INPUT_BOOSTER
-#define TSP_BOOSTER
-#endif
 #if defined(CONFIG_GLOVE_TOUCH)
 #define GLOVE_MODE
 #endif

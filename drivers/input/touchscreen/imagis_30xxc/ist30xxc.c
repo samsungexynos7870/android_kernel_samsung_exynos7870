@@ -437,9 +437,6 @@ void print_tsp_event(struct ist30xx_data *data, finger_info *finger, u32 z_value
 #else
 			tsp_noti("%s%d fw:%x\n", TOUCH_DOWN_MESSAGE, finger->bit_field.id, data->fw.cur.fw_ver);
 #endif
-#if defined(CONFIG_INPUT_BOOSTER)
-			input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_ON);
-#endif
 			tsp_touched[idx] = true;
 		} else {
 			/* touch move */
@@ -459,9 +456,6 @@ void print_tsp_event(struct ist30xx_data *data, finger_info *finger, u32 z_value
 			if (!data->touch_pressed_num) {
 				input_report_key(data->input_dev, BTN_TOUCH, 0);
 				input_report_key(data->input_dev, BTN_TOOL_FINGER, 0);
-#if defined(CONFIG_INPUT_BOOSTER)
-				input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_OFF);
-#endif
 			}
 #if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
 			tsp_noti("%s%d(%d, %d)\n", TOUCH_UP_MESSAGE, finger->bit_field.id, data->lx[idx], data->ly[idx]);
@@ -543,9 +537,6 @@ static void clear_input_data(struct ist30xx_data *data)
 		status >>= 1;
 		id++;
 	}
-#if defined(CONFIG_INPUT_BOOSTER)
-	input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_FORCE_OFF);
-#endif
 
 #if IST30XX_USE_KEY
 	id = 1;

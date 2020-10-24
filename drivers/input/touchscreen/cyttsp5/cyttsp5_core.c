@@ -5010,9 +5010,6 @@ int cyttsp5_core_suspend(struct device *dev)
 	mutex_unlock(&cd->system_lock);
 
 	cyttsp5_core_sleep(cd, 1);
-#ifdef CONFIG_INPUT_BOOSTER
-	cd->md.finger_flag = false;
-#endif
 	if (tsp_ta_gpio)
 		gpio_set_value(tsp_ta_gpio, 0);
 

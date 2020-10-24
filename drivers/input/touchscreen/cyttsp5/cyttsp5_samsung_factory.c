@@ -91,10 +91,6 @@ static void clear_cover_mode(void *device_data);
 #endif
 static void not_support_cmd(void *device_data);
 
-#ifdef CONFIG_INPUT_BOOSTER
-static void boost_level(void *device_data);
-#endif
-
 /************************************************************************
  * cmd table
  ************************************************************************/
@@ -128,9 +124,6 @@ struct factory_cmd factory_cmds[] = {
 	{FACTORY_CMD("clear_cover_mode", clear_cover_mode),},
 #endif
 	{FACTORY_CMD("not_support_cmd", not_support_cmd),},
-#ifdef CONFIG_INPUT_BOOSTER
-	{FACTORY_CMD("boost_level", boost_level),},
-#endif
 };
 
 /************************************************************************
@@ -1332,27 +1325,6 @@ static void not_support_cmd(void *device_data)
 	return;
 }
 
-#ifdef CONFIG_INPUT_BOOSTER
-static void boost_level(void *device_data)
-{
-	struct cyttsp5_samsung_factory_data *sfd =
-		(struct cyttsp5_samsung_factory_data *) device_data;
-	int level;
-	char strbuff[FACTORY_CMD_RESULT_STR_LEN];
-	set_default_result(sfd);
-
-	level = sfd->factory_cmd_param[0];
-
-	change_booster_level_for_tsp(level);
-
-	snprintf(strbuff, sizeof(strbuff), "%s", "OK");
-	set_cmd_result(sfd, strbuff, (int)strnlen(strbuff, sizeof(strbuff)));
-	sfd->factory_cmd_state = FACTORYCMD_OK;
-	dev_info(sfd->dev, "%s: %s(%d)\n", __func__,
-			strbuff, (int)strnlen(strbuff, sizeof(strbuff)));
-	return;
-}
-#endif
 static ssize_t store_cmd(struct device *dev, struct device_attribute
 		*devattr, const char *buf, size_t count)
 {

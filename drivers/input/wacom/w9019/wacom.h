@@ -21,10 +21,6 @@
 
 #include <linux/i2c/wacom_i2c.h>
 
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
-
 #ifdef CONFIG_EPEN_WACOM_W9014
 #define WACOM_FW_SIZE 131092
 #elif defined(CONFIG_EPEN_WACOM_W9019)

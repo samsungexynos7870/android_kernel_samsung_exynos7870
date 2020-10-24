@@ -5911,39 +5911,6 @@ out:
 }
 #endif
 
-#ifdef TSP_BOOSTER
-static void boost_level(void *dev_data)
-{
-	struct synaptics_rmi4_data *rmi4_data = (struct synaptics_rmi4_data *)dev_data;
-	struct cmd_data *data = f54->cmd_data;
-
-
-	set_default_result(data);
-
-	if (data->cmd_param[0] < 0 || data->cmd_param[0] >= BOOSTER_LEVEL_MAX) {
-		snprintf(data->cmd_buff, sizeof(data->cmd_buff), "NG");
-		data->cmd_state = CMD_STATUS_FAIL;
-		goto out;
-	}
-
-	change_booster_level_for_tsp(data->cmd_param[0]);
-	tsp_debug_dbg(false, &rmi4_data->i2c_client->dev, "%s %d\n",
-					__func__, data->cmd_param[0]);
-
-	snprintf(data->cmd_buff, sizeof(data->cmd_buff), "OK");
-	data->cmd_state = CMD_STATUS_OK;
-
-out:
-	set_cmd_result(data, strlen(data->cmd_buff));
-
-	mutex_lock(&data->cmd_lock);
-	data->cmd_is_running = false;
-	mutex_unlock(&data->cmd_lock);
-
-	data->cmd_state = CMD_STATUS_WAITING;
-}
-#endif
-
 #ifdef SIDE_TOUCH
 static void sidekey_enable(void *dev_data)
 {
@@ -6843,9 +6810,6 @@ static struct sec_cmd ts_cmds[] = {
 	{SEC_CMD("clear_cover_mode", clear_cover_mode),},
 	{SEC_CMD("fast_glove_mode", fast_glove_mode),},
 	{SEC_CMD("get_glove_sensitivity", not_support_cmd),},
-#endif
-#ifdef TSP_BOOSTER
-	{SEC_CMD("boost_level", boost_level),},
 #endif
 #ifdef SIDE_TOUCH
 	{SEC_CMD("sidekey_enable", sidekey_enable),},

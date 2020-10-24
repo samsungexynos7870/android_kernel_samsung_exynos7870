@@ -68,10 +68,6 @@
 #define TSP_FW_FILENAME "zinitix_fw.bin"
 #endif
 
-#ifdef CONFIG_INPUT_BOOSTER
-#include <linux/input/input_booster.h>
-#endif
-
 #ifdef CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX
 #define SUPPORTED_PALM_TOUCH
 #endif
@@ -695,9 +691,6 @@ struct bt532_ts_info {
 	s16 Gap_min_val;
 	s16 Gap_Gap_val;
 	s16 Gap_node_num;
-#ifdef CONFIG_INPUT_BOOSTER
-	u8 touch_pressed_num;
-#endif
 	struct pinctrl *pinctrl;
 	bool tsp_pwr_enabled;
 #ifdef CONFIG_VBUS_NOTIFIER
@@ -2073,9 +2066,6 @@ static void clear_report_data(struct bt532_ts_info *info)
 	}
 
 	info->finger_cnt1=0;
-#ifdef CONFIG_INPUT_BOOSTER
-	input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_FORCE_OFF);
-#endif
 }
 
 #define	PALM_REPORT_WIDTH	200
@@ -2099,9 +2089,6 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 	u16 z;
 #endif
 	u8 palm = 0;
-#ifdef CONFIG_INPUT_BOOSTER
-	bool booster_enable = false;
-#endif
 
 	if (gpio_get_value(info->pdata->gpio_int)) {
 		tsp_debug_err(true, &client->dev, "Invalid interrupt\n");
@@ -2201,11 +2188,7 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 				if (info->finger_cnt1 == 0)
 					input_report_key(info->input_dev, BTN_TOUCH, 0);
 				input_mt_slot(info->input_dev, i);
-				input_mt_report_slot_state(info->input_dev,
-											MT_TOOL_FINGER, 0);
-#ifdef CONFIG_INPUT_BOOSTER
-				info->touch_pressed_num--;
-#endif
+				input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 0);
 			}
 		}
 		memset(&info->reported_touch_info, 0x0, sizeof(struct point_info));
@@ -2213,11 +2196,8 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 
 		if(reported == true) /* for button event */
 			usleep_range(100, 100);
-#ifdef CONFIG_INPUT_BOOSTER
-		goto touch_booster_out;
-#else
+
 		goto out;
-#endif
 	}
 
 #ifdef SUPPORTED_PALM_TOUCH
@@ -2260,11 +2240,6 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 #else
 				tsp_debug_info(true, &client->dev, "Finger [%02d] w = %d p = %d fw=0x%02x%02x \n"
 							, i, w, palm, info->cap_info.hw_id, info->cap_info.reg_data_version);
-#endif
-
-#ifdef CONFIG_INPUT_BOOSTER
-				info->touch_pressed_num++;
-				booster_enable = true;
 #endif
 				info->finger_cnt1++;
 			}
@@ -2320,10 +2295,6 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 			memset(&info->touch_info.coord[i], 0x0, sizeof(struct coord));
 			input_mt_slot(info->input_dev, i);
 			input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 0);
-
-#ifdef CONFIG_INPUT_BOOSTER
-			info->touch_pressed_num--;
-#endif
 		} else {
 			memset(&info->touch_info.coord[i], 0x0, sizeof(struct coord));
 		}
@@ -2331,19 +2302,6 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 	memcpy((char *)&info->reported_touch_info, (char *)&info->touch_info,
 			sizeof(struct point_info));
 	input_sync(info->input_dev);
-
-#ifdef CONFIG_INPUT_BOOSTER
-touch_booster_out:
-	if (!!info->touch_pressed_num){
-		if (booster_enable) {
-			input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_ON);
-		}
-	}
-	else{
-		input_booster_send_event(BOOSTER_DEVICE_TOUCH, BOOSTER_MODE_OFF);
-	}
-#endif
-
 out:
 	if (info->work_state == NORMAL) {
 #if ESD_TIMER_INTERVAL
