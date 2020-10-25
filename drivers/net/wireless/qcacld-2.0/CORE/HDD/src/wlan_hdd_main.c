@@ -9025,7 +9025,7 @@ unsigned char* wlan_hdd_sec_get_mac_addr(int i)
 static int wlan_hdd_read_mac_addr(unsigned char *mac)
 {
 	struct file *fp      = NULL;
-	char macbuffer[18]   = {0};
+	char macbuffer[19]   = {0};
 	mm_segment_t oldfs   = {0};
 	char randommac[3]    = {0};
 	char buf[18]         = {0};
