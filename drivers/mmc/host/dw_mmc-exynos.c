@@ -1191,22 +1191,21 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	} while (!tuned);
 
 	/*
+	 * This quirk should only be applied for SM-T58x.
+	 */
+#ifdef CONFIG_MMC_TUNING_ALL_PASS_QUIRK
+	if (!tuned && (all_pass_count >=2)) {
+		best_sample = 0x7;
+		tuned = true;
+	}
+#endif
+
+	/*
 	 * To set sample value with mid, the value should be divided by 2,
 	 * because mid represents index in pass map extended.(8 -> 16 bits)
 	 * And that mid is odd number, means the selected case includes
 	 * using fine tuning.
 	 */
-	
-	/* 
-	 * This config should be applied only to T58x.
-	 */
-#ifdef CONFIG_MMC_TUNING_ALL_PASS_QUIRK 
-	if (!tuned && (all_pass_count >=2)) {
-		best_sample = 0x7;
-		tuned = true; 
-	}
-#endif
- 
 	best_sample_ori = best_sample;
 	best_sample /= 2;
 
