@@ -562,14 +562,12 @@ static int sm5703_regulator_probe(struct platform_device *pdev)
 	struct sm5703_mfd_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct sm5703_mfd_platform_data *mfd_pdata = chip->dev->platform_data;
 	const struct sm5703_regulator_platform_data* pdata;
-	//const struct sm5703_pmic_irq_handler *irq_handler = NULL;
 	struct sm5703_regulator_info *ri;
 	struct regulator_dev *rdev;
 	struct regulator_init_data* init_data;
 	int ret;
 	dev_info(&pdev->dev, "Siliconmitus SM5703 regulator driver probing (id = %d)...\n", pdev->id);
 	if (pdev->dev.of_node) {
-//		dev_info(&pdev->dev, "Use DT...\n");
 		init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
 		if (init_data == NULL) {
 			dev_info(&pdev->dev, "Cannot find DTS data...\n");
@@ -606,18 +604,17 @@ static int sm5703_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(rdev);
 	}
 	platform_set_drvdata(pdev, rdev);
-    ret = sm5703_regulator_init_regs(rdev);
-    if (ret<0)
-        goto err_init_device;
-//	dev_dvg(&pdev->dev, "SM5703 Regulator %s driver loaded successfully...\n", rdev->desc->name);
+
+	ret = sm5703_regulator_init_regs(rdev);
+	if (ret < 0)
+		goto err_init_device;
 
 	return 0;
-//err_register_irq:
 err_init_device:
 	dev_info(&pdev->dev, "SM5703 Regulator %s unregistered...\n",
 			rdev->desc->name);
-    regulator_unregister(rdev);
-    return ret;
+	regulator_unregister(rdev);
+	return ret;
 }
 
 static int sm5703_regulator_remove(struct platform_device *pdev)
