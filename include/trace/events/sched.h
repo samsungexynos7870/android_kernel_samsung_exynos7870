@@ -706,6 +706,7 @@ TRACE_EVENT(sched_task_usage_ratio,
 			__entry->ratio)
 );
 
+#ifdef CONFIG_SCHED_HMP
 /*
  * Tracepoint for HMP (CONFIG_SCHED_HMP) task migrations.
  */
@@ -781,6 +782,7 @@ TRACE_EVENT(sched_hmp_offload_succeed,
 		__entry->cpu,
 		__entry->dest_cpu)
 );
+#endif /* CONFIG_SCHED_HMP */
 
 /*
  * Tracepoint for waking a polling cpu without an IPI.
