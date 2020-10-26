@@ -114,7 +114,7 @@ static void sec_power_off(void)
 	usb_psy->get_property(usb_psy, POWER_SUPPLY_PROP_ONLINE, &usb_val);
 	wc_psy->get_property(wc_psy, POWER_SUPPLY_PROP_ONLINE, &wc_val);
 #if defined(CONFIG_BATTERY_SAMSUNG_V2)
-	ac_psy->get_property(ac_psy, POWER_SUPPLY_EXT_PROP_WATER_DETECT, &water_val);
+	ac_psy->get_property(ac_psy, (enum power_supply_property) POWER_SUPPLY_EXT_PROP_WATER_DETECT, &water_val);
 #else
 	water_val.intval = 0;
 #endif
