@@ -30,7 +30,6 @@
 #include <linux/of_gpio.h>
 #include <linux/alarmtimer.h>
 
-#include "../../android_alarm.h"
 #include "inv_mpu_iio.h"
 #ifdef INV_KERNEL_3_18
 #include <linux/iio/sysfs.h>
@@ -67,34 +66,14 @@ static __s8 orientation_map[8][9] = {
 	{ 0, -1,  0, -1, 0,  0, 0,  0, -1},
 };
 
-#if 0
 s64 get_time_ns(void)
 {
 	struct timespec ts;
-	ktime_t current_time;
-	/* TODO:
-	 * Use the same API as what Android elapsedRealtimeNanos() is using
-	 * for good timestamp synchronization with applications.
-	 * This is system dependent and more information might be found
-	 * in following files.
-	 *
-	 * <kernel root>/drivers/staging/android/alarm-dev.c
-	 * <kernel root>/drivers/rtc/alarm-dev.c
-	 */
-	current_time = alarm_get_elapsed_realtime();
-	ts = ktime_to_timespec(current_time);
+
+	get_monotonic_boottime(&ts);
 
 	return timespec_to_ns(&ts);
 }
-#else
-s64 get_time_ns(void)
-{
-	struct timespec ts;
-	ts = ktime_to_timespec(ktime_get_boottime());
-
-	return timespec_to_ns(&ts);
-}
-#endif
 
 s64 get_time_timeofday(void)
 {

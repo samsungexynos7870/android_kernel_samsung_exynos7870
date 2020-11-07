@@ -37,7 +37,6 @@
 #include <linux/spi/spi.h>
 #include <linux/battery/sec_battery.h>
 
-#include "../../staging/android/android_alarm.h"
 #include "factory/ssp_factory.h"
 #include "factory/ssp_mcu.h"
 #include "ssp_sensorlist.h"

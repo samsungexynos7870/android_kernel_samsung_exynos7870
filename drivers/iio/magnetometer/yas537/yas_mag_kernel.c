@@ -31,7 +31,6 @@
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <linux/ktime.h>
-#include "../../android_alarm.h"
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -78,7 +77,7 @@ static inline s64 yas_iio_get_boottime_ns(void)
 {
 	struct timespec ts;
 
-	ts = ktime_to_timespec(ktime_get_boottime());
+	get_monotonic_boottime(&ts);
 
 	return timespec_to_ns(&ts);
 }
@@ -188,43 +187,15 @@ static int yas_data_rdy_trig_poll(struct iio_dev *indio_dev)
 	spin_unlock_irqrestore(&st->spin_lock, flags);
 	return 0;
 }
-#if 1
 
 s64 yas_get_time_ns(void)
 {
 	struct timespec ts;
-	ktime_t current_time;
-	/* TODO:
-	 * Use the same API as what Android elapsedRealtimeNanos() is using
-	 * for good timestamp synchronization with applications.
-	 * This is system dependent and more information might be found
-	 * in following files.
-	 *
-	 * <kernel root>/drivers/staging/android/alarm-dev.c
-	 * <kernel root>/drivers/rtc/alarm-dev.c
-	 */
 
-	/* get_monotonic_boottime(&ts); */
-//	current_time = alarm_get_elapsed_realtime();
-	current_time = ktime_get_boottime();
-
-	ts = ktime_to_timespec(current_time);
+	get_monotonic_boottime(&ts);
 
 	return timespec_to_ns(&ts);
 }
-#else
-s64 yas_get_time_ns(void)
-{
-	struct timespec ts;
-	s64 timestamp;
-	ts = ktime_to_timespec(ktime_get_boottime());
-	timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-	if (timestamp < 0)
-		pr_err("[INV] %s invalid time = %lld\n", __func__, timestamp);
-
-	return timestamp;
-}
-#endif
 
 static irqreturn_t yas_trigger_handler(int irq, void *p)
 {

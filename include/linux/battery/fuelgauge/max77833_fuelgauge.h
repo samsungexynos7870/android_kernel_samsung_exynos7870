@@ -18,10 +18,6 @@
 #ifndef __MAX77833_FUELGAUGE_H
 #define __MAX77833_FUELGAUGE_H __FILE__
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-#include <linux/android_alarm.h>
-#endif
-
 #include <linux/battery/sec_charging_common.h>
 
 #include <linux/mfd/core.h>

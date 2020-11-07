@@ -1144,17 +1144,10 @@ static irqreturn_t max77833_jig_irq_thread(int irq, void *irq_data)
 
 bool max77833_fg_init(struct max77833_fuelgauge_data *fuelgauge)
 {
-	ktime_t	current_time;
 	struct timespec ts;
 	u16 data;
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-	current_time = alarm_get_elapsed_realtime();
-	ts = ktime_to_timespec(current_time);
-#else
-	current_time = ktime_get_boottime();
-	ts = ktime_to_timespec(current_time);
-#endif
+	get_monotonic_boottime(&ts);
 
 	fuelgauge->info.fullcap_check_interval = ts.tv_sec;
 

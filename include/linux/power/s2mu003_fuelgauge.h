@@ -12,10 +12,6 @@
 #ifndef __S2MU003_FUELGAUGE_H
 #define __S2MU003_FUELGAUGE_H __FILE__
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-#include <linux/android_alarm.h>
-#endif
-
 #include <linux/power/sec_charging_common.h>
 
 /*

@@ -18,10 +18,6 @@
 #ifndef __S2MU005_FUELGAUGE_H
 #define __S2MU005_FUELGAUGE_H __FILE__
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-#include <linux/android_alarm.h>
-#endif
-
 #include <linux/battery/sec_charging_common.h>
 
 /* Slave address should be shifted to the right 1bit.

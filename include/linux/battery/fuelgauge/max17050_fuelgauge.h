@@ -18,10 +18,6 @@
 #ifndef __MAX17050_FUELGAUGE_H
 #define __MAX17050_FUELGAUGE_H __FILE__
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-#include <linux/android_alarm.h>
-#endif
-
 /* Slave address should be shifted to the right 1bit.
  * R/W bit should NOT be included.
  */

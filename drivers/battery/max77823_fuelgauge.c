@@ -1503,7 +1503,6 @@ static int get_fuelgauge_soc(struct max77823_fuelgauge_data *fuelgauge)
 	int fg_vcell;
 	int fg_current;
 	int avg_current;
-	ktime_t	current_time;
 	struct timespec ts;
 	int fullcap_check_interval;
 
@@ -1513,13 +1512,7 @@ static int get_fuelgauge_soc(struct max77823_fuelgauge_data *fuelgauge)
 			goto return_soc;
 		}
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-	current_time = alarm_get_elapsed_realtime();
-	ts = ktime_to_timespec(current_time);
-#else
-	current_time = ktime_get_boottime();
-	ts = ktime_to_timespec(current_time);
-#endif
+	get_monotonic_boottime(&ts);
 
 	/* check fullcap range */
 	fullcap_check_interval =
@@ -1650,17 +1643,10 @@ static irqreturn_t max77823_jig_irq_thread(int irq, void *irq_data)
 
 bool max77823_fg_init(struct max77823_fuelgauge_data *fuelgauge)
 {
-	ktime_t	current_time;
 	struct timespec ts;
 	u8 data[2] = {0, 0};
 
-#if defined(ANDROID_ALARM_ACTIVATED)
-	current_time = alarm_get_elapsed_realtime();
-	ts = ktime_to_timespec(current_time);
-#else
-	current_time = ktime_get_boottime();
-	ts = ktime_to_timespec(current_time);
-#endif
+	get_monotonic_boottime(&ts);
 
 	fuelgauge->info.fullcap_check_interval = ts.tv_sec;
 
