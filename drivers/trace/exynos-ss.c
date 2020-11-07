@@ -393,9 +393,6 @@ extern void register_hook_logbuf(void (*)(const char));
 extern void register_hook_logbuf(void (*)(const char *, size_t));
 #endif
 extern void register_hook_logger(void (*)(const char *, const char *, size_t));
-#ifdef CONFIG_ANDROID_LOGGER
-extern void register_hook_logger_sec(void (*)(const char *, const char *, size_t));
-#endif
 
 extern int exynos_check_hardlockup_reason(void);
 
@@ -1424,9 +1421,6 @@ static int __init exynos_ss_init(void)
 #ifdef CONFIG_EXYNOS_SNAPSHOT_HOOK_LOGGER
 #ifdef CONFIG_EXYNOS_SNAPSHOT_PSTORE
 		register_hook_logger(exynos_ss_hook_logger);
-#endif
-#ifdef CONFIG_ANDROID_LOGGER
-		register_hook_logger_sec(exynos_ss_hook_logger);
 #endif
 #endif
 		register_reboot_notifier(&nb_reboot_block);
