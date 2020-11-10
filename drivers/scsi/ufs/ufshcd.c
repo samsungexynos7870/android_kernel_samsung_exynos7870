@@ -6433,11 +6433,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		goto out_disable;
 	}
 
-	/* Skip pre-CI */
-#ifdef CONFIG_SCSI_SKIP_CACHE_OP
-	scsi_dma_set_skip_cpu_sync();
-#endif
-
 	/* Configure LRB */
 	ufshcd_host_memory_configure(hba);
 

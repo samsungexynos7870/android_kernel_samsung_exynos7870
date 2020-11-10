@@ -60,16 +60,6 @@ config SCSI_UFSHCD_PCI
 
 	  If you have a controller with this interface, say Y or M here.
 
-config SCSI_SKIP_CACHE_OP
-	bool "Skip operations for cache coherency"
-	depends on SCSI_UFSHCD
-	---help---
-	  This selects support for skipping operations for cache coherency
-
-	  to reduce I/O overhead if file system layer do same thing.
-
-	  If unsure, say N.
-
 config SCSI_UFSHCD_PLATFORM
 	tristate "Platform bus based UFS Controller support"
 	depends on SCSI_UFSHCD
