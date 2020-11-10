@@ -783,8 +783,11 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	if (is_quota_modification(inode, attr))
-		dquot_initialize(inode);
+	if (is_quota_modification(inode, attr)) {
+		err = dquot_initialize(inode);
+		if (err)
+			return err;
+	}
 
 	if ((attr->ia_valid & ATTR_UID &&
 		!uid_eq(attr->ia_uid, inode->i_uid)) ||

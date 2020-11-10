@@ -120,10 +120,6 @@ typedef u32 block_t;	/*
 			 */
 typedef u32 nid_t;
 
-#ifdef CONFIG_QUOTA
-#define F2FS_MAXQUOTAS 2
-#endif
-
 struct f2fs_mount_info {
 	unsigned int opt;
 	int write_io_size_bits;		/* Write IO size bits */
@@ -137,7 +133,7 @@ struct f2fs_mount_info {
 #endif
 #ifdef CONFIG_QUOTA
 	/* Names of quota files with journalled quota */
-	char *s_qf_names[F2FS_MAXQUOTAS];
+	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	/* For which write hints are passed down to block layer */
@@ -737,6 +733,8 @@ struct f2fs_inode_info {
 	loff_t	last_disk_size;		/* lastly written file size */
 
 #ifdef CONFIG_QUOTA
+	struct dquot *i_dquot[MAXQUOTAS];
+
 	/* quota space reservation, managed internally by quota code */
 	qsize_t i_reserved_quota;
 #endif

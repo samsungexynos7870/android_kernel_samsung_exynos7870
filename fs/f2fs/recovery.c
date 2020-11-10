@@ -76,7 +76,9 @@ static struct fsync_inode_entry *add_fsync_inode(struct f2fs_sb_info *sbi,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	dquot_initialize(inode);
+	err = dquot_initialize(inode);
+	if (err)
+		goto err_out;
 
 	if (quota_inode) {
 		err = dquot_alloc_inode(inode);
@@ -155,7 +157,11 @@ retry:
 			goto out_put;
 		}
 
-		dquot_initialize(einode);
+		err = dquot_initialize(einode);
+		if (err) {
+			iput(einode);
+			goto out_put;
+		}
 
 		err = f2fs_acquire_orphan_inode(F2FS_I_SB(inode));
 		if (err) {
@@ -440,12 +446,18 @@ got_it:
 	f2fs_put_page(node_page, 1);
 
 	if (ino != dn->inode->i_ino) {
+		int ret;
+
 		/* Deallocate previous index in the node page */
 		inode = f2fs_iget_retry(sbi->sb, ino);
 		if (IS_ERR(inode))
 			return PTR_ERR(inode);
 
-		dquot_initialize(inode);
+		ret = dquot_initialize(inode);
+		if (ret) {
+			iput(inode);
+			return ret;
+		}
 	} else {
 		inode = dn->inode;
 	}

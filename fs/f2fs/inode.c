@@ -659,7 +659,11 @@ void f2fs_evict_inode(struct inode *inode)
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
-	dquot_initialize(inode);
+	err = dquot_initialize(inode);
+	if (err) {
+		err = 0;
+		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+	}
 
 	f2fs_remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	f2fs_remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);

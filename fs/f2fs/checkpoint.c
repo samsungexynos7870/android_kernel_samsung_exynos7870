@@ -637,7 +637,12 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 		return PTR_ERR(inode);
 	}
 
-	dquot_initialize(inode);
+	err = dquot_initialize(inode);
+	if (err) {
+		iput(inode);
+		goto err_out;
+	}
+
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */

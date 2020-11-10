@@ -69,7 +69,9 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	else
 		F2FS_I(inode)->i_projid = make_kprojid(&init_user_ns,
 							F2FS_DEF_PROJID);
-	dquot_initialize(inode);
+	err = dquot_initialize(inode);
+	if (err)
+		goto fail_drop;
 
 	set_inode_flag(inode, FI_NEW_INODE);
 
@@ -127,6 +129,16 @@ fail:
 	make_bad_inode(inode);
 	if (nid_free)
 		set_inode_flag(inode, FI_FREE_NID);
+	iput(inode);
+	return ERR_PTR(err);
+fail_drop:
+	trace_f2fs_new_inode(inode, err);
+	dquot_drop(inode);
+	inode->i_flags |= S_NOQUOTA;
+	if (nid_free)
+		set_inode_flag(inode, FI_FREE_NID);
+	clear_nlink(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return ERR_PTR(err);
 }
@@ -264,7 +276,9 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	if (err)
 		return err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
@@ -320,7 +334,9 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 			F2FS_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	f2fs_balance_fs(sbi, true);
 
@@ -374,7 +390,9 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 		return 0;
 	}
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	f2fs_balance_fs(sbi, true);
 
@@ -492,8 +510,12 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
 
-	dquot_initialize(dir);
-	dquot_initialize(inode);
+	err = dquot_initialize(dir);
+	if (err)
+		goto fail;
+	err = dquot_initialize(inode);
+	if (err)
+		goto fail;
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
 	if (!de) {
@@ -563,7 +585,9 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	if (err)
 		return err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = f2fs_new_inode(dir, S_IFLNK | S_IRWXUGO);
 	if (IS_ERR(inode))
@@ -631,7 +655,9 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = f2fs_new_inode(dir, S_IFDIR | mode);
 	if (IS_ERR(inode))
@@ -688,7 +714,9 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	if (err)
 		return err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
@@ -724,7 +752,9 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err;
 
-	dquot_initialize(dir);
+	err = dquot_initialize(dir);
+	if (err)
+		return err;
 
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
@@ -826,12 +856,19 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			F2FS_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
-	dquot_initialize(old_dir);
+	err = dquot_initialize(old_dir);
+	if (err)
+		goto out;
 
-	dquot_initialize(new_dir);
+	err = dquot_initialize(new_dir);
+	if (err)
+		goto out;
 
-	if (new_inode)
-		dquot_initialize(new_inode);
+	if (new_inode) {
+		err = dquot_initialize(new_inode);
+		if (err)
+			goto out;
+	}
 
 	err = -ENOENT;
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
@@ -1018,9 +1055,13 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 			F2FS_I(new_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
-	dquot_initialize(old_dir);
+	err = dquot_initialize(old_dir);
+	if (err)
+		goto out;
 
-	dquot_initialize(new_dir);
+	err = dquot_initialize(new_dir);
+	if (err)
+		goto out;
 
 	err = -ENOENT;
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
