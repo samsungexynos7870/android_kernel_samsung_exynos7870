@@ -2035,9 +2035,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 * - for REQ_FLUSH device-mapper core ensures that no IO is in-flight
 	 * - for REQ_DISCARD caller must use flush if IO ordering matters
 	 */
-
-	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD) ||
-		bio_flagged(bio, BIO_BYPASS))) {
+	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))) {
 		bio->bi_bdev = cc->dev->bdev;
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = cc->start +
