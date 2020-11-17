@@ -1454,23 +1454,4 @@
 			sec_vib,ldo_en = <&gpd1 1 0>;
 		};
 	};
-
-	firmware {
-		android {
-			compatible = "android,firmware";
-			fstab {
-				compatible = "android,fstab";
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/13540000.dwmmc0/by-name/SYSTEM";
-					type = "ext4";
-					mnt_flags = "ro,barrier=1";
-					fsmgr_flags = "wait";
-					status = "ok";
-				};
-
-			};
-		};
-	};
-
 };
