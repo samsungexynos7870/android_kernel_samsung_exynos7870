@@ -6,7 +6,7 @@
 #ifndef _LINUX_RANDOM_H
 #define _LINUX_RANDOM_H
 
-#include <asm/percpu.h>
+#include <linux/percpu.h>
 
 #include <uapi/linux/random.h>
 
