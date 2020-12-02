@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/pagemap.h>
 #include <linux/list.h>

@@ -21,7 +21,6 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/mempool.h>
 #include <linux/bio.h>
 #include <linux/scatterlist.h>

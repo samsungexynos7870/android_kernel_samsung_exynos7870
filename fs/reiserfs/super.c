@@ -21,7 +21,6 @@
 #include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>

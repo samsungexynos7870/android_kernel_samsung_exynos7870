@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/nls.h>

@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/module.h>
 #include <linux/raw.h>
 #include <linux/capability.h>
