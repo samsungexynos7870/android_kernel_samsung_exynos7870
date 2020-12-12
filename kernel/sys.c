@@ -43,7 +43,6 @@
 #include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/mempolicy.h>
-#include <linux/sched.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
