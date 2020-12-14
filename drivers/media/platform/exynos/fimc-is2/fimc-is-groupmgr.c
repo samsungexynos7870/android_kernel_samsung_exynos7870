@@ -872,9 +872,10 @@ static int fimc_is_group_task_start(struct fimc_is_groupmgr *groupmgr,
 	init_kthread_worker(&gtask->worker);
 	snprintf(name, sizeof(name), "fimc_is_gw%d", gtask->id);
 	gtask->task = kthread_run(kthread_worker_fn, &gtask->worker, name);
-	if (IS_ERR_OR_NULL(gtask->task)) {
-		err("failed to create group_task%d\n", gtask->id);
-		ret = -ENOMEM;
+	if (IS_ERR(gtask->task)) {
+		err("failed to create group_task%d, err(%ld)\n",
+			gtask->id, PTR_ERR(gtask->task));
+		ret = PTR_ERR(gtask->task);
 		goto p_err;
 	}
 

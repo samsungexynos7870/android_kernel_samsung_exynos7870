@@ -351,7 +351,17 @@ int fimc_is_sensor_init_sensor_thread(struct fimc_is_device_sensor_peri *sensor_
 	if (sensor_peri->sensor_task == NULL) {
 		spin_lock_init(&sensor_peri->sensor_work_lock);
 		init_kthread_worker(&sensor_peri->sensor_worker);
-		sensor_peri->sensor_task = kthread_run(kthread_worker_fn, &sensor_peri->sensor_worker, "fimc_is_sen_sensor_work");
+		sensor_peri->sensor_task = kthread_run(kthread_worker_fn,
+						&sensor_peri->sensor_worker,
+						"fimc_is_sen_sensor_work");
+		if (IS_ERR(sensor_peri->sensor_task)) {
+			err("failed to create kthread for sensor, err(%ld)",
+				PTR_ERR(sensor_peri->sensor_task));
+			ret = PTR_ERR(sensor_peri->sensor_task);
+			sensor_peri->sensor_task = NULL;
+			return ret;
+		}
+
 		ret = sched_setscheduler_nocheck(sensor_peri->sensor_task, SCHED_FIFO, &param);
 		if (ret) {
 			err("sched_setscheduler_nocheck is fail(%d)", ret);
@@ -384,7 +394,17 @@ int fimc_is_sensor_init_mode_change_thread(struct fimc_is_device_sensor_peri *se
 	sensor_peri->mode_change_flag = true;
 
 	init_kthread_worker(&sensor_peri->mode_change_worker);
-	sensor_peri->mode_change_task = kthread_run(kthread_worker_fn, &sensor_peri->mode_change_worker, "fimc_is_sensor_mode_change");
+	sensor_peri->mode_change_task = kthread_run(kthread_worker_fn,
+						&sensor_peri->mode_change_worker,
+						"fimc_is_sensor_mode_change");
+	if (IS_ERR(sensor_peri->mode_change_task)) {
+		err("failed to create kthread fir sensor mode change, err(%ld)",
+			PTR_ERR(sensor_peri->mode_change_task));
+		ret = PTR_ERR(sensor_peri->mode_change_task);
+		sensor_peri->mode_change_task = NULL;
+		return ret;
+	}
+
 	ret = sched_setscheduler_nocheck(sensor_peri->mode_change_task, SCHED_FIFO, &param);
 	if (ret) {
 		err("sched_setscheduler_nocheck is fail(%d)\n", ret);

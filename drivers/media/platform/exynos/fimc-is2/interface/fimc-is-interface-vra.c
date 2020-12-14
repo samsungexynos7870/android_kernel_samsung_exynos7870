@@ -249,10 +249,11 @@ int fimc_is_lib_vra_init_task(struct fimc_is_lib_vra *lib_vra)
 
 	lib_vra->task_vra.task = kthread_run(kthread_worker_fn,
 		&lib_vra->task_vra.worker, "fimc_is_lib_vra");
-	if (unlikely(!lib_vra->task_vra.task)) {
-		err_lib("lib_vra->task_vra.task is NULL");
-		return -ENOMEM;
-	}
+	if (IS_ERR(lib_vra->task_vra.task)) {
+		err_lib("failed to create thread for VRA, err(%ld)",
+			PTR_ERR(lib_vra->task_vra.task));
+		return PTR_ERR(lib_vra->task_vra.task);
+ 	}
 #ifdef ENABLE_FPSIMD_FOR_USER
 	fpsimd_set_task_using(lib_vra->task_vra.task);
 #endif

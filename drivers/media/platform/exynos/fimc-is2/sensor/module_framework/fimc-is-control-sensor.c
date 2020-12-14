@@ -569,10 +569,12 @@ void fimc_is_sensor_ctl_frame_evt(struct fimc_is_device_sensor *device)
 		fimc_is_sensor_ctl_compensate_expo_gain(device, &adj_gain_setting, &applied_ae_setting, cis_data);
 
 		/* Set analog and digital gains */
-		if (adj_gain_setting.long_again != 0 && adj_gain_setting.long_dgain != 0)
+		if (adj_gain_setting.long_again != 0 && adj_gain_setting.long_dgain != 0) {
 			ret = fimc_is_sensor_ctl_set_gains(device, &adj_gain_setting);
-		else
-			dbg_sensor("[%s] Skip to set gain (%d,%d)\n", __func__, adj_gain_setting.long_again, adj_gain_setting.long_dgain);
+		} else {
+			dbg_sensor("[%s] Skip to set gain (%d,%d)\n",
+						__func__, adj_gain_setting.long_again, adj_gain_setting.long_dgain);
+		}
 
 		if (ret < 0) {
 			err("[%s] frame number(%d) set gains fail\n", __func__, applied_frame_number);

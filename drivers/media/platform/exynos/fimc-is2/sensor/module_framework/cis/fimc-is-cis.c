@@ -223,7 +223,8 @@ int sensor_cis_compensate_gain_for_extremely_br(struct v4l2_subdev *subdev, u32 
 			*again = compensated_again;
 		}
 
-		dbg_sensor("[%s] exp(%d), again(%d), dgain(%d), coarse_int(%d), compensated_again(%d)\n", __func__, expo, *again, *dgain, coarse_int, compensated_again);
+		dbg_sensor("[%s] exp(%d), again(%d), dgain(%d), coarse_int(%d), compensated_again(%d)\n",
+			__func__, expo, *again, *dgain, coarse_int, compensated_again);
 	}
 
 p_err:

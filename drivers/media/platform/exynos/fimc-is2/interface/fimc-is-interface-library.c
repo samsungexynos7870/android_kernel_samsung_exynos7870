@@ -1272,9 +1272,10 @@ int lib_task_init(void)
 							&lib->task_taaisp[i].worker,
 							name);
 		if (IS_ERR(lib->task_taaisp[i].task)) {
-			err_lib("failed to create library task_handler(%d)", i);
-			return -ENOMEM;
-		}
+			err_lib("failed to create library task_handler(%d), err(%ld)",
+				i, PTR_ERR(lib->task_taaisp[i].task));
+			return PTR_ERR(lib->task_taaisp[i].task);
+ 		}
 #ifdef ENABLE_FPSIMD_FOR_USER
 		fpsimd_set_task_using(lib->task_taaisp[i].task);
 #endif
@@ -1345,10 +1346,16 @@ void fimc_is_flush_ddk_thread(void)
 			flush_kthread_worker(&lib->task_taaisp[i].worker);
 
 			ret = kthread_stop(lib->task_taaisp[i].task);
-			if (ret)
-				err_lib("kthread_stop fail (%d)", ret);
+			if (ret) {
+				err_lib("kthread_stop fail (%d): state(%ld), exit_code(%d), exit_state(%d)",
+					ret,
+					lib->task_taaisp[i].task->state,
+					lib->task_taaisp[i].task->exit_code,
+					lib->task_taaisp[i].task->exit_state);
+			}
+
 			lib->task_taaisp[i].task = NULL;
-			info_lib("flush_ddk_thread: kthread_stop (%d)\n", i);
+			info_lib("flush_ddk_thread: kthread_stop [%d]\n", i);
 
 		}
 	}
@@ -1366,22 +1373,13 @@ void fimc_is_lib_flush_task_handler(int priority)
 
 void fimc_is_load_clear(void)
 {
-	int i = 0;
 	struct fimc_is_lib_support *lib = &gPtr_lib_support;
+
+	dbg_lib("binary clear start");
 
 	lib->binary_load_flg = false;
 
-	if (lib->task_taaisp[0].task == NULL)
-		return;
-
-	for (i = 0; i < FIMC_IS_MAX_TASK_WORKER; i++) {
-		if (lib->task_taaisp[i].task->state <= 0) {
-			warn_lib("kthread state(%ld), exit_code(%d), exit_state(%d)",
-				lib->task_taaisp[i].task->state,
-				lib->task_taaisp[i].task->exit_code,
-				lib->task_taaisp[i].task->exit_state);
-		}
-	}
+	dbg_lib("binary clear done");
 
 	return;
 }
