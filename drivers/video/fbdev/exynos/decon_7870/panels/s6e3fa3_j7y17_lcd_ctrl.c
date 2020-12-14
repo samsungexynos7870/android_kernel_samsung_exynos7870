@@ -119,6 +119,8 @@ struct lcd_info {
 	unsigned char			date[LDI_LEN_DATE];
 	unsigned int			coordinate[2];
 	unsigned char			manufacture_info[LDI_LEN_MANUFACTURE_INFO];
+	unsigned char			rddpm;
+	unsigned char			rddsm;
 
 	unsigned int			adaptive_control;
 	int				lux;
@@ -686,7 +688,7 @@ static int s6e3fa3_read_id(struct lcd_info *lcd)
 		priv->lcdconnected = lcd->connected = 0;
 		dev_info(&lcd->ld->dev, "%s: connected lcd is invalid\n", __func__);
 
-		if (!lcdtype && decon)
+		if (lcdtype && decon)
 			decon_abd_save_bit(&decon->abd, BITS_PER_BYTE * LDI_LEN_ID, cpu_to_be32(lcd->id_info.value), LDI_BIT_DESC_ID);
 	}
 
@@ -1008,6 +1010,28 @@ static int panel_read_bit_info(struct lcd_info *lcd, u32 index, u8 *rxbuf)
 		dev_info(&lcd->ld->dev, "==================================================\n");
 
 	}
+
+	return ret;
+}
+
+static int s6e3fa3_read_rddpm(struct lcd_info *lcd)
+{
+	int ret = 0;
+
+	ret = panel_read_bit_info(lcd, LDI_BIT_ENUM_RDDPM, &lcd->rddpm);
+	if (ret < 0)
+		dev_info(&lcd->ld->dev, "%s: fail\n", __func__);
+
+	return ret;
+}
+
+static int s6e3fa3_read_rddsm(struct lcd_info *lcd)
+{
+	int ret = 0;
+
+	ret = panel_read_bit_info(lcd, LDI_BIT_ENUM_RDDSM, &lcd->rddsm);
+	if (ret < 0)
+		dev_info(&lcd->ld->dev, "%s: fail\n", __func__);
 
 	return ret;
 }
@@ -2154,6 +2178,24 @@ static int dsim_panel_exitalpm(struct dsim_device *dsim)
 }
 #endif
 
+#if defined(CONFIG_LOGGING_BIGDATA_BUG)
+static unsigned int dsim_get_panel_bigdata(struct dsim_device *dsim)
+{
+	struct lcd_info *lcd = dsim->priv.par;
+	unsigned int val = 0;
+
+	lcd->rddpm = 0xff;
+	lcd->rddsm = 0xff;
+
+	s6e3fa3_read_rddpm(lcd);
+	s6e3fa3_read_rddsm(lcd);
+
+	val = (lcd->rddpm  << 8) | lcd->rddsm;
+
+	return val;
+}
+#endif
+
 struct mipi_dsim_lcd_driver s6e3fa3_mipi_lcd_driver = {
 	.name		= "s6e3fa3",
 	.probe		= dsim_panel_probe,
@@ -2162,6 +2204,9 @@ struct mipi_dsim_lcd_driver s6e3fa3_mipi_lcd_driver = {
 #if defined(CONFIG_LCD_DOZE_MODE)
 	.enteralpm	= dsim_panel_enteralpm,
 	.exitalpm	= dsim_panel_exitalpm,
+#endif
+#if defined(CONFIG_LOGGING_BIGDATA_BUG)
+	.get_buginfo	= dsim_get_panel_bigdata,
 #endif
 };
 

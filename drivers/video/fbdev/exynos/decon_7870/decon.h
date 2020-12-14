@@ -708,6 +708,9 @@ struct decon_device {
 	struct decon_phys_old_info	old_info;
 	struct decon_regs_data win_regs;
 
+#ifdef CONFIG_LOGGING_BIGDATA_BUG
+	int eint_pend;
+#endif
 	bool				ignore_vsync;
 	struct abd_protect		abd;
 	atomic_t			ffu_flag;	/* first frame update */

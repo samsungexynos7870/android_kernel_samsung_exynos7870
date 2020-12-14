@@ -27,6 +27,55 @@
 #define abd_printf(m, ...)	\
 {	if (m) seq_printf(m, __VA_ARGS__); else decon_info(__VA_ARGS__);	}	\
 
+#if defined(CONFIG_LOGGING_BIGDATA_BUG)
+/* Gen Big Data Error for Decon's Bug
+ *
+ * return value
+ * 1. 31 ~ 28 : decon_id
+ * 2. 27 ~ 24 : decon eing pend register
+ * 3. 23 ~ 16 : dsim underrun count
+ * 4. 15 ~  8 : 0x0e panel register
+ * 5.  7 ~  0 : 0x0a panel register
+ * */
+
+static unsigned int gen_decon_bug_bigdata(struct decon_device *decon)
+{
+	struct dsim_device *dsim = NULL;
+	unsigned int value = 0, panel_value;
+	unsigned int underrun_cnt = 0;
+
+	/* for eint pend value */
+	value |= (decon->eint_pend & 0x0f) << 24;
+
+	/* for underrun count */
+	underrun_cnt = decon->underrun_stat.underrun_cnt;
+	if (underrun_cnt > 0xff) {
+		decon_info("%s: decon underrun exceed 1byte: %d\n",
+				__func__, underrun_cnt);
+		underrun_cnt = 0xff;
+	}
+	value |= underrun_cnt << 16;
+
+	dsim = container_of(decon->output_sd, struct dsim_device, sd);
+	if (dsim != NULL) {
+		/* for panel dump */
+		panel_value = call_panel_ops(dsim, get_buginfo, dsim);
+		value |= panel_value & 0xffff;
+	}
+
+	decon_info("%s: big data: %x\n", __func__, value);
+
+	return value;
+}
+
+void log_decon_bigdata(struct decon_device *decon)
+{
+	unsigned int bug_err_num;
+
+	bug_err_num = gen_decon_bug_bigdata(decon);
+}
+#endif
+
 void decon_abd_save_str(struct abd_protect *abd, const char *print)
 {
 	unsigned int idx = atomic_inc_return(&abd->event.log_idx) % ABD_EVENT_LOG_MAX;
@@ -490,6 +539,7 @@ static int decon_abd_show(struct seq_file *m, void *unused)
 	}
 
 	decon_abd_print_str(m);
+
 #ifdef CONFIG_DECON_EVENT_LOG
 	abd_printf(m, "==========_RAM_DEBUG_==========\n");
 	decon_abd_print_ss_log(m);

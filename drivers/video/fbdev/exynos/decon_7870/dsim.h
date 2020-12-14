@@ -156,6 +156,9 @@ struct mipi_dsim_lcd_driver {
 	int	(*resume_early)(struct dsim_device *dsim);
 	int	(*resume)(struct dsim_device *dsim);
 	int	(*dump)(struct dsim_device *dsim);
+#if defined(CONFIG_LOGGING_BIGDATA_BUG)
+	unsigned int (*get_buginfo)(struct dsim_device *dsim);
+#endif
 #ifdef CONFIG_LCD_DOZE_MODE
 	int	(*enteralpm)(struct dsim_device *dsim);
 	int	(*exitalpm)(struct dsim_device *dsim);

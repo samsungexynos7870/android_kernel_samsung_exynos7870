@@ -105,5 +105,10 @@ extern void decon_abd_save_fto(struct abd_protect *abd, struct sync_fence *fence
 extern void decon_abd_save_str(struct abd_protect *abd, const char *print);
 extern void decon_abd_save_bit(struct abd_protect *abd, unsigned int size, unsigned int value, char **print);
 extern int decon_abd_pin_register_handler(int irq, irq_handler_t handler, void *dev_id);
+#if defined(CONFIG_LOGGING_BIGDATA_BUG)
+extern void log_decon_bigdata(struct decon_device *decon);
+#else
+static inline void log_decon_bigdata(struct decon_device *decon) {};
+#endif
 #endif
 

@@ -88,15 +88,15 @@ static atomic_t extra_vsync_wait;
 
 /*----------------- function for systrace ---------------------------------*/
 /* history (1): 15.11.10
- * if we make argument to current-pid, systrace-log will be duplicated in Surfaceflinger as systrace-error.
- * example : EventControl-3184  ( 3066) [001] ...1    53.870105: tracing_mark_write: B|3066|eventControl\n\
- *           EventControl-3184  ( 3066) [001] ...1    53.870120: tracing_mark_write: B|3066|eventControl\n\
- *           EventControl-3184  ( 3066) [001] ....    53.870164: tracing_mark_write: B|3184|decon_DEactivate_vsync_0\n\
- * solution : store decon0's pid to static-variable.
- *
- * history (2) : 15.11.11
- * all code is registred in decon srtucture.
- */
+* if we make argument to current-pid, systrace-log will be duplicated in Surfaceflinger as systrace-error.
+* example : EventControl-3184  ( 3066) [001] ...1    53.870105: tracing_mark_write: B|3066|eventControl\n\
+*           EventControl-3184  ( 3066) [001] ...1    53.870120: tracing_mark_write: B|3066|eventControl\n\
+*           EventControl-3184  ( 3066) [001] ....    53.870164: tracing_mark_write: B|3184|decon_DEactivate_vsync_0\n\
+* solution : store decon0's pid to static-variable.
+*
+* history (2) : 15.11.11
+* all code is registred in decon srtucture.
+*/
 
 static void tracing_mark_write( int pid, char id, char* str1, int value )
 {
@@ -2390,8 +2390,8 @@ void decon_set_qos(struct decon_device *decon, struct decon_reg_data *regs,
 }
 #endif
 
-static int decon_prevent_size_mismatch
-	(struct decon_device *decon, int dsi_idx, unsigned long timeout)
+static int decon_prevent_size_mismatch(struct decon_device *decon,
+				int dsi_idx, unsigned long timeout)
 {
 	unsigned long delay_time = 100;
 	unsigned long cnt = timeout / delay_time;
@@ -2524,6 +2524,9 @@ static void decon_update_regs(struct decon_device *decon, struct decon_reg_data 
 
 	if (decon_reg_wait_for_update_timeout(DECON_INT, 300 * 1000) < 0) {
 		decon_dump(decon);
+#ifdef CONFIG_LOGGING_BIGDATA_BUG
+		log_decon_bigdata(decon);
+#endif
 		BUG();
 	}
 	decon_set_protected_content_check(decon, regs, true);

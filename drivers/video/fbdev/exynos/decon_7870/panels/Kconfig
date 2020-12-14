@@ -27,6 +27,11 @@ config DISPLAY_USE_INFO
 	bool "Support display use info logging"
 	default n
 
+config LOGGING_BIGDATA_BUG
+	depends on SEC_DEBUG
+	bool "Logging extra information when decon bug"
+	default n
+
 config PANEL_EA8064G_DYNAMIC
 	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSI
 	bool "EA8064G Amoled FHD driver"
