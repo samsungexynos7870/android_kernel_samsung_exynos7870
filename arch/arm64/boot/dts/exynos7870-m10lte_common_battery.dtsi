@@ -44,7 +44,7 @@
 			fuelgauge,capacity_max_margin = <200>;
 			fuelgauge,capacity_min = <0>;
 			fuelgauge,capacity_calculation_type = <28>;
-			/* fuelgauge,capacity_full = <3300>; */
+			fuelgauge,capacity_full = <3400>;
 			fuelgauge,type_str = "SDI";
 			fuelgauge,model_type = <1>;
 			fuelgauge,fg_log_enable = <1>;
@@ -302,10 +302,10 @@
 		battery,temp_table_data = <900 850 800 750 700 650 600 550 500 450
 			400 350 300 250 200 150 100 50 0 (-50) (-100) (-150) (-200)>;
 
-		battery,input_current_limit = <1000 500 500 1000 500 900 1000 500 1000 0 820 820 820 1000 1000 0 0 400 700 1300 300 1000 1000 0 1000 1000 1000 1000 80 1000 1000 1400 1000 1000 820 820>;
-		battery,fast_charging_current = <1200 0 0 1200 500 1200 1000 500 1200 0 1200 1200 1200 1200 1200 0 0 400 700 1300 300 1000 1500 0 1200 1200 1000 1200 80 1200 1000 1400 0 1000 1200 1200>;
-		battery,full_check_current_1st = <325 0 0 325 325 325 325 325 325 0 325 325 325 325 325 0 0 325 325 325 325 325 325 0 325 325 325 325 0 325 325 325 0 325 325 325>;
-		battery,full_check_current_2nd = <175 0 0 175 175 175 175 175 175 0 175 175 175 175 175 0 0 175 175 175 175 175 175 0 175 175 175 175 0 175 175 175 0 175 175 175>;
+		battery,input_current_limit = <1000 500 500 1000 500 900 1000 500 1000 0 820 820 820 1000 1000 0 0 400 700 1300 300 1000 1000 0 1000 1000 1000 1000 80 1000 1000 1400 1000 1000 820 820 820 820 1000 1000 1000 1000 1000 1000>;
+		battery,fast_charging_current = <1200 0 0 1200 500 1200 1000 500 1200 0 1200 1200 1200 1200 1200 0 0 400 700 1300 300 1000 1500 0 1200 1200 1000 1200 80 1200 1000 1400 0 1000 1200 1200 1200 1200 1200 1200 1200 1200 1200 1200>;
+		battery,full_check_current_1st = <325 0 0 325 325 325 325 325 325 0 325 325 325 325 325 0 0 325 325 325 325 325 325 0 325 325 325 325 0 325 325 325 0 325 325 325 325 325 325 325 325 325 325 325>;
+		battery,full_check_current_2nd = <175 0 0 175 175 175 175 175 175 0 175 175 175 175 175 0 0 175 175 175 175 175 175 0 175 175 175 175 0 175 175 175 0 175 175 175 175 175 175 175 175 175 175 175>;
 
 		battery,wireless_cc_cv = <86>;
 		battery,inbat_voltage = <1>;
@@ -408,7 +408,11 @@
 		battery,siop_input_limit_current = <1000>;
 		battery,siop_charging_limit_current = <1000>;
 
+		battery,battery_full_capacity = <3400>;
+
 		battery,cisd_max_voltage_thr = <5000>;
+
+		battery,detect_moisture;  /* moisture detect function for non water proof USB type-b models */
 
 		io-channels = <&exynos_adc 1>,<&exynos_adc 4>;
 		io-channel-names = "adc-temp","adc-in-bat";

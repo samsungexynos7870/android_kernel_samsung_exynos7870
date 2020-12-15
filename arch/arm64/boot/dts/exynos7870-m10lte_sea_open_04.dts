@@ -12,18 +12,18 @@
 /dts-v1/;
 #include "exynos7870-m10lte_common.dtsi"
 #include "modem-ss315ap-pdata.dtsi"
-#include "exynos7870-m10lte_swa_open_gpio_00.dtsi"
+#include "exynos7870-m10lte_sea_open_gpio_00.dtsi"
 #include "exynos7870-m10lte_swa_open_battery_00.dtsi"
-#include "exynos7870-m10lte_sensor_00.dtsi"
+#include "exynos7870-m10lte_sensor_01.dtsi"
 
 / {
-	model = "Samsung M10 LTE OPEN bringup board based on Exynos7870";
+	model = "Samsung M10 LTE OPEN rev02 board based on Exynos7870";
 	model_info-chip = <7870>;
 	model_info-platform = "android";
 	model_info-subtype = "samsung";
-	model_info-hw_rev = <0>;
-	model_info-hw_rev_end = <0>;
-	compatible = "samsung, M10 LTE SWA OPEN BRINGUP", "samsung,exynos7870";
+	model_info-hw_rev = <4>;
+	model_info-hw_rev_end = <255>;
+	compatible = "samsung, M10 LTE SEA OPEN 02", "samsung,exynos7870";
 
 	i2c@13870000 {
 		status = "okay";
@@ -91,6 +91,10 @@
 		samsung,hsi2c-batcher;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		audio_codec_cod3026x: cod3026x@04 {
+			use-feature-flag = <0x01>;
+		};
 
 		s2mpu05_pmic@66 {
 			compatible = "samsung,s2mpu05-pmic";
@@ -328,9 +332,9 @@
 				};
 
 				ldo33_reg: LDO33 {
-					regulator-name = "VDD_ALS_3P3";
-					regulator-min-microvolt = <3300000>;
-					regulator-max-microvolt = <3300000>;
+					regulator-name = "VDD_ACC_1P8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
 					regulator-boot-on;
 					regulator-always-on;
 					regulator-ramp-delay = <12000>;
@@ -344,9 +348,9 @@
 				};
 
 				ldo35_reg: LDO35 {
-					regulator-name = "vtouch_2.8v";
-					regulator-min-microvolt = <2800000>;
-					regulator-max-microvolt = <2800000>;
+					regulator-name = "VDD_GRIP_2P2";
+					regulator-min-microvolt = <2200000>;
+					regulator-max-microvolt = <2200000>;
 					regulator-boot-on;
 					regulator-ramp-delay = <12000>;
 					regulator-initial-mode = <3>;
@@ -357,6 +361,38 @@
 
 	i2c@13850000 {
 		status = "disable";
+	};
+
+	i2c@18 {
+		compatible = "i2c-gpio";
+		gpios = <&gpf3 1 0 /* sda */
+		&gpf3 0 0 /* scl */>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+		pinctrl-names = "default","on_i2c","off_i2c";
+		pinctrl-0 = <&grip_i2c>;
+		pinctrl-1 = <&grip_i2c>;
+		pinctrl-2 = <&grip_gpio>;
+		tc3xxk@20 {
+			compatible = "coreriver,tc3xx-grip";
+			pinctrl-names = "default","on_irq","off_irq";
+			pinctrl-0 = <&grip_int>;
+			pinctrl-1 = <&grip_int>;
+			pinctrl-2 = <&grip_input>;
+			reg = <0x20>;
+			interrupts = <5 0 0>;
+			interrupt-parent = <&gpa2>;
+			coreriver,scl-gpio = <&gpf3 0 0>;
+			coreriver,sda-gpio = <&gpf3 1 0>;
+			coreriver,irq-gpio = <&gpa2 5 0>;
+			coreriver,i2c-gpio = "true";
+			coreriver,boot-on-ldo = "true";
+			coreriver,regulator_ic = "VDD_GRIP_2P2";
+			coreriver,fw_name = "coreriver/tc305k_m10_grip.fw";
+			coreriver,use_bitmap = <1>;
+		};
 	};
 
 	wlan {
@@ -379,7 +415,7 @@
 	};
 
 	dwmmc2@13560000 {
-		skip-init-mmc-scan;
+		card-detect-invert-gpio;
 	};
 
 	bluetooth {
@@ -389,6 +425,7 @@
 			&gpa1 6 0xF	/*BT_HOST_WAKE*/ >;
 		pinctrl-names = "default";
 		pinctrl-0=<&bt_hostwake_bcm &bt_btwake_bcm &bt_en_bcm>;
+		fm-lna-en = <&gpc0 1 1>;
 		status = "okay";
 	};
 
@@ -409,6 +446,17 @@
 			samsung,pin-pud-pdn = <0>;
 		};
 
+		grip_int: grip_int {
+			samsung,pins = "gpa2-5";
+			samsung,pin-function = <0xf>;
+			samsung,pin-pud = <0>;
+		};
+
+		grip_input: grip_input {
+			samsung,pins = "gpa2-5";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <0>;
+		};
 	};
 
 	pinctrl@139B0000 {
@@ -421,16 +469,23 @@
 			samsung,pin-con-pdn = <3>;
 			samsung,pin-pud-pdn = <0>;
 		};
+
+		grip_i2c: grip_i2c {
+			samsung,pins = "gpf3-0", "gpf3-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		grip_gpio: grip_gpio {
+			samsung,pins = "gpf3-0", "gpf3-1";
+			samsung,pin-function = <0>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
 	};
 
 	fimc_is_module_2p6: fimc-is_sensor_2p6@10 {
 		gpio_cam_core_en = <&gpc8 0 0x1>; /* VTCAM_CORE_EN */
 	};
-
-	i2c@13890000 {
-		touchscreen@48 {
-			sec,bringup = <1>;
-		};
-	};
-
 };
