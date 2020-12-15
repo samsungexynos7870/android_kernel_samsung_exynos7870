@@ -65,8 +65,8 @@ static struct bin_attribute attr_data = {
 	.write = rmidev_sysfs_data_store,
 };
 
-RMI_KOBJ_ATTR(open, S_IWUSR | S_IWGRP, synaptics_rmi4_show_error, rmidev_sysfs_open_store);
-RMI_KOBJ_ATTR(release, S_IWUSR | S_IWGRP, synaptics_rmi4_show_error, rmidev_sysfs_release_store);
+RMI_KOBJ_ATTR(open, S_IWUSR, synaptics_rmi4_show_error, rmidev_sysfs_open_store);
+RMI_KOBJ_ATTR(release, S_IWUSR, synaptics_rmi4_show_error, rmidev_sysfs_release_store);
 RMI_KOBJ_ATTR(attn_state, S_IRUGO, rmidev_sysfs_attn_state_show, synaptics_rmi4_store_error);
 
 static struct attribute *attrs[] = {
@@ -332,7 +332,7 @@ static ssize_t rmidev_read(struct file *filp, char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	ssize_t retval;
-	unsigned char tmpbuf[count + 1];
+	unsigned char *tmpbuf;
 	struct rmidev_data *dev_data = filp->private_data;
 	struct rmidev_handle *rmidev = NULL;
 	struct synaptics_rmi4_data *rmi4_data = NULL;
@@ -350,6 +350,10 @@ static ssize_t rmidev_read(struct file *filp, char __user *buf,
 
 	if (count > (REG_ADDR_LIMIT - *f_pos))
 		count = REG_ADDR_LIMIT - *f_pos;
+
+	tmpbuf = kzalloc(count + 1, GFP_KERNEL);
+	if (!tmpbuf)
+		return -ENOMEM;
 
 	mutex_lock(&(dev_data->file_mutex));
 
@@ -368,6 +372,7 @@ static ssize_t rmidev_read(struct file *filp, char __user *buf,
 clean_up:
 	mutex_unlock(&(dev_data->file_mutex));
 
+	kfree(tmpbuf);
 	return retval;
 }
 
@@ -383,7 +388,7 @@ static ssize_t rmidev_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	ssize_t retval;
-	unsigned char tmpbuf[count + 1];
+	unsigned char *tmpbuf;
 	struct rmidev_data *dev_data = filp->private_data;
 	struct rmidev_handle *rmidev = NULL;
 	struct synaptics_rmi4_data *rmi4_data = NULL;
@@ -402,8 +407,14 @@ static ssize_t rmidev_write(struct file *filp, const char __user *buf,
 	if (count > (REG_ADDR_LIMIT - *f_pos))
 		count = REG_ADDR_LIMIT - *f_pos;
 
-	if (copy_from_user(tmpbuf, buf, count))
-		return -EFAULT;
+	tmpbuf = kzalloc(count + 1, GFP_KERNEL);
+	if (!tmpbuf)
+		return -ENOMEM;
+
+	if (copy_from_user(tmpbuf, buf, count)) {
+		kfree(tmpbuf);
+ 		return -EFAULT;
+	}
 
 	mutex_lock(&(dev_data->file_mutex));
 
@@ -416,6 +427,7 @@ static ssize_t rmidev_write(struct file *filp, const char __user *buf,
 
 	mutex_unlock(&(dev_data->file_mutex));
 
+	kfree(tmpbuf);
 	return retval;
 }
 
@@ -532,7 +544,7 @@ static void rmidev_device_cleanup(struct rmidev_data *dev_data)
 	*mode = (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
 	return kasprintf(GFP_KERNEL, "rmi/%s", dev_name(dev));
-}å*/
+}ï¿½*/
 
 static int rmidev_create_device_class(struct synaptics_rmi4_data *rmi4_data)
 {

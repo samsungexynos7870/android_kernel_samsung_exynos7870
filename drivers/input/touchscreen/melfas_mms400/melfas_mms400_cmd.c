@@ -106,6 +106,15 @@ static void cmd_fw_update(void *device_data)
 	int fw_location = info->cmd_param[0];
 
 	cmd_clear_result(info);
+#if defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+	if (info->cmd_param[0] == 1) {
+		sprintf(buf, "%s", "OK");
+		info->cmd_state = CMD_STATUS_OK;
+		cmd_set_result(info, buf, strnlen(buf, sizeof(buf)));
+		tsp_debug_info(true, &info->client->dev, "%s: user_ship, success \n", __func__);
+		return;
+	}
+#endif
 
 	/* Factory cmd for firmware update
 	 * argument represent what is source of firmware like below.
@@ -179,6 +188,12 @@ static void cmd_get_fw_ver_bin(void *device_data)
 	}
 
 	fw_hdr = (struct mms_bin_hdr *)fw->data;
+	if (fw_hdr->section_num > MMS_FW_MAX_SECT_NUM) {
+		release_firmware(fw);
+		sprintf(buf, "%s", "NG");
+		info->cmd_state = CMD_STATUS_FAIL;
+		goto EXIT;
+	}
 	img = kzalloc(sizeof(*img) * fw_hdr->section_num, GFP_KERNEL);
 
 	for (i = 0; i < fw_hdr->section_num; i++, offset += sizeof(struct mms_fw_img)) {
