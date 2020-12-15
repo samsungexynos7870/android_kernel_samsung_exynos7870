@@ -2414,6 +2414,7 @@ int lis2ds_common_probe(struct lis2ds_data *cdata, int irq, u16 bustype)
 			SENSOR_ERR("Who-Am-I value not valid. wai = %d err = %d\n", wai, err);
 		else
 			break;
+		msleep(20);
 	}
 
 	if (retry < 0)
