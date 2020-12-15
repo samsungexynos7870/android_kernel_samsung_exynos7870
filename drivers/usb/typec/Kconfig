@@ -4,5 +4,6 @@ menu "USB Power Delivery and Type-C drivers"
 config TYPEC
 	tristate
 	default y
+	depends on CCIC_NOTIFIER
 
 endmenu
