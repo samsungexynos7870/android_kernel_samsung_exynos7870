@@ -295,6 +295,9 @@ struct exynos_ss_log_idx {
 #ifdef CONFIG_EXYNOS_SNAPSHOT_FREQ
 	atomic_t freq_log_idx;
 #endif
+#ifdef CONFIG_EXYNOS_SNAPSHOT_THERMAL
+	atomic_t thermal_log_idx;
+#endif
 #ifdef CONFIG_EXYNOS_SNAPSHOT_MBOX
 	atomic_t mailbox_log_idx;
 #endif
