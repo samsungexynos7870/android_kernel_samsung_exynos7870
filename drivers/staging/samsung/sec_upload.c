@@ -33,23 +33,23 @@
 #define SEC_LOG(fmt, args...) do { } while (0)
 #endif
 
-struct crash_key {
+struct sec_upload_crash_key {
 	unsigned int key_code;
 	unsigned int crash_count;
 };
 
-struct crash_key user_crash_key_combination[] = {
+struct sec_upload_crash_key sec_upload_user_crash_key_combination[] = {
 	{KEY_POWER, CRASH_COUNT_FIRST},
 	{KEY_VOLUMEUP, CRASH_COUNT_SECOND},
 	{KEY_POWER, CRASH_COUNT_THIRD},
 };
 
-struct key_state {
+struct sec_upload_key_state {
 	unsigned int key_code;
 	unsigned int state;
 };
 
-struct key_state key_states[] = {
+struct sec_upload_key_state sec_upload_key_states[] = {
 	{KEY_VOLUMEDOWN, KEY_STATE_UP},
 	{KEY_VOLUMEUP, KEY_STATE_UP},
 	{KEY_POWER, KEY_STATE_UP},
@@ -78,7 +78,7 @@ static unsigned int is_hold_key_hold(void)
 
 static unsigned int get_current_step_key_code(void)
 {
-	return user_crash_key_combination[check_step].key_code;
+	return sec_upload_user_crash_key_combination[check_step].key_code;
 }
 
 static int is_key_matched_for_current_step(unsigned int code)
@@ -91,8 +91,8 @@ static int is_crash_keys(unsigned int code)
 {
 	int i;
 
-	for (i = 0; i < ARRAYSIZE(key_states); i++)
-		if (key_states[i].key_code == code)
+	for (i = 0; i < ARRAYSIZE(sec_upload_key_states); i++)
+		if (sec_upload_key_states[i].key_code == code)
 			return 1;
 	return 0;
 }
@@ -103,7 +103,7 @@ static int get_count_for_next_step(void)
 	int count = 0;
 
 	for (i = 0; i < check_step + 1; i++)
-		count += user_crash_key_combination[i].crash_count;
+		count += sec_upload_user_crash_key_combination[i].crash_count;
 	SEC_LOG("%d", count);
 	return count;
 }
@@ -118,8 +118,8 @@ static int get_count_for_panic(void)
 	int i;
 	int count = 0;
 
-	for (i = 0; i < ARRAYSIZE(user_crash_key_combination); i++)
-		count += user_crash_key_combination[i].crash_count;
+	for (i = 0; i < ARRAYSIZE(sec_upload_user_crash_key_combination); i++)
+		count += sec_upload_user_crash_key_combination[i].crash_count;
 	return count - 1;
 }
 
@@ -130,9 +130,9 @@ static unsigned int is_key_state_down(unsigned int code)
 	if (is_hold_key(code))
 		return is_hold_key_hold();
 
-	for (i = 0; i < ARRAYSIZE(key_states); i++)
-		if (key_states[i].key_code == code)
-			return key_states[i].state == KEY_STATE_DOWN;
+	for (i = 0; i < ARRAYSIZE(sec_upload_key_states); i++)
+		if (sec_upload_key_states[i].key_code == code)
+			return sec_upload_key_states[i].state == KEY_STATE_DOWN;
 	/* Do not reach here */
 	panic("Invalid Keycode");
 }
@@ -144,9 +144,9 @@ static void set_key_state_down(unsigned int code)
 	if (is_hold_key(code))
 		set_hold_key_hold(KEY_STATE_DOWN);
 
-	for (i = 0; i < ARRAYSIZE(key_states); i++)
-		if (key_states[i].key_code == code)
-			key_states[i].state = KEY_STATE_DOWN;
+	for (i = 0; i < ARRAYSIZE(sec_upload_key_states); i++)
+		if (sec_upload_key_states[i].key_code == code)
+			sec_upload_key_states[i].state = KEY_STATE_DOWN;
 	SEC_LOG("code %d", code);
 }
 
@@ -157,14 +157,14 @@ static void set_key_state_up(unsigned int code)
 	if (is_hold_key(code))
 		set_hold_key_hold(KEY_STATE_UP);
 
-	for (i = 0; i < ARRAYSIZE(key_states); i++)
-		if (key_states[i].key_code == code)
-			key_states[i].state = KEY_STATE_UP;
+	for (i = 0; i < ARRAYSIZE(sec_upload_key_states); i++)
+		if (sec_upload_key_states[i].key_code == code)
+			sec_upload_key_states[i].state = KEY_STATE_UP;
 }
 
 static void increase_step(void)
 {
-	if (check_step < ARRAYSIZE(user_crash_key_combination))
+	if (check_step < ARRAYSIZE(sec_upload_user_crash_key_combination))
 		check_step++;
 	else
 		panic("User Crash key");
