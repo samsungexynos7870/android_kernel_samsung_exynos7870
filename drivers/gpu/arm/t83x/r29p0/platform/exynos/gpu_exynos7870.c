@@ -56,11 +56,7 @@ extern struct kbase_device *pkbdev;
 extern int s2m_get_dvs_is_on(void);
 #endif
 
-#ifdef CONFIG_MALI_DVFS
-#define CPU_MAX PM_QOS_CLUSTER1_FREQ_MAX_DEFAULT_VALUE
-#else
 #define CPU_MAX -1
-#endif
 
 #ifndef KHZ
 #define KHZ (1000)
