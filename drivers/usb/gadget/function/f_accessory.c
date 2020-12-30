@@ -886,14 +886,6 @@ static int acc_hid_probe(struct hid_device *hdev,
 	return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 }
 
-static void acc_complete_setup_noop(struct usb_ep *ep, struct usb_request *req)
-{
-	/*
-	 * Default no-op function when nothing needs to be done for the
-	 * setup request
-	 */
-}
-
 static struct miscdevice acc_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "usb_accessory",
@@ -910,6 +902,14 @@ static struct hid_driver acc_hid_driver = {
 	.id_table = acc_hid_table,
 	.probe = acc_hid_probe,
 };
+
+static void acc_complete_setup_noop(struct usb_ep *ep, struct usb_request *req)
+{
+	/*
+	 * Default no-op function when nothing needs to be done for the
+	 * setup request
+	 */
+}
 
 int acc_ctrlrequest(struct usb_composite_dev *cdev,
 				const struct usb_ctrlrequest *ctrl)
