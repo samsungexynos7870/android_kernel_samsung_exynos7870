@@ -787,9 +787,10 @@ static int tx_func(struct mem_link_device *mld, struct hrtimer *timer,
 	u16 mask = msg_mask(dev);
 	unsigned long flags;
 	int ret = 0;
+#ifdef DEBUG_MODEM_IF_LINK_TX
 	u8 *hdr;
 	u8 ch;
-
+#endif
 	spin_lock_irqsave(&mc->lock, flags);
 
 	if (unlikely(!ipc_active(mld))) {
