@@ -642,8 +642,8 @@
 		status = "okay";
 	};
 
-	serial@13800000 {
-	       pinctrl-names = "default";
+	serial {
+		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_rts &uart1_cts &uart1_tx &uart1_rx>;
 	};
 
