@@ -15,29 +15,29 @@
 		#size-cells = <1>;
 		ranges;
 
-		gnss_if {
+		gnss_if@B7C00000 {
 			compatible = "exynos7870,gnss_if";
 			reg = <0 0xB7C00000 0x400000>;
 		};
 
-		modem_if {
+		modem_if@B0000000 {
 			compatible = "exynos7870,modem_if";
 			reg = <0 0xB0000000 0x7800000>;
 		};
 
-		dram_init {
+		dram_init@AFFFF000 {
 			compatible = "exynos7870,deliver_cp";
 			reg = <0 0xAFFFF000 0x1000>;
 		};
 
-		crypto {
+		crypto@80000000 {
 			compatible = "exynos8890-ion,crypto";
 			reusable;
 			reg = <0x0 0x80000000 0x800000>;
 			id = <1>;
 		};
 
-		video_fw {
+		video_fw@80800000 {
 			compatible = "exynos8890-ion,vfw";
 			secure;
 			reusable;
@@ -47,7 +47,7 @@
 			compat-id = <24>;
 		};
 
-		video_nfw {
+		video_nfw@80C00000 {
 			compatible = "exynos8890-ion,vnfw";
 			reusable;
 			reg = <0x0 0x80C00000 0x400000>;
@@ -55,7 +55,7 @@
 			compat-id = <20>;
 		};
 
-		video_stream {
+		video_stream@81000000 {
 			compatible = "exynos8890-ion,vstream";
 			secure;
 			reusable;
@@ -64,7 +64,7 @@
 			compat-id = <25 31>;
 		};
 
-		video_frame {
+		video_frame@82400000 {
 			compatible = "exynos8890-ion,vframe";
 			secure;
 			reusable;
@@ -74,7 +74,7 @@
 			compat-id = <26 29>;
 		};
 
-		video_scaler {
+		video_scaler@87800000 {
 			compatible = "exynos8890-ion,vscaler";
 			secure;
 			reusable;
@@ -84,7 +84,7 @@
 		};
 	};
 
-	shmem: shmem@F0000000 {
+	shmem: shmem {
 		compatible = "samsung,exynos7870-shm_ipc";
 
 		shmem,ipc_offset = <0x7400000>;
