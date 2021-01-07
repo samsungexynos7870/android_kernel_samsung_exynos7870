@@ -155,103 +155,103 @@
 		timeout {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			timeout_pmu_mif@0x10450214 {
+			timeout_pmu_mif@10450214 {
 				nickname = "timeout-pmu-mif-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <0>;
 			};
-			timeout_cpu_mif@0x10450214 {
+			timeout_cpu_mif@10450214 {
 				nickname = "timeout-cmu-mif-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <1>;
 			};
-			timeout_sfrif_pmu_alive@0x10450214 {
+			timeout_sfrif_pmu_alive@10450214 {
 				nickname = "timeout-sfrif-pmu-alive-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <2>;
 			};
-			timeout_noc_mif_d_nrtnd_mifnp@0x10450214 {
+			timeout_noc_mif_d_nrtnd_mifnp@10450214 {
 				nickname = "timeout-noc-mif-d-nrtnd-mifnp-path";
 				reg = <0x10450214 0x100>;
 				enabled = <0>;
 				enable-bit = <3>;
 			};
-			timeout_noc_mif_d_nrtnd@0x10450214 {
+			timeout_noc_mif_d_nrtnd@10450214 {
 				nickname = "timeout-noc-mif-d-nrtnd-path";
 				reg = <0x10450214 0x100>;
 				enabled = <0>;
 				enable-bit = <4>;
 			};
-			timeout_noc_mif_d_rtnd@0x10450214 {
+			timeout_noc_mif_d_rtnd@10450214 {
 				nickname = "timeout-noc-mif-d-rtnd-path";
 				reg = <0x10450214 0x100>;
 				enabled = <0>;
 				enable-bit = <5>;
 			};
-			timeout_peri_p@0x10450214 {
+			timeout_peri_p@10450214 {
 				nickname = "timeout-peri-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <6>;
 			};
-			timeout_mif_p@0x10450214 {
+			timeout_mif_p@10450214 {
 				nickname = "timeout-mif-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <7>;
 			};
-			timeout_mfcmscl_p@0x10450214 {
+			timeout_mfcmscl_p@10450214 {
 				nickname = "timeout-mfcmscl-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <8>;
 			};
-			timeout_isp_p@0x10450214 {
+			timeout_isp_p@10450214 {
 				nickname = "timeout-isp-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <9>;
 			};
-			timeout_imem_p@0x10450214 {
+			timeout_imem_p@10450214 {
 				nickname = "timeout-imem-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <10>;
 			};
-			timeout_g3d_p@0x10450214 {
+			timeout_g3d_p@10450214 {
 				nickname = "timeout-g3d-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <11>;
 			};
-			timeout_fsys_p@0x10450214 {
+			timeout_fsys_p@10450214 {
 				nickname = "timeout-fsys-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <12>;
 			};
-			timeout_dispaud_p@0x10450214 {
+			timeout_dispaud_p@10450214 {
 				nickname = "timeout-dispaud-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <13>;
 			};
-			timeout_cpucl1_p@0x10450214 {
+			timeout_cpucl1_p@10450214 {
 				nickname = "timeout-cpucl1-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <14>;
 			};
-			timeout_cpucl0_p@0x10450214 {
+			timeout_cpucl0_p@10450214 {
 				nickname = "timeout-cpucl0-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
 				enable-bit = <15>;
 			};
-			timeout_bus_p@0x10450214 {
+			timeout_bus_p@10450214 {
 				nickname = "timeout-bus-p-path";
 				reg = <0x10450214 0x100>;
 				enabled = <1>;
