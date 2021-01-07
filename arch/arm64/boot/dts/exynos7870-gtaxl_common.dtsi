@@ -49,14 +49,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		mfc_fw {
+		mfc_fw@AE800000 {
 			compatible = "exynos5433-ion,mfc_fw";
 			secure;
 			reg = <0x0 0xAE800000 0x200000>;
 			id = <8>;
 		};
 
-		mfc_nfw {
+		mfc_nfw@AE600000 {
 			compatible = "exynos5433-ion,mfc_nfw";
 			reg = <0x0 0xAE600000 0x200000>;
 			id = <12>;
@@ -137,30 +137,33 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
-			label = "gpio-keys: KEY_POWER";
+		power {
+			label = "Power";
 			interrupts = <0 0 0>;
 			interrupt-parent = <&gpa0>;
 			linux,code = <116>;
 			gpios = <&gpa0 0 0xf>;
 			gpio-key,wakeup = <1>;
 		};
-		button@2 {
-			label = "gpio-keys: KEY_VOLUMEDOWN";
+
+		vol-down {
+			label = "Volume Down";
 			interrupts = <1 0 0>;
 			interrupt-parent = <&gpa2>;
 			linux,code = <114>;
 			gpios = <&gpa2 1 0xf>;
 		};
-		button@3 {
-			label = "gpio-keys: KEY_VOLUMEUP";
+
+		vol-up {
+			label = "Volume Up";
 			interrupts = <0 0 0>;
 			interrupt-parent = <&gpa2>;
 			linux,code = <115>;
 			gpios = <&gpa2 0 0xf>;
 		};
-		button@4 {
-			label = "gpio-keys: KEY_HOMEPAGE";
+
+		home {
+			label = "Home";
 			interrupts = <7 0 0>;
 			interrupt-parent = <&gpa1>;
 			linux,code = <172>;
@@ -337,7 +340,7 @@
 		};
 	};
 
-	sd_fixed_vcc: fixedregulator@0 {
+	sd_fixed_vcc: fixedregulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
 		/* gpc0-0 and gpc0-2 register is switched */
@@ -762,7 +765,7 @@
 	};
 
 	/* modem_interface */
-	mif_pdata {
+	mif_pdata@10000 {
 		reg = <0 0x10000 0x14>;
 		pinctrl-names = "default";
 
@@ -1215,7 +1218,7 @@
 		};
 	};
 
-	fimc_is_module_4h5yc: fimc-is_sensor_4h5yc@37 {
+	fimc_is_module_4h5yc: fimc-is_sensor_4h5yc {
 		compatible = "samsung,sensor-module-4h5yc";
 
 		pinctrl-names = "pin0", "pin1";
@@ -1246,7 +1249,7 @@
 		};
 	};
 
-	fimc_is_module_sr259: fimc-is_sensor_sr259@30 {
+	fimc_is_module_sr259: fimc-is_sensor_sr259 {
 		compatible = "samsung,sensor-module-sr259";
 
 		pinctrl-names = "pin0", "pin1";
@@ -1266,7 +1269,7 @@
 		status = "okay";
 	};
 
-	fimc_is_flash_gpio: fimc-is-flash_gpio@0 {
+	fimc_is_flash_gpio: fimc-is-flash_gpio {
 		compatible = "samsung,sensor-flash-gpio";
 		id = <0>; /* Rear  */
 		status = "okay";
@@ -1304,9 +1307,9 @@
 			reg = <0x58>;
 		};
 
-		fimc-is-actuator@0C {
+		fimc-is-actuator@C {
 			compatible = "samsung,exynos5-fimc-is-actuator-dw9807";
-			reg = <0x0C>;
+			reg = <0xC>;
 			id = <0>; /* matching sensor id */
 		};
 	};
@@ -1430,7 +1433,7 @@
 		duty_outdoor = <255>;
 	};
 
-	sec_thermistor@0 {
+	sec_thermistor {
 		compatible = "samsung,sec-ap-thermistor";
 		status = "okay";
 
