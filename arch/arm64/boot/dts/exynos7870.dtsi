@@ -291,7 +291,7 @@
 		use-clocksource-only;
 	};
 
-	clock: clock-controller@0x10460000 {
+	clock: clock-controller@10460000 {
 		compatible = "samsung,exynos7870-clock";
 		reg = <0x0 0x10460000 0x1000>;
 		#clock-cells = <1>;
@@ -1105,7 +1105,7 @@
 		ranges;
 		status = "disabled";
 
-		usbdrd_dwc3: dwc3 {
+		usbdrd_dwc3: dwc3@13600000 {
 			compatible = "synopsys,dwc3";
 			reg = <0x0 0x13600000 0x10000>;
 			interrupts = <0 230 0>;
@@ -1369,7 +1369,7 @@
 
 		domain-clients = <&fimc_is>, <&fimc_is_sensor0>, <&fimc_is_sensor1>, <&fimc_is_sensor2>;
 
-		sysmmu_isp0: sysmmu@0x14470000 {
+		sysmmu_isp0: sysmmu@14470000 {
 			 compatible = "samsung,exynos7420-sysmmu";
 			 reg = <0x0 0x14470000 0x1000>;
 			 interrupts = <0 128 0>;
@@ -1378,12 +1378,12 @@
 			 clock-names = "aclk";
 			 sysmmu,block-when-stop;
 			 pb-info {
-				pb@0 {
+				pb_0 {
 					master_axi_id_list =    <&fimc_is_sensor0 AW(4) AW(5) AW(8) AW(9) AW(12) AW(13)>,
 								<&fimc_is_sensor1 AW(4) AW(5) AW(8) AW(9) AW(12) AW(13)>,
 								<&fimc_is_sensor2 AW(4) AW(5) AW(8) AW(9) AW(12) AW(13)>;
 				};
-				pb@1 {
+				pb_1 {
 					 master_axi_id_list =   <&fimc_is_sensor0 AW(0) AW(1) AW(2) NAID NAID NAID>,
 								<&fimc_is_sensor1 AW(0) AW(1) AW(2) NAID NAID NAID>,
 								<&fimc_is_sensor2 AW(0) AW(1) AW(2) NAID NAID NAID>;
@@ -1391,7 +1391,7 @@
 			 };
 		 };
 
-		sysmmu_isp1: sysmmu@0x14490000 {
+		sysmmu_isp1: sysmmu@14490000 {
 			 compatible = "samsung,exynos7420-sysmmu";
 			 reg = <0x0 0x14490000 0x1000>;
 			 interrupts = <0 131 0>;
@@ -1400,16 +1400,16 @@
 			 clock-names = "aclk";
 			 sysmmu,block-when-stop;
 			 pb-info {
-				pb@0 {
+				pb_0 {
 					 master_axi_id_list = <&fimc_is AR(0) AW(0) AW(2)>;
 				};
-				pb@1 {
+				pb_1 {
 					 master_axi_id_list = <&fimc_is AW(1) AW(3) AW(5)>;
 				};
 			 };
 		};
 
-		sysmmu_isp2: sysmmu@0x144A0000 {
+		sysmmu_isp2: sysmmu@144A0000 {
 			 compatible = "samsung,exynos7420-sysmmu";
 			 reg = <0x0 0x144A0000 0x1000>;
 			 interrupts = <0 134 0>;
@@ -1417,10 +1417,10 @@
 			 clocks = <&clock 500>;
 			 clock-names = "aclk";
 			 pb-info {
-				pb@0 {
+				pb_0 {
 					 master_axi_id_list = <&fimc_is NAID NAID NAID>;
 				};
-				pb@1 {
+				pb_1 {
 					 master_axi_id_list = <&fimc_is NAID NAID NAID>;
 				};
 			 };
@@ -1444,7 +1444,7 @@
 			clock-names = "aclk";
 
 			pb-info {
-				pb@0 {
+				pb_0 {
 					master_axi_id_list = <&decon_0 AR(0) AR(4) AR(1) AR(2)>;
 				};
 			};
@@ -1467,7 +1467,7 @@
 			clock-names = "aclk";
 
 			pb-info {
-				pb@0 {
+				pb_0 {
 					master_axi_id_list = <&scaler_0>, <&scaler_1>, <&smfc>;
 				};
 			};
@@ -1489,7 +1489,7 @@
 			clocks = <&clock 11>;
 			clock-names = "aclk";
 			pb-info {
-				pb@0 {
+				pb_0 {
 					master_axi_id_list = <&mfc_0>;
 				};
 			};
@@ -1590,7 +1590,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		fb_handover: bootloader_fb {
+		fb_handover: bootloader_fb@67000000 {
 			compatible = "exynos,fb_handover";
 			reg = <0x0 0x67000000 0xA00000>;
 		};
@@ -1652,7 +1652,7 @@
 
 		memory-region = <&fb_handover>;
 
-		cam-stat {
+		cam-stat@10484044 {
 			/* ISP_STATUS register */
 			reg = <0x0 0x10484044 0x4>;
 		};
@@ -1720,11 +1720,11 @@
 		cal_id = <0xB1380000>;
 		bts-status = "enabled";
 
-		spd_aud: spd-aud@10484020 {
+		spd_aud: spd-aud {
 			compatible = "samsung,exynos-spd";
 		};
 
-		spd_disp: spd-disp@10484020 {
+		spd_disp: spd-disp {
 			compatible = "samsung,exynos-spd";
 		};
 	};
@@ -1742,16 +1742,16 @@
 		cal_id = <0xB1380003>;
 		bts-status = "enabled";
 
-		spd_mfc: spd-mfc@10484060 {
+		spd_mfc: spd-mfc {
 			compatible = "samsung,exynos-spd";
 		};
-		spd_mscl0: spd-mscl0@10484060 {
+		spd_mscl0: spd-mscl0 {
 			compatible = "samsung,exynos-spd";
 		};
-		spd_mscl1: spd-mscl1@10484060 {
+		spd_mscl1: spd-mscl1 {
 			compatible = "samsung,exynos-spd";
 		};
-		spd_jpeg: spd-jpeg@10484060 {
+		spd_jpeg: spd-jpeg {
 			compatible = "samsung,exynos-spd";
 		};
 	};
