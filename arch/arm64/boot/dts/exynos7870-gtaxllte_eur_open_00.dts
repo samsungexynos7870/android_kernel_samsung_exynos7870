@@ -486,20 +486,6 @@
 				};
 			};
 		};
-
-		audio_codec_cod3026x: cod3026x@04 {
-			compatible = "codec,cod3026x";
-			reg = <0x04>;
-			ten-bit-address;
-			vdd-supply = <&ldo25_reg>;
-//			pinctrl-names = "default";
-//			pinctrl-0 = <&cod3026_irq>;
-//			interrupt-parent = <&gpa0>;
-//			gpios = <&gpa0 4 0xf>;
-			mic-bias1-voltage = <3>;
-			mic-bias2-voltage = <3>;
-			mic-bias-ldo-voltage = <3>;
-		};
 	};
 
 	i2c@13880000 {
