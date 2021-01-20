@@ -168,6 +168,29 @@
 		};
 	};
 
+	firmware {
+		android {
+			compatible = "android,firmware";
+			fstab {
+				compatible = "android,fstab";
+				system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/13540000.dwmmc0/by-name/SYSTEM";
+					type = "ext4";
+					mnt_flags = "ro";
+					fsmgr_flags = "wait";
+				};
+				vendor {
+					compatible = "android,vendor";
+					dev = "/dev/block/platform/13540000.dwmmc0/by-name/VENDOR";
+					type = "ext4";
+					mnt_flags = "ro";
+					fsmgr_flags = "wait";
+				};
+			};
+		};
+	};
+
 	dwmmc0@13540000 {
 		status = "okay";
 		num-slots = <1>;
@@ -1559,7 +1582,7 @@
 
 		/* gpio_det = <&gpa2 5 0x1>; */
 		gpio_pcd = <&gpd3 5 0x1>;
-		/* gpio_err = <&gpd1 4 0x0>; */
+		/* gpio_err = <&gpd1 4 0x2>; */
 	};
 
 	dsim_0: dsim@14800000 {
