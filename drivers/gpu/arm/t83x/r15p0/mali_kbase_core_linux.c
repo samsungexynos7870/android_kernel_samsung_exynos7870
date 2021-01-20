@@ -1140,28 +1140,6 @@ void kbase_release_device(struct kbase_device *kbdev)
 }
 EXPORT_SYMBOL(kbase_release_device);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && \
-	!(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 28) && \
-	LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
-
-/*
- * Older versions, before v4.6, of the kernel doesn't have
- * kstrtobool_from_user().
- */
-static int kstrtobool_from_user(const char __user *s, size_t count, bool *res)
-{
-	char buf[32];
-
-	count = min(sizeof(buf), count);
-
-	if (copy_from_user(buf, s, count))
-		return -EFAULT;
-	buf[count] = '\0';
-
-	return strtobool(buf, res);
-}
-#endif
-
 static ssize_t write_ctx_infinite_cache(struct file *f, const char __user *ubuf, size_t size, loff_t *off)
 {
 	struct kbase_context *kctx = f->private_data;
