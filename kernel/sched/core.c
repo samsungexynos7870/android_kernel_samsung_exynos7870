@@ -2323,6 +2323,17 @@ static inline void post_schedule(struct rq *rq)
 }
 
 #else
+	if (state != cpuset) {
+		/*
+		 * Don't tell them about moving exiting tasks or
+		 * kernel threads (both mm NULL), since they never
+		 * leave kernel.
+		 */
+		if (p->mm && printk_ratelimit()) {
+			pr_debug("process %d (%s) no longer affine to cpu%d\n",
+					task_pid_nr(p), p->comm, cpu);
+		}
+	}
 
 static inline void post_schedule(struct rq *rq)
 {
