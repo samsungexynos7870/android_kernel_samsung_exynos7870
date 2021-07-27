@@ -96,7 +96,7 @@ int etspi_Interrupt_Init(
 		goto done;
 	}
 
-	if (etspi->drdy_irq_flag == DRDY_IRQ_DISABLE) {
+	if (etspi->drdy_irq_flag == DRDY_IRQ_DISABLE | IRQF_PERF_CRITICAL) {
 		if (request_irq
 			(gpio_irq, etspi_fingerprint_interrupt
 			, int_ctrl, "etspi_irq", etspi) < 0) {
@@ -105,7 +105,7 @@ int etspi_Interrupt_Init(
 			goto done;
 		} else {
 			enable_irq_wake(gpio_irq);
-			etspi->drdy_irq_flag = DRDY_IRQ_ENABLE;
+			etspi->drdy_irq_flag = DRDY_IRQ_ENABLE | IRQF_PERF_CRITICAL;
 		}
 	}
 done:
@@ -117,13 +117,13 @@ int etspi_Interrupt_Free(struct etspi_data *etspi)
 	pr_info("%s\n", __func__);
 
 	if (etspi != NULL) {
-		if (etspi->drdy_irq_flag == DRDY_IRQ_ENABLE) {
+		if (etspi->drdy_irq_flag == DRDY_IRQ_ENABLE | IRQF_PERF_CRITICAL) {
 			if (!etspi->int_count)
 				disable_irq_nosync(gpio_irq);
 
 			disable_irq_wake(gpio_irq);
 			free_irq(gpio_irq, etspi);
-			etspi->drdy_irq_flag = DRDY_IRQ_DISABLE;
+			etspi->drdy_irq_flag = DRDY_IRQ_DISABLE | IRQF_PERF_CRITICAL;
 		}
 		etspi->finger_on = 0;
 		etspi->int_count = 0;
@@ -954,7 +954,7 @@ int etspi_platformInit(struct etspi_data *etspi)
 	pr_info("%s\n", __func__);
 	/* gpio setting for ldo, ldo2, sleep, drdy pin */
 	if (etspi != NULL) {
-		etspi->drdy_irq_flag = DRDY_IRQ_DISABLE;
+		etspi->drdy_irq_flag = DRDY_IRQ_DISABLE | IRQF_PERF_CRITICAL;
 
 		if (etspi->ldo_pin) {
 			status = gpio_request(etspi->ldo_pin, "etspi_ldo_en");
@@ -1032,7 +1032,7 @@ void etspi_platformUninit(struct etspi_data *etspi)
 		disable_irq_wake(gpio_irq);
 		disable_irq(gpio_irq);
 		free_irq(gpio_irq, etspi);
-		etspi->drdy_irq_flag = DRDY_IRQ_DISABLE;
+		etspi->drdy_irq_flag = DRDY_IRQ_DISABLE | IRQF_PERF_CRITICAL;
 		if (etspi->ldo_pin)
 			gpio_free(etspi->ldo_pin);
 		gpio_free(etspi->sleepPin);
