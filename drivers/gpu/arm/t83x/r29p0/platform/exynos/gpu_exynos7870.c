@@ -157,7 +157,7 @@ static gpu_attribute gpu_config_attributes[] = {
 #ifdef CONFIG_MALI_DVFS_USER
 	{GPU_UDVFS_ENABLE, 1},
 #endif
-	{GPU_SUSTAINABLE_GPU_CLOCK, 419},
+	{GPU_SUSTAINABLE_GPU_CLOCK, 1001},
 	{GPU_THRESHOLD_MAXLOCK, 10},
 	{GPU_LOW_POWER_CPU_MAX_LOCK, 829000},
 };
