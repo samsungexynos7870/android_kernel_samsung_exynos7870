@@ -129,7 +129,7 @@ static gpu_attribute gpu_config_attributes[] = {
 	{GPU_DVFS_TIME_INTERVAL, 5},
 	{GPU_DEFAULT_WAKEUP_LOCK, 1},
 	{GPU_BUS_DEVFREQ, 0},
-	{GPU_DYNAMIC_ABB, 0},
+	{GPU_DYNAMIC_ABB, 1},
 	{GPU_EARLY_CLK_GATING, 0},
 	{GPU_DVS, 0},
 	{GPU_PERF_GATHERING, 0},
