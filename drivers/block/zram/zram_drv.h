@@ -101,6 +101,7 @@ struct zram_meta {
 
 struct zram {
 	struct zram_meta *meta;
+	struct request_queue *queue;
 	struct zcomp *comp;
 	struct gendisk *disk;
 	/* Prevent concurrent execution of device init */
