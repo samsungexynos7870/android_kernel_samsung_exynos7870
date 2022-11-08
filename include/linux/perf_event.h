@@ -643,6 +643,10 @@ extern int perf_event_overflow(struct perf_event *event,
 				 struct perf_sample_data *data,
 				 struct pt_regs *regs);
 
+extern void perf_event_output(struct perf_event *event,
+				struct perf_sample_data *data,
+				struct pt_regs *regs);
+
 static inline bool is_sampling_event(struct perf_event *event)
 {
 	return event->attr.sample_period != 0;
