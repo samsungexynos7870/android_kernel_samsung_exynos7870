@@ -29,7 +29,7 @@
  * 1 - store kprobe event into ring buffer
  * Other values are reserved and currently alias to 1
  */
-unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
+unsigned int trace_call_bpf(struct ftrace_event_call *call, void *ctx)
 {
 	unsigned int ret;
 
