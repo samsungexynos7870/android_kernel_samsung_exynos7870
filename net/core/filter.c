@@ -2245,64 +2245,13 @@ static const struct bpf_func_proto bpf_skb_event_output_proto = {
 
 static unsigned short bpf_tunnel_key_af(u64 flags)
 {
-	return flags & BPF_F_TUNINFO_IPV6 ? AF_INET6 : AF_INET;
+	return 0;
 }
 
 BPF_CALL_4(bpf_skb_get_tunnel_key, struct sk_buff *, skb, struct bpf_tunnel_key *, to,
 	   u32, size, u64, flags)
 {
-	const struct ip_tunnel_info *info = skb_tunnel_info(skb);
-	u8 compat[sizeof(struct bpf_tunnel_key)];
-	void *to_orig = to;
-	int err;
-
-	if (unlikely(!info || (flags & ~(BPF_F_TUNINFO_IPV6)))) {
-		err = -EINVAL;
-		goto err_clear;
-	}
-	if (ip_tunnel_info_af(info) != bpf_tunnel_key_af(flags)) {
-		err = -EPROTO;
-		goto err_clear;
-	}
-	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
-		err = -EINVAL;
-		switch (size) {
-		case offsetof(struct bpf_tunnel_key, tunnel_label):
-		case offsetof(struct bpf_tunnel_key, tunnel_ext):
-			goto set_compat;
-		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
-			/* Fixup deprecated structure layouts here, so we have
-			 * a common path later on.
-			 */
-			if (ip_tunnel_info_af(info) != AF_INET)
-				goto err_clear;
-set_compat:
-			to = (struct bpf_tunnel_key *)compat;
-			break;
-		default:
-			goto err_clear;
-		}
-	}
-
-	to->tunnel_id = be64_to_cpu(info->key.tun_id);
-	to->tunnel_tos = info->key.tos;
-	to->tunnel_ttl = info->key.ttl;
-
-	if (flags & BPF_F_TUNINFO_IPV6) {
-		memcpy(to->remote_ipv6, &info->key.u.ipv6.src,
-		       sizeof(to->remote_ipv6));
-		to->tunnel_label = be32_to_cpu(info->key.label);
-	} else {
-		to->remote_ipv4 = be32_to_cpu(info->key.u.ipv4.src);
-	}
-
-	if (unlikely(size != sizeof(struct bpf_tunnel_key)))
-		memcpy(to_orig, to, size);
-
 	return 0;
-err_clear:
-	memset(to_orig, 0, size);
-	return err;
 }
 
 static const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
@@ -2317,27 +2266,7 @@ static const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
 
 BPF_CALL_3(bpf_skb_get_tunnel_opt, struct sk_buff *, skb, u8 *, to, u32, size)
 {
-	const struct ip_tunnel_info *info = skb_tunnel_info(skb);
-	int err;
-
-	if (unlikely(!info ||
-		     !(info->key.tun_flags & TUNNEL_OPTIONS_PRESENT))) {
-		err = -ENOENT;
-		goto err_clear;
-	}
-	if (unlikely(size < info->options_len)) {
-		err = -ENOMEM;
-		goto err_clear;
-	}
-
-	ip_tunnel_info_opts_get(to, info);
-	if (size > info->options_len)
-		memset(to + info->options_len, 0, size - info->options_len);
-
-	return info->options_len;
-err_clear:
-	memset(to, 0, size);
-	return err;
+	return 0;
 }
 
 static const struct bpf_func_proto bpf_skb_get_tunnel_opt_proto = {
@@ -2354,60 +2283,6 @@ static struct metadata_dst __percpu *md_dst;
 BPF_CALL_4(bpf_skb_set_tunnel_key, struct sk_buff *, skb,
 	   const struct bpf_tunnel_key *, from, u32, size, u64, flags)
 {
-	struct metadata_dst *md = this_cpu_ptr(md_dst);
-	u8 compat[sizeof(struct bpf_tunnel_key)];
-	struct ip_tunnel_info *info;
-
-	if (unlikely(flags & ~(BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX |
-			       BPF_F_DONT_FRAGMENT)))
-		return -EINVAL;
-	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
-		switch (size) {
-		case offsetof(struct bpf_tunnel_key, tunnel_label):
-		case offsetof(struct bpf_tunnel_key, tunnel_ext):
-		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
-			/* Fixup deprecated structure layouts here, so we have
-			 * a common path later on.
-			 */
-			memcpy(compat, from, size);
-			memset(compat + size, 0, sizeof(compat) - size);
-			from = (const struct bpf_tunnel_key *) compat;
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-	if (unlikely((!(flags & BPF_F_TUNINFO_IPV6) && from->tunnel_label) ||
-		     from->tunnel_ext))
-		return -EINVAL;
-
-	skb_dst_drop(skb);
-	dst_hold((struct dst_entry *) md);
-	skb_dst_set(skb, (struct dst_entry *) md);
-
-	info = &md->u.tun_info;
-	info->mode = IP_TUNNEL_INFO_TX;
-
-	info->key.tun_flags = TUNNEL_KEY | TUNNEL_CSUM;
-	if (flags & BPF_F_DONT_FRAGMENT)
-		info->key.tun_flags |= TUNNEL_DONT_FRAGMENT;
-
-	info->key.tun_id = cpu_to_be64(from->tunnel_id);
-	info->key.tos = from->tunnel_tos;
-	info->key.ttl = from->tunnel_ttl;
-
-	if (flags & BPF_F_TUNINFO_IPV6) {
-		info->mode |= IP_TUNNEL_INFO_IPV6;
-		memcpy(&info->key.u.ipv6.dst, from->remote_ipv6,
-		       sizeof(from->remote_ipv6));
-		info->key.label = cpu_to_be32(from->tunnel_label) &
-				  IPV6_FLOWLABEL_MASK;
-	} else {
-		info->key.u.ipv4.dst = cpu_to_be32(from->remote_ipv4);
-		if (flags & BPF_F_ZERO_CSUM_TX)
-			info->key.tun_flags &= ~TUNNEL_CSUM;
-	}
-
 	return 0;
 }
 
@@ -2424,16 +2299,6 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 BPF_CALL_3(bpf_skb_set_tunnel_opt, struct sk_buff *, skb,
 	   const u8 *, from, u32, size)
 {
-	struct ip_tunnel_info *info = skb_tunnel_info(skb);
-	const struct metadata_dst *md = this_cpu_ptr(md_dst);
-
-	if (unlikely(info != &md->u.tun_info || (size & (sizeof(u32) - 1))))
-		return -EINVAL;
-	if (unlikely(size > IP_TUNNEL_OPTS_MAX))
-		return -ENOMEM;
-
-	ip_tunnel_info_opts_set(info, from, size);
-
 	return 0;
 }
 
@@ -2449,24 +2314,7 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_opt_proto = {
 static const struct bpf_func_proto *
 bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 {
-	if (!md_dst) {
-		/* Race is not possible, since it's called from verifier
-		 * that is holding verifier mutex.
-		 */
-		md_dst = metadata_dst_alloc_percpu(IP_TUNNEL_OPTS_MAX,
-						   GFP_KERNEL);
-		if (!md_dst)
-			return NULL;
-	}
-
-	switch (which) {
-	case BPF_FUNC_skb_set_tunnel_key:
-		return &bpf_skb_set_tunnel_key_proto;
-	case BPF_FUNC_skb_set_tunnel_opt:
-		return &bpf_skb_set_tunnel_opt_proto;
-	default:
-		return NULL;
-	}
+	return 0;
 }
 
 BPF_CALL_3(bpf_skb_under_cgroup, struct sk_buff *, skb, struct bpf_map *, map,
