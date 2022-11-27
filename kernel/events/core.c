@@ -6439,7 +6439,7 @@ static int perf_tp_event_match(struct perf_event *event,
 }
 
 void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
-			       struct trace_event_call *call, u64 count,
+			       struct ftrace_event_call *call, u64 count,
 			       struct pt_regs *regs, struct hlist_head *head,
 			       struct task_struct *task)
 {
