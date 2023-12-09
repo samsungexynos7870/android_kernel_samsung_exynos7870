@@ -278,6 +278,7 @@ extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
 extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
+extern int sysctl_tcp_min_rtt_wlen;
 extern int sysctl_tcp_autocorking;
 extern int sysctl_tcp_default_init_rwnd;
 #ifdef CONFIG_NETPM
@@ -656,6 +657,12 @@ static inline u32 tcp_rto_min(struct sock *sk)
 static inline u32 tcp_rto_min_us(struct sock *sk)
 {
 	return jiffies_to_usecs(tcp_rto_min(sk));
+}
+
+/* Minimum RTT in usec. ~0 means not available. */
+static inline u32 tcp_min_rtt(const struct tcp_sock *tp)
+{
+	return tp->rtt_min[0].rtt;
 }
 
 /* Compute the actual receive window we are currently advertising.
