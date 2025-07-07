@@ -8,6 +8,7 @@
 #define __BPF_LRU_LIST_H_
 
 #include <linux/list.h>
+#include <linux/cache.h>
 #include <linux/spinlock_types.h>
 
 #define NR_BPF_LRU_LIST_T	(3)
