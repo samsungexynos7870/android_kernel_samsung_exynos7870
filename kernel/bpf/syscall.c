@@ -1467,7 +1467,11 @@ static int bpf_map_get_info_by_fd(struct bpf_map *map,
 	info.key_size = map->key_size;
 	info.value_size = map->value_size;
 	info.max_entries = map->max_entries;
-	info.map_flags = map->map_flags;
+	if (map->map_type == BPF_MAP_TYPE_DEVMAP_HASH)
+		info.map_flags = 128;
+	else
+		info.map_flags = map->map_flags;
+
 	memcpy(info.name, map->name, sizeof(map->name));
 
 	if (copy_to_user(uinfo, &info, info_len) ||
