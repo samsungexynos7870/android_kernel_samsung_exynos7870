@@ -2697,6 +2697,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
+	case BPF_FUNC_tcp_sock:
+		return &bpf_tcp_sock_proto;
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
@@ -2790,6 +2792,10 @@ cg_skb_func_proto(enum bpf_func_id func_id)
 	switch (func_id) {
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
+#ifdef CONFIG_INET
+	case BPF_FUNC_tcp_sock:
+		return &bpf_tcp_sock_proto;
+#endif
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
@@ -3355,6 +3361,121 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 
 	return insn - insn_buf;
 }
+
+bool bpf_tcp_sock_is_valid_access(int off, int size, enum bpf_access_type type,
+				  enum bpf_reg_type *reg_type)
+{
+	return true;
+}
+
+#define CONVERT_COMMON_TCP_SOCK_FIELDS(md_type, CONVERT)		\
+do {									\
+	switch (ctx_off) {						\
+	case offsetof(md_type, snd_cwnd):				\
+		CONVERT(snd_cwnd); break;				\
+	case offsetof(md_type, srtt_us):				\
+		CONVERT(srtt_us); break;				\
+	case offsetof(md_type, snd_ssthresh):				\
+		CONVERT(snd_ssthresh); break;				\
+	case offsetof(md_type, rcv_nxt):				\
+		CONVERT(rcv_nxt); break;				\
+	case offsetof(md_type, snd_nxt):				\
+		CONVERT(snd_nxt); break;				\
+	case offsetof(md_type, snd_una):				\
+		CONVERT(snd_una); break;				\
+	case offsetof(md_type, mss_cache):				\
+		CONVERT(mss_cache); break;				\
+	case offsetof(md_type, ecn_flags):				\
+		CONVERT(ecn_flags); break;				\
+	case offsetof(md_type, packets_out):				\
+		CONVERT(packets_out); break;				\
+	case offsetof(md_type, retrans_out):				\
+		CONVERT(retrans_out); break;				\
+	case offsetof(md_type, total_retrans):				\
+		CONVERT(total_retrans); break;				\
+	case offsetof(md_type, segs_in):				\
+		CONVERT(segs_in); break;				\
+	case offsetof(md_type, segs_out):				\
+		CONVERT(segs_out); break;				\
+	case offsetof(md_type, lost_out):				\
+		CONVERT(lost_out); break;				\
+	case offsetof(md_type, sacked_out):				\
+		CONVERT(sacked_out); break;				\
+	case offsetof(md_type, bytes_received):				\
+		CONVERT(bytes_received); break;				\
+	case offsetof(md_type, bytes_acked):				\
+		CONVERT(bytes_acked); break;				\
+	}								\
+} while (0)
+
+u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
+				    int dst_reg, int src_reg,
+				    int ctx_off,
+				    struct bpf_insn *insn_buf,
+				    struct bpf_prog *prog)
+{
+	struct bpf_insn *insn = insn_buf;
+
+#define BPF_TCP_SOCK_GET_COMMON(FIELD)					\
+	do {								\
+		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, FIELD) >	\
+			     FIELD_SIZEOF(struct bpf_tcp_sock, FIELD));	\
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct tcp_sock, FIELD),\
+				      dst_reg, src_reg,		\
+				      offsetof(struct tcp_sock, FIELD)); \
+	} while (0)
+	CONVERT_COMMON_TCP_SOCK_FIELDS(struct bpf_tcp_sock,
+				       BPF_TCP_SOCK_GET_COMMON);
+	if (insn > insn_buf)
+		return insn - insn_buf;
+
+	switch (ctx_off) {
+	case offsetof(struct bpf_tcp_sock, rtt_min):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
+			     sizeof(struct minmax));
+		BUILD_BUG_ON(sizeof(struct minmax) <
+			     sizeof(struct minmax_sample));
+		*insn++ = BPF_LDX_MEM(BPF_W, dst_reg, src_reg,
+				      offsetof(struct tcp_sock, rtt_min) +
+				      offsetof(struct minmax_sample, v));
+		break;
+	}
+	return insn - insn_buf;
+}
+
+static inline struct request_sock *inet_reqsk(const struct sock *sk)
+{
+	return (struct request_sock *)sk;
+}
+
+/**
+ * sk_to_full_sk - Access to a full socket
+ * @sk: pointer to a socket
+ *
+ * SYNACK messages might be attached to request sockets.
+ * Some places want to reach the listener in this case.
+ */
+static inline struct sock *sk_to_full_sk(struct sock *sk)
+{
+	return sk;
+}
+
+BPF_CALL_1(bpf_tcp_sock, struct sock *, sk)
+{
+	sk = sk_to_full_sk(sk);
+
+	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP)
+		return (unsigned long)sk;
+
+	return (unsigned long)NULL;
+}
+
+const struct bpf_func_proto bpf_tcp_sock_proto = {
+	.func		= bpf_tcp_sock,
+	.gpl_only	= false,
+	.ret_type	= RET_PTR_TO_TCP_SOCK_OR_NULL,
+	.arg1_type	= ARG_ANYTHING,
+};
 
 static const struct bpf_func_proto *
 cg_sockopt_func_proto(enum bpf_func_id func_id)
