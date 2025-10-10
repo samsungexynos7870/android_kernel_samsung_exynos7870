@@ -1469,6 +1469,8 @@ static int bpf_map_get_info_by_fd(struct bpf_map *map,
 	info.max_entries = map->max_entries;
 	if (map->map_type == BPF_MAP_TYPE_DEVMAP_HASH)
 		info.map_flags = 128;
+	else if (map->map_type == BPF_MAP_TYPE_LPM_TRIE)
+		info.map_flags = 1;
 	else
 		info.map_flags = map->map_flags;
 
