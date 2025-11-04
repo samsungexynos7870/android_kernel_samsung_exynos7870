@@ -2393,7 +2393,7 @@ static int audmixer_runtime_suspend(struct device *dev)
  * TODO: Use the device structure reference in sound-card driver to
  * enable/disable the mixer.
  */
-void audmixer_get_sync()
+void audmixer_get_sync(void)
 {
 	if (g_audmixer != NULL)
 		pm_runtime_get_sync(g_audmixer->dev);
@@ -2408,7 +2408,7 @@ void audmixer_get_sync()
  * TODO: Use the device structure reference in sound-card driver to
  * enable/disable the mixer.
  */
-void audmixer_put_sync()
+void audmixer_put_sync(void)
 {
 	if (g_audmixer != NULL)
 		pm_runtime_put_sync(g_audmixer->dev);
