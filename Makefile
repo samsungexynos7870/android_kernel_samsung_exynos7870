@@ -353,15 +353,32 @@ $(srctree)/scripts/Kbuild.include: ;
 include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
+# If LLVM=1 is passed, use the LLVM toolchain instead of the GNU default,
+# mirroring upstream so callers need not spell out every tool.
+ifeq ($(LLVM),1)
+LLVM_PREFIX	?=
+LLVM_SUFFIX	?=
+CC		= $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+LD		= $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX)
+AR		= $(LLVM_PREFIX)llvm-ar$(LLVM_SUFFIX)
+NM		= $(LLVM_PREFIX)llvm-nm$(LLVM_SUFFIX)
+OBJCOPY		= $(LLVM_PREFIX)llvm-objcopy$(LLVM_SUFFIX)
+OBJDUMP		= $(LLVM_PREFIX)llvm-objdump$(LLVM_SUFFIX)
+STRIP		= $(LLVM_PREFIX)llvm-strip$(LLVM_SUFFIX)
+READELF		= $(LLVM_PREFIX)llvm-readelf$(LLVM_SUFFIX)
+override HOSTCC		= $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+override HOSTCXX	= $(LLVM_PREFIX)clang++$(LLVM_SUFFIX)
+else
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
 CC		= $(CROSS_COMPILE)gcc
-CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
+endif
+CPP		= $(CC) -E
 AWK		= awk
 GENKSYMS	= scripts/genksyms/genksyms
 INSTALLKERNEL  := installkernel
@@ -371,8 +388,12 @@ PYTHON		= python
 CHECK		= sparse
 
 ifeq ($(CONFIG_FIPS_FMP),)
+ifeq ($(LLVM),1)
+    export READELF
+else
     READELF        = $(CROSS_COMPILE)readelf
     export READELF
+endif
 endif
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
@@ -705,10 +726,7 @@ endif
 KBUILD_CFLAGS += $(stackp-flag)
 
 ifeq ($(cc-name),clang)
-CLANG_TRIPLE	?= $(CROSS_COMPILE)
-ifneq ($(CLANG_TRIPLE),)
-KBUILD_CPPFLAGS += --target=$(notdir $(CLANG_TRIPLE:%-=%))
-endif
+include $(srctree)/scripts/Makefile.clang
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
 KBUILD_CPPFLAGS += $(call cc-option,-Wno-unknown-warning-option,)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-variable)
@@ -856,7 +874,12 @@ KBUILD_LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
+ifeq ($(LLVM),1)
+# ld.lld has no -X; --discard-locals is the equivalent
+LDFLAGS_vmlinux	+= $(call ld-option, --discard-locals,)
+else
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
 endif
 
 # Default kernel image to build when no specific target is given.
