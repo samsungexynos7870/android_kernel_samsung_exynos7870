@@ -276,7 +276,7 @@ static inline int sdfat_remount_syncfs(struct super_block *sb)
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
-static inline sector_t __sdfat_bio_sector(struct bio *bio)
+static inline sector_t __maybe_unused __sdfat_bio_sector(struct bio *bio)
 {
 	return bio->bi_iter.bi_sector;
 }
@@ -412,7 +412,7 @@ out_unlocked:
 	return err;
 }
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0) */
-static inline sector_t __sdfat_bio_sector(struct bio *bio)
+static inline sector_t __maybe_unused __sdfat_bio_sector(struct bio *bio)
 {
 	return bio->bi_sector;
 }
