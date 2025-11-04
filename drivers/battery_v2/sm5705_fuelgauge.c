@@ -2405,7 +2405,7 @@ static int sm5705_fg_get_property(struct power_supply *psy,
 {
 	struct sec_fuelgauge_info *fuelgauge =
 		container_of(psy, struct sec_fuelgauge_info, psy_fg);
-	enum power_supply_ext_property ext_psp = psp;
+	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property) psp;
 
 	switch (psp) {
 	/* Additional Voltage Information (mV) */

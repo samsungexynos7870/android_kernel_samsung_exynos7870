@@ -1500,7 +1500,7 @@ static int s2mu004_fg_set_property(struct power_supply *psy,
 {
 	struct s2mu004_fuelgauge_data *fuelgauge =
 		container_of(psy, struct s2mu004_fuelgauge_data, psy_fg);
-	enum power_supply_ext_property ext_psp = psp;
+	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property) psp;
 	u8 temp = 0;
 
 	switch (psp) {

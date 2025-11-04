@@ -919,7 +919,7 @@ static int sec_chg_set_property(struct power_supply *psy,
 {
 	struct s2mu005_charger_data *charger =
 		container_of(psy, struct s2mu005_charger_data, psy_chg);
-	enum power_supply_ext_property ext_psp = psp;
+	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property) psp;
 	int buck_state = ENABLE;
 	union power_supply_propval value;
 	u8 temp;

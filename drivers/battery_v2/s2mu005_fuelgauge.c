@@ -1931,7 +1931,7 @@ static int s2mu005_fg_set_property(struct power_supply *psy,
 		container_of(psy, struct s2mu005_fuelgauge_data, psy_fg);
 
 	u8 temp = 0;	
-	enum power_supply_ext_property ext_psp = psp;
+	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property) psp;
 
 	switch (psp) {
 		case POWER_SUPPLY_PROP_STATUS:
