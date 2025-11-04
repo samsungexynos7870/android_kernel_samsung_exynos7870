@@ -137,7 +137,7 @@ static inline unsigned int __sdfat_bio_size(struct bio *bio)
 	return bio->bi_iter.bi_size;
 }
 
-static inline void __sdfat_set_bio_size(struct bio *bio, unsigned int size)
+static inline void __maybe_unused __sdfat_set_bio_size(struct bio *bio, unsigned int size)
 {
 	bio->bi_iter.bi_size = size;
 }
@@ -157,7 +157,7 @@ static inline unsigned int __sdfat_bio_size(struct bio *bio)
 	return bio->bi_size;
 }
 
-static inline void __sdfat_set_bio_size(struct bio *bio, unsigned int size)
+static inline void __maybe_unused __sdfat_set_bio_size(struct bio *bio, unsigned int size)
 {
 	bio->bi_size = size;
 }
