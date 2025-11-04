@@ -83,7 +83,7 @@ static inline int amap_remove_from_list(AU_INFO_T *au, struct slist_head *shead)
 }
 
 /* Full-linear serach => Find AU with max. number of fclu */
-static inline AU_INFO_T *amap_find_hot_au_largest(struct slist_head *shead)
+static inline AU_INFO_T __maybe_unused *amap_find_hot_au_largest(struct slist_head *shead)
 {
 	struct slist_head *iter;
 	uint16_t max_fclu = 0;
@@ -595,7 +595,7 @@ void amap_destroy(struct super_block *sb)
  * and change destination if needed to disable AU-aligned alloc.
  * (from ALLOC_COLD_ALIGNED to ALLOC_COLD_SEQ)
  */
-static inline int amap_update_dest(AMAP_T *amap, int ori_dest)
+static inline int __maybe_unused amap_update_dest(AMAP_T *amap, int ori_dest)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(amap->sb)->fsi);
 	int n_partial_au, n_partial_freeclus;
