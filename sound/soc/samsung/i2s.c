@@ -1802,8 +1802,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		pri_dai->dma_playback.slave = i2s_pdata->dma_playback;
 		pri_dai->dma_capture.slave = i2s_pdata->dma_capture;
 
-		if (&i2s_pdata->type)
-			i2s_cfg = &i2s_pdata->type.i2s;
+		/* &i2s_pdata->type is the address of an embedded union, never NULL */
+		i2s_cfg = &i2s_pdata->type.i2s;
 
 		if (i2s_cfg) {
 			quirks = i2s_cfg->quirks;
