@@ -1228,7 +1228,8 @@ out:
 	crypto_free_ablkcipher(tfm);
 }
 
-#ifdef CONFIG_CRYPTO_DRBG
+/* test_drbg() is only called from the CONFIG_CRYPTO_FIPS block */
+#if defined(CONFIG_CRYPTO_DRBG) && defined(CONFIG_CRYPTO_FIPS)
 static inline int test_drbg(const char *drbg_core, int pr)
 {
 	int pos = 0;
@@ -1247,7 +1248,7 @@ static inline int test_drbg(const char *drbg_core, int pr)
 	memcpy(cra_driver_name + pos, drbg_core, strlen(drbg_core));
 	return alg_test(cra_driver_name, "stdrng", 0, 0);
 }
-#endif /* CONFIG_CRYPTO_DRBG */
+#endif /* CONFIG_CRYPTO_DRBG && CONFIG_CRYPTO_FIPS */
 
 static void test_available(void)
 {
