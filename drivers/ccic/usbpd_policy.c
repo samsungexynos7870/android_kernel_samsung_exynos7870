@@ -346,7 +346,9 @@ policy_state usbpd_policy_src_get_sink_cap(struct policy_data *policy)
 
 	if (usbpd_send_ctrl_msg(pd_data, &policy->tx_msg_header,
 				USBPD_Get_Sink_Cap, USBPD_DFP, USBPD_SOURCE))
-		pd_data->policy.state = PE_SRC_Get_Sink_Cap;
+		{
+			pd_data->policy.state = PE_SRC_Get_Sink_Cap;
+		}
 		if (usbpd_wait_msg(pd_data, MSG_SNK_CAP, tSenderResponse)) {
 			/* TODO: pass sink cap to device policy manager */
 			dev_info(pd_data->dev, "got SinkCap.\n");
@@ -1883,7 +1885,7 @@ static policy_state usbpd_policy_dfp_vdm_response(struct policy_data *policy,
 
 	usbpd_manager_inform_event(pd_data, event);
 
-	if (&pd_data->phy_ops.get_power_role)
+	if (pd_data->phy_ops.get_power_role)
 		pd_data->phy_ops.get_power_role(pd_data, &power_role);
 
 	if (power_role == USBPD_SINK)
@@ -2652,7 +2654,7 @@ void usbpd_policy_work(struct work_struct *work)
 			break;
 
 		default:
-			if (&pd_data->phy_ops.get_power_role)
+			if (pd_data->phy_ops.get_power_role)
 				pd_data->phy_ops.get_power_role(pd_data,
 						&power_role);
 			pr_info("%s, %d\n", __func__, power_role);
