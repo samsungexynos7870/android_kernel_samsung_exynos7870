@@ -219,7 +219,7 @@ void lpass_release_pad_reg(void)
 			0x1, 1);
 }
 
-static inline bool is_running_only(const char *name)
+static inline bool __maybe_unused is_running_only(const char *name)
 {
 	struct subip_info *si;
 
