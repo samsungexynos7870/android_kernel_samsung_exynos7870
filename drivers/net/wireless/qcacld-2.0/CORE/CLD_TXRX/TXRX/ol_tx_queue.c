@@ -380,7 +380,7 @@ ol_txrx_peer_tid_pause_base(
     }
 }
 
-static inline void
+static inline __maybe_unused void
 ol_txrx_peer_pause_but_no_mgmt_q_base(
     struct ol_txrx_pdev_t *pdev,
     struct ol_txrx_peer_t *peer)
@@ -445,7 +445,7 @@ ol_txrx_peer_tid_unpause_base(
     }
 }
 
-static inline void
+static inline __maybe_unused void
 ol_txrx_peer_unpause_but_no_mgmt_q_base(
     struct ol_txrx_pdev_t *pdev,
     struct ol_txrx_peer_t *peer)
