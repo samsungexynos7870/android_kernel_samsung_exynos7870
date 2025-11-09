@@ -735,6 +735,12 @@ KBUILD_CFLAGS += $(call cc-disable-warning, gnu)
 KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
 # Quiet clang warning: comparison of unsigned expression < 0 is always false
 KBUILD_CFLAGS += $(call cc-disable-warning, tautological-compare)
+# typecheck() in include/linux/typecheck.h declares "typeof(x) __dummy2"
+# without an initialiser, and u64_to_user_ptr() feeds it a const member, so
+# newer clang reports the throwaway variable. It is only compared by address,
+# never read; the macro is unchanged in mainline and has to stay usable for
+# struct types, so it cannot take an initialiser.
+KBUILD_CFLAGS += $(call cc-disable-warning, default-const-init-var-unsafe)
 # CLANG uses a _MergedGlobals as optimization, but this breaks modpost, as the
 # source of a reference will be _MergedGlobals and not on of the whitelisted names.
 # See modpost pattern 2
