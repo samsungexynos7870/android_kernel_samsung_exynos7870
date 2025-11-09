@@ -63,7 +63,7 @@ void sme_FTOpen(tHalHandle hHal, tANI_U32 sessionId)
       pSession->ftSmeContext.pUsrCtx->sessionId = sessionId;
 
       status =
-         vos_timer_init(&pSession->ftSmeContext.preAuthReassocIntvlTimer,
+         (eHalStatus)vos_timer_init(&pSession->ftSmeContext.preAuthReassocIntvlTimer,
          VOS_TIMER_TYPE_SW,
          sme_PreauthReassocIntvlTimerCallback,
          (void *)pSession->ftSmeContext.pUsrCtx);

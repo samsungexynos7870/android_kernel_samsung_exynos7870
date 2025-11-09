@@ -2454,7 +2454,7 @@ eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest,
     msg.type = WDA_SET_HOST_OFFLOAD;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_HOST_OFFLOAD message to WDA", __func__);
         vos_mem_free(pRequestBuf);
@@ -2508,7 +2508,7 @@ eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest, tANI_U8
     msg.type = WDA_SET_KEEP_ALIVE;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
                   "Not able to post WDA_SET_KEEP_ALIVE message to WDA",
@@ -2560,7 +2560,7 @@ eHalStatus pmcSetNSOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest,
     msg.type = WDA_SET_NS_OFFLOAD;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post SIR_HAL_SET_HOST_OFFLOAD message to HAL", __func__);
         vos_mem_free(pRequestBuf);
@@ -2957,7 +2957,7 @@ eHalStatus pmcSetPreferredNetworkList
     msg.type     = WDA_SET_PNO_REQ;
     msg.reserved = 0;
     msg.bodyptr  = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __func__);
         vos_mem_free(pRequestBuf);
@@ -3013,7 +3013,7 @@ eHalStatus pmcUpdateScanParams(tHalHandle hHal, tCsrConfig *pRequest, tCsrChanne
     msg.type = WDA_UPDATE_SCAN_PARAMS_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_UPDATE_SCAN_PARAMS message to WDA", __func__);
         vos_mem_free(pRequestBuf);
@@ -3052,7 +3052,7 @@ eHalStatus pmcSetPowerParams(tHalHandle hHal,   tSirSetPowerParamsReq*  pwParams
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
 
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_POWER_PARAMS_REQ message to WDA", __func__);
         vos_mem_free(pRequestBuf);
@@ -3115,7 +3115,7 @@ eHalStatus pmcGetFilterMatchCount
     pMac->pmc.FilterMatchCountCB = callbackRoutine;
     pMac->pmc.FilterMatchCountCBContext = callbackContext;
 
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
             "%s: Not able to post WDA_PACKET_COALESCING_FILTER_MATCH_COUNT_REQ "
@@ -3172,7 +3172,7 @@ eHalStatus pmcSetGTKOffload (tHalHandle hHal, tpSirGtkOffloadParams pGtkOffload,
     msg.type = WDA_GTK_OFFLOAD_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
                   "SIR_HAL_SET_GTK_OFFLOAD message to HAL", __func__);
@@ -3237,7 +3237,7 @@ eHalStatus pmcGetGTKOffload(tHalHandle hHal, GTKOffloadGetInfoCallback callbackR
     pMac->pmc.GtkOffloadGetInfoCB = callbackRoutine;
     pMac->pmc.GtkOffloadGetInfoCBContext = callbackContext;
 
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_GTK_OFFLOAD_GETINFO_REQ message to WDA",
                     __func__);

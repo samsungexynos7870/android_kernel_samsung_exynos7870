@@ -261,7 +261,7 @@ static VOS_STATUS btcSendBTEvent(tpAniSirGlobal pMac, tpSmeBtEvent pBtEvent)
    msg.type = WDA_SIGNAL_BT_EVENT;
    msg.reserved = 0;
    msg.bodyptr = ptrSmeBtEvent;
-   if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+   if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
    {
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
          "Not able to post WDA_SIGNAL_BT_EVENT message to WDA", __func__);
@@ -515,7 +515,7 @@ VOS_STATUS btcSendCfgMsg(tHalHandle hHal, tpSmeBtcConfig pSmeBtcConfig)
    msg.type = WDA_BTC_SET_CFG;
    msg.reserved = 0;
    msg.bodyptr = ptrSmeBtcConfig;
-   if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+   if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
    {
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "btcSendCfgMsg: "
          "Not able to post WDA_BTC_SET_CFG message to WDA");

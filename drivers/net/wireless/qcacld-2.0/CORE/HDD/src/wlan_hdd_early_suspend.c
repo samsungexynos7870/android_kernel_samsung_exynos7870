@@ -160,7 +160,7 @@ void hdd_suspend_full_pwr_callback(void *callbackContext, eHalStatus status)
 
 eHalStatus hdd_exit_standby(hdd_context_t *pHddCtx)
 {
-    eHalStatus status = VOS_STATUS_SUCCESS;
+    eHalStatus status = (eHalStatus)VOS_STATUS_SUCCESS;
     unsigned long rc;
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: WLAN being resumed from standby",__func__);
@@ -436,7 +436,7 @@ VOS_STATUS hdd_exit_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
       goto err_voss_stop;
    }
 
-   vosStatus = vos_get_vdev_types(pAdapter->device_mode, &type, &subType);
+   vosStatus = vos_get_vdev_types(pAdapter->(tVOS_CON_MODE)device_mode, &type, &subType);
    if (VOS_STATUS_SUCCESS != vosStatus)
    {
       hddLog(VOS_TRACE_LEVEL_ERROR, "failed to get vdev type");
@@ -1976,7 +1976,7 @@ VOS_STATUS hdd_wlan_shutdown(void)
    /* Stop SME - Cannot invoke vos_stop as vos_stop relies
     * on threads being running to process the SYS Stop
     */
-   vosStatus = sme_Stop(pHddCtx->hHal, HAL_STOP_TYPE_SYS_RESET);
+   vosStatus = (VOS_STATUS)sme_Stop(pHddCtx->hHal, HAL_STOP_TYPE_SYS_RESET);
    if (!VOS_IS_STATUS_SUCCESS(vosStatus))
    {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -1986,7 +1986,7 @@ VOS_STATUS hdd_wlan_shutdown(void)
 
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Doing MAC STOP",__func__);
    /* Stop MAC (PE and HAL) */
-   vosStatus = macStop(pHddCtx->hHal, HAL_STOP_TYPE_SYS_RESET);
+   vosStatus = (VOS_STATUS)macStop(pHddCtx->hHal, HAL_STOP_TYPE_SYS_RESET);
    if (!VOS_IS_STATUS_SUCCESS(vosStatus))
    {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -2138,7 +2138,7 @@ VOS_STATUS hdd_wlan_re_init(void *hif_sc)
 
    /* Set the MAC Address, currently this is used by HAL to add self sta.
     * Remove this once self sta is added as part of session open. */
-   halStatus = cfgSetStr(pHddCtx->hHal, WNI_CFG_STA_ID,
+   halStatus = (eHalStatus)cfgSetStr(pHddCtx->hHal, WNI_CFG_STA_ID,
          (v_U8_t *)&pHddCtx->cfg_ini->intfMacAddr[0],
            sizeof(pHddCtx->cfg_ini->intfMacAddr[0]));
    if (!HAL_STATUS_SUCCESS(halStatus))

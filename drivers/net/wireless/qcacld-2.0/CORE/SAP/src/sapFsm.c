@@ -2479,7 +2479,7 @@ sapGotoStarting
                             eSME_REASON_OTHER);
     }
 
-    halStatus = sap_OpenSession(hHal, sapContext);
+    halStatus = (eHalStatus)sap_OpenSession(hHal, sapContext);
 
     if(eHAL_STATUS_SUCCESS != halStatus )
     {
@@ -2546,7 +2546,7 @@ sapGotoDisconnecting
 static eHalStatus sapRoamSessionCloseCallback(void *pContext)
 {
     ptSapContext sapContext = (ptSapContext)pContext;
-    return sapSignalHDDevent(sapContext, NULL,
+    return (eHalStatus)sapSignalHDDevent(sapContext, NULL,
                     eSAP_STOP_BSS_EVENT, (v_PVOID_t) eSAP_STATUS_SUCCESS);
 }
 
@@ -2852,7 +2852,7 @@ sapSignalHDDevent
             vos_mem_copy( &sapApAppEvent.sapevt.sapStationMICFailureEvent.dstMacAddr,
                           pCsrRoamInfo->u.pMICFailureInfo->dstMacAddr,
                           sizeof(tSirMacAddr));
-            sapApAppEvent.sapevt.sapStationMICFailureEvent.multicast = pCsrRoamInfo->u.pMICFailureInfo->multicast;
+            sapApAppEvent.sapevt.sapStationMICFailureEvent.multicast = pCsrRoamInfo->u.pMICFailureInfo->(eSapBool)multicast;
             sapApAppEvent.sapevt.sapStationMICFailureEvent.IV1 = pCsrRoamInfo->u.pMICFailureInfo->IV1;
             sapApAppEvent.sapevt.sapStationMICFailureEvent.keyId = pCsrRoamInfo->u.pMICFailureInfo->keyId;
             vos_mem_copy( sapApAppEvent.sapevt.sapStationMICFailureEvent.TSC,

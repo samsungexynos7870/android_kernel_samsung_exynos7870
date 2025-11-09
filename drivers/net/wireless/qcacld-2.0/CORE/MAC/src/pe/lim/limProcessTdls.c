@@ -2530,7 +2530,7 @@ static eHalStatus limSendSmeTdlsAddStaRsp(tpAniSirGlobal pMac,
     if ( NULL == addStaRsp )
     {
         limLog(pMac, LOGE, FL("Failed to allocate memory"));
-        return eSIR_FAILURE;
+        return (eHalStatus)eSIR_FAILURE;
     }
 
     addStaRsp->sessionId = sessionId;
@@ -2558,7 +2558,7 @@ static eHalStatus limSendSmeTdlsAddStaRsp(tpAniSirGlobal pMac,
     mmhMsg.bodyval = 0;
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
-    return eSIR_SUCCESS ;
+    return (eHalStatus)eSIR_SUCCESS ;
 
 }
 /*
@@ -2947,7 +2947,7 @@ static eHalStatus limSendSmeTdlsDelStaRsp(tpAniSirGlobal pMac,
     if ( NULL == pDelSta )
     {
         limLog(pMac, LOGE, FL("Failed to allocate memory"));
-            return eSIR_FAILURE;
+            return (eHalStatus)eSIR_FAILURE;
     }
 
     pDelSta->sessionId = sessionId;
@@ -2971,7 +2971,7 @@ static eHalStatus limSendSmeTdlsDelStaRsp(tpAniSirGlobal pMac,
 
     mmhMsg.bodyval = 0;
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
-    return eSIR_SUCCESS ;
+    return (eHalStatus)eSIR_SUCCESS ;
 
 }
 

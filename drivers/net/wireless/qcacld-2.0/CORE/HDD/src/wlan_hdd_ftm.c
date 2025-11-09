@@ -143,7 +143,7 @@ static v_U32_t wlan_ftm_postmsg(v_U8_t *cmd_ptr, v_U16_t cmd_len)
 
     /* Use Vos messaging mechanism to send the command to halPhy */
     if (VOS_STATUS_SUCCESS != vos_mq_post_message(
-        VOS_MODULE_ID_WDA,
+        (VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                     (vos_msg_t *)&ftmMsg)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,"%s: : Failed to post Msg to HAL", __func__);
 
@@ -497,7 +497,7 @@ static VOS_STATUS wlan_ftm_vos_close( v_CONTEXT_t vosContext )
   }
 #endif
 
-  vosStatus = macClose( ((pVosContextType)vosContext)->pMACContext);
+  vosStatus = (VOS_STATUS)macClose( ((pVosContextType)vosContext)->pMACContext);
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
   {
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -617,7 +617,7 @@ static VOS_STATUS vos_ftm_preStart(v_CONTEXT_t vosContext)
    }
 
    /* call macPreStart */
-   vStatus = macPreStart(pVosContext->pMACContext);
+   vStatus = (VOS_STATUS)macPreStart(pVosContext->pMACContext);
    if ( !VOS_IS_STATUS_SUCCESS(vStatus) )
    {
       VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_ERROR,
@@ -663,7 +663,7 @@ static VOS_STATUS vos_ftm_preStart(v_CONTEXT_t vosContext)
    }
 
 #if  defined(QCA_WIFI_FTM)
-   vStatus = HTCStart(gpVosContext->htc_ctx);
+   vStatus = (VOS_STATUS)HTCStart(gpVosContext->htc_ctx);
    if (!VOS_IS_STATUS_SUCCESS(vStatus))
    {
       VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_FATAL,

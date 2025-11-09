@@ -162,7 +162,7 @@ eHalStatus sme_remainOnChnRsp( tpAniSirGlobal pMac, tANI_U8 *pMsg)
             /* process the msg */
             if( callback )
                 callback(pMac, pCommand->u.remainChlCmd.callbackCtx,
-                         pRsp->statusCode);
+                         pRsp->(eHalStatus)statusCode);
 
             if (pMac->fP2pListenOffload)
             {

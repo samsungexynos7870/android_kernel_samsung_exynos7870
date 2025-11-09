@@ -650,7 +650,7 @@ VOS_STATUS vos_open( v_CONTEXT_t *pVosContext, v_SIZE_t hddContextSize )
    }
 
    /* Now proceed to open the SME */
-   vStatus = sme_Open(gpVosContext->pMACContext);
+   vStatus = (VOS_STATUS)sme_Open(gpVosContext->pMACContext);
    if (!VOS_IS_STATUS_SUCCESS(vStatus))
    {
      /* Critical Error ...  Cannot proceed further */
@@ -803,7 +803,7 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
    }
 
    /* call macPreStart */
-   vStatus = macPreStart(gpVosContext->pMACContext);
+   vStatus = (VOS_STATUS)macPreStart(gpVosContext->pMACContext);
    if ( !VOS_IS_STATUS_SUCCESS(vStatus) )
    {
       VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_FATAL,
@@ -853,7 +853,7 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
       return VOS_STATUS_E_FAILURE;
    }
 
-   vStatus = HTCStart(gpVosContext->htc_ctx);
+   vStatus = (VOS_STATUS)HTCStart(gpVosContext->htc_ctx);
    if (!VOS_IS_STATUS_SUCCESS(vStatus))
    {
       VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_FATAL,
@@ -975,7 +975,7 @@ VOS_STATUS vos_start( v_CONTEXT_t vosContext )
             "%s: MAC correctly started", __func__);
 
   /* START SME */
-  vStatus = sme_Start(pVosContext->pMACContext);
+  vStatus = (VOS_STATUS)sme_Start(pVosContext->pMACContext);
 
   if (!VOS_IS_STATUS_SUCCESS(vStatus))
   {
@@ -1117,7 +1117,7 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
   }
 
-  vosStatus = sme_Close( ((pVosContextType)vosContext)->pMACContext);
+  vosStatus = (VOS_STATUS)sme_Close( ((pVosContextType)vosContext)->pMACContext);
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
   {
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -1125,7 +1125,7 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
   }
 
-  vosStatus = macClose( ((pVosContextType)vosContext)->pMACContext);
+  vosStatus = (VOS_STATUS)macClose( ((pVosContextType)vosContext)->pMACContext);
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
   {
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -2266,7 +2266,7 @@ VOS_STATUS vos_shutdown(v_CONTEXT_t vosContext)
      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
   }
 
-  vosStatus = sme_Close( ((pVosContextType)vosContext)->pMACContext);
+  vosStatus = (VOS_STATUS)sme_Close( ((pVosContextType)vosContext)->pMACContext);
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
   {
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -2284,7 +2284,7 @@ VOS_STATUS vos_shutdown(v_CONTEXT_t vosContext)
      vos_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
   }
 
-  vosStatus = macClose( ((pVosContextType)vosContext)->pMACContext);
+  vosStatus = (VOS_STATUS)macClose( ((pVosContextType)vosContext)->pMACContext);
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
   {
      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -3025,7 +3025,7 @@ VOS_STATUS vos_flush_logs(uint32_t is_fatal,
 	if (!vos_context) {
 		VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
 				"%s: vos context is Invalid", __func__);
-		return eHAL_STATUS_FAILURE;
+		return (VOS_STATUS)eHAL_STATUS_FAILURE;
 	}
 
 	if (vos_is_log_report_in_progress() == true) {

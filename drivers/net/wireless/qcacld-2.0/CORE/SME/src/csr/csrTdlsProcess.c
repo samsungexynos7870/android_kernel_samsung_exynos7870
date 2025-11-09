@@ -272,7 +272,7 @@ VOS_STATUS csrTdlsSendLinkEstablishParams(tHalHandle hHal,
         }
     }
 
-    return status ;
+    return (VOS_STATUS)status ;
 }
 
 /*

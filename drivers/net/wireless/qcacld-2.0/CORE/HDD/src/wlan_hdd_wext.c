@@ -2051,7 +2051,7 @@ static int __iw_set_mode(struct net_device *dev, struct iw_request_info *info,
             VOS_STATUS vosStatus;
             // need to issue a disconnect to CSR.
             INIT_COMPLETION(pAdapter->disconnect_comp_var);
-            vosStatus = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+            vosStatus = (VOS_STATUS)sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
                                           pAdapter->sessionId,
                                           eCSR_DISCONNECT_REASON_IBSS_LEAVE );
             if(VOS_STATUS_SUCCESS == vosStatus)
@@ -4094,7 +4094,7 @@ VOS_STATUS wlan_hdd_exit_lowpower(hdd_context_t *pHddCtx,
    {
        hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "%s: WLAN being exit "
               "from Stand by",__func__);
-       vos_Status = hdd_exit_standby(pHddCtx);
+       vos_Status = (VOS_STATUS)hdd_exit_standby(pHddCtx);
    }
    else if (eHDD_SUSPEND_DEEP_SLEEP == pHddCtx->hdd_ps_state)
    {
@@ -5110,7 +5110,7 @@ int process_wma_set_command(int sessid, int paramid,
     msg.type = WDA_CLI_SET_CMD;
     msg.reserved = 0;
     msg.bodyptr = (void *)iwcmd;
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA,
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                                   &msg)) {
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s: "
                  "Not able to post wda_cli_set_cmd message to WDA",
@@ -5144,7 +5144,7 @@ int process_wma_set_command_twoargs(int sessid, int paramid,
     msg.reserved = 0;
     msg.bodyptr = iwcmd;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)) {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s: "
                   "Not able to post wda_cli_set_cmd message to WDA", __func__);
         vos_mem_free(iwcmd);
@@ -5812,7 +5812,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 
            vos_mem_copy(bssid, pHddStaCtx->conn_info.bssId, VOS_MAC_ADDR_SIZE);
            if ( sme_SetTxPower(hHal, pAdapter->sessionId, bssid,
-                              pAdapter->device_mode, set_value) !=
+                              pAdapter->(tVOS_CON_MODE)device_mode, set_value) !=
                               eHAL_STATUS_SUCCESS )
            {
               hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting tx power failed",
@@ -8521,7 +8521,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
                 msg.type = SIR_HAL_UNIT_TEST_CMD;
                 msg.reserved = 0;
                 msg.bodyptr = unitTestArgs;
-                if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA,
+                if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                                                     &msg)) {
                     vos_mem_free(unitTestArgs);
                     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -9534,13 +9534,13 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
     case HDD_FILTER_IPV6_MC_UC:
         /* Setting IPV6 MC Filter below
          */
-        packetFilterSetReq.filterType = HDD_RCV_FILTER_SET;
+        packetFilterSetReq.filterType = (eSirReceivePacketFilterType)HDD_RCV_FILTER_SET;
         packetFilterSetReq.filterId = HDD_FILTER_ID_IPV6_MC;
         packetFilterSetReq.numFieldParams = 2;
         packetFilterSetReq.paramsData[0].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_MAC;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_MAC;
         packetFilterSetReq.paramsData[0].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_NOT_EQUAL;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_NOT_EQUAL;
         packetFilterSetReq.paramsData[0].dataOffset =
                                          WLAN_HDD_80211_FRM_DA_OFFSET;
         packetFilterSetReq.paramsData[0].dataLength = 1;
@@ -9548,9 +9548,9 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
                                          HDD_IPV6_MC_CMP_DATA;
 
         packetFilterSetReq.paramsData[1].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_ARP;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_ARP;
         packetFilterSetReq.paramsData[1].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_NOT_EQUAL;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_NOT_EQUAL;
         packetFilterSetReq.paramsData[1].dataOffset = ETH_ALEN;
         packetFilterSetReq.paramsData[1].dataLength = 2;
         packetFilterSetReq.paramsData[1].compareData[0] =
@@ -9573,22 +9573,22 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
         /*
          * Setting IPV6 UC Filter below
          */
-        packetFilterSetReq.filterType = HDD_RCV_FILTER_SET;
+        packetFilterSetReq.filterType = (eSirReceivePacketFilterType)HDD_RCV_FILTER_SET;
         packetFilterSetReq.filterId = HDD_FILTER_ID_IPV6_UC;
         packetFilterSetReq.numFieldParams = 2;
         packetFilterSetReq.paramsData[0].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_MAC;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_MAC;
         packetFilterSetReq.paramsData[0].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_MAX;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_MAX;
         packetFilterSetReq.paramsData[0].dataOffset = 0;
         packetFilterSetReq.paramsData[0].dataLength = 1;
         packetFilterSetReq.paramsData[0].compareData[0] =
                                          HDD_IPV6_UC_CMP_DATA;
 
         packetFilterSetReq.paramsData[1].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_ARP;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_ARP;
         packetFilterSetReq.paramsData[1].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_NOT_EQUAL;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_NOT_EQUAL;
         packetFilterSetReq.paramsData[1].dataOffset = ETH_ALEN;
         packetFilterSetReq.paramsData[1].dataLength = 2;
         packetFilterSetReq.paramsData[1].compareData[0] =
@@ -9613,7 +9613,7 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
          * clear the UC Filter. As the Filter
          * IDs are static, we can directly clear it.
          */
-        packetFilterSetReq.filterType = HDD_RCV_FILTER_SET;
+        packetFilterSetReq.filterType = (eSirReceivePacketFilterType)HDD_RCV_FILTER_SET;
         packetFilterClrReq.filterId = HDD_FILTER_ID_IPV6_UC;
         if (eHAL_STATUS_SUCCESS != sme_ReceiveFilterClearFilter(pHddCtx->hHal,
                                     &packetFilterClrReq, sessionId))

@@ -98,7 +98,7 @@ VOS_STATUS sme_NanRequest(tpNanRequestReq input)
 	 msg.reserved = 0;
 	 msg.bodyptr = data;
 
-	 if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA,
+	 if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
 					 &msg)) {
 	 VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 		FL("Not able to post WDA_NAN_REQUEST message to WDA"));

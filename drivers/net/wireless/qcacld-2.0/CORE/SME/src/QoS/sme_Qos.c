@@ -7016,7 +7016,7 @@ eHalStatus sme_QosDelTsIndFnp(tpAniSirGlobal pMac, tListElem *pEntry)
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: %d: Unable to obtain lock",
                 __func__, __LINE__);
-      return SME_QOS_STATUS_RELEASE_FAILURE_RSP;
+      return (eHalStatus)SME_QOS_STATUS_RELEASE_FAILURE_RSP;
    }
    //Call the internal function for QoS release, adding a layer of abstraction
    status = sme_QosInternalReleaseReq(pMac, flow_info->QosFlowID, VOS_FALSE);
@@ -8185,7 +8185,7 @@ tANI_BOOLEAN qosProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
             if( HAL_STATUS_SUCCESS( status ) )
             {
                 fRemoveCmd = eANI_BOOLEAN_FALSE;
-                status = SME_QOS_STATUS_SETUP_REQ_PENDING_RSP;
+                status = (eHalStatus)SME_QOS_STATUS_SETUP_REQ_PENDING_RSP;
             }
             break;
         case eSmeCommandDelTs:

@@ -211,7 +211,7 @@ static void hdd_wmm_enable_tl_uapsd (hdd_wmm_qos_context_t* pQosContext)
                                     pAc->wmmAcTspecInfo.ts_info.up,
                                     service_interval,
                                     suspension_interval,
-                                    direction,
+                                    (WLANTL_TSDirType)direction,
                                     psb,
                                     pAdapter->sessionId);
 

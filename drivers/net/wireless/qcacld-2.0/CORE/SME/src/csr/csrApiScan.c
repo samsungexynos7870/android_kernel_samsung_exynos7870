@@ -182,21 +182,21 @@ eHalStatus csrScanOpen( tpAniSirGlobal pMac )
 #endif
         pMac->scan.fFullScanIssued = eANI_BOOLEAN_FALSE;
         pMac->scan.nBssLimit = CSR_MAX_BSS_SUPPORT;
-        status = vos_timer_init(&pMac->scan.hTimerGetResult, VOS_TIMER_TYPE_SW, csrScanGetResultTimerHandler, pMac);
+        status = (eHalStatus)vos_timer_init(&pMac->scan.hTimerGetResult, VOS_TIMER_TYPE_SW, csrScanGetResultTimerHandler, pMac);
         if (!HAL_STATUS_SUCCESS(status))
         {
             smsLog(pMac, LOGE, FL("cannot allocate memory for getResult timer"));
             break;
         }
 #ifdef WLAN_AP_STA_CONCURRENCY
-        status = vos_timer_init(&pMac->scan.hTimerStaApConcTimer, VOS_TIMER_TYPE_SW, csrStaApConcTimerHandler, pMac);
+        status = (eHalStatus)vos_timer_init(&pMac->scan.hTimerStaApConcTimer, VOS_TIMER_TYPE_SW, csrStaApConcTimerHandler, pMac);
         if (!HAL_STATUS_SUCCESS(status))
         {
             smsLog(pMac, LOGE, FL("cannot allocate memory for hTimerStaApConcTimer timer"));
             break;
         }
 #endif
-        status = vos_timer_init(&pMac->scan.hTimerIdleScan, VOS_TIMER_TYPE_SW, csrScanIdleScanTimerHandler, pMac);
+        status = (eHalStatus)vos_timer_init(&pMac->scan.hTimerIdleScan, VOS_TIMER_TYPE_SW, csrScanIdleScanTimerHandler, pMac);
         if (!HAL_STATUS_SUCCESS(status))
         {
             smsLog(pMac, LOGE, FL("cannot allocate memory for idleScan timer"));
@@ -2164,7 +2164,7 @@ static void csrScanAddToOccupiedChannels(
     if (!csrIsChannelPresentInList(pOccupiedChannelList, numOccupiedChannels, channel)
         && csrNeighborRoamConnectedProfileMatch(pMac, sessionId, pResult, pIes))
     {
-        status = csrAddToChannelListFront(pOccupiedChannelList, numOccupiedChannels, channel);
+        status = (eHalStatus)csrAddToChannelListFront(pOccupiedChannelList, numOccupiedChannels, channel);
         if(HAL_STATUS_SUCCESS(status))
         {
             pOccupiedChannels->numChannels++;
@@ -5485,7 +5485,7 @@ eHalStatus csrScanSmeScanResponse( tpAniSirGlobal pMac, void *pMsgBuf )
                  * status code not available in tSmeGetScanChnRsp, so
                  * by default considering it to be success
                  */
-                scanStatus = eSIR_SME_SUCCESS;
+                scanStatus = (eCsrScanStatus)eSIR_SME_SUCCESS;
                 csrScanAgeResults(pMac, pScanChnInfo);
                 break;
             case eCsrScanForCapsChange:
@@ -6745,7 +6745,7 @@ eHalStatus csrScanStartGetResultTimer(tpAniSirGlobal pMac)
 
     if(pMac->scan.fScanEnable)
     {
-        status = vos_timer_start(&pMac->scan.hTimerGetResult, CSR_SCAN_GET_RESULT_INTERVAL/VOS_TIMER_TO_MS_UNIT);
+        status = (eHalStatus)vos_timer_start(&pMac->scan.hTimerGetResult, CSR_SCAN_GET_RESULT_INTERVAL/VOS_TIMER_TO_MS_UNIT);
     }
     else
     {
@@ -6758,7 +6758,7 @@ eHalStatus csrScanStartGetResultTimer(tpAniSirGlobal pMac)
 
 eHalStatus csrScanStopGetResultTimer(tpAniSirGlobal pMac)
 {
-    return (vos_timer_stop(&pMac->scan.hTimerGetResult));
+    return ((eHalStatus)vos_timer_stop(&pMac->scan.hTimerGetResult));
 }
 
 
@@ -6949,7 +6949,7 @@ eHalStatus csrScanStartIdleScanTimer(tpAniSirGlobal pMac, tANI_U32 interval)
     {
         pMac->scan.nIdleScanTimeGap += interval;
         vos_timer_stop(&pMac->scan.hTimerIdleScan);
-        status = vos_timer_start(&pMac->scan.hTimerIdleScan, interval/VOS_TIMER_TO_MS_UNIT);
+        status = (eHalStatus)vos_timer_start(&pMac->scan.hTimerIdleScan, interval/VOS_TIMER_TO_MS_UNIT);
         if( !HAL_STATUS_SUCCESS(status) )
         {
             smsLog(pMac, LOGE, "  Fail to start Idle scan timer. status = %d interval = %d", status, interval);
@@ -6972,7 +6972,7 @@ eHalStatus csrScanStartIdleScanTimer(tpAniSirGlobal pMac, tANI_U32 interval)
 
 eHalStatus csrScanStopIdleScanTimer(tpAniSirGlobal pMac)
 {
-    return (vos_timer_stop(&pMac->scan.hTimerIdleScan));
+    return ((eHalStatus)vos_timer_stop(&pMac->scan.hTimerIdleScan));
 }
 
 
@@ -7847,7 +7847,7 @@ eHalStatus csrScanGetSupportedChannels( tpAniSirGlobal pMac )
     eHalStatus status = eHAL_STATUS_SUCCESS;
     int n = WNI_CFG_VALID_CHANNEL_LIST_LEN;
 
-    status = vos_nv_getSupportedChannels( pMac->scan.baseChannels.channelList, &n, NULL, NULL );
+    status = (eHalStatus)vos_nv_getSupportedChannels( pMac->scan.baseChannels.channelList, &n, NULL, NULL );
     if( HAL_STATUS_SUCCESS(status) )
     {
         pMac->scan.baseChannels.numChannels = (tANI_U8)n;

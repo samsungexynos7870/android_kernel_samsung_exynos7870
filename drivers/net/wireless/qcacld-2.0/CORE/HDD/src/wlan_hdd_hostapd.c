@@ -906,7 +906,7 @@ static int hdd_stop_bss_link(hdd_adapter_t *pHostapdAdapter,
             hddLog(LOGE, FL("Deleting SAP/P2P link!!!!!!"));
 
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
-        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->(tVOS_CON_MODE)device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
@@ -1242,7 +1242,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: usrDataForCallback is null", __func__);
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
 
     pHostapdAdapter = netdev_priv(dev);
@@ -1252,7 +1252,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
                 "invalid adapter or adapter has invalid magic");
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
 
     pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pHostapdAdapter);
@@ -1262,7 +1262,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: pSapEvent is null", __func__);
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
 
     sapEvent = pSapEvent->sapHddEventCode;
@@ -1271,14 +1271,14 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
 
     if (!pHddCtx) {
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context is null"));
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
 
     cfg = pHddCtx->cfg_ini;
 
     if (!cfg) {
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD config is null"));
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
 
     dfs_info.channel = pHddApCtx->operatingChannel;
@@ -2870,7 +2870,7 @@ static __iw_softap_setparam(struct net_device *dev,
                        pHostapdAdapter->macAddressCurrent.bytes,
                        sizeof(tSirMacAddr));
                 rateUpdate.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
-                rateUpdate.dev_mode = pHostapdAdapter->device_mode;
+                rateUpdate.dev_mode = pHostapdAdapter->(tVOS_CON_MODE)device_mode;
                 rateUpdate.mcastDataRate24GHz = set_value;
                 rateUpdate.mcastDataRate24GHzTxFlag = 1;
                 rateUpdate.mcastDataRate5GHz = set_value;
@@ -3981,7 +3981,7 @@ static __iw_softap_set_tx_power(struct net_device *dev,
 
     set_value = value[0];
     if (eHAL_STATUS_SUCCESS != sme_SetTxPower(hHal, pHostapdAdapter->sessionId, bssid,
-                                              pHostapdAdapter->device_mode,
+                                              pHostapdAdapter->(tVOS_CON_MODE)device_mode,
                                               set_value))
     {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting tx power failed",
@@ -4429,7 +4429,7 @@ int __iw_get_genie(struct net_device *dev,
 #endif
 
     // Actually retrieve the RSN IE from CSR.  (We previously sent it down in the CSR Roam Profile.)
-    status = WLANSap_getstationIE_information(
+    status = (eHalStatus)WLANSap_getstationIE_information(
 #ifdef WLAN_FEATURE_MBSSID
                                    WLAN_HDD_GET_SAP_CTX_PTR(pHostapdAdapter),
 #else
@@ -5217,7 +5217,7 @@ static int __iw_softap_stopbss(struct net_device *dev,
             }
         }
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
-        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->(tVOS_CON_MODE)device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
@@ -5434,7 +5434,7 @@ static int __iw_set_ap_genie(struct net_device *dev,
 #ifdef WLAN_FEATURE_MBSSID
             halStatus = WLANSAP_Set_WPARSNIes(WLAN_HDD_GET_SAP_CTX_PTR(pHostapdAdapter), genie, wrqu->data.length);
 #else
-            halStatus = WLANSAP_Set_WPARSNIes(pVosContext, genie, wrqu->data.length);
+            halStatus = (eHalStatus)WLANSAP_Set_WPARSNIes(pVosContext, genie, wrqu->data.length);
 #endif
             break;
 
@@ -6549,7 +6549,7 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     // Allocate the Wireless Extensions state structure
     phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR( pAdapter );
 
-    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
+    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->(tVOS_CON_MODE)device_mode);
 
     // Zero the memory.  This zeros the profile structure.
     memset(phostapdBuf, 0,sizeof(hdd_hostapd_state_t));

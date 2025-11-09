@@ -95,7 +95,7 @@ int wma_ocb_set_config_resp(tp_wma_handle wma_handle, uint8_t status)
 	msg.type = eWNI_SME_OCB_SET_CONFIG_RSP;
 	msg.bodyptr = resp;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		WMA_LOGE(FL("Fail to post msg to SME"));
 		vos_mem_free(resp);
@@ -691,7 +691,7 @@ int wma_ocb_get_tsf_timer_resp_event_handler(void *handle, uint8_t *event_buf,
 	msg.type = eWNI_SME_OCB_GET_TSF_TIMER_RSP;
 	msg.bodyptr = response;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		WMA_LOGE(FL("Failed to post msg to SME"));
 		vos_mem_free(response);
@@ -821,7 +821,7 @@ int wma_dcc_get_stats_resp_event_handler(void *handle, uint8_t *event_buf,
 	msg.type = eWNI_SME_DCC_GET_STATS_RSP;
 	msg.bodyptr = response;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		WMA_LOGE(FL("Failed to post msg to SME"));
 		vos_mem_free(response);
@@ -1019,7 +1019,7 @@ int wma_dcc_update_ndl_resp_event_handler(void *handle, uint8_t *event_buf,
 	msg.type = eWNI_SME_DCC_UPDATE_NDL_RSP;
 	msg.bodyptr = resp;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status))	{
 		WMA_LOGE(FL("Failed to post msg to SME"));
 		vos_mem_free(resp);
@@ -1072,7 +1072,7 @@ int wma_dcc_stats_event_handler(void *handle, uint8_t *event_buf,
 	msg.type = eWNI_SME_DCC_STATS_EVENT;
 	msg.bodyptr = response;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status))	{
 		WMA_LOGE(FL("Failed to post msg to SME"));
 		vos_mem_free(response);

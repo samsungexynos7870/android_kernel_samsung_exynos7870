@@ -589,7 +589,7 @@ eHalStatus csrUpdateChannelList(tpAniSirGlobal pMac)
     msg.bodyptr = pChanList;
     pChanList->numChan = num_channel;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
                 "%s: Failed to post msg to WDA", __func__);
@@ -781,7 +781,7 @@ eHalStatus csrRoamOpen(tpAniSirGlobal pMac)
         }
         pMac->roam.WaitForKeyTimerInfo.pMac = pMac;
         pMac->roam.WaitForKeyTimerInfo.sessionId = CSR_SESSION_ID_INVALID;
-        status = vos_timer_init(&pMac->roam.hTimerWaitForKey, VOS_TIMER_TYPE_SW,
+        status = (eHalStatus)vos_timer_init(&pMac->roam.hTimerWaitForKey, VOS_TIMER_TYPE_SW,
                                 csrRoamWaitForKeyTimeOutHandler,
                                 &pMac->roam.WaitForKeyTimerInfo);
       if (!HAL_STATUS_SUCCESS(status))
@@ -789,7 +789,7 @@ eHalStatus csrRoamOpen(tpAniSirGlobal pMac)
         smsLog(pMac, LOGE, FL("cannot allocate memory for WaitForKey time out timer"));
         break;
       }
-      status = vos_timer_init(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
+      status = (eHalStatus)vos_timer_init(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
                               VOS_TIMER_TYPE_SW, csrRoamTlStatsTimerHandler, pMac);
       if (!HAL_STATUS_SUCCESS(status))
       {
@@ -1499,7 +1499,7 @@ eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
                 "Failed to allocate memory for roam scan channel list");
             currChannelListInfo->numOfChannels = 0;
-            return VOS_STATUS_E_RESOURCES;
+            return (eHalStatus)VOS_STATUS_E_RESOURCES;
         }
         vos_mem_copy(currChannelListInfo->ChannelList,
                      ChannelList, outNumChannels);
@@ -5560,7 +5560,7 @@ eHalStatus csrRoamOffloadSendSynchCnf(tpAniSirGlobal pMac, tANI_U8 sessionId)
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "LFR3: Posting WDA_ROAM_OFFLOAD_SYNCH_CNF");
     if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(
-                                    VOS_MODULE_ID_WDA, &msg)))
+                                    (VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
     {
         VOS_TRACE(VOS_MODULE_ID_SME,VOS_TRACE_LEVEL_DEBUG,
         "%s: Not able to post WDA_ROAM_OFFLOAD_SYNCH_CNF message to WDA",
@@ -5595,7 +5595,7 @@ void csrRoamSynchCleanUp (tpAniSirGlobal pMac, tANI_U8 sessionId)
     msg.type     = WDA_ROAM_OFFLOAD_SYNCH_FAIL;
     msg.reserved = 0;
     msg.bodyptr  = pRoamOffloadFailed;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
           VOS_TRACE(VOS_MODULE_ID_SME,VOS_TRACE_LEVEL_DEBUG,
           "%s:Unable to post WDA_ROAM_OFFLOAD_SYNCH_FAIL msg to WDA",__func__);
            vos_mem_free(pRoamOffloadFailed);
@@ -8580,7 +8580,7 @@ static void csrRoamRoamingStateReassocRspProcessor( tpAniSirGlobal pMac, tpSirSm
                     vos_mem_zero(&roamInfo, sizeof(tCsrRoamInfo));
                     csrRoamCallCallback(pMac, pSmeJoinRsp->sessionId, &roamInfo,
                                         roamId, eCSR_ROAM_FT_REASSOC_FAILED,
-                                        eSIR_SME_SUCCESS);
+                                        (eCsrRoamResult)eSIR_SME_SUCCESS);
                     /*
                      * Since the above callback sends a disconnect
                      * to HDD, we should clean-up our state
@@ -8830,7 +8830,7 @@ POST_ROAM_FAILURE:
         /* Inform the upper layers that the reassoc failed */
         vos_mem_zero(&roamInfo, sizeof(tCsrRoamInfo));
         csrRoamCallCallback(pMac, sessionId,
-                &roamInfo, 0, eCSR_ROAM_FT_REASSOC_FAILED, eSIR_SME_SUCCESS);
+                &roamInfo, 0, eCSR_ROAM_FT_REASSOC_FAILED, (eCsrRoamResult)eSIR_SME_SUCCESS);
 
         /*
          * Issue a disassoc request so that PE/LIM uses this to clean-up the FT session.
@@ -11182,7 +11182,7 @@ eHalStatus csrRoamStartRoamingTimer(tpAniSirGlobal pMac, tANI_U32 sessionId, tAN
 
     smsLog(pMac, LOG1, " csrScanStartRoamingTimer");
     pSession->roamingTimerInfo.sessionId = (tANI_U8)sessionId;
-    status = vos_timer_start(&pSession->hTimerRoaming,
+    status = (eHalStatus)vos_timer_start(&pSession->hTimerRoaming,
                              interval/VOS_TIMER_TO_MS_UNIT);
 
     return (status);
@@ -11190,7 +11190,7 @@ eHalStatus csrRoamStartRoamingTimer(tpAniSirGlobal pMac, tANI_U32 sessionId, tAN
 
 eHalStatus csrRoamStopRoamingTimer(tpAniSirGlobal pMac, tANI_U32 sessionId)
 {
-    return (vos_timer_stop(&pMac->roam.roamSession[sessionId].hTimerRoaming));
+    return ((eHalStatus)vos_timer_stop(&pMac->roam.roamSession[sessionId].hTimerRoaming));
 }
 
 void csrRoamWaitForKeyTimeOutHandler(void *pv)
@@ -11277,7 +11277,7 @@ eHalStatus csrRoamStartWaitForKeyTimer(tpAniSirGlobal pMac, tANI_U32 interval)
     }
 #endif
     smsLog(pMac, LOG1, " csrScanStartWaitForKeyTimer");
-    status = vos_timer_start(&pMac->roam.hTimerWaitForKey,
+    status = (eHalStatus)vos_timer_start(&pMac->roam.hTimerWaitForKey,
                              interval/VOS_TIMER_TO_MS_UNIT);
 
     return (status);
@@ -11309,7 +11309,7 @@ eHalStatus csrRoamStopWaitForKeyTimer(tpAniSirGlobal pMac)
             NULL, eANI_BOOLEAN_FALSE);
     }
 #endif
-    return (vos_timer_stop(&pMac->roam.hTimerWaitForKey));
+    return ((eHalStatus)vos_timer_stop(&pMac->roam.hTimerWaitForKey));
 }
 
 void csrRoamCompletion(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamInfo *pRoamInfo, tSmeCmd *pCommand,
@@ -15371,7 +15371,7 @@ eHalStatus csrRoamOpenSession(tpAniSirGlobal pMac,
             vos_mem_copy(&pSession->selfMacAddr, pSelfMacAddr,
                          sizeof(tCsrBssid));
             *pbSessionId = (tANI_U8)i;
-            status = vos_timer_init(&pSession->hTimerRoaming, VOS_TIMER_TYPE_SW,
+            status = (eHalStatus)vos_timer_init(&pSession->hTimerRoaming, VOS_TIMER_TYPE_SW,
                                     csrRoamRoamingTimerHandler,
                                     &pSession->roamingTimerInfo);
             if (!HAL_STATUS_SUCCESS(status))
@@ -15831,7 +15831,7 @@ void csrRoamTlStatsTimerHandler(void *pv)
       if(pMac->roam.tlStatsReqInfo.periodicity)
       {
          //start timer
-         status = vos_timer_start(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
+         status = (eHalStatus)vos_timer_start(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
                                 pMac->roam.tlStatsReqInfo.periodicity);
          if (!HAL_STATUS_SUCCESS(status))
          {
@@ -16589,7 +16589,7 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
          {
             if(pMac->roam.tlStatsReqInfo.timerRunning)
             {
-               status = vos_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
+               status = (eHalStatus)vos_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
                if (!HAL_STATUS_SUCCESS(status))
                {
                   smsLog(pMac, LOGE, FL("csrGetStatistics:cannot stop TlStatsTimer timer"));

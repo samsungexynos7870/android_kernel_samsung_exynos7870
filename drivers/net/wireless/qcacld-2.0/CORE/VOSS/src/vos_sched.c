@@ -973,7 +973,7 @@ VosMCThread
            continue;
         }
 
-        vStatus = sme_ProcessMsg( (tHalHandle)pMacContext, pMsgWrapper->pVosMsg);
+        vStatus = (VOS_STATUS)sme_ProcessMsg( (tHalHandle)pMacContext, pMsgWrapper->pVosMsg);
         if (!VOS_IS_STATUS_SUCCESS(vStatus))
         {
           VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,

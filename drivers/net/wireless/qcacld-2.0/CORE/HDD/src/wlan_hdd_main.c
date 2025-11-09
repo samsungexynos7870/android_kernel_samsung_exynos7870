@@ -1114,7 +1114,7 @@ void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx)
 
        // need to issue a disconnect to CSR.
        INIT_COMPLETION(pAdapter->disconnect_comp_var);
-       vosStatus = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
+       vosStatus = (VOS_STATUS)sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
                           pAdapter->sessionId,
                           eCSR_DISCONNECT_REASON_UNSPECIFIED );
 
@@ -1401,7 +1401,7 @@ VOS_STATUS hdd_cfg80211_get_ibss_peer_info_all(hdd_adapter_t *pAdapter)
 
    INIT_COMPLETION(pAdapter->ibss_peer_info_comp);
 
-   retStatus = sme_RequestIBSSPeerInfo(hHal, pAdapter,
+   retStatus = (VOS_STATUS)sme_RequestIBSSPeerInfo(hHal, pAdapter,
                                     hdd_cfg80211_get_ibss_peer_info_cb,
                                     VOS_TRUE, 0xFF);
 
@@ -1448,7 +1448,7 @@ hdd_cfg80211_get_ibss_peer_info(hdd_adapter_t *pAdapter, v_U8_t staIdx)
 
     INIT_COMPLETION(pAdapter->ibss_peer_info_comp);
 
-    retStatus = sme_RequestIBSSPeerInfo(hHal, pAdapter,
+    retStatus = (VOS_STATUS)sme_RequestIBSSPeerInfo(hHal, pAdapter,
                                      hdd_cfg80211_get_ibss_peer_info_cb,
                                      VOS_FALSE, staIdx);
 
@@ -3241,7 +3241,7 @@ int wlan_hdd_set_mc_rate(hdd_adapter_t *pAdapter, int targetRate)
 
    pConfig = pHddCtx->cfg_ini;
    rateUpdate.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
-   rateUpdate.dev_mode = pAdapter->device_mode;
+   rateUpdate.dev_mode = pAdapter->(tVOS_CON_MODE)device_mode;
    rateUpdate.mcastDataRate24GHz = targetRate;
    rateUpdate.mcastDataRate24GHzTxFlag = 1;
    rateUpdate.mcastDataRate5GHz = targetRate;
@@ -3696,7 +3696,7 @@ static void hdd_wma_send_fastreassoc_cmd(int sessionId, tSirMacAddr bssid,
     msg.type = SIR_HAL_ROAM_INVOKE;
     msg.reserved = 0;
     msg.bodyptr = fastreassoc;
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA,
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                                              &msg)) {
         vos_mem_free(fastreassoc);
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -6597,7 +6597,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
           rateUpdateParams.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
           rateUpdateParams.reliableMcastDataRate = uRate;
           rateUpdateParams.reliableMcastDataRateTxFlag = txFlags;
-          rateUpdateParams.dev_mode = pAdapter->device_mode;
+          rateUpdateParams.dev_mode = pAdapter->(tVOS_CON_MODE)device_mode;
           rateUpdateParams.bcastDataRate = -1;
           memcpy(rateUpdateParams.bssid, pAdapter->macAddressCurrent.bytes,
              sizeof(rateUpdateParams.bssid));
@@ -6811,7 +6811,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            tANI_U8 *cckmIe = NULL;
            tANI_U8 cckmIeLen = 0;
            eHalStatus status = eHAL_STATUS_SUCCESS;
-           status = hdd_parse_get_cckm_ie(value, &cckmIe, &cckmIeLen);
+           status = (eHalStatus)hdd_parse_get_cckm_ie(value, &cckmIe, &cckmIeLen);
            if (eHAL_STATUS_SUCCESS != status)
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -6845,7 +6845,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            tCsrEseBeaconReq eseBcnReq;
            eHalStatus status = eHAL_STATUS_SUCCESS;
 
-           status = hdd_parse_ese_beacon_req(value, &eseBcnReq);
+           status = (eHalStatus)hdd_parse_ese_beacon_req(value, &eseBcnReq);
            if (eHAL_STATUS_SUCCESS != status)
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -9508,9 +9508,9 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
    int ret_val;
 
    INIT_COMPLETION(pAdapter->session_open_comp_var);
-   sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
+   sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->(tVOS_CON_MODE)device_mode);
    sme_set_pdev_ht_vht_ies(pHddCtx->hHal, pHddCtx->cfg_ini->enable2x2);
-   status = vos_get_vdev_types(pAdapter->device_mode, &type, &subType);
+   status = vos_get_vdev_types(pAdapter->(tVOS_CON_MODE)device_mode, &type, &subType);
    if (VOS_STATUS_SUCCESS != status)
    {
       hddLog(VOS_TRACE_LEVEL_ERROR, "failed to get vdev type");
@@ -10548,7 +10548,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
    pAdapterNode = pCurrent;
    if( VOS_STATUS_SUCCESS == status )
    {
-      wlan_hdd_clear_concurrency_mode(pHddCtx, pAdapter->device_mode);
+      wlan_hdd_clear_concurrency_mode(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
       hdd_cleanup_adapter( pHddCtx, pAdapterNode->pAdapter, rtnl_held );
 
       hdd_remove_adapter( pHddCtx, pAdapterNode );
@@ -10801,7 +10801,7 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                hddLog(LOGE, "%s: failure in WLANSAP_StopBss", __func__);
             }
             clear_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags);
-            wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+            wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
 
             vos_mem_copy(updateIE.bssid, pAdapter->macAddressCurrent.bytes,
                    sizeof(tSirMacAddr));
@@ -10893,7 +10893,7 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
 
       hdd_deinit_tx_rx(pAdapter);
-      wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+      wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
       if (test_bit(WMM_INIT_DONE, &pAdapter->event_flags))
       {
           hdd_wmm_adapter_close( pAdapter );
@@ -11075,7 +11075,7 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
             "%s: Set HDD connState to eConnectionState_NotConnected",
                    __func__);
          if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
-             wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+             wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
          }
          pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
          init_completion(&pAdapter->disconnect_comp_var);
@@ -11088,7 +11088,7 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
          if (!rc)
             hddLog(LOGE, "%s: failure waiting for disconnect_comp_var",
                    __func__);
-         pWextState->roamProfile.csrPersona = pAdapter->device_mode;
+         pWextState->roamProfile.csrPersona = pAdapter->(tVOS_CON_MODE)device_mode;
          pHddCtx->isAmpAllowed = VOS_FALSE;
          sme_RoamConnect(pHddCtx->hHal,
                          pAdapter->sessionId, &(pWextState->roamProfile),
@@ -12636,7 +12636,7 @@ void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx)
 /* Initialize channel list in sme based on the country code */
 VOS_STATUS hdd_set_sme_chan_list(hdd_context_t *hdd_ctx)
 {
-    return sme_init_chan_list(hdd_ctx->hHal, hdd_ctx->reg.alpha2,
+    return (VOS_STATUS)sme_init_chan_list(hdd_ctx->hHal, hdd_ctx->reg.alpha2,
                               hdd_ctx->reg.cc_src);
 }
 

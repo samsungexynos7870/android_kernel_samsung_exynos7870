@@ -8471,7 +8471,7 @@ eHalStatus lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	msg.reserved = 0;
 
 	if (VOS_STATUS_SUCCESS !=
-		vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+		vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)) {
 		limLog(mac_ctx, LOGE,
 		       FL("Not able to post WDA_SET_IE_INFO to WDA"));
 		vos_mem_free(vdev_ie);

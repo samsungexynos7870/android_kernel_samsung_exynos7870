@@ -5013,7 +5013,7 @@ void limSendSmeScanCacheUpdatedInd(tANI_U8 sessionId)
     msg.bodyptr  = NULL;
     msg.bodyval  = sessionId;
 
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                  "%s: Not able to post WDA_SME_SCAN_CACHE_UPDATED message to WDA", __func__);
 }

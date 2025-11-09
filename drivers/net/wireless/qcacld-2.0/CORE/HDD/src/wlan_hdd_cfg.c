@@ -6746,7 +6746,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
 #endif
    smeConfig->csrConfig.Is11eSupportEnabled      = pConfig->b80211eIsEnabled;
-   smeConfig->csrConfig.WMMSupportMode           = pConfig->WmmMode;
+   smeConfig->csrConfig.WMMSupportMode           = pConfig->(eCsrRoamWmmUserModeType)WmmMode;
    smeConfig->csrConfig.gStaLocalEDCAEnable      = pConfig->gStaLocalEDCAEnable;
    /*
     * -channelBondingMode5GHz is getting updated by SAP

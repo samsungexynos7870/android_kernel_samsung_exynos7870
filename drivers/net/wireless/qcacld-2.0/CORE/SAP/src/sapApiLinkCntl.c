@@ -266,7 +266,7 @@ WLANSAP_ScanCallback
     /* Handle event */
     sapstatus = sapFsm(psapContext, &sapEvent);
 
-    return sapstatus;
+    return (eHalStatus)sapstatus;
 }// WLANSAP_ScanCallback
 
 /**
@@ -425,7 +425,7 @@ WLANSAP_PreStartBssAcsScanCallback
             if ( eCSR_BAND_ALL ==  psapContext->scanBandPreference ||
                      psapContext->allBandScanned == eSAP_TRUE)
             {
-                halStatus = sapSignalHDDevent(psapContext, NULL,
+                halStatus = (eHalStatus)sapSignalHDDevent(psapContext, NULL,
                                       eSAP_ACS_CHANNEL_SELECTED,
                                       (v_PVOID_t) eSAP_STATUS_FAILURE);
             }
@@ -494,7 +494,7 @@ WLANSAP_PreStartBssAcsScanCallback
          * post a message to HDD to indicate
          * the ACS channel selection complete.
          */
-        halStatus = sapSignalHDDevent(psapContext, NULL,
+        halStatus = (eHalStatus)sapSignalHDDevent(psapContext, NULL,
                                       eSAP_ACS_CHANNEL_SELECTED,
                                       (v_PVOID_t) eSAP_STATUS_SUCCESS);
     }
@@ -511,7 +511,7 @@ WLANSAP_PreStartBssAcsScanCallback
 #else
         psapContext->channel = SAP_DEFAULT_24GHZ_CHANNEL;
 #endif
-        halStatus = sapSignalHDDevent(psapContext, NULL,
+        halStatus = (eHalStatus)sapSignalHDDevent(psapContext, NULL,
                                       eSAP_ACS_CHANNEL_SELECTED,
                                       (v_PVOID_t) eSAP_STATUS_SUCCESS);
     }

@@ -1281,7 +1281,7 @@ send_rsp:
              "Pre auth on same channel as connected AP channel %d",
              psessionEntry->ftPEContext.pFTPreAuthReq->preAuthchannelNum);)
 #endif
-         limFTProcessPreAuthResult(pMac, status, (tANI_U32 *)psessionEntry);
+         limFTProcessPreAuthResult(pMac, (eHalStatus)status, (tANI_U32 *)psessionEntry);
    }
 }
 

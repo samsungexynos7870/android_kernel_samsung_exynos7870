@@ -1136,7 +1136,7 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
             return;
         }
 
-        wlan_hdd_incr_active_session(pHddCtx, pAdapter->device_mode);
+        wlan_hdd_incr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
         memcpy(wrqu.ap_addr.sa_data, pCsrRoamInfo->pBssDesc->bssId, sizeof(pCsrRoamInfo->pBssDesc->bssId));
         type = WLAN_STA_ASSOC_DONE_IND;
 
@@ -1225,7 +1225,7 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
     }
     else if (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState) // IBss Associated
     {
-        wlan_hdd_incr_active_session(pHddCtx, pAdapter->device_mode);
+        wlan_hdd_incr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
         memcpy(wrqu.ap_addr.sa_data, pHddStaCtx->conn_info.bssId, ETH_ALEN);
         type = WLAN_STA_ASSOC_DONE_IND;
         pr_info("wlan: new IBSS connection to " MAC_ADDRESS_STR"\n",
@@ -1236,7 +1236,7 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
         pr_info("wlan: disconnected\n");
         type = WLAN_STA_DISASSOC_DONE_IND;
         memset(wrqu.ap_addr.sa_data,'\0',ETH_ALEN);
-        wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
 #if defined(FEATURE_WLAN_LFR) && defined(WLAN_FEATURE_ROAM_SCAN_OFFLOAD)
         wlan_hdd_enable_roaming(pAdapter);
 #endif
@@ -1308,7 +1308,7 @@ static void hdd_connRemoveConnectInfo(hdd_station_ctx_t *pHddStaCtx)
    vos_mem_zero( &pHddStaCtx->ibss_enc_key, sizeof(tCsrRoamSetKey) );
 
    // Set not-connected state
-   pHddStaCtx->conn_info.connDot11DesiredBssType = eCSR_BSS_TYPE_ANY;
+   pHddStaCtx->conn_info.connDot11DesiredBssType = (eMib_dot11DesiredBssType)eCSR_BSS_TYPE_ANY;
    pHddStaCtx->conn_info.proxyARPService = 0;
 
    vos_mem_zero( &pHddStaCtx->conn_info.SSID, sizeof( tCsrSSIDInfo ) );
@@ -1899,7 +1899,7 @@ static void hdd_SendReAssocEvent(struct net_device *dev,
     * as a part of connect indication but effectively after roaming the
     * active session count should still be the same and hence upon
     * successful reassoc decrement the active session count here */
-    wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+    wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
 
     /* Send the Assoc Resp, the supplicant needs this for initial Auth */
     len = pCsrRoamInfo->nAssocRspLength - FT_ASSOC_RSP_IES_OFFSET;
@@ -2328,7 +2328,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                          * be the same and hence upon successful reassoc
                          * decrement the active session count here */
                         wlan_hdd_decr_active_session(pHddCtx,
-                                                     pAdapter->device_mode);
+                                                     pAdapter->(tVOS_CON_MODE)device_mode);
 
                         hddLog(LOG1, "%s ft_carrier_on is %d, sending roamed "
                                      "indication", __FUNCTION__, ft_carrier_on);
@@ -3236,7 +3236,7 @@ static eHalStatus roamRoamConnectStatusUpdateHandler( hdd_adapter_t *pAdapter, t
                VOS_TRACE_LEVEL_INFO_HIGH, "New peer joined set PTK encType=%d",
                pHddStaCtx->ibss_enc_key.encType);
 
-            vosStatus = sme_RoamSetKey( WLAN_HDD_GET_HAL_CTX(pAdapter),
+            vosStatus = (VOS_STATUS)sme_RoamSetKey( WLAN_HDD_GET_HAL_CTX(pAdapter),
                pAdapter->sessionId, &pHddStaCtx->ibss_enc_key, &roamId );
 
             if ( VOS_STATUS_SUCCESS != vosStatus )
@@ -3244,7 +3244,7 @@ static eHalStatus roamRoamConnectStatusUpdateHandler( hdd_adapter_t *pAdapter, t
                hddLog(VOS_TRACE_LEVEL_ERROR,
                        "%s: sme_RoamSetKey failed, returned %d",
                        __func__, vosStatus);
-               return VOS_STATUS_E_FAILURE;
+               return (eHalStatus)VOS_STATUS_E_FAILURE;
             }
          }
          netif_carrier_on(pAdapter->dev);
@@ -3545,7 +3545,7 @@ hdd_RoamTdlsStatusUpdateHandler(hdd_adapter_t *pAdapter,
             /* store the ucast signature which will be used later when
              * registering to TL
              */
-            pAdapter->tdlsAddStaStatus = pRoamInfo->statusCode;
+            pAdapter->tdlsAddStaStatus = pRoamInfo->(eHalStatus)statusCode;
             complete(&pAdapter->tdls_add_station_comp);
             break;
         }
@@ -5194,7 +5194,7 @@ static int __iw_set_essid(struct net_device *dev,
     // Disable auto BMPS entry by PMC until DHCP is done
     sme_SetDHCPTillPowerActiveFlag(WLAN_HDD_GET_HAL_CTX(pAdapter), TRUE);
 
-    pWextState->roamProfile.csrPersona = pAdapter->device_mode;
+    pWextState->roamProfile.csrPersona = pAdapter->(tVOS_CON_MODE)device_mode;
     (WLAN_HDD_GET_CTX(pAdapter))->isAmpAllowed = VOS_FALSE;
 
     if ( eCSR_BSS_TYPE_START_IBSS == pRoamProfile->BSSType )

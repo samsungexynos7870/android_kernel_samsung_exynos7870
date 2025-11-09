@@ -339,7 +339,7 @@ limResumeLink(tpAniSirGlobal pMac, SUSPEND_RESUME_LINK_CALLBACK callback, tANI_U
    {
       limLog(pMac, LOGW, FL("Init Scan failed, we will not call finish scan."
                    " calling the callback with failure status"));
-      pMac->lim.gpLimResumeCallback( pMac, eSIR_FAILURE, pMac->lim.gpLimResumeData);
+      pMac->lim.gpLimResumeCallback( pMac, (eHalStatus)eSIR_FAILURE, pMac->lim.gpLimResumeData);
       pMac->lim.gpLimResumeCallback = NULL;
       pMac->lim.gpLimResumeData = NULL;
       pMac->lim.gLimSystemInScanLearnMode = 0;
@@ -920,7 +920,7 @@ error:
             pMac->lim.gLimHalScanState = eLIM_HAL_IDLE_SCAN_STATE;
             if( pMac->lim.gpLimSuspendCallback )
             {
-                pMac->lim.gpLimSuspendCallback( pMac, rc, pMac->lim.gpLimSuspendData );
+                pMac->lim.gpLimSuspendCallback( pMac, (eHalStatus)rc, pMac->lim.gpLimSuspendData );
                 pMac->lim.gpLimSuspendCallback = NULL;
                 pMac->lim.gpLimSuspendData = NULL;
             }
@@ -1170,7 +1170,7 @@ void limSendHalFinishScanReq(tpAniSirGlobal pMac, tLimLimHalScanState nextState)
         {
             if( pMac->lim.gpLimResumeCallback )
             {
-                pMac->lim.gpLimResumeCallback( pMac, rc, pMac->lim.gpLimResumeData );
+                pMac->lim.gpLimResumeCallback( pMac, (eHalStatus)rc, pMac->lim.gpLimResumeData );
                 pMac->lim.gpLimResumeCallback = NULL;
                 pMac->lim.gpLimResumeData = NULL;
                 pMac->lim.gLimSystemInScanLearnMode = 0;

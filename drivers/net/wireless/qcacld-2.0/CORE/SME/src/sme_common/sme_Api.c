@@ -329,7 +329,7 @@ static eHalStatus freeSmeCmdList(tpAniSirGlobal pMac)
     vos_mem_free(pMac->sme.smeCmdActiveList.cmdTimeoutTimer);
     pMac->sme.smeCmdActiveList.cmdTimeoutTimer = NULL;
 
-    status = vos_lock_acquire(&pMac->sme.lkSmeGlobalLock);
+    status = (eHalStatus)vos_lock_acquire(&pMac->sme.lkSmeGlobalLock);
     if(status != eHAL_STATUS_SUCCESS)
     {
         smsLog(pMac, LOGE,
@@ -343,7 +343,7 @@ static eHalStatus freeSmeCmdList(tpAniSirGlobal pMac)
         pMac->sme.pSmeCmdBufAddr = NULL;
     }
 
-    status = vos_lock_release(&pMac->sme.lkSmeGlobalLock);
+    status = (eHalStatus)vos_lock_release(&pMac->sme.lkSmeGlobalLock);
     if(status != eHAL_STATUS_SUCCESS)
     {
         smsLog(pMac, LOGE,
@@ -663,7 +663,7 @@ static void smeAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEA
                     if( callback )
                     {
                         callback(pMac, pCommand->u.remainChlCmd.callbackCtx,
-                                            eCSR_SCAN_ABORT );
+                                            (eHalStatus)eCSR_SCAN_ABORT );
                     }
                 }
                 smeReleaseCommand( pMac, pCommand );
@@ -1433,7 +1433,7 @@ eHalStatus sme_Open(tHalHandle hHal)
          break;
       }
 
-      status = btcOpen(pMac);
+      status = (eHalStatus)btcOpen(pMac);
       if ( ! HAL_STATUS_SUCCESS( status ) ) {
          smsLog( pMac, LOGE,
                  "btcOpen open failed during initialization with status=%d", status );
@@ -1459,7 +1459,7 @@ eHalStatus sme_Open(tHalHandle hHal)
          break;
       }
 
-      status = WLANSAP_Open( pvosGCtx );
+      status = (eHalStatus)WLANSAP_Open( pvosGCtx );
       if ( ! HAL_STATUS_SUCCESS( status ) ) {
           smsLog( pMac, LOGE,
                   "WLANSAP_Open open failed during initialization with status=%d", status );
@@ -1468,7 +1468,7 @@ eHalStatus sme_Open(tHalHandle hHal)
 #endif
 
 #if defined WLAN_FEATURE_VOWIFI
-      status = rrmOpen(pMac);
+      status = (eHalStatus)rrmOpen(pMac);
       if ( ! HAL_STATUS_SUCCESS( status ) ) {
          smsLog( pMac, LOGE,
                  "rrmOpen open failed during initialization with status=%d", status );
@@ -1670,7 +1670,7 @@ eHalStatus sme_SetPlmRequest(tHalHandle hHal, tpSirPlmReq pPlmReq)
         msg.reserved = 0;
         msg.bodyptr  = pPlmReq;
 
-        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                       "%s: Not able to post WDA_SET_PLM_REQ message to WDA",
@@ -1756,7 +1756,7 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
               status );
    }
 #if defined WLAN_FEATURE_VOWIFI
-   status = rrmChangeDefaultConfigParam(hHal, &pSmeConfigParams->rrmConfig);
+   status = (eHalStatus)rrmChangeDefaultConfigParam(hHal, &pSmeConfigParams->rrmConfig);
 
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "rrmChangeDefaultConfigParam failed with status=%d",
@@ -2223,7 +2223,7 @@ eHalStatus sme_Start(tHalHandle hHal)
       }
 
 #ifndef WLAN_FEATURE_MBSSID
-      status = WLANSAP_Start(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
+      status = (eHalStatus)WLANSAP_Start(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
       if ( ! HAL_STATUS_SUCCESS( status ) ) {
          smsLog( pMac, LOGE, "WLANSAP_Start failed during smeStart with status=%d",
                  status );
@@ -2495,7 +2495,7 @@ eHalStatus sme_SetCCKMIe(tHalHandle hHal, tANI_U8 sessionId,
 eHalStatus sme_SetEseBeaconRequest(tHalHandle hHal, const tANI_U8 sessionId,
                                    const tCsrEseBeaconReq* pEseBcnReq)
 {
-   eHalStatus               status           = eSIR_SUCCESS;
+   eHalStatus               status           = (eHalStatus)eSIR_SUCCESS;
    tpAniSirGlobal           pMac             = PMAC_STRUCT( hHal );
    tpSirBeaconReportReqInd  pSmeBcnReportReq = NULL;
    tCsrEseBeaconReqParams  *pBeaconReq       = NULL;
@@ -2517,7 +2517,7 @@ eHalStatus sme_SetEseBeaconRequest(tHalHandle hHal, const tANI_U8 sessionId,
    if(NULL == pSmeBcnReportReq)
    {
       smsLog(pMac, LOGP, "Memory Allocation Failure!!! ESE  BcnReq Ind to SME");
-      return eSIR_FAILURE;
+      return (eHalStatus)eSIR_FAILURE;
    }
 
    pSmeRrmContext->eseBcnReqInProgress = TRUE;
@@ -3360,7 +3360,7 @@ eHalStatus sme_Stop(tHalHandle hHal, tHalStopType stopType)
    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
 
 #ifndef WLAN_FEATURE_MBSSID
-   status = WLANSAP_Stop(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
+   status = (eHalStatus)WLANSAP_Stop(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "WLANSAP_Stop failed during smeStop with status=%d",
                           status );
@@ -3448,7 +3448,7 @@ eHalStatus sme_Close(tHalHandle hHal)
    }
 
 #ifndef WLAN_FEATURE_MBSSID
-   status = WLANSAP_Close(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
+   status = (eHalStatus)WLANSAP_Close(vos_get_global_context(VOS_MODULE_ID_SAP, NULL));
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "WLANSAP_close failed during sme close with status=%d",
               status );
@@ -3457,7 +3457,7 @@ eHalStatus sme_Close(tHalHandle hHal)
 #endif
 
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
-   status = btcClose(hHal);
+   status = (eHalStatus)btcClose(hHal);
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "BTC close failed during sme close with status=%d",
               status );
@@ -3506,7 +3506,7 @@ eHalStatus sme_Close(tHalHandle hHal)
        }
    }
 #if defined WLAN_FEATURE_VOWIFI
-   status = rrmClose(hHal);
+   status = (eHalStatus)rrmClose(hHal);
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "RRM close failed during sme close with status=%d",
               status );
@@ -5958,7 +5958,7 @@ eHalStatus sme_getLinkStatus(tHalHandle hHal,
         vosMessage.bodyptr = pMsg;
         vosMessage.reserved = 0;
 
-        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA,
+        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                    &vosMessage))) {
            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                          "%s: Post LINK STATUS MSG fail", __func__);
@@ -5998,7 +5998,7 @@ eHalStatus sme_get_fw_state(tHalHandle hHal,
 		mac->sme.fw_state_callback = callback;
 
 		if (!VOS_IS_STATUS_SUCCESS(
-			vos_mq_post_message(VOS_MODULE_ID_WDA, &vos_message))) {
+			vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &vos_message))) {
 			smsLog(mac, LOGE, FL("Post firmware STATUS MSG fail"));
 			mac->sme.fw_state_context = NULL;
 			mac->sme.fw_state_callback = NULL;
@@ -7365,7 +7365,7 @@ eHalStatus smeIssueFastRoamNeighborAPEvent(tHalHandle hHal,
         }
         sme_ReleaseGlobalLock( &pMac->sme );
     }
-    return vosStatus;
+    return (eHalStatus)vosStatus;
 }
 /* ---------------------------------------------------------------------------
     \fn sme_SetHostOffload

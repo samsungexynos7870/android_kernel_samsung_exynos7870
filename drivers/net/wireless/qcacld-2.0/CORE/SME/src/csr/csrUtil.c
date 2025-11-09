@@ -6014,7 +6014,7 @@ VOS_STATUS csrAddToChannelListFront(
     int i = 0;
 
     // Check for NULL pointer
-    if (!pChannelList) return eHAL_STATUS_E_NULL_VALUE;
+    if (!pChannelList) return (VOS_STATUS)eHAL_STATUS_E_NULL_VALUE;
 
     // Make room for the addition.  (Start moving from the back.)
     for (i = numChannels; i > 0; i--)
@@ -6025,7 +6025,7 @@ VOS_STATUS csrAddToChannelListFront(
     // Now add the NEW channel...at the front
     pChannelList[0] = channel;
 
-    return eHAL_STATUS_SUCCESS;
+    return (VOS_STATUS)eHAL_STATUS_SUCCESS;
 }
 #endif
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

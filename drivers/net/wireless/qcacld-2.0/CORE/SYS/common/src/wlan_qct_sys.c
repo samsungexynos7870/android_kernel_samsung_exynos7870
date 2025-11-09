@@ -362,10 +362,10 @@ VOS_STATUS sysMcProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
             }
             else
             {
-               vosStatus = sme_Stop( hHal, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
+               vosStatus = (VOS_STATUS)sme_Stop( hHal, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
                VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
 
-               vosStatus = macStop( hHal, HAL_STOP_TYPE_SYS_DEEP_SLEEP );
+               vosStatus = (VOS_STATUS)macStop( hHal, HAL_STOP_TYPE_SYS_DEEP_SLEEP );
                VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
 
                ((sysResponseCback)pMsg->callback)((v_VOID_t *)pMsg->bodyptr);

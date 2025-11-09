@@ -829,7 +829,7 @@ static void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 			 lost_link_info->vdev_id,
 			 lost_link_info->rssi);
 
-		vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+		vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 		if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 			WMA_LOGE("%s: fail to post msg to SME",
 				 __func__);
@@ -981,7 +981,7 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 #endif
 
 	if (resp_event->status) {
-		add_bss->status = VOS_STATUS_E_FAILURE;
+		add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_fail_resp;
 	}
 
@@ -997,7 +997,7 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 	if (!bcn) {
 		WMA_LOGE("%s: Failed alloc memory for beacon struct",
 			 __func__);
-		add_bss->status = VOS_STATUS_E_FAILURE;
+		add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_fail_resp;
 	}
 	vos_mem_zero(bcn, sizeof(*bcn));
@@ -1007,7 +1007,7 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 		WMA_LOGE("%s: No memory allocated for beacon buffer",
 			  __func__);
 		vos_mem_free(bcn);
-		add_bss->status = VOS_STATUS_E_FAILURE;
+		add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_fail_resp;
 	}
 	bcn->seq_no = MIN_SW_SEQ;
@@ -1021,7 +1021,7 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 	WMA_LOGD("%s: Allocated beacon struct %p, template memory %p",
 		__func__, bcn, bcn->buf);
 	}
-	add_bss->status = VOS_STATUS_SUCCESS;
+	add_bss->status = (eHalStatus)VOS_STATUS_SUCCESS;
 	add_bss->bssIdx = resp_event->vdev_id;
 	add_bss->chainMask = resp_event->chain_mask;
 	add_bss->smpsMode = host_map_smps_mode(resp_event->smps_mode);
@@ -2159,7 +2159,7 @@ static int wma_vdev_stop_ind(tp_wma_handle wma, u_int8_t *buf)
 					"resp to UMAC (vdev id %x)",
 					__func__, resp_event->vdev_id);
 		} else {
-			params->status = VOS_STATUS_SUCCESS;
+			params->status = (eHalStatus)VOS_STATUS_SUCCESS;
 			wma_send_msg(wma, WDA_DELETE_BSS_RSP, (void *)params, 0);
 		}
 
@@ -2570,7 +2570,7 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
 		sme_msg.bodyptr = p_snr_req;
 		sme_msg.bodyval = 0;
 
-		vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+		vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 		if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 			WMA_LOGE("%s: Fail to post snr ind msg", __func__);
 			vos_mem_free(p_snr_req);
@@ -2669,7 +2669,7 @@ static void wma_post_link_status(tAniGetLinkStatus *pGetLinkStatus,
 	sme_msg.bodyptr = pGetLinkStatus;
 	sme_msg.bodyval = 0;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 	    WMA_LOGE("%s: Fail to post link status ind msg", __func__);
 	    vos_mem_free(pGetLinkStatus);
@@ -2877,7 +2877,7 @@ static VOS_STATUS wma_send_link_speed(u_int32_t link_speed)
 		sme_msg.bodyptr = ls_ind;
 		sme_msg.bodyval = 0;
 
-		vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+		vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 		if (!VOS_IS_STATUS_SUCCESS(vos_status) ) {
 		    WMA_LOGE("%s: Fail to post linkspeed ind  msg", __func__);
 		    vos_mem_free(ls_ind);
@@ -2990,7 +2990,7 @@ static void wma_handle_sta_rssi(uint32_t num_peer_stats,
 	sme_msg.bodyptr = sta_rssi;
 	sme_msg.bodyval = 0;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status) ) {
 		WMA_LOGE("%s: Fail to post get rssi msg", __func__);
 		vos_mem_free(sta_rssi);
@@ -6790,7 +6790,7 @@ VOS_STATUS WDA_open(v_VOID_t *vos_context, v_VOID_t *os_ctx,
 	wma_handle->max_station = mac_params->maxStation;
 	wma_handle->max_bssid = mac_params->maxBssId;
 	wma_handle->frame_xln_reqd = mac_params->frameTransRequired;
-	wma_handle->driver_type = mac_params->driverType;
+	wma_handle->driver_type = mac_params->(t_wma_drv_type)driverType;
 	wma_handle->ssdp = mac_params->ssdp;
 	wma_handle->enable_bcst_ptrn = mac_params->enable_bcst_ptrn;
 #ifdef FEATURE_WLAN_RA_FILTERING
@@ -11814,7 +11814,7 @@ void wma_vdev_resp_timer(void *data)
 	if (tgt_req->msg_type == WDA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams)tgt_req->user_data;
-		params->status = VOS_STATUS_E_TIMEOUT;
+		params->status = (eHalStatus)VOS_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WDA_SWITCH_CHANNEL_REQ timedout", __func__);
 		wma_send_msg(wma, WDA_SWITCH_CHANNEL_RSP, (void *)params, 0);
 		wma->roam_preauth_chan_context = NULL;
@@ -11897,7 +11897,7 @@ void wma_vdev_resp_timer(void *data)
 		if (wma_is_vdev_in_ibss_mode(wma, tgt_req->vdev_id))
 			wma_recreate_ibss_vdev_and_bss_peer(wma, tgt_req->vdev_id);
 #endif
-		params->status = VOS_STATUS_E_TIMEOUT;
+		params->status = (eHalStatus)VOS_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WDA_DELETE_BSS_REQ timedout", __func__);
 		wma_send_msg(wma, WDA_DELETE_BSS_RSP, (void *)params, 0);
 		if (iface->del_staself_req) {
@@ -12088,7 +12088,7 @@ send_resp:
 			__func__, vos_status);
 	params->chainMask = wma_handle->pdevconfig.txchainmask;
 	params->smpsMode = SMPS_MODE_DISABLED;
-	params->status = vos_status;
+	params->status = (eHalStatus)vos_status;
 	wma_send_msg(wma_handle, WDA_SWITCH_CHANNEL_RSP, (void *)params, 0);
 	return vos_status;
 }
@@ -12121,7 +12121,7 @@ send_resp:
 			__func__, vos_status);
 	params->chainMask = wma_handle->pdevconfig.txchainmask;
 	params->smpsMode = SMPS_MODE_DISABLED;
-	params->status = vos_status;
+	params->status = (eHalStatus)vos_status;
 	wma_send_msg(wma_handle, WDA_SWITCH_CHANNEL_RSP, (void *)params, 0);
         return vos_status;
 }
@@ -12173,7 +12173,7 @@ static void wma_roam_preauth_scan_event_handler(tp_wma_handle wma_handle,
                           __func__, vos_status);
                 params->chainMask = wma_handle->pdevconfig.txchainmask;
                 params->smpsMode = SMPS_MODE_DISABLED;
-                params->status = vos_status;
+                params->status = (eHalStatus)vos_status;
                 wma_send_msg(wma_handle, WDA_SWITCH_CHANNEL_RSP, (void *)params, 0);
                 wma_handle->roam_preauth_chan_context = NULL;
         }
@@ -12329,7 +12329,7 @@ send_resp:
 		 params->localPowerConstraint,
 #endif
 		 status);
-	params->status = status;
+	params->status = (eHalStatus)status;
         WMA_LOGI("%s: sending WDA_SWITCH_CHANNEL_RSP, status = 0x%x",
                         __func__, status);
 	wma_send_msg(wma, WDA_SWITCH_CHANNEL_RSP, (void *)params, 0);
