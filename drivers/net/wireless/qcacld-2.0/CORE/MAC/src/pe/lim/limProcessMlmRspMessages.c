@@ -666,7 +666,7 @@ void limPmfComebackTimerCallback(void *context)
            FL("comeback later timer expired. sending MLM ASSOC req"));)
     /* set MLM state such that ASSOC REQ packet will be sent out */
     psessionEntry->limPrevMlmState   = pInfo->limPrevMlmState;
-    psessionEntry->limMlmState       = pInfo->(tLimMlmStates)limMlmState;
+    psessionEntry->limMlmState       = (tLimMlmStates)pInfo->limMlmState;
     limSendMlmAssocReq(pMac, psessionEntry);
 }
 #endif /* WLAN_FEATURE_11W */
@@ -4728,12 +4728,12 @@ limHandleDelBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESe
                     pBeaconStruct );
             if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
                 limDecideStaProtectionOnAssoc(pMac, pBeaconStruct, psessionEntry);
-                if(pBeaconStruct->erpPresent) {
-                if (pBeaconStruct->erpIEInfo.barkerPreambleMode)
-                    psessionEntry->beaconParams.fShortPreamble = 0;
-                else
-                    psessionEntry->beaconParams.fShortPreamble = 1;
-            }
+            if(pBeaconStruct->erpPresent) {
+            if (pBeaconStruct->erpIEInfo.barkerPreambleMode)
+                psessionEntry->beaconParams.fShortPreamble = 0;
+            else
+                psessionEntry->beaconParams.fShortPreamble = 1;
+        }
             //updateBss flag is false, as in this case, PE is first deleting the existing BSS and then adding a new one.
             if (eSIR_SUCCESS != limStaSendAddBss( pMac, assocRsp, pBeaconStruct,
                                                     &psessionEntry->pLimReAssocReq->bssDescription, false, psessionEntry))  {
@@ -4759,7 +4759,7 @@ limHandleDelBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESe
             /** Case wherein the DisAssoc / Deauth
              *   being sent as response to ReAssoc Req*/
             /** Send the Reason code as the same received in Disassoc / Deauth Frame*/
-            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.(tSirResultCodes)disassocReason;
+            mlmReassocCnf.resultCode = (tSirResultCodes)pStaDs->mlmStaContext.disassocReason;
             mlmReassocCnf.protStatusCode = pStaDs->mlmStaContext.cleanupTrigger;
             /** Set the SME State back to WT_Reassoc State*/
             psessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;
@@ -4935,7 +4935,7 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
         case eLIM_SME_WT_REASSOC_LINK_FAIL_STATE: {     /** Case wherein the DisAssoc / Deauth
                                                                                      *   being sent as response to ReAssoc Req*/
             /** Send the Reason code as the same received in Disassoc / Deauth Frame*/
-            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.(tSirResultCodes)disassocReason;
+            mlmReassocCnf.resultCode = (tSirResultCodes)pStaDs->mlmStaContext.disassocReason;
             mlmReassocCnf.protStatusCode = pStaDs->mlmStaContext.cleanupTrigger;
             /** Set the SME State back to WT_Reassoc State*/
             psessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;

@@ -6790,7 +6790,7 @@ VOS_STATUS WDA_open(v_VOID_t *vos_context, v_VOID_t *os_ctx,
 	wma_handle->max_station = mac_params->maxStation;
 	wma_handle->max_bssid = mac_params->maxBssId;
 	wma_handle->frame_xln_reqd = mac_params->frameTransRequired;
-	wma_handle->driver_type = mac_params->(t_wma_drv_type)driverType;
+	wma_handle->driver_type = (t_wma_drv_type)mac_params->driverType;
 	wma_handle->ssdp = mac_params->ssdp;
 	wma_handle->enable_bcst_ptrn = mac_params->enable_bcst_ptrn;
 #ifdef FEATURE_WLAN_RA_FILTERING

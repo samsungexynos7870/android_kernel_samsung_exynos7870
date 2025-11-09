@@ -3241,7 +3241,7 @@ int wlan_hdd_set_mc_rate(hdd_adapter_t *pAdapter, int targetRate)
 
    pConfig = pHddCtx->cfg_ini;
    rateUpdate.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
-   rateUpdate.dev_mode = pAdapter->(tVOS_CON_MODE)device_mode;
+   rateUpdate.dev_mode = (tVOS_CON_MODE)pAdapter->device_mode;
    rateUpdate.mcastDataRate24GHz = targetRate;
    rateUpdate.mcastDataRate24GHzTxFlag = 1;
    rateUpdate.mcastDataRate5GHz = targetRate;
@@ -6597,7 +6597,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
           rateUpdateParams.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
           rateUpdateParams.reliableMcastDataRate = uRate;
           rateUpdateParams.reliableMcastDataRateTxFlag = txFlags;
-          rateUpdateParams.dev_mode = pAdapter->(tVOS_CON_MODE)device_mode;
+          rateUpdateParams.dev_mode = (tVOS_CON_MODE)pAdapter->device_mode;
           rateUpdateParams.bcastDataRate = -1;
           memcpy(rateUpdateParams.bssid, pAdapter->macAddressCurrent.bytes,
              sizeof(rateUpdateParams.bssid));
@@ -9397,7 +9397,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
          pWlanDev->features |= NETIF_F_HW_CSUM;
       else if (pHddCtx->cfg_ini->enableTCPChkSumOffld)
          pWlanDev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-         pWlanDev->features |= NETIF_F_RXCSUM;
+      pWlanDev->features |= NETIF_F_RXCSUM;
       hdd_set_station_ops( pAdapter->dev );
 
       pWlanDev->destructor = free_netdev;
@@ -9508,9 +9508,9 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
    int ret_val;
 
    INIT_COMPLETION(pAdapter->session_open_comp_var);
-   sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->(tVOS_CON_MODE)device_mode);
+   sme_SetCurrDeviceMode(pHddCtx->hHal, (tVOS_CON_MODE)pAdapter->device_mode);
    sme_set_pdev_ht_vht_ies(pHddCtx->hHal, pHddCtx->cfg_ini->enable2x2);
-   status = vos_get_vdev_types(pAdapter->(tVOS_CON_MODE)device_mode, &type, &subType);
+   status = vos_get_vdev_types((tVOS_CON_MODE)pAdapter->device_mode, &type, &subType);
    if (VOS_STATUS_SUCCESS != status)
    {
       hddLog(VOS_TRACE_LEVEL_ERROR, "failed to get vdev type");
@@ -10548,7 +10548,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
    pAdapterNode = pCurrent;
    if( VOS_STATUS_SUCCESS == status )
    {
-      wlan_hdd_clear_concurrency_mode(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+      wlan_hdd_clear_concurrency_mode(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
       hdd_cleanup_adapter( pHddCtx, pAdapterNode->pAdapter, rtnl_held );
 
       hdd_remove_adapter( pHddCtx, pAdapterNode );
@@ -10801,7 +10801,7 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                hddLog(LOGE, "%s: failure in WLANSAP_StopBss", __func__);
             }
             clear_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags);
-            wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+            wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
 
             vos_mem_copy(updateIE.bssid, pAdapter->macAddressCurrent.bytes,
                    sizeof(tSirMacAddr));
@@ -10893,7 +10893,7 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
 
       hdd_deinit_tx_rx(pAdapter);
-      wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+      wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
       if (test_bit(WMM_INIT_DONE, &pAdapter->event_flags))
       {
           hdd_wmm_adapter_close( pAdapter );
@@ -11075,7 +11075,7 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
             "%s: Set HDD connState to eConnectionState_NotConnected",
                    __func__);
          if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
-             wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+             wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
          }
          pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
          init_completion(&pAdapter->disconnect_comp_var);
@@ -11088,7 +11088,7 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
          if (!rc)
             hddLog(LOGE, "%s: failure waiting for disconnect_comp_var",
                    __func__);
-         pWextState->roamProfile.csrPersona = pAdapter->(tVOS_CON_MODE)device_mode;
+         pWextState->roamProfile.csrPersona = (tVOS_CON_MODE)pAdapter->device_mode;
          pHddCtx->isAmpAllowed = VOS_FALSE;
          sme_RoamConnect(pHddCtx->hHal,
                          pAdapter->sessionId, &(pWextState->roamProfile),

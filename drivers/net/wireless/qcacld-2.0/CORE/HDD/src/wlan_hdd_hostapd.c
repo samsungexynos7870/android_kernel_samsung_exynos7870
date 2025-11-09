@@ -906,7 +906,7 @@ static int hdd_stop_bss_link(hdd_adapter_t *pHostapdAdapter,
             hddLog(LOGE, FL("Deleting SAP/P2P link!!!!!!"));
 
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
-        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->(tVOS_CON_MODE)device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pHostapdAdapter->device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
@@ -2870,7 +2870,7 @@ static __iw_softap_setparam(struct net_device *dev,
                        pHostapdAdapter->macAddressCurrent.bytes,
                        sizeof(tSirMacAddr));
                 rateUpdate.nss = (pConfig->enable2x2 == 0) ? 0 : 1;
-                rateUpdate.dev_mode = pHostapdAdapter->(tVOS_CON_MODE)device_mode;
+                rateUpdate.dev_mode = (tVOS_CON_MODE)pHostapdAdapter->device_mode;
                 rateUpdate.mcastDataRate24GHz = set_value;
                 rateUpdate.mcastDataRate24GHzTxFlag = 1;
                 rateUpdate.mcastDataRate5GHz = set_value;
@@ -3981,7 +3981,7 @@ static __iw_softap_set_tx_power(struct net_device *dev,
 
     set_value = value[0];
     if (eHAL_STATUS_SUCCESS != sme_SetTxPower(hHal, pHostapdAdapter->sessionId, bssid,
-                                              pHostapdAdapter->(tVOS_CON_MODE)device_mode,
+                                              (tVOS_CON_MODE)pHostapdAdapter->device_mode,
                                               set_value))
     {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting tx power failed",
@@ -5217,7 +5217,7 @@ static int __iw_softap_stopbss(struct net_device *dev,
             }
         }
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
-        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->(tVOS_CON_MODE)device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pHostapdAdapter->device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
@@ -6549,7 +6549,7 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     // Allocate the Wireless Extensions state structure
     phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR( pAdapter );
 
-    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->(tVOS_CON_MODE)device_mode);
+    sme_SetCurrDeviceMode(pHddCtx->hHal, (tVOS_CON_MODE)pAdapter->device_mode);
 
     // Zero the memory.  This zeros the profile structure.
     memset(phostapdBuf, 0,sizeof(hdd_hostapd_state_t));

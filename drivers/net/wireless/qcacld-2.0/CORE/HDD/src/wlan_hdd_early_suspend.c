@@ -436,7 +436,7 @@ VOS_STATUS hdd_exit_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
       goto err_voss_stop;
    }
 
-   vosStatus = vos_get_vdev_types(pAdapter->(tVOS_CON_MODE)device_mode, &type, &subType);
+   vosStatus = vos_get_vdev_types((tVOS_CON_MODE)pAdapter->device_mode, &type, &subType);
    if (VOS_STATUS_SUCCESS != vosStatus)
    {
       hddLog(VOS_TRACE_LEVEL_ERROR, "failed to get vdev type");

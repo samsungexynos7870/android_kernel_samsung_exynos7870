@@ -5812,7 +5812,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 
            vos_mem_copy(bssid, pHddStaCtx->conn_info.bssId, VOS_MAC_ADDR_SIZE);
            if ( sme_SetTxPower(hHal, pAdapter->sessionId, bssid,
-                              pAdapter->(tVOS_CON_MODE)device_mode, set_value) !=
+                              (tVOS_CON_MODE)pAdapter->device_mode, set_value) !=
                               eHAL_STATUS_SUCCESS )
            {
               hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting tx power failed",

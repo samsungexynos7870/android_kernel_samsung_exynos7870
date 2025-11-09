@@ -2852,7 +2852,7 @@ sapSignalHDDevent
             vos_mem_copy( &sapApAppEvent.sapevt.sapStationMICFailureEvent.dstMacAddr,
                           pCsrRoamInfo->u.pMICFailureInfo->dstMacAddr,
                           sizeof(tSirMacAddr));
-            sapApAppEvent.sapevt.sapStationMICFailureEvent.multicast = pCsrRoamInfo->u.pMICFailureInfo->(eSapBool)multicast;
+            sapApAppEvent.sapevt.sapStationMICFailureEvent.multicast = (eSapBool)pCsrRoamInfo->u.pMICFailureInfo->multicast;
             sapApAppEvent.sapevt.sapStationMICFailureEvent.IV1 = pCsrRoamInfo->u.pMICFailureInfo->IV1;
             sapApAppEvent.sapevt.sapStationMICFailureEvent.keyId = pCsrRoamInfo->u.pMICFailureInfo->keyId;
             vos_mem_copy( sapApAppEvent.sapevt.sapStationMICFailureEvent.TSC,

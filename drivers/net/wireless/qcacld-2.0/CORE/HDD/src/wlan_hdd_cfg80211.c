@@ -13070,7 +13070,7 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
         return -EINVAL;
     }
 
-    pConfig->persona = pHostapdAdapter->(tVOS_CON_MODE)device_mode;
+    pConfig->persona = (tVOS_CON_MODE)pHostapdAdapter->device_mode;
 
     pSapEventCallback = hdd_hostapd_SAPEventCB;
 
@@ -13117,7 +13117,7 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     set_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
     /* Initialize WMM configuation */
     hdd_wmm_init(pHostapdAdapter);
-    wlan_hdd_incr_active_session(pHddCtx, pHostapdAdapter->(tVOS_CON_MODE)device_mode);
+    wlan_hdd_incr_active_session(pHddCtx, (tVOS_CON_MODE)pHostapdAdapter->device_mode);
 
 #ifdef DHCP_SERVER_OFFLOAD
     /* set dhcp server offload */
@@ -13447,7 +13447,7 @@ static int __wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
         }
         clear_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags);
         /* BSS stopped, clear the active sessions for this device mode */
-        wlan_hdd_decr_active_session(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+        wlan_hdd_decr_active_session(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
 
         pAdapter->sessionCtx.ap.beacon = NULL;
         kfree(old);
@@ -13936,7 +13936,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
     wdev = ndev->ieee80211_ptr;
 
     /* Reset the current device mode bit mask */
-    wlan_hdd_clear_concurrency_mode(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+    wlan_hdd_clear_concurrency_mode(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
 
     hdd_tdls_notify_mode_change(pAdapter, pHddCtx);
 
@@ -14209,7 +14209,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 
 done:
     /* Set bitmask based on updated value */
-    wlan_hdd_set_concurrency_mode(pHddCtx, pAdapter->(tVOS_CON_MODE)device_mode);
+    wlan_hdd_set_concurrency_mode(pHddCtx, (tVOS_CON_MODE)pAdapter->device_mode);
 
     /* Only STA mode support TM now
      * all other mode, TM feature should be disabled */
@@ -17134,7 +17134,7 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
             pHddStaCtx->gtkOffloadReqParams.ulFlags = GTK_OFFLOAD_DISABLE;
         }
 #endif
-        pRoamProfile->csrPersona = pAdapter->(tVOS_CON_MODE)device_mode;
+        pRoamProfile->csrPersona = (tVOS_CON_MODE)pAdapter->device_mode;
 
         if( operatingChannel )
         {

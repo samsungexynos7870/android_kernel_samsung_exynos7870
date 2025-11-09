@@ -2589,7 +2589,7 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             psessionEntry->pmfComebackTimerInfo.limPrevMlmState =
                                                 psessionEntry->limPrevMlmState;
             psessionEntry->pmfComebackTimerInfo.limMlmState =
-                                                psessionEntry->(tLimSmeStates)limMlmState;
+                                                (tLimSmeStates)psessionEntry->limMlmState;
         }
 #endif /* WLAN_FEATURE_11W */
 
@@ -3740,7 +3740,7 @@ tLimMlmRemoveKeyCnf  mlmRemoveKeyCnf;
 
 
 
-    psessionEntry->limMlmState = eLIM_MLM_WT_REMOVE_STA_KEY_STATE;
+  psessionEntry->limMlmState = eLIM_MLM_WT_REMOVE_STA_KEY_STATE;
     MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
     // Package WDA_REMOVE_STAKEY_REQ message parameters
