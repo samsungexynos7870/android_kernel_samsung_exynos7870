@@ -918,6 +918,7 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Wall\
 		-Werror\
 		-Wno-pointer-to-int-cast\
+-Wno-typedef-redefinition\
 		-D__linux__ \
 		-DHAL_SELF_STA_PER_BSS=1 \
 		-DWLAN_FEATURE_VOWIFI_11R \
