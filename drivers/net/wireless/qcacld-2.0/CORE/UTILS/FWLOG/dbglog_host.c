@@ -4052,7 +4052,7 @@ int cnss_diag_msg_callback(struct sk_buff *skb)
 
   \return - 0 for success, non zero for failure
 --------------------------------------------------------------------------*/
-int cnss_diag_notify_wlan_close()
+int cnss_diag_notify_wlan_close(void)
 {
     /* Send nl msg about the wlan close */
     if (0 != cnss_diag_pid)
@@ -4074,7 +4074,7 @@ int cnss_diag_notify_wlan_close()
 
   \return - 0 for success, non zero for failure
 --------------------------------------------------------------------------*/
-int cnss_diag_activate_service()
+int cnss_diag_activate_service(void)
 {
     int ret = 0;
 
