@@ -94,7 +94,7 @@ void limSetLinkStateP2PCallback(tpAniSirGlobal pMac, void *callbackArg,
     //Send Ready on channel indication to SME
     if(pMac->lim.gpLimRemainOnChanReq)
     {
-        limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RDY_IND, eHAL_STATUS_SUCCESS,
+        limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RDY_IND, (tSirResultCodes)eHAL_STATUS_SUCCESS,
                      pMac->lim.gpLimRemainOnChanReq->sessionId, 0);
     }
     else
@@ -194,7 +194,7 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
         if (status != eHAL_STATUS_SUCCESS)
         {
             /* Post the meessage to Sme */
-            limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP, status,
+            limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP, (tSirResultCodes)status,
                     MsgBuff->sessionId, 0);
             vos_mem_free(pMac->lim.gpLimRemainOnChanReq);
             pMac->lim.gpLimRemainOnChanReq = NULL;
@@ -591,7 +591,7 @@ void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data)
     }
 
     /* Post the meessage to Sme */
-    limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP, status,
+    limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP, (tSirResultCodes)status,
                   MsgRemainonChannel->sessionId, 0);
 
     vos_mem_free(pMac->lim.gpLimRemainOnChanReq);
@@ -770,7 +770,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
             limLog(pMac, LOGE,
                     FL("Remain on channel is not running \n"));
             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-                    eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
+                    (tSirResultCodes)eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
             return;
         }
         smeSessionId = pMbMsg->sessionId;
@@ -808,7 +808,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         if( !isSessionActive )
         {
             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-                          eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
+                          (tSirResultCodes)eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
             return;
         }
     }
@@ -967,7 +967,7 @@ send_action_frame:
                 limLog(pMac, LOGE,
                             FL("Failed to Send Action frame \n"));
                 limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-                        eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
+                        (tSirResultCodes)eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
                 return;
             }
         }
@@ -1040,7 +1040,7 @@ send_frame1:
             limLog(pMac, LOGE,
                 FL("Dropping SA Query frame - Unable to find PE Session \n"));
             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-                    eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
+                    (tSirResultCodes)eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
             palPktFree( pMac->hHdd, HAL_TXRX_FRM_802_11_MGMT,
                     ( void* ) pFrame, ( void* ) pPacket );
             return;
@@ -1056,7 +1056,7 @@ send_frame1:
             limLog(pMac, LOGE,
                 FL("Dropping SA Query frame due to non PMF connection\n"));
             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-                    eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
+                    (tSirResultCodes)eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
             palPktFree( pMac->hHdd, HAL_TXRX_FRM_802_11_MGMT,
                     ( void* ) pFrame, ( void* ) pPacket );
             return;
@@ -1081,7 +1081,7 @@ send_frame1:
         if (!pMbMsg->noack)
         {
            limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
-               halstatus, pMbMsg->sessionId, 0);
+               (tSirResultCodes)halstatus, pMbMsg->sessionId, 0);
         }
         pMac->lim.mgmtFrameSessionId = 0xff;
     }
@@ -1096,7 +1096,7 @@ send_frame1:
         if ( ! HAL_STATUS_SUCCESS ( halstatus ) )
         {
              limLog( pMac, LOGE, FL("could not send action frame!" ));
-             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF, halstatus,
+             limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF, (tSirResultCodes)halstatus,
                 pMbMsg->sessionId, 0);
              pMac->lim.mgmtFrameSessionId = 0xff;
         }

@@ -311,7 +311,7 @@ __adf_nbuf_map_single(
     /* assume that the OS only provides a single fragment */
     NBUF_MAPPED_PADDR_LO(buf) = paddr_lo =
         dma_map_single(osdev->dev, buf->data,
-                       skb_end_pointer(buf) - buf->data, dir);
+                       skb_end_pointer(buf) - buf->data, (enum dma_data_direction)dir);
     return dma_mapping_error(osdev->dev, paddr_lo) ?
         A_STATUS_FAILED : A_STATUS_OK;
 #endif	/* #ifdef A_SIMOS_DEVHOST */
@@ -323,7 +323,7 @@ __adf_nbuf_unmap_single(
 {
 #if !defined(A_SIMOS_DEVHOST)
     dma_unmap_single(osdev->dev, NBUF_MAPPED_PADDR_LO(buf),
-                     skb_end_pointer(buf) - buf->data, dir);
+                     skb_end_pointer(buf) - buf->data, (enum dma_data_direction)dir);
 #endif	/* #if !defined(A_SIMOS_DEVHOST) */
 }
 

@@ -5692,7 +5692,7 @@ tSirMsgQ msgQ;
   // we can only do BA on "hard" STAs
   if (!(IS_HWSTA_IDX(pSta->staIndex)))
   {
-    retCode = eHAL_STATUS_FAILURE;
+    retCode = (tSirRetStatus)eHAL_STATUS_FAILURE;
     goto returnFailure;
   }
 #endif //WLAN_SOFTAP_VSTA_FEATURE

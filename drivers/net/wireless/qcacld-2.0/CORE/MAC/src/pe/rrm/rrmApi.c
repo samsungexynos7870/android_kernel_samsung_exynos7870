@@ -653,7 +653,7 @@ rrmProcessBeaconReportReq( tpAniSirGlobal pMac,
    mmhMsg.type    = eWNI_SME_BEACON_REPORT_REQ_IND;
    mmhMsg.bodyptr = pSmeBcnReportReq;
    MTRACE(macTraceMsgTx(pMac, pSessionEntry->peSessionId, mmhMsg.type));
-   return limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
+   return (tRrmRetStatus)limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 }
 
 // --------------------------------------------------------------------

@@ -9165,7 +9165,7 @@ error1:
                         return VOS_STATUS_E_NOMEM;
                 }
                 memset(scan_event, 0x00, sizeof(*scan_event));
-                scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+                scan_event->event = (tSirScanEventType)WMI_SCAN_EVENT_COMPLETED;
                 scan_event->reasonCode = eSIR_SME_SCAN_FAILED;
                 scan_event->p2pScanType = scan_req->p2pScanType;
                 scan_event->sessionId = scan_req->sessionId;
@@ -14711,7 +14711,7 @@ peer_cleanup:
 	wma_remove_peer(wma, add_bss->bssId, vdev_id, peer,
 			VOS_FALSE);
 send_fail_resp:
-	add_bss->status = VOS_STATUS_E_FAILURE;
+	add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	wma_send_msg(wma, WDA_ADD_BSS_RSP, (void *)add_bss, 0);
 }
 
@@ -14977,7 +14977,7 @@ peer_cleanup:
 				VOS_FALSE);
 	}
 send_fail_resp:
-	add_bss->status = VOS_STATUS_E_FAILURE;
+	add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	wma_send_msg(wma, WDA_ADD_BSS_RSP, (void *)add_bss, 0);
 }
 #endif
@@ -15236,7 +15236,7 @@ send_bss_resp:
 		ol_txrx_find_peer_by_addr(pdev, add_bss->bssId,
 					  &add_bss->staContext.staIdx);
 		add_bss->status = (add_bss->staContext.staIdx < 0) ?
-				VOS_STATUS_E_FAILURE : VOS_STATUS_SUCCESS;
+				(eHalStatus)VOS_STATUS_E_FAILURE : (eHalStatus)VOS_STATUS_SUCCESS;
 		add_bss->bssIdx = add_bss->staContext.smesessionId;
 		vos_mem_copy(add_bss->staContext.staMac, add_bss->bssId,
 				 sizeof(add_bss->staContext.staMac));
@@ -15251,7 +15251,7 @@ peer_cleanup:
 		wma_remove_peer(wma, add_bss->bssId, vdev_id, peer,
 				roam_synch_in_progress);
 send_fail_resp:
-		add_bss->status = VOS_STATUS_E_FAILURE;
+		add_bss->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		wma_send_msg(wma, WDA_ADD_BSS_RSP, (void *)add_bss, 0);
 }
 
@@ -15441,7 +15441,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 
 	if (NULL == pdev) {
 		WMA_LOGE("%s: Failed to find pdev", __func__);
-		add_sta->status = VOS_STATUS_E_FAILURE;
+		add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_rsp;
 	}
 	/* UMAC sends WDA_ADD_STA_REQ msg twice to WMA when the station
@@ -15453,14 +15453,14 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	 * will get blocked.
 	 */
 	if (add_sta->staType != STA_ENTRY_PEER) {
-		add_sta->status = VOS_STATUS_SUCCESS;
+		add_sta->status = (eHalStatus)VOS_STATUS_SUCCESS;
 		goto send_rsp;
 	}
 
 	vdev = wma_find_vdev_by_id(wma, add_sta->smesessionId);
 	if (!vdev) {
 		WMA_LOGE("%s: Failed to find vdev", __func__);
-		add_sta->status = VOS_STATUS_E_FAILURE;
+		add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_rsp;
 	}
 
@@ -15482,7 +15482,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	if (status != VOS_STATUS_SUCCESS) {
 		WMA_LOGE("%s: Failed to create peer for %pM",
 			 __func__, add_sta->staMac);
-		add_sta->status = status;
+		add_sta->status = (eHalStatus)status;
 		goto send_rsp;
 	}
 
@@ -15493,7 +15493,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	if (!peer) {
 		WMA_LOGE("%s: Failed to find peer handle using peer mac %pM",
 			 __func__, add_sta->staMac);
-		add_sta->status = VOS_STATUS_E_FAILURE;
+		add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		wma_remove_peer(wma, add_sta->staMac, add_sta->smesessionId,
 				peer, VOS_FALSE);
 		goto send_rsp;
@@ -15503,7 +15503,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 
 	ret = wmi_unified_send_peer_assoc(wma, add_sta->nwType, add_sta);
 	if (ret) {
-		add_sta->status = VOS_STATUS_E_FAILURE;
+		add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		wma_remove_peer(wma, add_sta->staMac, add_sta->smesessionId,
 				peer, VOS_FALSE);
 		goto send_rsp;
@@ -15573,7 +15573,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 		if (ret) {
 			WMA_LOGE("Failed to set peer uapsd param for %pM",
 				 add_sta->staMac);
-			add_sta->status = VOS_STATUS_E_FAILURE;
+			add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 			wma_remove_peer(wma, add_sta->staMac,
 					add_sta->smesessionId, peer,
 					VOS_FALSE);
@@ -15587,7 +15587,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 
 	add_sta->staIdx = ol_txrx_local_peer_id(peer);
 	add_sta->nss    = iface->nss;
-	add_sta->status = VOS_STATUS_SUCCESS;
+	add_sta->status = (eHalStatus)VOS_STATUS_SUCCESS;
 send_rsp:
 	WMA_LOGD("%s: Sending add sta rsp to umac (mac:%pM, status:%d)",
 		__func__, add_sta->staMac, add_sta->status);
@@ -15759,14 +15759,14 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 
 	if (NULL == pdev) {
 		WMA_LOGE("%s: Failed to find pdev", __func__);
-		add_sta->status = VOS_STATUS_E_FAILURE;
+		add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_rsp;
 	}
 
 	vdev = wma_find_vdev_by_id(wma, add_sta->smesessionId);
 	if (!vdev) {
 	 WMA_LOGE("%s: Failed to find vdev", __func__);
-	 add_sta->status = VOS_STATUS_E_FAILURE;
+	 add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	 goto send_rsp;
 	 }
 
@@ -15791,7 +15791,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	 if (status != VOS_STATUS_SUCCESS) {
 	  WMA_LOGE("%s: Failed to create peer for %pM",
 	           __func__, add_sta->staMac);
-	  add_sta->status = status;
+	  add_sta->status = (eHalStatus)status;
 	  goto send_rsp;
 	 }
 
@@ -15799,7 +15799,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	 if (!peer) {
 	  WMA_LOGE("%s: addSta, failed to find peer handle for mac %pM",
 	           __func__, add_sta->staMac);
-	  add_sta->status = VOS_STATUS_E_FAILURE;
+	  add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	  wma_remove_peer(wma, add_sta->staMac, add_sta->smesessionId, peer,
 			  VOS_FALSE);
 #if defined(CONFIG_HL_SUPPORT)
@@ -15822,7 +15822,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	 if (!peerStateParams) {
 	  WMA_LOGE("%s: Failed to allocate memory for peerStateParams for %pM",
 	           __func__, add_sta->staMac);
-	  add_sta->status = VOS_STATUS_E_FAILURE;
+	  add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	  goto send_rsp;
 	 }
 
@@ -15839,7 +15839,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	 if (!peer) {
 	  WMA_LOGE("%s: changeSta,failed to find peer handle for mac %pM",
 	           __func__, add_sta->staMac);
-	  add_sta->status = VOS_STATUS_E_FAILURE;
+	  add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	  wma_remove_peer(wma, add_sta->staMac, add_sta->smesessionId, peer,
 			  VOS_FALSE);
 #if defined(CONFIG_HL_SUPPORT)
@@ -15858,7 +15858,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 
 	 ret = wmi_unified_send_peer_assoc(wma, add_sta->nwType, add_sta);
 	 if (ret) {
-	  add_sta->status = VOS_STATUS_E_FAILURE;
+	  add_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 	  wma_remove_peer(wma, add_sta->staMac, add_sta->smesessionId, peer,
 			  VOS_FALSE);
 #if defined(CONFIG_HL_SUPPORT)
@@ -16063,7 +16063,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 	iface->aid = params->assocId;
 	params->nss = iface->nss;
 out:
-	params->status = status;
+	params->status = (eHalStatus)status;
 /* change logging before release */
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
         if(iface && iface->roam_synch_in_progress)
@@ -16692,7 +16692,7 @@ static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 
 	if (NULL == pdev) {
 		WMA_LOGE("%s: Failed to get pdev", __func__);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
@@ -16700,13 +16700,13 @@ static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 	if (!peer) {
 		WMA_LOGE("%s: Failed to get peer handle using peer id %d",
 			 __func__, del_sta->staIdx);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
 	wma_remove_peer(wma, peer->mac_addr.raw, del_sta->smesessionId, peer,
 			VOS_FALSE);
-	del_sta->status = VOS_STATUS_SUCCESS;
+	del_sta->status = (eHalStatus)VOS_STATUS_SUCCESS;
 
 send_del_rsp:
 	if (del_sta->respReqd) {
@@ -16729,14 +16729,14 @@ static void wma_del_tdls_sta(tp_wma_handle wma,
 
 	if (NULL == pdev) {
 		WMA_LOGE("%s: Failed to find pdev", __func__);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
 	vdev = wma_find_vdev_by_id(wma, del_sta->smesessionId);
 	if (!vdev) {
 		WMA_LOGE("%s: Failed to find vdev", __func__);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
@@ -16744,7 +16744,7 @@ static void wma_del_tdls_sta(tp_wma_handle wma,
 	if (!peer) {
 		WMA_LOGE("%s: Failed to get peer handle using peer id %d",
 		         __func__, del_sta->staIdx);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
@@ -16752,7 +16752,7 @@ static void wma_del_tdls_sta(tp_wma_handle wma,
 	if (!peerStateParams) {
 		WMA_LOGE("%s: Failed to allocate memory for peerStateParams for: %pM",
 		         __func__, del_sta->staMac);
-		del_sta->status = VOS_STATUS_E_FAILURE;
+		del_sta->status = (eHalStatus)VOS_STATUS_E_FAILURE;
 		goto send_del_rsp;
 	}
 
@@ -16770,7 +16770,7 @@ static void wma_del_tdls_sta(tp_wma_handle wma,
 
 	wma_update_tdls_peer_state(wma, peerStateParams);
 
-	del_sta->status = VOS_STATUS_SUCCESS;
+	del_sta->status = (eHalStatus)VOS_STATUS_SUCCESS;
 
 send_del_rsp:
 	if (del_sta->respReqd) {
@@ -16805,7 +16805,7 @@ if(iface->roam_synch_in_progress)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 send_del_sta_rsp:
 #endif
-	params->status = status;
+	params->status = (eHalStatus)status;
 	if (params->respReqd) {
 		WMA_LOGD("%s: vdev_id %d status %d", __func__,
 				params->smesessionId, status);
@@ -17007,7 +17007,7 @@ detach_peer:
 	wma_remove_peer(wma, params->bssid, params->smesessionId, peer,
 			roam_synch_in_progress);
 out:
-	params->status = status;
+	params->status = (eHalStatus)status;
 	wma_send_msg(wma, WDA_DELETE_BSS_RSP, (void *)params, 0);
 }
 
@@ -19333,7 +19333,7 @@ static int wma_lphb_handler(tp_wma_handle wma, u_int8_t *event)
 	sme_msg.bodyptr = slphb_indication;
 	sme_msg.bodyval = 0;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if ( !VOS_IS_STATUS_SUCCESS(vos_status) )
 	{
 		WMA_LOGE("Fail to post eWNI_SME_LPHB_IND msg to SME");
@@ -19435,7 +19435,7 @@ static int wma_pdev_temperature_evt_handler(void *handle, u_int8_t *event,
 	sme_msg.bodyptr = NULL;
 	sme_msg.bodyval = wmi_event->value;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status) )
 	{
 		WMA_LOGE(FL("Fail to post get temperature ind msg"));
@@ -24451,7 +24451,7 @@ static void wma_set_thermal_level_ind(u_int8_t level)
 	sme_msg.bodyptr = NULL;
 	sme_msg.bodyval = level;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status))
 		WMA_LOGE(FL("Fail to post set temperaturml level ind msg"));
 }
@@ -24699,7 +24699,7 @@ static inline
 VOS_STATUS wma_process_init_bad_peer_tx_ctl_info(tp_wma_handle wma,
 			struct t_bad_peer_txtcl_config *config)
 {
-	return eHAL_STATUS_SUCCESS;
+	return (VOS_STATUS)eHAL_STATUS_SUCCESS;
 }
 #endif /* defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL) */
 
@@ -28623,11 +28623,11 @@ static int wma_scan_event_callback(WMA_HANDLE handle, u_int8_t *data,
 		 * results is available in scan cache(due to partial or
 		 * aborted scan)
 		 */
-		scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+		scan_event->event = (tSirScanEventType)WMI_SCAN_EVENT_COMPLETED;
 		scan_event->reasonCode = eSIR_SME_SUCCESS;
 		break;
 	case WMI_SCAN_EVENT_START_FAILED:
-		scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+		scan_event->event = (tSirScanEventType)WMI_SCAN_EVENT_COMPLETED;
 		scan_event->reasonCode = eSIR_SME_SCAN_FAILED;
 		break;
 	case WMI_SCAN_EVENT_PREEMPTED:
@@ -28889,7 +28889,7 @@ static void wma_roam_ho_fail_handler(tp_wma_handle wma, u_int32_t vdev_id)
 	sme_msg.bodyptr = ho_failure_ind;
 	sme_msg.bodyval = 0;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		WMA_LOGE("Fail to post eWNI_SME_HO_FAIL_IND msg to SME");
 		vos_mem_free(ho_failure_ind);
@@ -29271,7 +29271,7 @@ static VOS_STATUS wma_set_thermal_mgmt(tp_wma_handle wma_handle,
 	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
 	if (!buf) {
 		WMA_LOGE("Failed to allocate buffer to send set key cmd");
-		return eHAL_STATUS_FAILURE;
+		return (VOS_STATUS)eHAL_STATUS_FAILURE;
 	}
 
 	cmd = (wmi_thermal_mgmt_cmd_fixed_param *) wmi_buf_data (buf);
@@ -29292,10 +29292,10 @@ static VOS_STATUS wma_set_thermal_mgmt(tp_wma_handle wma_handle,
 	if (status) {
 		adf_nbuf_free(buf);
 		WMA_LOGE("%s:Failed to send thermal mgmt command", __func__);
-		return eHAL_STATUS_FAILURE;
+		return (VOS_STATUS)eHAL_STATUS_FAILURE;
 	}
 
-	return eHAL_STATUS_SUCCESS;
+	return (VOS_STATUS)eHAL_STATUS_SUCCESS;
 }
 
 /* function   : wma_thermal_mgmt_get_level
@@ -29476,7 +29476,7 @@ static int wma_channel_avoid_evt_handler(void *handle, u_int8_t *event,
 	sme_msg.bodyptr = sca_indication;
 	sme_msg.bodyval = 0;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if ( !VOS_IS_STATUS_SUCCESS(vos_status) )
 	{
 		WMA_LOGE("Fail to post eWNI_SME_CH_AVOID_IND msg to SME");
@@ -29870,7 +29870,7 @@ static int wma_echo_event_handler(void *handle, u_int8_t *event_buf,
 	WMA_LOGD("Received Echo reply from firmware!");
 	sme_msg.type = eWNI_SME_FW_STATUS_IND;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_SME, &sme_msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_SME, &sme_msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		WMA_LOGE("%s: Fail to post firmware status ind msg", __func__);
 	}
@@ -31460,7 +31460,7 @@ VOS_STATUS WDA_TxPacket(void *wma_context, void *tx_frame, u_int16_t frmLen,
 				/* Allocate extra bytes for privacy header and trailer */
 				newFrmLen = frmLen + IEEE80211_CCMP_HEADERLEN +
 							IEEE80211_CCMP_MICLEN;
-				vos_status = palPktAlloc( pMac->hHdd,
+				vos_status = (VOS_STATUS)palPktAlloc( pMac->hHdd,
 							  HAL_TXRX_FRM_802_11_MGMT,
 							  ( tANI_U16 )newFrmLen,
 							  ( void** ) &pFrame,
@@ -31493,7 +31493,7 @@ VOS_STATUS WDA_TxPacket(void *wma_context, void *tx_frame, u_int16_t frmLen,
 		} else {
 			/* Allocate extra bytes for MMIE */
 			newFrmLen = frmLen + IEEE80211_MMIE_LEN;
-			vos_status = palPktAlloc( pMac->hHdd,
+			vos_status = (VOS_STATUS)palPktAlloc( pMac->hHdd,
 						  HAL_TXRX_FRM_802_11_MGMT,
 						  ( tANI_U16 )newFrmLen,
 						  ( void** ) &pFrame,

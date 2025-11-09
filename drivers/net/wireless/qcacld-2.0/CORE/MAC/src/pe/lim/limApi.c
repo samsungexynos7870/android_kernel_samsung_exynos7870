@@ -580,7 +580,7 @@ static tSirRetStatus __limInitConfig( tpAniSirGlobal pMac )
 */
 tSirRetStatus limStart(tpAniSirGlobal pMac)
 {
-   tSirResultCodes retCode = eSIR_SUCCESS;
+   tSirResultCodes retCode = (tSirResultCodes)eSIR_SUCCESS;
 
    PELOG1(limLog(pMac, LOG1, FL(" enter"));)
 
@@ -611,10 +611,10 @@ tSirRetStatus limStart(tpAniSirGlobal pMac)
       * log error
       */
       limLog(pMac, LOGE, FL("Invalid SME state %X"),pMac->lim.gLimSmeState );
-      retCode = eSIR_FAILURE;
+      retCode = (tSirResultCodes)eSIR_FAILURE;
    }
 
-   return retCode;
+   return (tSirRetStatus)retCode;
 }
 
 /**

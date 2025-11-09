@@ -8439,7 +8439,7 @@ eHalStatus sme_SetTxPerTracking(tHalHandle hHal,
     msg.reserved = 0;
     msg.bodyptr = pTxPerTrackingParamReq;
 
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_TX_PER_TRACKING_REQ message to WDA", __func__);
         vos_mem_free(pTxPerTrackingParamReq);
@@ -8962,7 +8962,7 @@ eHalStatus sme_8023MulticastList (tHalHandle hHal, tANI_U8 sessionId, tpSirRcvFl
     msg.type = WDA_8023_MULTICAST_LIST_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to "
             "post WDA_8023_MULTICAST_LIST message to WDA", __func__);
@@ -9056,7 +9056,7 @@ eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType 
 
     }
 
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
             "WDA_RECEIVE_FILTER_SET_FILTER message to WDA", __func__);
@@ -9125,7 +9125,7 @@ eHalStatus sme_ReceiveFilterClearFilter(tHalHandle hHal, tpSirRcvFltPktClearPara
     msg.type = WDA_RECEIVE_FILTER_CLEAR_FILTER_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
             "WDA_RECEIVE_FILTER_CLEAR_FILTER message to WDA", __func__);
@@ -9404,7 +9404,7 @@ eHalStatus sme_SetMaxTxPowerPerBand(eCsrBand band, v_S7_t dB)
     msg.reserved = 0;
     msg.bodyptr = pMaxTxPowerPerBandParams;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                   "%s:Not able to post WDA_SET_MAX_TX_POWER_PER_BAND_REQ",
@@ -9454,7 +9454,7 @@ eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr pBssid,
     msg.reserved = 0;
     msg.bodyptr = pMaxTxParams;
 
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_MAX_TX_POWER_REQ message to WDA", __func__);
         vos_mem_free(pMaxTxParams);
@@ -9493,7 +9493,7 @@ eHalStatus sme_SetCustomMacAddr(tSirMacAddr customMacAddr)
     msg.reserved = 0;
     msg.bodyptr = pBaseMacAddr;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
             FL("Not able to post SIR_HAL_SET_BASE_MACADDR_IND message to WDA"));
@@ -9547,7 +9547,7 @@ eHalStatus sme_SetTxPower(tHalHandle hHal, v_U8_t sessionId,
    msg.reserved = 0;
    msg.bodyptr = pTxParams;
 
-   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))
    {
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: failed to post WDA_SET_TX_POWER_REQ to WDA",
@@ -10447,7 +10447,7 @@ eHalStatus sme_SetRoamOpportunisticScanThresholdDiff(tHalHandle hHal,
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrNeighborRoamSetOpportunisticScanThresholdDiff(pMac,
+        status = (eHalStatus)csrNeighborRoamSetOpportunisticScanThresholdDiff(pMac,
                                          sessionId,
                                          nOpportunisticThresholdDiff);
         if (HAL_STATUS_SUCCESS(status))
@@ -10502,7 +10502,7 @@ eHalStatus sme_SetRoamRescanRssiDiff(tHalHandle hHal,
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrNeighborRoamSetRoamRescanRssiDiff(pMac, sessionId,
+        status = (eHalStatus)csrNeighborRoamSetRoamRescanRssiDiff(pMac, sessionId,
         nRoamRescanRssiDiff);
         if (HAL_STATUS_SUCCESS(status))
         {
@@ -10557,7 +10557,7 @@ eHalStatus sme_SetRoamBmissFirstBcnt(tHalHandle hHal,
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrNeighborRoamSetRoamBmissFirstBcnt(pMac, sessionId,
+        status = (eHalStatus)csrNeighborRoamSetRoamBmissFirstBcnt(pMac, sessionId,
                                                       nRoamBmissFirstBcnt);
         if (HAL_STATUS_SUCCESS(status))
         {
@@ -10610,7 +10610,7 @@ eHalStatus sme_SetRoamBmissFinalBcnt(tHalHandle hHal,
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrNeighborRoamSetRoamBmissFinalBcnt(pMac, sessionId,
+        status = (eHalStatus)csrNeighborRoamSetRoamBmissFinalBcnt(pMac, sessionId,
                                                       nRoamBmissFinalBcnt);
         if (HAL_STATUS_SUCCESS(status))
         {
@@ -10665,7 +10665,7 @@ eHalStatus sme_SetRoamBeaconRssiWeight(tHalHandle hHal,
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrNeighborRoamSetRoamBeaconRssiWeight(pMac, sessionId,
+        status = (eHalStatus)csrNeighborRoamSetRoamBeaconRssiWeight(pMac, sessionId,
                                                         nRoamBeaconRssiWeight);
         if (HAL_STATUS_SUCCESS(status))
         {
@@ -10718,7 +10718,7 @@ eHalStatus sme_setNeighborLookupRssiThreshold
     status = sme_AcquireGlobalLock( &pMac->sme );
     if (HAL_STATUS_SUCCESS(status))
     {
-        status = csrNeighborRoamSetLookupRssiThreshold(pMac, sessionId,
+        status = (eHalStatus)csrNeighborRoamSetLookupRssiThreshold(pMac, sessionId,
                                                   neighborLookupRssiThreshold);
         if (HAL_STATUS_SUCCESS(status))
         {
@@ -11587,10 +11587,10 @@ VOS_STATUS sme_SendTdlsLinkEstablishParams(tHalHandle hHal,
 
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        status = csrTdlsSendLinkEstablishParams(hHal, sessionId, peerMac, tdlsLinkEstablishParams) ;
+        status = (eHalStatus)csrTdlsSendLinkEstablishParams(hHal, sessionId, peerMac, tdlsLinkEstablishParams) ;
         sme_ReleaseGlobalLock( &pMac->sme );
     }
-   return status ;
+   return (VOS_STATUS)status ;
 }
 
 /* ---------------------------------------------------------------------------
@@ -11637,7 +11637,7 @@ VOS_STATUS sme_SendTdlsMgmtFrame(tHalHandle hHal, tANI_U8 sessionId,
         sme_ReleaseGlobalLock( &pMac->sme );
     }
 
-    return status ;
+    return (VOS_STATUS)status ;
 
 }
 /* ---------------------------------------------------------------------------
@@ -11659,7 +11659,7 @@ VOS_STATUS sme_ChangeTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId,
     {
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s :pstaParams is NULL",__func__);
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                      TRACE_CODE_SME_RX_HDD_TDLS_CHANGE_PEER_STA, sessionId,
@@ -11672,7 +11672,7 @@ VOS_STATUS sme_ChangeTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId,
         sme_ReleaseGlobalLock( &pMac->sme );
     }
 
-    return status ;
+    return (VOS_STATUS)status ;
 
 }
 
@@ -11700,7 +11700,7 @@ VOS_STATUS sme_AddTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId,
         sme_ReleaseGlobalLock( &pMac->sme );
     }
 
-    return status ;
+    return (VOS_STATUS)status ;
 
 }
 /* ---------------------------------------------------------------------------
@@ -11727,7 +11727,7 @@ VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal,
         sme_ReleaseGlobalLock( &pMac->sme );
     }
 
-    return status ;
+    return (VOS_STATUS)status ;
 
 }
 /* ---------------------------------------------------------------------------
@@ -13015,12 +13015,12 @@ eHalStatus sme_RequestIBSSPeerInfo(tHalHandle hHal, void *pUserData,
           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                         "%s: Post WDA_GET_IBSS_PEER_INFO_REQ MSG failed", __func__);
           vos_mem_free(pIbssInfoReqParams);
-          vosStatus = eHAL_STATUS_FAILURE;
+          vosStatus = (VOS_STATUS)eHAL_STATUS_FAILURE;
        }
        sme_ReleaseGlobalLock( &pMac->sme );
    }
 
-   return (vosStatus);
+   return ((eHalStatus)vosStatus);
 }
 
 /* ---------------------------------------------------------------------------
@@ -13196,7 +13196,7 @@ eHalStatus sme_ocb_set_config(tHalHandle hHal, void *context,
 	pMac->sme.ocb_set_config_callback = callback;
 	pMac->sme.ocb_set_config_context = context;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_WDA, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 		      FL("Error posting message to WDA: %d"), vos_status);
@@ -13238,7 +13238,7 @@ eHalStatus sme_ocb_set_utc_time(struct sir_ocb_utc *utc)
 	msg.type = WDA_OCB_SET_UTC_TIME_CMD;
 	msg.reserved = 0;
 	msg.bodyptr = sme_utc;
-	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA,
+	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
 						       &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Not able to post message to WDA"));
@@ -13279,7 +13279,7 @@ eHalStatus sme_ocb_start_timing_advert(
 	msg.type = WDA_OCB_START_TIMING_ADVERT_CMD;
 	msg.reserved = 0;
 	msg.bodyptr = buf;
-	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA,
+	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
 						       &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Not able to post msg to WDA"));
@@ -13312,7 +13312,7 @@ eHalStatus sme_ocb_stop_timing_advert(
 	msg.type = WDA_OCB_STOP_TIMING_ADVERT_CMD;
 	msg.reserved = 0;
 	msg.bodyptr = sme_timing_advert;
-	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA,
+	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
 						       &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Not able to post msg to WDA"));
@@ -13362,7 +13362,7 @@ eHalStatus sme_ocb_get_tsf_timer(tHalHandle hHal, void *context,
 	pMac->sme.ocb_get_tsf_timer_context = context;
 
 	/* Post the message to WDA */
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_WDA, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Error posting message to WDA: %d"), vos_status);
@@ -13425,7 +13425,7 @@ eHalStatus sme_dcc_get_stats(tHalHandle hHal, void *context,
 	pMac->sme.dcc_get_stats_callback = callback;
 	pMac->sme.dcc_get_stats_context = context;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_WDA, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Error posting message to WDA: %d"), vos_status);
@@ -13469,7 +13469,7 @@ eHalStatus sme_dcc_clear_stats(uint32_t vdev_id, uint32_t dcc_stats_bitmap)
 	msg.type = WDA_DCC_CLEAR_STATS_CMD;
 	msg.bodyptr = request;
 
-	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA,
+	if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
 						       &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Not able to post msg to WDA"));
@@ -13533,7 +13533,7 @@ eHalStatus sme_dcc_update_ndl(tHalHandle hHal, void *context,
 	pMac->sme.dcc_update_ndl_callback = callback;
 	pMac->sme.dcc_update_ndl_context = context;
 
-	vos_status = vos_mq_post_message(VOS_MODULE_ID_WDA, &msg);
+	vos_status = vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg);
 	if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			  FL("Error posting message to WDA: %d"), vos_status);
@@ -13695,7 +13695,7 @@ VOS_STATUS sme_notify_modem_power_state(tHalHandle hHal, tANI_U32 value)
    msg.type     = WDA_MODEM_POWER_STATE_IND;
    msg.reserved = 0;
    msg.bodyptr  = pRequestBuf;
-   if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+   if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
    {
        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
          "%s: Not able to post WDA_MODEM_POWER_STATE_IND message"
@@ -14042,7 +14042,7 @@ eHalStatus sme_SendRateUpdateInd(tHalHandle hHal,
         msg.type     = WDA_RATE_UPDATE_IND;
         msg.bodyptr  = rateUpdate;
 
-        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+        if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
         {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,"%s: Not able "
                        "to post WDA_SET_RMC_RATE_IND to WDA!",
@@ -14311,7 +14311,7 @@ eHalStatus sme_set_miracast(tHalHandle hal, uint8_t filter_type)
 	msg.bodyptr = val;
 
 	if (!VOS_IS_STATUS_SUCCESS(
-				vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+				vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 			"%s: Not able to post SIR_HAL_SET_MIRACAST to WMA!",
 			__func__);
@@ -14352,7 +14352,7 @@ eHalStatus sme_set_mas(uint32_t val)
 	msg.bodyptr = ptr_val;
 
 	if (!VOS_IS_STATUS_SUCCESS(
-				vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+				vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
 		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 				"%s: Not able to post WDA_SET_MAS_ENABLE_DISABLE to WMA!",
 				__func__);
@@ -14553,7 +14553,7 @@ eHalStatus sme_InitThermalInfo( tHalHandle hHal,
         msg.bodyptr  = pWdaParam;
 
         if (!VOS_IS_STATUS_SUCCESS(
-           vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+           vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
         {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                        "%s: Not able to post WDA_SET_THERMAL_INFO_CMD to WDA!",
@@ -14598,7 +14598,7 @@ eHalStatus sme_SetThermalLevel( tHalHandle hHal, tANI_U8 level )
 		msg.type = WDA_SET_THERMAL_LEVEL;
 		msg.bodyval = level;
 
-		vosStatus =  vos_mq_post_message(VOS_MODULE_ID_WDA, &msg);
+		vosStatus =  vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg);
 		if (!VOS_IS_STATUS_SUCCESS(vosStatus)) {
 			VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 				   "%s: Not able to post WDA_SET_THERMAL_LEVEL to WDA!",
@@ -14685,7 +14685,7 @@ eHalStatus sme_ApDisableIntraBssFwd(tHalHandle hHal, tANI_U8 sessionId,
     if (NULL == pSapDisableIntraFwd)
     {
        smsLog(pMac, LOGP, "Memory Allocation Failure!!! %s", __func__);
-       return eSIR_MEM_ALLOC_FAILED;
+       return (eHalStatus)eSIR_MEM_ALLOC_FAILED;
     }
 
     vos_mem_zero(pSapDisableIntraFwd, sizeof(tDisableIntraBssFwd));
@@ -14764,7 +14764,7 @@ eHalStatus sme_StatsExtRequest(tANI_U8 session_id, tpStatsExtRequestReq input)
     msg.reserved = 0;
     msg.bodyptr = data;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA,
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA,
                                                   &msg)) {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                   "%s: Not able to post WDA_STATS_EXT_REQUEST message to WDA",
@@ -15039,14 +15039,14 @@ VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                      "%s: Session lookup fails for CSR session", __func__);
             sme_ReleaseGlobalLock( &pMac->sme);
-            return eHAL_STATUS_FAILURE;
+            return (VOS_STATUS)eHAL_STATUS_FAILURE;
         }
         if (!CSR_IS_SESSION_VALID( pMac, sessionId ))
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                      "%s: Invalid session Id %u", __func__, sessionId);
             sme_ReleaseGlobalLock( &pMac->sme);
-            return eHAL_STATUS_FAILURE;
+            return (VOS_STATUS)eHAL_STATUS_FAILURE;
         }
 
         pSession = peFindSessionByBssid( pMac,
@@ -15057,14 +15057,14 @@ VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                      "%s: Session lookup fails for BSSID", __func__);
             sme_ReleaseGlobalLock( &pMac->sme);
-            return eHAL_STATUS_FAILURE;
+            return (VOS_STATUS)eHAL_STATUS_FAILURE;
         }
 
         if (!pSession->QosMapSet.present) {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
                      FL("QOS Mapping IE not present"));
             sme_ReleaseGlobalLock( &pMac->sme);
-            return eHAL_STATUS_FAILURE;
+            return (VOS_STATUS)eHAL_STATUS_FAILURE;
         }
         else
         {
@@ -15099,7 +15099,7 @@ VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
         }
     }
     sme_ReleaseGlobalLock( &pMac->sme);
-    return status;
+    return (VOS_STATUS)status;
 }
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
@@ -16195,7 +16195,7 @@ eHalStatus sme_setDhcpSrvOffload(tHalHandle hHal,
         vosMessage.bodyptr  = pSmeDhcpSrvInfo;
 
         if (!VOS_IS_STATUS_SUCCESS(
-            vos_mq_post_message(VOS_MODULE_ID_WDA, &vosMessage))) {
+            vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &vosMessage))) {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: Not able to post WDA_SET_DHCP_SERVER_OFFLOAD_CMD to WDA!",
                 __func__);
@@ -16318,7 +16318,7 @@ eHalStatus sme_setMDNSOffload(tHalHandle hHal,
         vosMessage.bodyptr  = pSmeMDNSOffloadInfo;
 
         if (!VOS_IS_STATUS_SUCCESS(
-            vos_mq_post_message(VOS_MODULE_ID_WDA, &vosMessage))) {
+            vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &vosMessage))) {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: Not able to post WDA_SET_MDNS_OFFLOAD_CMD to WDA!",
                 __func__);
@@ -16369,7 +16369,7 @@ eHalStatus sme_setMDNSFqdn(tHalHandle hHal,
         vosMessage.bodyptr  = pSmeMDNSFqdnInfo;
 
         if (!VOS_IS_STATUS_SUCCESS(
-            vos_mq_post_message(VOS_MODULE_ID_WDA, &vosMessage))) {
+            vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &vosMessage))) {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: Not able to post WDA_SET_MDNS_FQDN_CMD to WDA!",
                 __func__);
@@ -16420,7 +16420,7 @@ eHalStatus sme_setMDNSResponse(tHalHandle hHal,
         vosMessage.bodyptr  = pSmeMDNSRespInfo;
 
         if (!VOS_IS_STATUS_SUCCESS(
-            vos_mq_post_message(VOS_MODULE_ID_WDA, &vosMessage))) {
+            vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &vosMessage))) {
             VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                 "%s: Not able to post WDA_SET_MDNS_RESPONSE_CMD to WDA!",
                 __func__);
@@ -16597,7 +16597,7 @@ VOS_STATUS sme_apfind_set_cmd(struct sme_ap_find_request_req *input)
      msg.reserved = 0;
      msg.bodyptr = data;
 
-    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)) {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
             FL("Not able to post WDA_APFIND_SET_CMD message to WDA"));
         vos_mem_free(data);
@@ -16688,7 +16688,7 @@ eHalStatus sme_configure_stats_avg_factor(tHalHandle hHal, tANI_U8 session_id,
 		msg.bodyptr  = stats_factor;
 
 		if (!VOS_IS_STATUS_SUCCESS(
-			    vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+			    vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
 			VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 				   "%s: Not able to post SIR_HAL_CONFIG_STATS_FACTOR to WMA!",
 				   __func__);
@@ -16745,7 +16745,7 @@ eHalStatus sme_configure_guard_time(tHalHandle hHal, tANI_U8 session_id,
 		msg.bodyptr  = g_time;
 
 		if (!VOS_IS_STATUS_SUCCESS(
-			    vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+			    vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
 			VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 				   "%s: Not able to post SIR_HAL_CONFIG_GUARD_TIME to WDA!",
 				   __func__);
@@ -16892,7 +16892,7 @@ eHalStatus sme_configure_modulated_dtim(tHalHandle h_hal, tANI_U8 session_id,
 		msg.bodyptr = (void *)iwcmd;
 
 		if (!VOS_IS_STATUS_SUCCESS(
-			    vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))) {
+			    vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg))) {
 			VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
 				   "%s: Not able to post SIR_HAL_CONFIG_GUARD_TIME to WDA!",
 				   __func__);

@@ -666,7 +666,7 @@ void limPmfComebackTimerCallback(void *context)
            FL("comeback later timer expired. sending MLM ASSOC req"));)
     /* set MLM state such that ASSOC REQ packet will be sent out */
     psessionEntry->limPrevMlmState   = pInfo->limPrevMlmState;
-    psessionEntry->limMlmState       = pInfo->limMlmState;
+    psessionEntry->limMlmState       = pInfo->(tLimMlmStates)limMlmState;
     limSendMlmAssocReq(pMac, psessionEntry);
 }
 #endif /* WLAN_FEATURE_11W */
@@ -4759,7 +4759,7 @@ limHandleDelBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESe
             /** Case wherein the DisAssoc / Deauth
              *   being sent as response to ReAssoc Req*/
             /** Send the Reason code as the same received in Disassoc / Deauth Frame*/
-            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.disassocReason;
+            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.(tSirResultCodes)disassocReason;
             mlmReassocCnf.protStatusCode = pStaDs->mlmStaContext.cleanupTrigger;
             /** Set the SME State back to WT_Reassoc State*/
             psessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;
@@ -4935,7 +4935,7 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
         case eLIM_SME_WT_REASSOC_LINK_FAIL_STATE: {     /** Case wherein the DisAssoc / Deauth
                                                                                      *   being sent as response to ReAssoc Req*/
             /** Send the Reason code as the same received in Disassoc / Deauth Frame*/
-            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.disassocReason;
+            mlmReassocCnf.resultCode = pStaDs->mlmStaContext.(tSirResultCodes)disassocReason;
             mlmReassocCnf.protStatusCode = pStaDs->mlmStaContext.cleanupTrigger;
             /** Set the SME State back to WT_Reassoc State*/
             psessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;
@@ -5064,7 +5064,7 @@ void limProcessRxScanEvent(tpAniSirGlobal pMac, void *buf)
             if (P2P_SCAN_TYPE_LISTEN == pScanEvent->p2pScanType)
             {
                 limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP,
-                        eHAL_STATUS_SUCCESS,
+                        (tSirResultCodes)eHAL_STATUS_SUCCESS,
                         pScanEvent->sessionId, 0);
                 vos_mem_free(pMac->lim.gpLimRemainOnChanReq);
                 pMac->lim.gpLimRemainOnChanReq = NULL;
@@ -5092,7 +5092,7 @@ void limProcessRxScanEvent(tpAniSirGlobal pMac, void *buf)
                 if (pMac->lim.gpLimRemainOnChanReq)
                 {
                     limSendSmeRsp(pMac, eWNI_SME_REMAIN_ON_CHN_RDY_IND,
-                            eHAL_STATUS_SUCCESS,
+                            (tSirResultCodes)eHAL_STATUS_SUCCESS,
                             pScanEvent->sessionId, 0);
                 }
                 else

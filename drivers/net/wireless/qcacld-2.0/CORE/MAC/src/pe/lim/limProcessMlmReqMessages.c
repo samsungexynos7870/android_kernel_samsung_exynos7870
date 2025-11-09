@@ -2589,7 +2589,7 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             psessionEntry->pmfComebackTimerInfo.limPrevMlmState =
                                                 psessionEntry->limPrevMlmState;
             psessionEntry->pmfComebackTimerInfo.limMlmState =
-                                                psessionEntry->limMlmState;
+                                                psessionEntry->(tLimSmeStates)limMlmState;
         }
 #endif /* WLAN_FEATURE_11W */
 
@@ -4732,7 +4732,7 @@ void limProcessMlmDelBAReq( tpAniSirGlobal pMac,
   // Send DELBA Ind over the air
   if( eSIR_SUCCESS !=
       (status = limSendDelBAInd( pMac, pMlmDelBAReq,psessionEntry)))
-    status = eSIR_SME_HAL_SEND_MESSAGE_FAIL;
+    status = (tSirRetStatus)eSIR_SME_HAL_SEND_MESSAGE_FAIL;
   else
   {
     tANI_U16 aid;

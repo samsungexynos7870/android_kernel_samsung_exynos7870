@@ -472,13 +472,13 @@ ol_tx_non_std_ll(
                 u_int8_t sub_type = OL_TXRX_TX_RAW_SUBTYPE(tx_spec);
                 htt_tx_desc_type(
                     htt_pdev, tx_desc->htt_tx_desc,
-                    htt_pkt_type_native_wifi, sub_type);
+                    (enum wlan_frm_fmt)htt_pkt_type_native_wifi, sub_type);
             } else if (OL_TXRX_TX_IS_RAW(tx_spec)) {
                 /* different types of raw frames */
                 u_int8_t sub_type = OL_TXRX_TX_RAW_SUBTYPE(tx_spec);
                 htt_tx_desc_type(
                     htt_pdev, tx_desc->htt_tx_desc,
-                    htt_pkt_type_raw, sub_type);
+                    (enum wlan_frm_fmt)htt_pkt_type_raw, sub_type);
             }
         }
         /*
@@ -626,7 +626,7 @@ ol_tx_hl_base(
                 u_int8_t sub_type = OL_TXRX_TX_RAW_SUBTYPE(tx_spec);
                 htt_tx_desc_type(
                     htt_pdev, tx_desc->htt_tx_desc,
-                    htt_pkt_type_raw, sub_type);
+                    (enum wlan_frm_fmt)htt_pkt_type_raw, sub_type);
             }
         }
 

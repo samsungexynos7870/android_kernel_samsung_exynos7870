@@ -959,7 +959,7 @@ dump_lim_addba_req( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 
         __func__,
         pSta->staIndex,
         arg2,
-        limResultCodeStr( status ));
+        limResultCodeStr( (tSirResultCodes)status ));
   }
 
   return p;
@@ -993,7 +993,7 @@ tpDphHashNode pSta;
         (arg2 == 1)? "Initiator": "Recipient",
         arg3, // TID
         arg4, // Reason Code
-        limResultCodeStr( status ));
+        limResultCodeStr( (tSirResultCodes)status ));
   }
 
   return p;

@@ -3223,7 +3223,7 @@ eHalStatus sme_QosESESaveTspecResponse(tpAniSirGlobal pMac, v_U8_t sessionId, tD
     pAddtsRsp->rc = eSIR_SUCCESS;
     pAddtsRsp->sessionId = sessionId;
     pAddtsRsp->rsp.dialogToken = 0;
-    pAddtsRsp->rsp.status = eSIR_SUCCESS;
+    pAddtsRsp->rsp.status = (tSirMacStatusCodes)eSIR_SUCCESS;
     pAddtsRsp->rsp.wmeTspecPresent = pTspec->present;
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
             "%s: Copy Tspec to local data structure ac=%d, tspecIdx=%d",

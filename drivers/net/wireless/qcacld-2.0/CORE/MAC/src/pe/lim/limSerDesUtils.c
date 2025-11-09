@@ -559,7 +559,7 @@ limStartBssReqSerDes(tpAniSirGlobal pMac, tpSirSmeStartBssReq pStartBssReq, tANI
         return eSIR_FAILURE;
 
     // Extract AuthType
-    pStartBssReq->authType = (tSirBssType) limGetU32(pBuf);
+    pStartBssReq->authType = (tAniAuthType)(tSirBssType) limGetU32(pBuf);
     pBuf += sizeof(tANI_U32);
     len  -= sizeof(tANI_U32);
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)

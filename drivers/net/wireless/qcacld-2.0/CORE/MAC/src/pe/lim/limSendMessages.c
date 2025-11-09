@@ -500,7 +500,7 @@ tSirRetStatus limSetLinkState(tpAniSirGlobal pMac, tSirLinkState state,tSirMacAd
     {
         limLog( pMac, LOGP,
         FL( "Unable to allocate memory while sending Set Link State" ));
-        retCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+        retCode = (tSirRetStatus)eSIR_SME_RESOURCES_UNAVAILABLE;
         return retCode;
     }
     vos_mem_set((tANI_U8 *) pLinkStateParams, sizeof(tLinkStateParams), 0);
@@ -541,7 +541,7 @@ state,tSirMacAddr bssId, tSirMacAddr selfMacAddr, int ft, tpPESession psessionEn
     {
         limLog( pMac, LOGP,
         FL( "Unable to allocate memory while sending Set Link State" ));
-        retCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+        retCode = (tSirRetStatus)eSIR_SME_RESOURCES_UNAVAILABLE;
         return retCode;
     }
     vos_mem_set((tANI_U8 *) pLinkStateParams, sizeof(tLinkStateParams), 0);

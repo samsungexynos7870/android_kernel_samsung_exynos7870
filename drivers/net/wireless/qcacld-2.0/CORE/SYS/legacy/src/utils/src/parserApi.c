@@ -2174,7 +2174,7 @@ tSirRetStatus sirvalidateandrectifyies(tpAniSirGlobal pMac,
                 limLog(pMac, LOG1,
                        FL("Added RSN Capability to the RSNIE as 0x00 0x00\n"));
 
-                return eHAL_STATUS_SUCCESS;
+                return (tSirRetStatus)eHAL_STATUS_SUCCESS;
             } else {
                 /*
                  * Workaround: Some APs may add extra 0x00 padding after IEs.
@@ -2192,7 +2192,7 @@ tSirRetStatus sirvalidateandrectifyies(tpAniSirGlobal pMac,
                     }
 
                     if (zero_padding) {
-                        return eHAL_STATUS_SUCCESS;
+                        return (tSirRetStatus)eHAL_STATUS_SUCCESS;
                     }
                 }
             }
@@ -2201,7 +2201,7 @@ tSirRetStatus sirvalidateandrectifyies(tpAniSirGlobal pMac,
         }
     }
 
-    return eHAL_STATUS_SUCCESS;
+    return (tSirRetStatus)eHAL_STATUS_SUCCESS;
 }
 
 /**

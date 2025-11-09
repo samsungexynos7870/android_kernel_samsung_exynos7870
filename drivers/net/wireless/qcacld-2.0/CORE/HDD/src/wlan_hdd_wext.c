@@ -9630,9 +9630,9 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
         packetFilterSetReq.filterId = HDD_FILTER_ID_IPV6_MC;
         packetFilterSetReq.numFieldParams = 2;
         packetFilterSetReq.paramsData[0].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_MAC;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_MAC;
         packetFilterSetReq.paramsData[0].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_NOT_EQUAL;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_NOT_EQUAL;
         packetFilterSetReq.paramsData[0].dataOffset =
                                          WLAN_HDD_80211_FRM_DA_OFFSET;
         packetFilterSetReq.paramsData[0].dataLength = 1;
@@ -9640,9 +9640,9 @@ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType,
                                          HDD_IPV6_MC_CMP_DATA;
 
         packetFilterSetReq.paramsData[1].protocolLayer =
-                                         HDD_FILTER_PROTO_TYPE_ARP;
+                                         (eSirRcvPktFltProtocolType)HDD_FILTER_PROTO_TYPE_ARP;
         packetFilterSetReq.paramsData[1].cmpFlag =
-                                         HDD_FILTER_CMP_TYPE_NOT_EQUAL;
+                                         (eSirRcvPktFltCmpFlagType)HDD_FILTER_CMP_TYPE_NOT_EQUAL;
         packetFilterSetReq.paramsData[1].dataOffset = ETH_ALEN;
         packetFilterSetReq.paramsData[1].dataLength = 2;
         packetFilterSetReq.paramsData[1].compareData[0] =

@@ -1304,7 +1304,7 @@ void lim_ft_reassoc_set_link_state_callback(tpAniSirGlobal mac,
 	tpPESession session_entry;
 	tSirMsgQ msg_q;
 	tLimMlmReassocReq *mlm_reassoc_req = (tLimMlmReassocReq *) callback_arg;
-	tSirRetStatus ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
+	tSirRetStatus ret_code = (tSirRetStatus)eSIR_SME_RESOURCES_UNAVAILABLE;
 	tLimMlmReassocCnf mlm_reassoc_cnf = {0};
 	session_entry = peFindSessionBySessionId(mac,
 				mlm_reassoc_req->sessionId);
@@ -1711,7 +1711,7 @@ limFTSendAggrQosRsp(tpAniSirGlobal pMac, tANI_U8 rspReqd,
     {
         if( (1 << i) & aggrQosRsp->tspecIdx )
         {
-            rsp->aggrInfo.aggrRsp[i].status = aggrQosRsp->status[i];
+            rsp->aggrInfo.aggrRsp[i].status = (tSirMacStatusCodes)aggrQosRsp->status[i];
             rsp->aggrInfo.aggrRsp[i].tspec = aggrQosRsp->tspec[i];
         }
     }

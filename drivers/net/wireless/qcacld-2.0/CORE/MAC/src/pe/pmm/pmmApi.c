@@ -720,7 +720,7 @@ tSirRetStatus pmmSendPowerSaveCfg(tpAniSirGlobal pMac, tpSirPowerSaveCfg pUpdate
         pmmLog(pMac, LOGE,
             FL("pmmCfg: Power Save Configuration received in invalid global sme state %d"),
             pMac->lim.gLimSmeState);
-        retCode = eSIR_SME_INVALID_STATE;
+        retCode = (tSirRetStatus)eSIR_SME_INVALID_STATE;
         goto returnFailure;
     }
 
@@ -2961,7 +2961,7 @@ tSirRetStatus pmmOffloadEnterBmpsRespHandler(tpAniSirGlobal pMac,
                "EnterBmpsResp Success PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_SUCCESS,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_SUCCESS,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -2971,7 +2971,7 @@ tSirRetStatus pmmOffloadEnterBmpsRespHandler(tpAniSirGlobal pMac,
                "EnterBmpsResp Failed PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3086,7 +3086,7 @@ tSirRetStatus pmmOffloadEnterBmpsReqHandler(tpAniSirGlobal pMac,
     {
         pmmLog(pMac, LOGE,
                " No PE Session for given BSSID : Invalid Enter Bmps Request");
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_FAILURE, 0, 0);
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE, 0, 0);
         return eSIR_FAILURE;
     }
 
@@ -3094,7 +3094,7 @@ tSirRetStatus pmmOffloadEnterBmpsReqHandler(tpAniSirGlobal pMac,
     if(TRUE == psessionEntry->pmmOffloadInfo.bcnmiss)
     {
         pmmLog(pMac, LOGE, "Enter Bmps Request in Missed Beacon Scenario");
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
         return eSIR_SUCCESS;
@@ -3105,7 +3105,7 @@ tSirRetStatus pmmOffloadEnterBmpsReqHandler(tpAniSirGlobal pMac,
     {
         pmmLog(pMac, LOGE,
                 FL("Memory allocation failed for pEnablePsReqParams"));
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                 psessionEntry->smeSessionId,
                 psessionEntry->transactionId);
         return eSIR_MEM_ALLOC_FAILED;
@@ -3140,7 +3140,7 @@ tSirRetStatus pmmOffloadEnterBmpsReqHandler(tpAniSirGlobal pMac,
     {
         pmmLog(pMac, LOGE, FL("Posting WDA_ENTER_BMPS_REQ failed"));
         vos_mem_free(pEnablePsReqParams);
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                 psessionEntry->smeSessionId,
                 psessionEntry->transactionId);
         return eSIR_FAILURE;
@@ -3196,7 +3196,7 @@ tSirRetStatus pmmOffloadExitBmpsRespHandler(tpAniSirGlobal pMac,
                "ExitBmpsResp Success PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, eSIR_SUCCESS,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, (tSirResultCodes)eSIR_SUCCESS,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3206,7 +3206,7 @@ tSirRetStatus pmmOffloadExitBmpsRespHandler(tpAniSirGlobal pMac,
                "ExitBmpsResp Failed PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3245,7 +3245,7 @@ tSirRetStatus pmmOffloadExitBmpsReqHandler(tpAniSirGlobal pMac,
     {
         pmmLog(pMac, LOGE,
                " No PE Session for given BSSID : Invalid Enter Bmps Request");
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, eSIR_FAILURE, 0, 0);
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE, 0, 0);
         return eSIR_FAILURE;
     }
 
@@ -3253,7 +3253,7 @@ tSirRetStatus pmmOffloadExitBmpsReqHandler(tpAniSirGlobal pMac,
     if (NULL == pDisablePsReqParams)
     {
         pmmLog(pMac, LOGE, FL("Memory allocation failed for tDisablePsParams"));
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                 psessionEntry->smeSessionId,
                 psessionEntry->transactionId);
         return eSIR_MEM_ALLOC_FAILED;
@@ -3276,7 +3276,7 @@ tSirRetStatus pmmOffloadExitBmpsReqHandler(tpAniSirGlobal pMac,
     {
         pmmLog(pMac, LOGE, FL("Posting WDA_EXIT_BMPS_REQ failed"));
         vos_mem_free(pDisablePsReqParams);
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_BMPS_RSP, (tSirResultCodes)eSIR_FAILURE,
                 psessionEntry->smeSessionId,
                 psessionEntry->transactionId);
         return eSIR_FAILURE;
@@ -3332,7 +3332,7 @@ tSirRetStatus pmmOffloadEnterUapsdRespHandler(tpAniSirGlobal pMac,
                "EnterUapsdResp Success PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_UAPSD_RSP, eSIR_SUCCESS,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_UAPSD_RSP, (tSirResultCodes)eSIR_SUCCESS,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3342,7 +3342,7 @@ tSirRetStatus pmmOffloadEnterUapsdRespHandler(tpAniSirGlobal pMac,
                "EnterUapsdResp Failed PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_ENTER_UAPSD_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_ENTER_UAPSD_RSP, (tSirResultCodes)eSIR_FAILURE,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3484,7 +3484,7 @@ tSirRetStatus pmmOffloadExitUapsdRespHandler(tpAniSirGlobal pMac,
                "ExitUapsdResp Success PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_UAPSD_RSP, eSIR_SUCCESS,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_UAPSD_RSP, (tSirResultCodes)eSIR_SUCCESS,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }
@@ -3494,7 +3494,7 @@ tSirRetStatus pmmOffloadExitUapsdRespHandler(tpAniSirGlobal pMac,
                "ExitUapsdResp Failed PeSessionId %x SmeSessionId %x",
                psessionEntry->peSessionId, psessionEntry->smeSessionId);
 
-        limSendSmeRsp(pMac, eWNI_PMC_EXIT_UAPSD_RSP, eSIR_FAILURE,
+        limSendSmeRsp(pMac, eWNI_PMC_EXIT_UAPSD_RSP, (tSirResultCodes)eSIR_FAILURE,
                       psessionEntry->smeSessionId,
                       psessionEntry->transactionId);
     }

@@ -16705,7 +16705,7 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
                   if(pMac->roam.tlStatsReqInfo.periodicity)
                   {
                      //start timer
-                     status = vos_timer_start(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
+                     status = (eHalStatus)vos_timer_start(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
                                             pMac->roam.tlStatsReqInfo.periodicity);
                      if (!HAL_STATUS_SUCCESS(status))
                      {
@@ -17540,7 +17540,7 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 sessionId,
    msg.type     = WDA_ROAM_SCAN_OFFLOAD_REQ;
    msg.reserved = 0;
    msg.bodyptr  = pRequestBuf;
-   if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+   if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message((VOS_MQ_ID)VOS_MODULE_ID_WDA, &msg)))
    {
        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_ROAM_SCAN_OFFLOAD_REQ message to WDA", __func__);
        vos_mem_free(pRequestBuf);
@@ -17909,7 +17909,7 @@ eHalStatus csrRoamDeregStatisticsReq(tpAniSirGlobal pMac)
       {
          if(pMac->roam.tlStatsReqInfo.timerRunning)
          {
-            status = vos_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
+            status = (eHalStatus)vos_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
             if (!HAL_STATUS_SUCCESS(status))
             {
                smsLog(pMac, LOGE, FL("csrRoamDeregStatisticsReq:cannot stop TlStatsTimer timer"));
@@ -18567,7 +18567,7 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
    }
    /* Start the pre-auth reassoc interval timer with a period of 400ms. When this expires,
     * actual transition from the current to handoff AP is triggered */
-   status = vos_timer_start(&pSession->ftSmeContext.preAuthReassocIntvlTimer,
+   status = (eHalStatus)vos_timer_start(&pSession->ftSmeContext.preAuthReassocIntvlTimer,
          60);
    if (eHAL_STATUS_SUCCESS != status)
    {
@@ -18828,12 +18828,12 @@ VOS_STATUS csrSetCCKMIe(tpAniSirGlobal pMac, const tANI_U8 sessionId,
     if (!pSession)
     {
         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
-        return eHAL_STATUS_FAILURE;
+        return (VOS_STATUS)eHAL_STATUS_FAILURE;
     }
     vos_mem_copy(pSession->suppCckmIeInfo.cckmIe, pCckmIe,
                  ccKmIeLen);
     pSession->suppCckmIeInfo.cckmIeLen = ccKmIeLen;
-    return status;
+    return (VOS_STATUS)status;
 }
 
 /* ---------------------------------------------------------------------------
@@ -18864,7 +18864,7 @@ VOS_STATUS csrRoamReadTSF(tpAniSirGlobal pMac, tANI_U8 *pTimestamp,
     UpdateCCKMTSF(&(timeStamp[0]), &(timeStamp[1]), &timer_diff);
     vos_mem_copy(pTimestamp, (void *) &timeStamp[0],
                  sizeof (tANI_U32) * 2);
-    return status;
+    return (VOS_STATUS)status;
 }
 #endif /*FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 

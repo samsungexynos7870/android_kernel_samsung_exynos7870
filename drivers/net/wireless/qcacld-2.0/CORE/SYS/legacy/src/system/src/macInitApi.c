@@ -260,7 +260,7 @@ tSirRetStatus macClose(tHalHandle hHal)
     uint8_t i =0;
 
     if (!pMac)
-        return eHAL_STATUS_FAILURE;
+        return (tSirRetStatus)eHAL_STATUS_FAILURE;
 
     peClose(pMac);
     pMac->psOffloadEnabled = FALSE;

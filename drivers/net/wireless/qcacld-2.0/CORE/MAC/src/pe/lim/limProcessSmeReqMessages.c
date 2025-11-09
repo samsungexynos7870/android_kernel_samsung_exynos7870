@@ -4194,7 +4194,7 @@ __limProcessSmeAssocCnfNew(tpAniSirGlobal pMac, tANI_U32 msgType, tANI_U32 *pMsg
                              pStaDs->mlmStaContext.subType,
                              true, pStaDs->mlmStaContext.authType,
                              pStaDs->assocId, true,
-                             eSIR_MAC_UNSPEC_FAILURE_STATUS, psessionEntry);
+                             (tSirResultCodes)eSIR_MAC_UNSPEC_FAILURE_STATUS, psessionEntry);
     }
 
 end:
