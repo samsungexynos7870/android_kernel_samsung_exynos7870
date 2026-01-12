@@ -5944,3 +5944,9 @@ module_exit(bt532_ts_exit);
 MODULE_DESCRIPTION("touch-screen device driver using i2c interface");
 MODULE_AUTHOR("<mika.kim@samsung.com>");
 MODULE_LICENSE("GPL");
+
+void trustedui_mode_on(void) {}
+EXPORT_SYMBOL(trustedui_mode_on);
+
+void trustedui_mode_off(void) {}
+EXPORT_SYMBOL(trustedui_mode_off);
