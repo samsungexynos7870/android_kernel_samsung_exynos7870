@@ -1324,8 +1324,7 @@ peek_stack:
 			/* tell verifier to check for equivalent states
 			 * after every call and jump
 			 */
-			if (t + 1 < insn_cnt)
-				env->explored_states[t + 1] = STATE_LIST_MARK;
+			env->explored_states[t + 1] = STATE_LIST_MARK;
 		} else {
 			/* conditional jump with two edges */
 			ret = push_insn(t, t + 1, FALLTHROUGH, env);
