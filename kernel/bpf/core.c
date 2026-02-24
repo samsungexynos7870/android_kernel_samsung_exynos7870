@@ -357,8 +357,8 @@ select_insn:
 	ALU64_MOD_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		div64_u64_rem(DST, SRC, &tmp);
-		DST = tmp;
+		tmp = DST;
+		DST = do_div(tmp, SRC);
 		CONT;
 	ALU_MOD_X:
 		if (unlikely(SRC == 0))
@@ -367,8 +367,8 @@ select_insn:
 		DST = do_div(tmp, (u32) SRC);
 		CONT;
 	ALU64_MOD_K:
-		div64_u64_rem(DST, IMM, &tmp);
-		DST = tmp;
+		tmp = DST;
+		DST = do_div(tmp, IMM);
 		CONT;
 	ALU_MOD_K:
 		tmp = (u32) DST;
@@ -377,7 +377,7 @@ select_insn:
 	ALU64_DIV_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		DST = div64_u64(DST, SRC);
+		do_div(DST, SRC);
 		CONT;
 	ALU_DIV_X:
 		if (unlikely(SRC == 0))
@@ -387,7 +387,7 @@ select_insn:
 		DST = (u32) tmp;
 		CONT;
 	ALU64_DIV_K:
-		DST = div64_u64(DST, IMM);
+		do_div(DST, IMM);
 		CONT;
 	ALU_DIV_K:
 		tmp = (u32) DST;
