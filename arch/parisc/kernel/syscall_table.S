@@ -436,7 +436,6 @@
 	ENTRY_SAME(seccomp)
 	ENTRY_SAME(getrandom)
 	ENTRY_SAME(memfd_create)	/* 340 */
-	ENTRY_SAME(bpf)
 
 	/* Nothing yet */
 
