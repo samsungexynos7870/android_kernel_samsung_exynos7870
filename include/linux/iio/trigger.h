@@ -13,6 +13,9 @@
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
 
+struct iio_trigger;
+struct iio_dev;
+
 #ifdef CONFIG_IIO_TRIGGER
 struct iio_subirq {
 	bool enabled;
