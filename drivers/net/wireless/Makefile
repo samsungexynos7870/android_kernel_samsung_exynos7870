@@ -55,31 +55,20 @@ obj-$(CONFIG_WL_TI)	+= ti/
 
 obj-$(CONFIG_MWIFIEX)	+= mwifiex/
 
-# Android Version Check from Platform source
-ifneq ($(ANDROID_VERSION),)
-MAJOR_VERSION := $(shell echo $(ANDROID_VERSION) | rev | cut -c 5- | rev)
-DHDCFLAGS += -DANDROID_PLATFORM_VERSION=$(MAJOR_VERSION)
-$(warning android version 1: $(ANDROID_VERSION))
-$(warning MAJOR_VERSION version 1: $(MAJOR_VERSION))
-else
-ifneq ($(PLATFORM_VERSION),)
-MAJOR_VERSION := $(shell echo $(PLATFORM_VERSION) | cut -d "." -f 1)
-DHDCFLAGS += -DANDROID_PLATFORM_VERSION=$(MAJOR_VERSION)
-$(warning platform version 2 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 2: $(MAJOR_VERSION))
-endif
-endif
+# Hardcode Android version to 11 for LineageOS 18 (Android 11)
+MAJOR_VERSION_LOCAL := 11
+DHDCFLAGS += -DANDROID_PLATFORM_VERSION=$(MAJOR_VERSION_LOCAL)
 
 ifneq ($(CONFIG_BCM4343),)
-ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+ifeq ($(shell expr $(MAJOR_VERSION_LOCAL) \>= 9),1)
 $(warning platform version 3 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 3: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM4343)   += bcmdhd_100_15/
 obj-$(CONFIG_BCM4343) += bcmdhd_100_15/dhd_custom_memprealloc.o
 obj-$(CONFIG_BCM4343) += bcmdhd_100_15/dhd_custom_exynos.o
 else
 $(warning platform version 4 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 4: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/
 obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/dhd_custom_exynos.o
 obj-$(CONFIG_BCM4343)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
@@ -87,15 +76,15 @@ endif
 endif
 
 ifneq ($(CONFIG_BCM43454),)
-ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+ifeq ($(shell expr $(MAJOR_VERSION_LOCAL) \>= 9),1)
 $(warning platform version 3 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 3: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43454)   += bcmdhd_100_10/
 obj-$(CONFIG_BCM43454) += bcmdhd_100_10/dhd_custom_memprealloc.o
 obj-$(CONFIG_BCM43454) += bcmdhd_100_10/dhd_custom_exynos.o
 else
 $(warning platform version 4 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 4: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/
 obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/dhd_custom_exynos.o
 obj-$(CONFIG_BCM43454)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
@@ -103,15 +92,15 @@ endif
 endif
 
 ifneq ($(CONFIG_BCM43455),)
-ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+ifeq ($(shell expr $(MAJOR_VERSION_LOCAL) \>= 9),1)
 $(warning platform version 3 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 3: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43455)   += bcmdhd_100_10/
 obj-$(CONFIG_BCM43455) += bcmdhd_100_10/dhd_custom_memprealloc.o
 obj-$(CONFIG_BCM43455) += bcmdhd_100_10/dhd_custom_exynos.o
 else
 $(warning platform version 4 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 4: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/
 obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/dhd_custom_exynos.o
 obj-$(CONFIG_BCM43455)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
@@ -119,15 +108,15 @@ endif
 endif
 
 ifneq ($(CONFIG_BCM43456),)
-ifeq ($(shell expr $(MAJOR_VERSION) \>= 9),1)
+ifeq ($(shell expr $(MAJOR_VERSION_LOCAL) \>= 9),1)
 $(warning platform version 3 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 3: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 3: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43456)   += bcmdhd_100_15/
 obj-$(CONFIG_BCM43456) += bcmdhd_100_15/dhd_custom_memprealloc.o
 obj-$(CONFIG_BCM43456) += bcmdhd_100_15/dhd_custom_exynos.o
 else
 $(warning platform version 4 : $(PLATFORM_VERSION))
-$(warning MAJOR_VERSION version 4: $(MAJOR_VERSION))
+$(warning MAJOR_VERSION_LOCAL version 4: $(MAJOR_VERSION_LOCAL))
 obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/
 obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/dhd_custom_exynos.o
 obj-$(CONFIG_BCM43456)	+= bcmdhd_1_77/dhd_custom_memprealloc.o
