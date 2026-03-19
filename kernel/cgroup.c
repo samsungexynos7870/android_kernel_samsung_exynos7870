@@ -3379,7 +3379,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 		if (tok[0] == '\0')
 			continue;
 		do_each_subsys_mask(ss, ssid, ~cgrp_dfl_inhibit_ss_mask) {
-			if (!cgroup_ssid_enabled(ssid) ||
+			if (ss->disabled ||
 			    strcmp(tok + 1, ss->name))
 				continue;
 
