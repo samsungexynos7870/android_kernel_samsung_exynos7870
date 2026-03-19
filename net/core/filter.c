@@ -1778,7 +1778,7 @@ BPF_CALL_1(bpf_get_hash_recalc, struct sk_buff *, skb)
 	 * can then use the inline skb->hash via context directly
 	 * instead of calling this helper again.
 	 */
-	return skb_get_rxhash(skb);
+	return skb_get_hash(skb);
 }
 
 static const struct bpf_func_proto bpf_get_hash_recalc_proto = {
