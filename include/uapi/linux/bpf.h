@@ -859,6 +859,15 @@ struct bpf_flow_keys {
 	__be32	flow_label;
 };
 
+struct bpf_sock {
+	__u32 bound_dev_if;
+	__u32 family;
+	__u32 type;
+	__u32 protocol;
+	__u32 mark;
+	__u32 priority;
+};
+
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
  */
@@ -910,10 +919,6 @@ struct bpf_tunnel_key {
 	__u8 tunnel_ttl;
 	__u16 tunnel_ext;
 	__u32 tunnel_label;
-};
-
-struct bpf_sock {
-	__u32 bound_dev_if;
 };
 
 /* User return codes for XDP prog type.
