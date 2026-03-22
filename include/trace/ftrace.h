@@ -770,9 +770,6 @@ perf_trace_##call(void *__data, proto)					\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
-	if (!prog && __builtin_constant_p(!__task) && !__task &&	\
-				hlist_empty(head))			\
-		return;							\
 									\
 	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
 			     sizeof(u64));				\
