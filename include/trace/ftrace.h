@@ -760,7 +760,6 @@ perf_trace_##call(void *__data, proto)					\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	struct pt_regs *__regs;						\
-	struct bpf_prog *prog = event_call->prog;			\
 	u64 __count = 1;					\
 	struct task_struct *__task = NULL;				\
 	struct hlist_head *head;					\
