@@ -188,6 +188,8 @@ static const char * const reg_type_str[] = {
 	[CONST_IMM]		= "imm",
 	[PTR_TO_PACKET]		= "pkt",
 	[PTR_TO_PACKET_END]	= "pkt_end",
+	[PTR_TO_SOCK_COMMON]	= "sock_common",
+	[PTR_TO_SOCK_COMMON_OR_NULL] = "sock_common_or_null",
 };
 
 static void print_verifier_state(struct bpf_verifier_state *state)
@@ -541,6 +543,8 @@ static bool is_spillable_regtype(enum bpf_reg_type type)
 	case CONST_PTR_TO_MAP:
 	case PTR_TO_SOCKET:
 	case PTR_TO_SOCKET_OR_NULL:
+	case PTR_TO_SOCK_COMMON:
+	case PTR_TO_SOCK_COMMON_OR_NULL:
 		return true;
 	default:
 		return false;
@@ -831,6 +835,12 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 	return 0;
 }
 
+static bool type_is_sk_pointer(enum bpf_reg_type type)
+{
+	return type == PTR_TO_SOCKET || type == PTR_TO_SOCKET_OR_NULL ||
+		type == PTR_TO_SOCK_COMMON || type == PTR_TO_SOCK_COMMON_OR_NULL;
+}
+
 /* check whether memory at (regno + off) is accessible for t = (read | write)
  * if t==write, value_regno is a register which value is stored into memory
  * if t==read, value_regno is a register which will receive the value from memory
@@ -919,7 +929,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (!err && t == BPF_READ && value_regno >= 0)
 			mark_reg_unknown_value_and_range(state->regs,
 							 value_regno);
-	} else if (state->regs[regno].type == PTR_TO_SOCKET) {
+	} else if (type_is_sk_pointer(state->regs[regno].type)) {
 		if (t == BPF_WRITE) {
 			return -EACCES;
 		}
@@ -1102,6 +1112,11 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 	} else if (arg_type == ARG_PTR_TO_CTX) {
 		expected_type = PTR_TO_CTX;
 		if (type != expected_type)
+			goto err_type;
+	} else if (arg_type == ARG_PTR_TO_SOCK_COMMON) {
+		expected_type = PTR_TO_SOCK_COMMON;
+		/* Any sk pointer can be ARG_PTR_TO_SOCK_COMMON */
+		if (!type_is_sk_pointer(type))
 			goto err_type;
 	} else if (arg_type == ARG_PTR_TO_SOCKET) {
 		expected_type = PTR_TO_SOCKET;
@@ -2340,6 +2355,8 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 			}
 		} else if (reg->type == PTR_TO_SOCKET_OR_NULL) {
 			reg->type = PTR_TO_SOCKET;
+		} else if (reg->type == PTR_TO_SOCK_COMMON_OR_NULL) {
+			reg->type = PTR_TO_SOCK_COMMON;
 		}
 		/* We don't need id from this point onwards anymore, thus we
 		 * should better reset it, so that state pruning has chances
@@ -3015,6 +3032,8 @@ static bool reg_type_mismatch_ok(enum bpf_reg_type type)
 	case PTR_TO_CTX:
 	case PTR_TO_SOCKET:
 	case PTR_TO_SOCKET_OR_NULL:
+	case PTR_TO_SOCK_COMMON:
+	case PTR_TO_SOCK_COMMON_OR_NULL:
 		return false;
 	default:
 		return true;

@@ -93,6 +93,7 @@ enum bpf_arg_type {
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
 	ARG_PTR_TO_SOCKET,	/* pointer to bpf_sock */
+	ARG_PTR_TO_SOCK_COMMON = ARG_PTR_TO_SOCKET + 2,	/* pointer to sock_common */
 };
 
 /* type of values returned from helper functions */
@@ -164,6 +165,8 @@ enum bpf_reg_type {
 
 	PTR_TO_SOCKET,		 /* reg points to struct bpf_sock */
 	PTR_TO_SOCKET_OR_NULL,	 /* reg points to struct bpf_sock or NULL */
+	PTR_TO_SOCK_COMMON,	 /* reg points to sock_common */
+	PTR_TO_SOCK_COMMON_OR_NULL, /* reg points to sock_common or NULL */
 	PTR_TO_TCP_SOCK,	 /* reg points to struct tcp_sock */
 	PTR_TO_TCP_SOCK_OR_NULL, /* reg points to struct tcp_sock or NULL */
 };

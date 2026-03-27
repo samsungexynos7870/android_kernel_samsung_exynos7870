@@ -1535,12 +1535,38 @@ BPF_CALL_2(bpf_skb_pull_data, struct sk_buff *, skb, u32, len)
 	return bpf_try_make_writable(skb, len ? : skb_headlen(skb));
 }
 
+/**
+ * sk_to_full_sk - Access to a full socket
+ * @sk: pointer to a socket
+ *
+ * SYNACK messages might be attached to request sockets.
+ * Some places want to reach the listener in this case.
+ */
+static inline struct sock *sk_to_full_sk(struct sock *sk)
+{
+	return sk;
+}
+
 static const struct bpf_func_proto bpf_skb_pull_data_proto = {
 	.func		= bpf_skb_pull_data,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_1(bpf_sk_fullsock, struct sock *, sk)
+{
+//	sk = sk_to_full_sk(sk);
+
+	return NULL; //sk_fullsock(sk) ? (unsigned long)sk : (unsigned long)NULL;
+}
+
+static const struct bpf_func_proto bpf_sk_fullsock_proto = {
+	.func		= bpf_sk_fullsock,
+	.gpl_only	= false,
+	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
+	.arg1_type	= ARG_PTR_TO_SOCK_COMMON,
 };
 
 BPF_CALL_5(bpf_l3_csum_replace, struct sk_buff *, skb, u32, offset,
@@ -2697,6 +2723,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
+	case BPF_FUNC_sk_fullsock:
+		return &bpf_sk_fullsock_proto;
 	case BPF_FUNC_tcp_sock:
 		return &bpf_tcp_sock_proto;
 	case BPF_FUNC_sk_storage_get:
@@ -2790,6 +2818,8 @@ static const struct bpf_func_proto *
 cg_skb_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
+	case BPF_FUNC_sk_fullsock:
+		return &bpf_sk_fullsock_proto;
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
 #ifdef CONFIG_INET
@@ -2812,8 +2842,8 @@ static bool __is_valid_access(int off, int size, enum bpf_access_type type)
 	/* The verifier guarantees that size > 0. */
 	if (off % size != 0)
 		return false;
-	if (size != sizeof(__u32))
-		return false;
+//	if (size != sizeof(__u32))
+//		return false;
 
 	return true;
 }
@@ -2827,6 +2857,11 @@ static bool sk_filter_is_valid_access(int off, int size,
 	case offsetof(struct __sk_buff, data):
 	case offsetof(struct __sk_buff, data_end):
 		return false;
+	case offsetof(struct __sk_buff, sk):
+		if (type == BPF_WRITE || size != sizeof(__u64))
+			return false;
+		*reg_type = PTR_TO_SOCK_COMMON_OR_NULL;
+		break;
 	}
 
 	if (type == BPF_WRITE) {
@@ -3146,7 +3181,11 @@ static u32 sk_filter_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 				      dst_reg, dst_reg,
 				      offsetof(struct skb_shared_info, gso_segs));
 		break;
-
+	case offsetof(struct __sk_buff, sk):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
+				      dst_reg, src_reg,
+				      offsetof(struct sk_buff, sk));
+		break;
 	}
 
 	return insn - insn_buf;
@@ -3252,6 +3291,18 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 #define SK_FL_PROTO_MASK   0x0000ff00
 #define SK_FL_TYPE_SHIFT   16
 #define SK_FL_TYPE_MASK    0xffff0000
+
+bool bpf_sock_common_is_valid_access(int off, int size,
+				     enum bpf_access_type type,
+				     struct bpf_insn_access_aux *info)
+{
+	switch (off) {
+	case bpf_ctx_range_till(struct bpf_sock, type, priority):
+		return false;
+	default:
+		return true; //bpf_sock_is_valid_access(off, size, type, info);
+	}
+}
 
 static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
                                   int dst_reg, int src_reg,
@@ -3489,18 +3540,6 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 static inline struct request_sock *inet_reqsk(const struct sock *sk)
 {
 	return (struct request_sock *)sk;
-}
-
-/**
- * sk_to_full_sk - Access to a full socket
- * @sk: pointer to a socket
- *
- * SYNACK messages might be attached to request sockets.
- * Some places want to reach the listener in this case.
- */
-static inline struct sock *sk_to_full_sk(struct sock *sk)
-{
-	return sk;
 }
 
 BPF_CALL_1(bpf_tcp_sock, struct sock *, sk)
