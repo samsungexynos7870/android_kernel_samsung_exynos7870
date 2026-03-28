@@ -3131,7 +3131,7 @@ finish_open:
 	audit_inode(name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
 		error = -EISDIR;
-		if (S_ISDIR(nd->path.dentry))
+		if (d_is_dir(nd->path.dentry))
 			goto out;
 		error = may_create_in_sticky(dir,
 					     d_backing_inode(nd->path.dentry));
