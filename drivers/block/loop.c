@@ -803,17 +803,16 @@ static struct attribute_group loop_attribute_group = {
 	.attrs= loop_attrs,
 };
 
-static void loop_sysfs_init(struct loop_device *lo)
+static int loop_sysfs_init(struct loop_device *lo)
 {
-	lo->sysfs_inited = !sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
-						&loop_attribute_group);
+	return sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
+				  &loop_attribute_group);
 }
 
 static void loop_sysfs_exit(struct loop_device *lo)
 {
-	if (lo->sysfs_inited)
-		sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
-				   &loop_attribute_group);
+	sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
+			   &loop_attribute_group);
 }
 
 static void loop_config_discard(struct loop_device *lo)
