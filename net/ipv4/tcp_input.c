@@ -3495,7 +3495,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	u32 prior_sacked = tp->sacked_out;
 	u32 reord = tp->packets_out;
 	bool fully_acked = true;
-	long ca_seq_rtt_us = -1L;
+	long ca_rtt_us = -1L;
 	long seq_rtt_us = -1L;
 	struct sk_buff *skb;
 	u32 pkts_acked = 0;
@@ -3587,7 +3587,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	skb_mstamp_get(&now);
 	if (likely(first_ackt.v64)) {
 		seq_rtt_us = skb_mstamp_us_delta(&now, &first_ackt);
-		ca_seq_rtt_us = skb_mstamp_us_delta(&now, &last_ackt);
+		ca_rtt_us = skb_mstamp_us_delta(&now, &last_ackt);
 	}
 
 	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt_us, sack_rtt_us,
@@ -3629,7 +3629,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
 
 		if (ca_ops->pkts_acked)
-			ca_ops->pkts_acked(sk, pkts_acked, ca_seq_rtt_us);
+			ca_ops->pkts_acked(sk, pkts_acked, ca_rtt_us);
 
 	} else if (skb && rtt_update && sack_rtt_us >= 0 &&
 		   sack_rtt_us > skb_mstamp_us_delta(&now, &skb->skb_mstamp)) {
