@@ -1491,7 +1491,7 @@ compat_user_backtrace(struct compat_frame_tail __user *tail,
 }
 #endif /* CONFIG_COMPAT */
 
-void perf_callchain_user(struct perf_callchain_entry *entry,
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
@@ -1507,8 +1507,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct frame_tail __user *)regs->regs[29];
 
-		while (entry->nr < PERF_MAX_STACK_DEPTH &&
-		       tail && !((unsigned long)tail & 0xf))
+		while (tail && !((unsigned long)tail & 0xf))
 			tail = user_backtrace(tail, entry);
 	} else {
 #ifdef CONFIG_COMPAT
@@ -1517,8 +1516,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
 
-		while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
-			tail && !((unsigned long)tail & 0x3))
+		while (tail && !((unsigned long)tail & 0x3))
 			tail = compat_user_backtrace(tail, entry);
 #endif
 	}
@@ -1536,7 +1534,7 @@ static int callchain_trace(struct stackframe *frame, void *data)
 	return 0;
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	struct stackframe frame;
