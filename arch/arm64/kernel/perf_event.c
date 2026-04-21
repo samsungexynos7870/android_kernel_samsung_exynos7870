@@ -1504,20 +1504,48 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	if (!compat_user_mode(regs)) {
 		/* AARCH64 mode */
 		struct frame_tail __user *tail;
+		int depth = 0;
 
 		tail = (struct frame_tail __user *)regs->regs[29];
 
-		while (tail && !((unsigned long)tail & 0xf))
-			tail = user_backtrace(tail, entry);
+		while (tail &&
+		       !((unsigned long)tail & 0xf) &&
+		       depth < PERF_MAX_STACK_DEPTH) {
+
+			struct frame_tail __user *next;
+
+			next = user_backtrace(tail, entry);
+
+			/* forward progress check */
+			if (next == tail)
+				break;
+
+			tail = next;
+			depth++;
+		}
 	} else {
 #ifdef CONFIG_COMPAT
 		/* AARCH32 compat mode */
 		struct compat_frame_tail __user *tail;
+		int depth = 0;
 
 		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
 
-		while (tail && !((unsigned long)tail & 0x3))
-			tail = compat_user_backtrace(tail, entry);
+		while (tail &&
+		       !((unsigned long)tail & 0x3) &&
+		       depth < PERF_MAX_STACK_DEPTH) {
+
+			struct compat_frame_tail __user *next;
+
+			next = compat_user_backtrace(tail, entry);
+
+			/* forward progress check */
+			if (next == tail)
+				break;
+
+			tail = next;
+			depth++;
+		}
 #endif
 	}
 }
