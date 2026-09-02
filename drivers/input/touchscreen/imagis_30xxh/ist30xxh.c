@@ -44,6 +44,10 @@
 #include <linux/sec_batt.h>
 #endif
 
+#if defined(CONFIG_FB)
+#include <linux/fb.h>
+#endif
+
 #include "ist30xxh.h"
 #include "ist30xxh_misc.h"
 #include "ist30xxh_update.h"
@@ -1113,6 +1117,51 @@ static int ist30xx_resume(struct device *dev)
 	return 0;
 }
 
+#if defined(CONFIG_FB)
+/*
+ * Drive touchscreen suspend/resume from the framebuffer blank state.
+ *
+ * This driver only hooks input open/close (USE_OPEN_CLOSE), which modern
+ * AOSP/Lineage never triggers when the screen turns off. Without this the
+ * touchscreen never reaches its low power gesture mode, so double tap to
+ * wake (and proper touch power down) never happens.
+ *
+ * Mirrors the sec_ts (herolte) FB notifier approach.
+ */
+static int ist30xx_fb_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	struct ist30xx_data *tsp_data = container_of(nb, struct ist30xx_data,
+			fb_nb);
+	int *blank;
+
+	if ((evdata == NULL) || (evdata->data == NULL))
+		return 0;
+
+	if (event != FB_EVENT_BLANK)
+		return 0;
+
+	blank = evdata->data;
+
+	switch (*blank) {
+	case FB_BLANK_POWERDOWN:
+		if (!tsp_data->suspend)
+			ist30xx_suspend(&tsp_data->client->dev);
+		break;
+	case FB_BLANK_UNBLANK:
+	case FB_BLANK_NORMAL:
+		if (tsp_data->suspend)
+			ist30xx_resume(&tsp_data->client->dev);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+#endif
+
 #ifdef USE_OPEN_CLOSE
 static void ist30xx_ts_close(struct input_dev *dev)
 {
@@ -1876,6 +1925,12 @@ static int ist30xx_probe(struct i2c_client *client,
 
 	device_init_wakeup(&client->dev, true);
 
+#if defined(CONFIG_FB)
+	data->fb_nb.notifier_call = ist30xx_fb_notifier;
+	if (fb_register_client(&data->fb_nb))
+		tsp_err("%s: Failed to register fb notifier\n", __func__);
+#endif
+
 	ist30xx_start(data);
 	data->initialized = true;
 
@@ -1927,6 +1982,10 @@ static int ist30xx_remove(struct i2c_client *client)
 
 #if (defined(CONFIG_HAS_EARLYSUSPEND) && !defined(USE_OPEN_CLOSE))
 	unregister_early_suspend(&data->early_suspend);
+#endif
+
+#if defined(CONFIG_FB)
+	fb_unregister_client(&data->fb_nb);
 #endif
 
 	ist30xx_disable_irq(data);

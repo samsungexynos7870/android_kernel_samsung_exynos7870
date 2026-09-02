@@ -688,6 +688,9 @@ struct ist30xx_data {
 #ifdef CONFIG_VBUS_NOTIFIER
 	struct notifier_block vbus_nb;
 #endif
+#if defined(CONFIG_FB)
+	struct notifier_block fb_nb;
+#endif
 #ifdef PAT_CONTROL
 	u8	cal_count;
 	u16	tune_fix_ver;
