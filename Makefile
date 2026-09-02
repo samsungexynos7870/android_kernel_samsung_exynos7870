@@ -305,6 +305,14 @@ HOSTCXXFLAGS = -O2
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
 		-Wno-missing-field-initializers -fno-delete-null-pointer-checks
+CLANG_HOST_BINDIR := $(dir $(shell command -v $(firstword $(HOSTCC)) 2>/dev/null))
+HOSTCLANG_LD_FLAGS := -fuse-ld=lld
+ifneq ($(strip $(CLANG_HOST_BINDIR)),)
+HOSTCLANG_LD_FLAGS += -B$(CLANG_HOST_BINDIR)
+endif
+override HOSTCFLAGS   += $(HOSTCLANG_LD_FLAGS)
+override HOSTCXXFLAGS += $(HOSTCLANG_LD_FLAGS)
+override HOSTLDFLAGS  += $(HOSTCLANG_LD_FLAGS)
 endif
 
 # Decide whether to build built-in, modular, or both.
