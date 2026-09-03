@@ -79,6 +79,16 @@ int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value)
     data->g_reg.b.evt_x = 0;
     data->g_reg.b.evt_y = 0;
 
+    /*
+     * Arm the LPM event mailbox before handing over the gesture map.
+     * Without this write the firmware leaves IST30XX_HIB_INTR_MSG at
+     * IST30XX_INITIAL_VALUE and never posts a gesture event, even though
+     * the gesture map itself is accepted and retained.
+     */
+    ret = ist30xx_write_cmd(data, IST30XX_HIB_INTR_MSG, IST30XX_LPM_VALUE);
+    if (ret)
+        tsp_err("fail to write LPM magic value.\n");
+
     ret = ist30xx_burst_write(data->client, IST30XX_HIB_GESTURE_REG,
             data->g_reg.full, sizeof(data->g_reg.full) / IST30XX_DATA_LEN);
     if (ret) {
@@ -86,8 +96,14 @@ int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value)
         return ret;
     }
 
+    /*
+     * Which gestures are wanted is carried by the ctrl/setting bits of the
+     * gesture map, not by this parameter: send a plain enable. The bitmask
+     * would make an AOD-only configuration send 2, which collides with
+     * IST30XX_START_SCAN.
+     */
     ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
-            (eHCOM_GESTURE_EN << 16) | (value & 0xFFFF));
+            (eHCOM_GESTURE_EN << 16) | (IST30XX_ENABLE & 0xFFFF));
     if (ret)
         tsp_err("fail to write gesture mode.\n");
 	else

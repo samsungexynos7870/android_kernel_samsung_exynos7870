@@ -150,9 +150,7 @@ struct ts_test_result {
 #define IST30XX_EXCEPT_MASK         (0xFFFFFF00)
 #define IST30XX_EXCEPT_VALUE        (0xE11CE900)
 #define IST30XX_MAX_EXCEPT_SIZE     (2)
-#ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 #define IST30XX_LPM_VALUE           (0x193030DE)
-#endif
 
 /* Calibration */
 #define CALIB_MSG_MASK              (0xF0000FFF)
@@ -743,9 +741,7 @@ int ist30xx_burst_read(struct i2c_client *client, u32 addr,
 int ist30xx_burst_write(struct i2c_client *client, u32 addr,
 	u32 *buf32, u16 len);
 
-#ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value);
-#endif
 int ist30xx_cmd_start_scan(struct ist30xx_data *data);
 int ist30xx_cmd_calibrate(struct ist30xx_data *data);
 int ist30xx_cmd_miscalibrate(struct ist30xx_data *data);

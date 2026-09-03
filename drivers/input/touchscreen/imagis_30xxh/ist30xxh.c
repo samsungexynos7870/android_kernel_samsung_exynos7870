@@ -1029,16 +1029,34 @@ static int ist30xx_suspend(struct device *dev)
 	clear_input_data(data);
 #else
 	ist30xx_disable_irq(data);
-	ist30xx_internal_suspend(data);
-	clear_input_data(data);
 	if (data->spay || data->aod) {
+		/*
+		 * Bring the IC up in a known scanning state first and arm the
+		 * gestures last. ist30xx_start() ends in SET_MODE_SPECIAL plus
+		 * FW_START, i.e. a normal mode start, which undoes the gesture
+		 * arm when it is issued after it. The active mode noise bits
+		 * must not leak into the low power configuration either.
+		 */
+		ist30xx_reset(data, false);
+		data->suspend = true;
+		clear_input_data(data);
+
+		data->noise_mode &= ~((1 << NOISE_MODE_POWER) |
+				(1 << NOISE_MODE_TA));
 		ist30xx_start(data);
+
+		ist30xx_cmd_gesture(data,
+				(data->spay ? IST30XX_SPAY : 0) |
+				(data->aod ? IST30XX_AOD : 0));
+
 		ist30xx_enable_irq(data);
 		data->status.noise_mode = false;
 
 		if (device_may_wakeup(&data->client->dev))
 			enable_irq_wake(data->client->irq);
 	} else {
+		ist30xx_internal_suspend(data);
+		clear_input_data(data);
 		if (data->pinctrl) {
 			int ret = ist30xx_pinctrl_configure(data, false);
 			if (ret)
