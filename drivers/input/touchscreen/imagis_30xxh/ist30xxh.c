@@ -977,7 +977,6 @@ static int ist30xx_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ist30xx_data *data = i2c_get_clientdata(client);
-	u16 gestures = 0;
 
 	if (data->debugging_mode)
 		return 0;
@@ -1010,11 +1009,7 @@ static int ist30xx_suspend(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	data->suspend = true;
 	if (data->spay || data->aod) {
-		if (data->spay)
-			gestures |= IST30XX_SPAY;
-		if (data->aod)
-			gestures |= IST30XX_AOD;
-		ist30xx_cmd_gesture(data, gestures);
+		ist30xx_cmd_gesture(data, IST30XX_ENABLE);
 		data->status.noise_mode = false;
 
 		if (device_may_wakeup(&data->client->dev))
@@ -1388,7 +1383,6 @@ static void reset_work_func(struct work_struct *work)
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct ist30xx_data *data = container_of(delayed_work, struct ist30xx_data,
 	work_reset_check);
-	u16 gestures = 0;
 
 #ifdef CONFIG_TRUSTONIC_TRUSTED_UI
 	if (TRUSTEDUI_MODE_INPUT_SECURED & trustedui_get_current_mode()) {
@@ -1412,11 +1406,7 @@ static void reset_work_func(struct work_struct *work)
 			clear_input_data(data);
 			ist30xx_enable_irq(data);
 			if ((data->spay || data->aod) && data->suspend) {
-				if (data->spay)
-					gestures |= IST30XX_SPAY;
-				if (data->aod)
-					gestures |= IST30XX_AOD;
-				ist30xx_cmd_gesture(data, gestures);
+				ist30xx_cmd_gesture(data, IST30XX_ENABLE);
 				data->status.noise_mode = false;
 			}
 			ist30xx_start(data);
