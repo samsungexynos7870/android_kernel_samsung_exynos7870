@@ -1009,7 +1009,9 @@ static int ist30xx_suspend(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	data->suspend = true;
 	if (data->spay || data->aod) {
-		ist30xx_cmd_gesture(data, IST30XX_ENABLE);
+		ist30xx_cmd_gesture(data,
+				(data->spay ? IST30XX_SPAY : 0) |
+				(data->aod ? IST30XX_AOD : 0));
 		data->status.noise_mode = false;
 
 		if (device_may_wakeup(&data->client->dev))
@@ -1406,7 +1408,9 @@ static void reset_work_func(struct work_struct *work)
 			clear_input_data(data);
 			ist30xx_enable_irq(data);
 			if ((data->spay || data->aod) && data->suspend) {
-				ist30xx_cmd_gesture(data, IST30XX_ENABLE);
+				ist30xx_cmd_gesture(data,
+						(data->spay ? IST30XX_SPAY : 0) |
+						(data->aod ? IST30XX_AOD : 0));
 				data->status.noise_mode = false;
 			}
 			ist30xx_start(data);
