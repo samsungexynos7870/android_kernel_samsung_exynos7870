@@ -1034,15 +1034,12 @@ static int ist30xx_suspend(struct device *dev)
 		 * Bring the IC up in a known scanning state first and arm the
 		 * gestures last. ist30xx_start() ends in SET_MODE_SPECIAL plus
 		 * FW_START, i.e. a normal mode start, which undoes the gesture
-		 * arm when it is issued after it. The active mode noise bits
-		 * must not leak into the low power configuration either.
+		 * arm when it is issued after it.
 		 */
 		ist30xx_reset(data, false);
 		data->suspend = true;
 		clear_input_data(data);
 
-		data->noise_mode &= ~((1 << NOISE_MODE_POWER) |
-				(1 << NOISE_MODE_TA));
 		ist30xx_start(data);
 
 		ist30xx_cmd_gesture(data,
