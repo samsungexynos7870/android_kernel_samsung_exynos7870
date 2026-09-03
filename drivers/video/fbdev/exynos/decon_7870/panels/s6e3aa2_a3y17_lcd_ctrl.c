@@ -20,7 +20,7 @@
 
 #include "s6e3aa2_a3y17_param.h"
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 #include "mdnie.h"
 #include "mdnie_lite_table_a3y17.h"
 #endif
@@ -1603,7 +1603,7 @@ static ssize_t lux_store(struct device *dev,
 		lcd->lux = value;
 		mutex_unlock(&lcd->lock);
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 		attr_store_for_each(lcd->mdnie_class, attr->attr.name, buf, size);
 #endif
 	}
@@ -1919,7 +1919,7 @@ static void lcd_init_sysfs(struct lcd_info *lcd)
 }
 
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 static int mdnie_send_seq(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
 {
 	int ret = 0;
@@ -1996,7 +1996,7 @@ static int dsim_panel_probe(struct dsim_device *dsim)
 
 	lcd_init_sysfs(lcd);
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 	mdnie_register(&lcd->ld->dev, lcd, (mdnie_w)mdnie_send_seq, (mdnie_r)mdnie_read, lcd->coordinate, &tune_info);
 	lcd->mdnie_class = get_mdnie_class();
 #endif
