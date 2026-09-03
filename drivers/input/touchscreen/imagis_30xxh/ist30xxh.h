@@ -674,6 +674,8 @@ struct ist30xx_data {
 #endif
 #endif
 	struct delayed_work work_debug_algorithm;
+	struct delayed_work work_lpm_poll;
+	int lpm_poll_cnt;
 	u32 algr_addr;
 	u32 algr_size;
 #ifdef USE_TSP_TA_CALLBACKS

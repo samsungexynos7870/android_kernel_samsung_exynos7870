@@ -771,7 +771,8 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 	if (unlikely(ret))
 		goto irq_err;
 
-	tsp_verb("intr msg: 0x%08x\n", *msg);
+	if (data->suspend && (data->spay || data->aod))
+		tsp_info("LPM intr msg: 0x%08x\n", *msg);
 
 	/* TSP End Initial */
 	if (unlikely(*msg == IST30XX_INITIAL_VALUE)) {
@@ -1045,6 +1046,11 @@ static int ist30xx_suspend(struct device *dev)
 		}
 	}
 #endif
+	if ((data->spay || data->aod) && data->status.power) {
+		data->lpm_poll_cnt = 0;
+		schedule_delayed_work(&data->work_lpm_poll, HZ / 2);
+	}
+
 	mutex_unlock(&data->lock);
 
 	return 0;
@@ -1054,6 +1060,8 @@ static int ist30xx_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ist30xx_data *data = i2c_get_clientdata(client);
+
+	cancel_delayed_work_sync(&data->work_lpm_poll);
 
 	data->noise_mode |= (1 << NOISE_MODE_POWER);
 
@@ -1553,6 +1561,63 @@ static void debug_work_func(struct work_struct *work)
 	kfree(buf32);
 }
 
+static void ist30xx_lpm_poll_work(struct work_struct *work)
+{
+	struct ist30xx_data *data = container_of(to_delayed_work(work),
+			struct ist30xx_data, work_lpm_poll);
+	u32 val[7];
+	int ret;
+
+	if (!data->suspend || !(data->spay || data->aod) ||
+			!data->status.power)
+		return;
+
+	data->lpm_poll_cnt++;
+
+	ret = ist30xx_read_reg(data->client, IST30XX_HIB_RW_STATUS, &val[0]);
+	if (ret) {
+		tsp_err("LPM poll %d: rw status read fail (%d)\n",
+				data->lpm_poll_cnt, ret);
+		goto out;
+	}
+
+	ret = ist30xx_read_reg(data->client, IST30XX_HIB_INTR_MSG, &val[1]);
+	if (ret)
+		tsp_err("LPM poll %d: intr msg read fail (%d)\n",
+				data->lpm_poll_cnt, ret);
+
+	ret = ist30xx_burst_read(data->client, IST30XX_HIB_GESTURE_REG,
+			&val[2], 4, true);
+	if (ret)
+		tsp_err("LPM poll %d: gesture map read fail (%d)\n",
+				data->lpm_poll_cnt, ret);
+
+	ret = ist30xx_read_reg(data->client, IST30XX_HIB_TOUCH_STATUS,
+			&val[6]);
+	if (ret)
+		tsp_err("LPM poll %d: touch status read fail (%d)\n",
+				data->lpm_poll_cnt, ret);
+
+	if (!ret)
+		tsp_info("LPM poll %d: rw 0x%08x intr 0x%08x touch 0x%08x\n",
+				data->lpm_poll_cnt, val[0], val[1], val[6]);
+
+	if (!ret)
+		tsp_info("LPM poll %d: gesture map %08x %08x %08x %08x\n",
+				data->lpm_poll_cnt, val[2], val[3], val[4], val[5]);
+
+	if (data->lpm_poll_cnt == 1) {
+		u32 ver = 0, mode = 0;
+
+		if (!ist30xx_read_cmd(data, eHCOM_GET_VER_FW, &ver) &&
+				!ist30xx_read_cmd(data, eHCOM_GET_FW_MODE, &mode))
+			tsp_info("LPM fw ver 0x%08x mode 0x%08x\n", ver, mode);
+	}
+
+out:
+	schedule_delayed_work(&data->work_lpm_poll, HZ);
+}
+
 void timer_handler(unsigned long timer_data)
 {
 	struct ist30xx_data *data = (struct ist30xx_data *)timer_data;
@@ -1912,6 +1977,7 @@ static int ist30xx_probe(struct i2c_client *client,
 #endif
 #endif
 	INIT_DELAYED_WORK(&data->work_debug_algorithm, debug_work_func);
+	INIT_DELAYED_WORK(&data->work_lpm_poll, ist30xx_lpm_poll_work);
 
 	init_timer(&data->event_timer);
 	data->event_timer.data = (unsigned long)data;
@@ -1993,6 +2059,8 @@ err_alloc_dev:
 static int ist30xx_remove(struct i2c_client *client)
 {
 	struct ist30xx_data *data = i2c_get_clientdata(client);
+
+	cancel_delayed_work_sync(&data->work_lpm_poll);
 
 #if (defined(CONFIG_HAS_EARLYSUSPEND) && !defined(USE_OPEN_CLOSE))
 	unregister_early_suspend(&data->early_suspend);
