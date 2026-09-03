@@ -104,8 +104,20 @@ int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value)
      */
     ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
             (eHCOM_GESTURE_EN << 16) | (IST30XX_ENABLE & 0xFFFF));
-    if (ret)
+    if (ret) {
         tsp_err("fail to write gesture mode.\n");
+        return ret;
+    }
+
+    /*
+     * Tell the firmware to re-read the gesture regmap. set_aod_rect()
+     * sends this after every map update, the arm path never did, and the
+     * arm is the one map update that has to take effect immediately.
+     */
+    ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
+            (eHCOM_NOTIRY_G_REGMAP << 16) | (IST30XX_ENABLE & 0xFFFF));
+    if (ret)
+        tsp_err("fail to write gesture regmap notify.\n");
 	else
         tsp_info("%s, spay : %d, aod : %d\n", __func__,
                 (value & IST30XX_SPAY) ? 1 : 0, (value & IST30XX_AOD) ? 1 : 0);
