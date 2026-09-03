@@ -589,39 +589,27 @@ static void set_aod_rect(void *dev_data)
     tsp_info("%s(), w:%d, h:%d, x:%d, y:%d\n", __func__, sec->cmd_param[0],
             sec->cmd_param[1], sec->cmd_param[2], sec->cmd_param[3]);
 
-    if (!data->suspend) {
-        tsp_err("%s(), error currently is not a suspend status\n", __func__);
+    ist30xx_disable_irq(data);
+    ist30xx_intr_wait(data, 30);
+    mutex_lock(&data->aod_lock);
+    data->g_reg.b.w = sec->cmd_param[0];
+    data->g_reg.b.h = sec->cmd_param[1];
+    data->g_reg.b.x = sec->cmd_param[2];
+    data->g_reg.b.y = sec->cmd_param[3];
+    ret = ist30xx_burst_write(data->client, IST30XX_HIB_GESTURE_REG,
+            data->g_reg.full, sizeof(data->g_reg.full) / IST30XX_DATA_LEN);
+    ist30xx_enable_irq(data);
+    data->status.noise_mode = false;
+    mutex_unlock(&data->aod_lock);
+    if (ret) {
+        tsp_err("%s(), fail to write gesture regmap\n", __func__);
         goto err;
     }
-
-    if (!data->aod) {
-        tsp_err("%s(), error currently unset aod\n", __func__);
+    ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
+        (eHCOM_NOTIRY_G_REGMAP << 16) | IST30XX_ENABLE);
+    if (ret) {
+        tsp_err("%s(), fail to write notify packet.\n", __func__);
         goto err;
-    }
-
-    if (data->aod && data->suspend) {
-        ist30xx_disable_irq(data);
-        ist30xx_intr_wait(data, 30);
-        mutex_lock(&data->aod_lock);
-        data->g_reg.b.w = sec->cmd_param[0];
-        data->g_reg.b.h = sec->cmd_param[1];
-        data->g_reg.b.x = sec->cmd_param[2];
-        data->g_reg.b.y = sec->cmd_param[3];
-        ret = ist30xx_burst_write(data->client, IST30XX_HIB_GESTURE_REG,
-                data->g_reg.full, sizeof(data->g_reg.full) / IST30XX_DATA_LEN);
-        ist30xx_enable_irq(data);
-        data->status.noise_mode = false;
-        mutex_unlock(&data->aod_lock);
-        if (ret) {
-            tsp_err("%s(), fail to write gesture regmap\n", __func__);
-            goto err;
-        }
-        ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
-            (eHCOM_NOTIRY_G_REGMAP << 16) | IST30XX_ENABLE);
-        if (ret) {
-            tsp_err("%s(), fail to write notify packet.\n", __func__);
-            goto err;
-        }
     }
 
     sec->cmd_state = CMD_STATE_OK;
