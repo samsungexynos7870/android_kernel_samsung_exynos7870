@@ -1077,9 +1077,12 @@ static int ist30xx_resume(struct device *dev)
 	data->suspend = false;
 	if (data->status.power && (data->spay || data->aod)) {
 		ist30xx_cmd_gesture(data, IST30XX_DISABLE);
-		mod_timer(&data->event_timer,
-			get_jiffies_64() + EVENT_TIMER_INTERVAL * 2);
-		data->status.noise_mode = true;
+
+		ist30xx_disable_irq(data);
+		ist30xx_reset(data, false);
+		clear_input_data(data);
+		ist30xx_enable_irq(data);
+		ist30xx_start(data);
 
 		if (device_may_wakeup(&data->client->dev))
 			disable_irq_wake(data->client->irq);
