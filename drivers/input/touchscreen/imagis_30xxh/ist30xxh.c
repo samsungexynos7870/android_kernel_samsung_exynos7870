@@ -1624,14 +1624,6 @@ static void ist30xx_lpm_poll_work(struct work_struct *work)
 		tsp_info("LPM poll %d: gesture map %08x %08x %08x %08x\n",
 				data->lpm_poll_cnt, val[2], val[3], val[4], val[5]);
 
-	if (data->lpm_poll_cnt == 1) {
-		u32 ver = 0, mode = 0;
-
-		if (!ist30xx_read_cmd(data, eHCOM_GET_VER_FW, &ver) &&
-				!ist30xx_read_cmd(data, eHCOM_GET_FW_MODE, &mode))
-			tsp_info("LPM fw ver 0x%08x mode 0x%08x\n", ver, mode);
-	}
-
 out:
 	schedule_delayed_work(&data->work_lpm_poll, HZ);
 }
