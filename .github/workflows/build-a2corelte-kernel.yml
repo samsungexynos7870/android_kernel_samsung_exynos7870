@@ -8,7 +8,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y git build-essential bc bison flex libssl-dev \
+            libncurses-dev python2 python-is-python2 u-boot-tools wget ca-certificates
+          python2 --version
+
       - name: Checkout kernel source
         uses: actions/checkout@v4
 
@@ -17,12 +26,6 @@ jobs:
           git clone --depth=1 \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
             toolchain-4.9
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev \
-            libncurses-dev python2 python-is-python3 u-boot-tools
 
       - name: Configure defconfig
         env:
