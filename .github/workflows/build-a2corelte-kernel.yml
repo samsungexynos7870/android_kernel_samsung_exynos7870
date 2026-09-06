@@ -26,6 +26,12 @@ jobs:
           git clone --depth=1 \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
             toolchain-4.9
+          chmod +x toolchain-4.9/bin/* || true
+          echo "=== toolchain-4.9/bin contents ==="
+          ls -la toolchain-4.9/bin/ || echo "bin/ does not exist"
+          echo "=== full toolchain-4.9 top level ==="
+          ls -la toolchain-4.9/
+          find toolchain-4.9 -iname "*gcc*" -maxdepth 3
 
       - name: Configure defconfig
         env:
