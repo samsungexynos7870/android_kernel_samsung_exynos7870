@@ -1030,6 +1030,23 @@ static int ist30xx_suspend(struct device *dev)
 #else
 	ist30xx_disable_irq(data);
 	if (data->spay || data->aod) {
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+		/*
+		 * Do not hand the controller over to its low power gesture
+		 * mode: leave it powered and scanning normally so that the
+		 * finger events keep arriving and dt2w_check() can time them.
+		 */
+		data->suspend = true;
+		clear_input_data(data);
+		data->dt2w_last_ms = 0;
+		data->dt2w_pressed = false;
+
+		ist30xx_start(data);
+		ist30xx_enable_irq(data);
+
+		if (device_may_wakeup(&data->client->dev))
+			enable_irq_wake(data->client->irq);
+#else
 		/*
 		 * Bring the IC up in a known scanning state first and arm the
 		 * gestures last. ist30xx_start() ends in SET_MODE_SPECIAL plus
@@ -1051,6 +1068,7 @@ static int ist30xx_suspend(struct device *dev)
 
 		if (device_may_wakeup(&data->client->dev))
 			enable_irq_wake(data->client->irq);
+#endif
 	} else {
 		ist30xx_internal_suspend(data);
 		clear_input_data(data);

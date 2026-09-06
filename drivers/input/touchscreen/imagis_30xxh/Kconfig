@@ -22,3 +22,21 @@ config TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	help
 	  Say Y here if you use
 	  LPM No Reset Sequence.
+
+config TOUCHSCREEN_IMAGIS_DT2W_AP
+	bool "Imagis double tap to wake detected on the AP"
+	depends on TOUCHSCREEN_IST3038H
+	default n
+	help
+	  Detect double tap to wake in the driver instead of relying on
+	  the touch controller firmware's low power gesture mode.
+
+	  The IST3038H firmware on some panels accepts the whole LPM
+	  gesture arm sequence and then never enables touch detection, so
+	  no wake event is ever produced. Say Y here to keep the
+	  controller in its normal scanning mode while the screen is off
+	  and time the finger events on the AP instead.
+
+	  This costs standby power, because the controller keeps scanning
+	  at its active rate with the display off. Say N if you do not
+	  need double tap to wake.

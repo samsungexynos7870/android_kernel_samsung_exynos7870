@@ -707,6 +707,15 @@ struct ist30xx_data {
 	unsigned int scrub_id;
 	unsigned int scrub_x;
 	unsigned int scrub_y;
+
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+	/* AP side double tap to wake detection, see dt2w_check() */
+	bool dt2w_enabled;
+	bool dt2w_pressed;
+	u32 dt2w_last_ms;
+	u32 dt2w_last_x;
+	u32 dt2w_last_y;
+#endif
 };
 
 typedef enum {
