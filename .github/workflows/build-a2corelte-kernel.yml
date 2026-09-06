@@ -1,0 +1,52 @@
+name: Build a2corelte kernel
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+
+      - name: Fetch prebuilt AArch64 4.9 toolchain
+        run: |
+          git clone --depth=1 \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            toolchain-4.9
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev \
+            libncurses-dev python2 python-is-python3 u-boot-tools
+
+      - name: Configure defconfig
+        env:
+          ARCH: arm64
+          ANDROID_MAJOR_VERSION: o
+        run: |
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
+          make -j$(nproc) exynos7870-a2corelte_defconfig
+
+      - name: Build kernel
+        env:
+          ARCH: arm64
+          ANDROID_MAJOR_VERSION: o
+        run: |
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
+          make -j$(nproc) 2>&1 | tee build.log
+
+      - name: Upload kernel Image + DTB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a2corelte-kernel-${{ github.run_number }}
+          path: |
+            arch/arm64/boot/Image
+            arch/arm64/boot/dts/exynos7870-a2corelte_swa_ins_00.dtb
+            build.log
+          if-no-files-found: warn
