@@ -2857,6 +2857,46 @@ static ssize_t touchkey_threshold_show(struct device *dev,
     return sprintf(buf, "%d", threshold);
 }
 
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+static void dt2w_enable(void *dev_data)
+{
+    char buf[16] = { 0 };
+
+    struct ist30xx_data *data = (struct ist30xx_data *)dev_data;
+    struct sec_factory *sec = (struct sec_factory *)&data->sec;
+
+    set_default_result(sec);
+
+    switch (sec->cmd_param[0]) {
+    case 0:
+    case 1:
+        data->dt2w_enabled = sec->cmd_param[0] ? true : false;
+        tsp_info("%s(), %s\n", __func__,
+                data->dt2w_enabled ? "enabled" : "disabled");
+        sec->cmd_state = CMD_STATE_OK;
+        break;
+    default:
+        tsp_info("%s(), Invalid Argument\n", __func__);
+        break;
+    }
+
+    if (sec->cmd_state == CMD_STATE_OK)
+        snprintf(buf, sizeof(buf), "%s", "OK");
+    else
+        snprintf(buf, sizeof(buf), "%s", "NG");
+
+    set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
+    dev_info(&data->client->dev, "%s: %s(%ld)\n", __func__,
+            buf, strnlen(buf, sizeof(buf)));
+
+    mutex_lock(&sec->cmd_lock);
+    sec->cmd_is_running = false;
+    mutex_unlock(&sec->cmd_lock);
+
+    sec->cmd_state = CMD_STATE_WAITING;
+}
+#endif /* CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP */
+
 struct tsp_cmd tsp_cmds[] = {
 	{ TSP_CMD("get_chip_vendor", get_chip_vendor), },
 	{ TSP_CMD("get_chip_name", get_chip_name), },
@@ -2929,6 +2969,9 @@ struct tsp_cmd tsp_cmds[] = {
 #endif
 	{ TSP_CMD("check_ic_mode", check_ic_mode),},
 	{ TSP_CMD("get_wet_mode", get_wet_mode),},
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+	{ TSP_CMD("dt2w_enable", dt2w_enable), },
+#endif
 	{ TSP_CMD("not_support_cmd", not_support_cmd), },
 };
 

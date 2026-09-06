@@ -573,6 +573,78 @@ static int check_valid_coord(u32 *msg, int cnt)
 	return 0;
 }
 
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+/* Window and slop for the double tap, deliberately generous. */
+#define DT2W_MIN_INTERVAL_MS	(60)
+#define DT2W_MAX_INTERVAL_MS	(500)
+#define DT2W_MAX_SLOP		(200)
+
+/*
+ * Detect a double tap from the normal finger reports.
+ *
+ * Called once per interrupt with the finger bitmap of that report. Only
+ * the all-fingers-released edge is considered a tap, so a press that is
+ * held, or a second finger going down, cannot produce one. Two taps
+ * close enough in time and space report KEY_WAKEUP.
+ */
+static void dt2w_check(struct ist30xx_data *data, u32 status,
+		finger_info *fingers)
+{
+	bool pressed = status ? true : false;
+	u32 now, delta, dx, dy;
+
+	if (!data->suspend || !data->dt2w_enabled)
+		return;
+
+	if (pressed) {
+		/* Remember where the finger went down. */
+		if (!data->dt2w_pressed) {
+			data->dt2w_last_x = fingers[0].bit_field.x;
+			data->dt2w_last_y = fingers[0].bit_field.y;
+		}
+		data->dt2w_pressed = true;
+		return;
+	}
+
+	if (!data->dt2w_pressed)
+		return;
+	data->dt2w_pressed = false;
+
+	now = (u32)get_milli_second(data);
+
+	if (data->dt2w_last_ms) {
+		delta = now - data->dt2w_last_ms;
+		dx = abs((int)data->dt2w_last_x - (int)fingers[0].bit_field.x);
+		dy = abs((int)data->dt2w_last_y - (int)fingers[0].bit_field.y);
+
+		if (delta >= DT2W_MIN_INTERVAL_MS &&
+				delta <= DT2W_MAX_INTERVAL_MS &&
+				dx <= DT2W_MAX_SLOP && dy <= DT2W_MAX_SLOP) {
+			tsp_noti("DT2W: wake (%ums, %u/%u)\n", delta, dx, dy);
+
+			data->scrub_id = SPONGE_EVENT_TYPE_AOD_DOUBLETAB;
+			data->scrub_x = fingers[0].bit_field.x;
+			data->scrub_y = fingers[0].bit_field.y;
+
+			input_report_key(data->input_dev, KEY_WAKEUP, 1);
+			input_sync(data->input_dev);
+			input_report_key(data->input_dev, KEY_WAKEUP, 0);
+			input_sync(data->input_dev);
+
+			data->dt2w_last_ms = 0;
+			return;
+		}
+
+		tsp_debug("DT2W: reject (%ums, %u/%u)\n", delta, dx, dy);
+	}
+
+	/* This tap becomes the first half of the next candidate pair. */
+	data->dt2w_last_ms = now;
+	data->dt2w_last_x = fingers[0].bit_field.x;
+	data->dt2w_last_y = fingers[0].bit_field.y;
+}
+#endif /* CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP */
+
 static void report_input_data(struct ist30xx_data *data, int finger_counts,
         int key_counts)
 {
@@ -624,6 +696,10 @@ static void report_input_data(struct ist30xx_data *data, int finger_counts,
 		}
 		idx++;
 	}
+
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+	dt2w_check(data, status, fingers);
+#endif
 
 #ifdef IST30XX_USE_KEY
 	status = PARSE_KEY_STATUS(data->t_status);
@@ -1899,6 +1975,11 @@ static int ist30xx_probe(struct i2c_client *client,
 	data->idle_rate = -1;
 	data->timer_period_ms = 500;
 	data->suspend = false;
+#ifdef CONFIG_TOUCHSCREEN_IMAGIS_DT2W_AP
+	data->dt2w_enabled = true;
+	data->dt2w_pressed = false;
+	data->dt2w_last_ms = 0;
+#endif
 	data->spay = false;
 	data->aod = false;
 	data->rec_mode = 0;
