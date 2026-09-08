@@ -48,9 +48,10 @@ jobs:
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
+        shell: bash
         run: |
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
           set -o pipefail
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
           make -j$(nproc) Image 2>&1 | tee build.log
 
       - name: Upload kernel Image + DTB
