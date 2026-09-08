@@ -38,7 +38,6 @@ jobs:
           ANDROID_MAJOR_VERSION: p
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
-          set -o pipefail
           make exynos7870-a2corelte_defconfig
           echo "=== SELinux configuration ==="
           grep -E 'CONFIG_SECURITY_SELINUX(_DISABLE|_BOOTPARAM|_DEVELOP)?=' .config
