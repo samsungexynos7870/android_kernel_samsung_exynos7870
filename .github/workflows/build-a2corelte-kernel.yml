@@ -61,6 +61,5 @@ jobs:
           name: a2corelte-kernel-${{ github.run_number }}
           path: |
             arch/arm64/boot/Image
-            arch/arm64/boot/dts/exynos7870-a2corelte_swa_ins_00.dtb
             build.log
           if-no-files-found: warn
