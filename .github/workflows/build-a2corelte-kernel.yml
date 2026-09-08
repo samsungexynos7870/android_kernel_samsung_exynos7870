@@ -49,7 +49,7 @@ jobs:
           ANDROID_MAJOR_VERSION: p
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
-          make -j$(nproc) 2>&1 | tee build.log
+          make -j$(nproc) Image 2>&1 | tee build.log
 
       - name: Upload kernel Image + DTB
         if: always()
