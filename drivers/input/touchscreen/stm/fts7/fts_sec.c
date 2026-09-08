@@ -256,6 +256,7 @@ struct ft_cmd ft_commands[] = {
 	{FT_CMD("spay_enable", spay_enable),},
 	{FT_CMD("edge_swipe_enable", edge_swipe_enable),},
 	{FT_CMD("aod_enable", aod_enable),},
+	{FT_CMD("aot_enable", aod_enable),},
 #endif
 #ifdef SMARTCOVER_COVER
 	{FT_CMD("smartcover_cmd", smartcover_cmd),},

@@ -2888,6 +2888,7 @@ struct tsp_cmd tsp_cmds[] = {
 	{ TSP_CMD("hover_enable", not_support_cmd), },
 	{ TSP_CMD("spay_enable", spay_enable), },
 	{ TSP_CMD("aod_enable", aod_enable), },
+	{ TSP_CMD("aot_enable", aod_enable), },
 	{ TSP_CMD("set_aod_rect", set_aod_rect), },
 	{ TSP_CMD("get_aod_rect", get_aod_rect), },
 	{ TSP_CMD("get_cp_array", get_cp_array), },

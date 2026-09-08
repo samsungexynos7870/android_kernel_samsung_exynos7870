@@ -20,7 +20,7 @@
 
 #include "s6e3aa2_a3y17_param.h"
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 #include "mdnie.h"
 #include "mdnie_lite_table_a3y17.h"
 #endif
@@ -1280,9 +1280,14 @@ static int s6e3aa2_enteralpm(struct lcd_info *lcd)
 
 	mutex_lock(&lcd->lock);
 
+	/* Allow ALPM entry during DOZE / suspend state and default to ALPM_ON_LOW if unset */
 	if (lcd->state == PANEL_STATE_SUSPENED) {
-		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
-		goto exit;
+		dev_info(&lcd->ld->dev, "%s: entering ALPM from suspended state\n", __func__);
+		lcd->state = PANEL_STATE_RESUMED;
+	}
+	if (lcd->alpm == ALPM_OFF) {
+		dev_info(&lcd->ld->dev, "%s: ALPM mode was OFF, forcing ALPM_ON_LOW for DOZE\n", __func__);
+		lcd->alpm = ALPM_ON_LOW;
 	}
 
 	if (lcd->current_alpm == lcd->alpm)
@@ -1316,9 +1321,14 @@ static int s6e3aa2_exitalpm(struct lcd_info *lcd)
 
 	mutex_lock(&lcd->lock);
 
+	/* Allow ALPM entry during DOZE / suspend state and default to ALPM_ON_LOW if unset */
 	if (lcd->state == PANEL_STATE_SUSPENED) {
-		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
-		goto exit;
+		dev_info(&lcd->ld->dev, "%s: entering ALPM from suspended state\n", __func__);
+		lcd->state = PANEL_STATE_RESUMED;
+	}
+	if (lcd->alpm == ALPM_OFF) {
+		dev_info(&lcd->ld->dev, "%s: ALPM mode was OFF, forcing ALPM_ON_LOW for DOZE\n", __func__);
+		lcd->alpm = ALPM_ON_LOW;
 	}
 
 	DSI_WRITE(SEQ_DISPLAY_OFF, ARRAY_SIZE(SEQ_DISPLAY_OFF));
@@ -1919,7 +1929,7 @@ static void lcd_init_sysfs(struct lcd_info *lcd)
 }
 
 
-#if defined(CONFIG_EXYNOS_DECON_MDNIE)
+#if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 static int mdnie_send_seq(struct lcd_info *lcd, struct lcd_seq_info *seq, u32 num)
 {
 	int ret = 0;

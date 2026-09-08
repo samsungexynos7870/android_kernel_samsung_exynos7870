@@ -7369,6 +7369,7 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("clear_cover_mode", clear_cover_mode),},
 	{SEC_CMD("spay_enable", spay_enable),},
 	{SEC_CMD("aod_enable", aod_enable),},
+	{SEC_CMD("aot_enable", aod_enable),},
 	{SEC_CMD("set_aod_rect", set_aod_rect),},
 	{SEC_CMD("get_wet_mode", get_wet_mode),},
 #ifdef GLOVE_MODE

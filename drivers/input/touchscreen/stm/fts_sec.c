@@ -244,6 +244,7 @@ struct sec_cmd ft_commands[] = {
 	{SEC_CMD("drawing_test_enable", drawing_test_enable),},
 	{SEC_CMD("spay_enable", spay_enable),},
 	{SEC_CMD("aod_enable", aod_enable),},
+	{SEC_CMD("aot_enable", aod_enable),},
 	{SEC_CMD("set_aod_rect", set_aod_rect),},
 	{SEC_CMD("get_aod_rect", get_aod_rect),},
 	{SEC_CMD("dex_enable", dex_enable),},

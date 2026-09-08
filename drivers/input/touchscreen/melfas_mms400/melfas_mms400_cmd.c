@@ -1444,6 +1444,7 @@ static struct mms_cmd mms_commands[] = {
 	{MMS_CMD("module_on_slave", cmd_unknown_cmd),},
 	{MMS_CMD("spay_enable", spay_enable),},
 	{MMS_CMD("aod_enable", aod_enable),},
+	{MMS_CMD("aot_enable", aod_enable),},
 	{MMS_CMD("set_aod_rect", set_aod_rect),},
 	{MMS_CMD("get_aod_rect", get_aod_rect),},
 	{MMS_CMD("check_sram", cmd_check_sram),},

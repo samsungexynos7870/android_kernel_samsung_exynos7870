@@ -66,6 +66,17 @@ struct ist30xx_data *tui_tsp_ist_info;
 extern int tui_force_close(uint32_t arg);
 #endif
 
+static bool ist30xx_screen_is_on = true;
+
+typedef enum {
+	DT_STATE_IDLE = 0,
+	DT_STATE_TAP1_DOWN,
+	DT_STATE_TAP1_UP,
+} dt_state_t;
+
+static dt_state_t dt_state = DT_STATE_IDLE;
+static long dt_tap1_down_time = 0;
+static long dt_tap1_up_time = 0;
 int ist30xx_log_level = IST30XX_LOG_LEVEL;
 void tsp_printk(int level, const char *fmt, ...)
 {
@@ -271,7 +282,10 @@ int ist30xx_set_input_device(struct ist30xx_data *data)
 	input_set_capability(data->input_dev, EV_KEY, KEY_BLACK_UI_GESTURE);
 	input_set_capability(data->input_dev, EV_KEY, KEY_MUTE);
 	input_set_capability(data->input_dev, EV_KEY, KEY_SYSRQ);
+	input_set_capability(data->input_dev, EV_KEY, KEY_POWER);
 	input_set_capability(data->input_dev, EV_KEY, KEY_WAKEUP);
+	device_init_wakeup(&data->input_dev->dev, true);
+	device_init_wakeup(&data->client->dev, true);
 
 	input_set_drvdata(data->input_dev, data);
 	ret = input_register_device(data->input_dev);
@@ -566,6 +580,52 @@ static int check_valid_coord(u32 *msg, int cnt)
 static void report_input_data(struct ist30xx_data *data, int finger_counts,
         int key_counts)
 {
+	/* Track true double-tap (Down -> Up -> Down) during suspend or DOZE/AOD */
+	if (!ist30xx_screen_is_on || data->suspend || data->aod) {
+		long now = get_milli_second(data);
+
+		if (finger_counts > 0) {
+			/* Finger is touching the glass */
+			if (dt_state == DT_STATE_IDLE) {
+				dt_state = DT_STATE_TAP1_DOWN;
+				dt_tap1_down_time = now;
+				tsp_info("[TSP] DT: Tap 1 Down at %ldms\n", now);
+			} else if (dt_state == DT_STATE_TAP1_DOWN) {
+				/* Check if finger held down too long */
+				if (now - dt_tap1_down_time > 300) {
+					tsp_info("[TSP] DT: Tap 1 held too long (%ldms), reset\n", now - dt_tap1_down_time);
+					dt_state = DT_STATE_IDLE;
+				}
+			} else if (dt_state == DT_STATE_TAP1_UP) {
+				long gap = now - dt_tap1_up_time;
+				if (gap >= 30 && gap <= 380) {
+					tsp_info("[TSP] DT: Double-tap confirmed! (gap=%ldms), waking device!\n", gap);
+					dt_state = DT_STATE_IDLE;
+
+					input_report_key(data->input_dev, KEY_WAKEUP, 1);
+					input_sync(data->input_dev);
+					input_report_key(data->input_dev, KEY_WAKEUP, 0);
+					input_sync(data->input_dev);
+				} else {
+					tsp_info("[TSP] DT: Gap %ldms out of window, treating as new Tap 1\n", gap);
+					dt_state = DT_STATE_TAP1_DOWN;
+					dt_tap1_down_time = now;
+				}
+			}
+		} else {
+			/* Finger is UP (release) */
+			if (dt_state == DT_STATE_TAP1_DOWN) {
+				dt_state = DT_STATE_TAP1_UP;
+				dt_tap1_up_time = now;
+				tsp_info("[TSP] DT: Tap 1 Up at %ldms\n", now);
+			} else if (dt_state == DT_STATE_TAP1_UP) {
+				if (now - dt_tap1_up_time > 400) {
+					dt_state = DT_STATE_IDLE;
+				}
+			}
+		}
+		return;
+	}
 	int id;
 	bool press = false;
 	finger_info *fingers = (finger_info *)data->fingers;
@@ -998,12 +1058,11 @@ static int ist30xx_suspend(struct device *dev)
 	mutex_lock(&data->lock);
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	data->suspend = true;
-	if (data->spay || data->aod) {
+	if (data->spay || data->aod || true) { /* Keep TSP powered in gesture mode for DT2W */
+		tsp_info("ist30xx_suspend: entering gesture LPM mode for DT2W\n");
 		ist30xx_cmd_gesture(data, IST30XX_ENABLE);
 		data->status.noise_mode = false;
-
-		if (device_may_wakeup(&data->client->dev))
-			enable_irq_wake(data->client->irq);
+		enable_irq_wake(data->client->irq);
 	} else {
 		ist30xx_power_off(data);
 		ist30xx_disable_irq(data);
@@ -1065,7 +1124,7 @@ static int ist30xx_resume(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	mutex_lock(&data->lock);
 	data->suspend = false;
-	if (data->status.power && (data->spay || data->aod)) {
+	if (data->status.power) {
 		ist30xx_cmd_gesture(data, IST30XX_DISABLE);
 		mod_timer(&data->event_timer,
 			get_jiffies_64() + EVENT_TIMER_INTERVAL * 2);
@@ -1080,10 +1139,7 @@ static int ist30xx_resume(struct device *dev)
 				tsp_err("%s: cannot set pinctrl state\n", __func__);
 		}
 
-		if (data->status.power)
-			ist30xx_reset(data, false);
-		else
-			ist30xx_power_on(data, false);
+		ist30xx_power_on(data, false);
 		ist30xx_enable_irq(data);
 		ist30xx_start(data);
 	}
@@ -1749,6 +1805,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	data->suspend = false;
 	data->spay = false;
 	data->aod = false;
+	ist30xx_screen_is_on = true;
 	data->rec_mode = 0;
 	data->rec_file_name = kzalloc(IST30XX_REC_FILENAME_SIZE, GFP_KERNEL);
 	data->debug_mode = 0;
@@ -2001,37 +2058,25 @@ int fb_notifier_callback(struct notifier_block *self,
 		
 		switch (*blank) {
 		case FB_BLANK_UNBLANK:
-			/* Screen fully on - exit AOD if we were in it */
+			/* Screen fully ON */
+			ist30xx_screen_is_on = true;
 			tc_data->aod = false;
-			if (was_aod) {
-				tsp_info("Exiting AOD mode, screen fully ON\n");
-			}
+			tsp_info("FB_BLANK_UNBLANK: screen is fully ON\n");
 			ist30xx_ts_open(tc_data->input_dev);
 			break;
 			
 		case FB_BLANK_VSYNC_SUSPEND:
 		case FB_BLANK_HSYNC_SUSPEND:
-			/* Entering AOD mode */
-			if (!was_aod) {
-				tsp_info("Entering AOD mode\n");
-			}
-			tc_data->aod = true;
-			ist30xx_ts_open(tc_data->input_dev);
-			break;
-			
 		case FB_BLANK_POWERDOWN:
-			/* Screen completely off */
-			tc_data->aod = false;
-			if (was_aod) {
-				tsp_info("Exiting AOD mode, screen OFF\n");
-			}
-			/* Keep touchscreen open for wake gestures */
+			/* Screen OFF / DOZE / ALPM - keep gesture mode active for DT2W */
+			ist30xx_screen_is_on = false;
+			tc_data->aod = true;
+			tsp_info("FB_BLANK_POWERDOWN/DOZE: screen OFF, keeping AOD/DT2W enabled\n");
 			break;
 			
 		default:
 			break;
 		}
-		
 		mutex_unlock(&tc_data->aod_lock);
 	}
 
