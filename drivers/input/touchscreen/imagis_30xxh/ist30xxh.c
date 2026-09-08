@@ -387,6 +387,22 @@ void ist30xx_special_cmd(struct ist30xx_data *data, int cmd)
 		input_sync(data->input_dev);
 		input_report_key(data->input_dev, KEY_BLACK_UI_GESTURE, 0);
 		input_sync(data->input_dev);
+	} else if (data->g_reg.b.evt & IST30XX_GETURE_EVT_AOT) {
+		tsp_noti("AOT Trigger~ (%d, %d)\n", data->g_reg.b.evt_x,
+				data->g_reg.b.evt_y);
+		data->g_reg.b.evt = 0;
+		ist30xx_burst_write(data->client, IST30XX_HIB_GESTURE_REG,
+				data->g_reg.full, 1);
+
+		data->scrub_id = SPONGE_EVENT_TYPE_AOD_DOUBLETAB;
+		data->scrub_x = data->g_reg.b.evt_x;
+		data->scrub_y = data->g_reg.b.evt_y;
+
+		/* Wake Android from display-off on the double tap gesture */
+		input_report_key(data->input_dev, KEY_WAKEUP, 1);
+		input_sync(data->input_dev);
+		input_report_key(data->input_dev, KEY_WAKEUP, 0);
+		input_sync(data->input_dev);
 	}
 
 	return;
@@ -723,7 +739,7 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 	if (unlikely(!data->irq_enabled))
 		goto irq_ignore;
 
-	if (data->spay || data->aod){
+	if (data->spay || data->aod || data->aot){
 		pm_wakeup_event(data->input_dev->dev.parent, 2000);
 	}
 
@@ -1008,7 +1024,7 @@ static int ist30xx_suspend(struct device *dev)
 	mutex_lock(&data->lock);
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	data->suspend = true;
-	if (data->spay || data->aod) {
+	if (data->spay || data->aod || data->aot) {
 		ist30xx_cmd_gesture(data, IST30XX_ENABLE);
 		data->status.noise_mode = false;
 
@@ -1028,7 +1044,7 @@ static int ist30xx_suspend(struct device *dev)
 	ist30xx_disable_irq(data);
 	ist30xx_internal_suspend(data);
 	clear_input_data(data);
-	if (data->spay || data->aod) {
+	if (data->spay || data->aod || data->aot) {
 		ist30xx_start(data);
 		ist30xx_enable_irq(data);
 		data->status.noise_mode = false;
@@ -1075,7 +1091,7 @@ static int ist30xx_resume(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_IMAGIS_LPM_NO_RESET
 	mutex_lock(&data->lock);
 	data->suspend = false;
-	if (data->status.power && (data->spay || data->aod)) {
+	if (data->status.power && (data->spay || data->aod || data->aot)) {
 		ist30xx_cmd_gesture(data, IST30XX_DISABLE);
 		mod_timer(&data->event_timer,
 			get_jiffies_64() + EVENT_TIMER_INTERVAL * 2);
@@ -1113,7 +1129,7 @@ static int ist30xx_resume(struct device *dev)
 	ist30xx_enable_irq(data);
 	ist30xx_start(data);
 
-	if (data->spay || data->aod) {
+	if (data->spay || data->aod || data->aot) {
 		if (device_may_wakeup(&data->client->dev))
 			disable_irq_wake(data->client->irq); 
 	}
@@ -1402,7 +1418,7 @@ static void reset_work_func(struct work_struct *work)
 			ist30xx_reset(data, false);
 			clear_input_data(data);
 			ist30xx_enable_irq(data);
-			if ((data->spay || data->aod) && data->suspend) {
+			if ((data->spay || data->aod || data->aot) && data->suspend) {
 				ist30xx_cmd_gesture(data, IST30XX_ENABLE);
 				data->status.noise_mode = false;
 			}
@@ -1415,7 +1431,7 @@ static void reset_work_func(struct work_struct *work)
 			clear_input_data(data);
 			ist30xx_enable_irq(data);
 			ist30xx_start(data);
-			if ((data->spay || data->aod) && data->suspend)
+			if ((data->spay || data->aod || data->aot) && data->suspend)
 				data->status.noise_mode = false;
 #endif
 			mutex_unlock(&data->lock);
@@ -1804,6 +1820,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	data->suspend = false;
 	data->spay = false;
 	data->aod = false;
+	data->aot = false;
 	data->rec_mode = 0;
 	data->rec_file_name = kzalloc(IST30XX_REC_FILENAME_SIZE, GFP_KERNEL);
 	data->debug_mode = 0;

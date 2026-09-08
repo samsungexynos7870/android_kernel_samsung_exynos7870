@@ -67,9 +67,10 @@ int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value)
         tsp_err("fail to write gesture command.\n");
     } else {
         if (value == IST30XX_ENABLE) {
-            tsp_info("%s, spay : %d, aod : %d\n", __func__,
+            tsp_info("%s, spay : %d, aod : %d, aot : %d\n", __func__,
                     (data->g_reg.b.ctrl & IST30XX_GETURE_CTRL_SPAY) ? 1 : 0,
-                    (data->g_reg.b.ctrl & IST30XX_GETURE_CTRL_AOD) ? 1 : 0);
+                    (data->g_reg.b.ctrl & IST30XX_GETURE_CTRL_AOD) ? 1 : 0,
+                    (data->g_reg.b.ctrl & IST30XX_GETURE_CTRL_AOT) ? 1 : 0);
         } else {
             tsp_info("%s, normal mode\n", __func__);
         }
@@ -91,8 +92,9 @@ int ist30xx_cmd_gesture(struct ist30xx_data *data, u16 value)
     if (ret)
         tsp_err("fail to write gesture mode.\n");
 	else
-        tsp_info("%s, spay : %d, aod : %d\n", __func__,
-                (value & IST30XX_SPAY) ? 1 : 0, (value & IST30XX_AOD) ? 1 : 0);
+        tsp_info("%s, spay : %d, aod : %d, aot : %d\n", __func__,
+                (value & IST30XX_SPAY) ? 1 : 0, (value & IST30XX_AOD) ? 1 : 0,
+                (value & IST30XX_AOT) ? 1 : 0);
 #endif
 
     return ret;
@@ -514,12 +516,14 @@ int ist30xx_internal_suspend(struct ist30xx_data *data)
     u16 value = 0;
 
     data->suspend = true;
-    if (data->spay || data->aod) {
+    if (data->spay || data->aod || data->aot) {
         ist30xx_reset(data, false);
         if (data->spay)
             value |= IST30XX_SPAY;
         if (data->aod)
             value |= IST30XX_AOD;
+        if (data->aot)
+            value |= IST30XX_AOT;
         ist30xx_cmd_gesture(data, value);
     } else {
         ist30xx_power_off(data);

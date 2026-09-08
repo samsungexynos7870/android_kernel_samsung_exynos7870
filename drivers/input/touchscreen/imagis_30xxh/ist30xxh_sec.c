@@ -519,6 +519,57 @@ static void spay_enable(void *dev_data)
     sec->cmd_state = CMD_STATE_WAITING;
 }
 
+static void aot_enable(void *dev_data)
+{
+    char buf[16] = { 0 };
+
+    struct ist30xx_data *data = (struct ist30xx_data *)dev_data;
+    struct sec_factory *sec = (struct sec_factory *)&data->sec;
+
+    set_default_result(sec);
+
+    tsp_info("%s(), %d\n", __func__, sec->cmd_param[0]);
+
+    switch (sec->cmd_param[0]) {
+    case 0:
+        sec->cmd_state = CMD_STATE_OK;
+        tsp_info("%s(), Unset AOT Mode\n", __func__);
+        data->aot = false;
+        break;
+    case 1:
+        sec->cmd_state = CMD_STATE_OK;
+        tsp_info("%s(), Set AOT Mode\n", __func__);
+        data->aot = true;
+        break;
+    default:
+        tsp_info("%s(), Invalid Argument\n", __func__);
+        break;
+    }
+
+    if (data->aot) {
+        data->g_reg.b.ctrl |= IST30XX_GETURE_CTRL_AOT;
+        data->g_reg.b.setting |= IST30XX_GETURE_SET_AOT;
+    } else {
+        data->g_reg.b.ctrl &= ~IST30XX_GETURE_CTRL_AOT;
+        data->g_reg.b.setting &= ~IST30XX_GETURE_SET_AOT;
+    }
+
+    if (sec->cmd_state == CMD_STATE_OK)
+        snprintf(buf, sizeof(buf), "%s", "OK");
+    else
+        snprintf(buf, sizeof(buf), "%s", "NG");
+
+    set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
+    dev_info(&data->client->dev, "%s: %s(%ld)\n", __func__,
+            buf, strnlen(buf, sizeof(buf)));
+
+    mutex_lock(&sec->cmd_lock);
+    sec->cmd_is_running = false;
+    mutex_unlock(&sec->cmd_lock);
+
+    sec->cmd_state = CMD_STATE_WAITING;
+}
+
 static void aod_enable(void *dev_data)
 {
     char buf[16] = { 0 };
@@ -2876,6 +2927,7 @@ struct tsp_cmd tsp_cmds[] = {
 	{ TSP_CMD("hover_enable", not_support_cmd), },
 	{ TSP_CMD("spay_enable", spay_enable), },
 	{ TSP_CMD("aod_enable", aod_enable), },
+	{ TSP_CMD("aot_enable", aot_enable), },
 	{ TSP_CMD("set_aod_rect", set_aod_rect), },
 	{ TSP_CMD("get_aod_rect", get_aod_rect), },
 	{ TSP_CMD("get_cp_array", get_cp_array), },

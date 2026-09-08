@@ -175,6 +175,10 @@ struct ts_test_result {
 #define IST30XX_GETURE_EVT_AOD      (1 << 2)
 #define IST30XX_GETURE_SET_SPAY     (1 << 4)
 #define IST30XX_GETURE_SET_AOD      (1 << 5)
+#define IST30XX_AOT                 (1 << 4)
+#define IST30XX_GETURE_CTRL_AOT     (1 << 5)
+#define IST30XX_GETURE_EVT_AOT      (1 << 5)
+#define IST30XX_GETURE_SET_AOT      (1 << 6)
 
 /* retry count */
 #define IST30XX_MAX_RETRY_CNT       (3)
@@ -637,6 +641,7 @@ struct ist30xx_data {
 	bool suspend;
 	bool spay;
 	bool aod;
+	bool aot;
 	gesture_reg g_reg;
 	int scan_count;
 	int scan_retry;

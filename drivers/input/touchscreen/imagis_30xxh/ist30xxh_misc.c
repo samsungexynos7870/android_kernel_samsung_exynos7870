@@ -1260,6 +1260,35 @@ ssize_t ist30xx_aod_store(struct device *dev, struct device_attribute *attr,
     return size;
 }
 
+/* sysfs: /sys/class/touch/sys/aot */
+ssize_t ist30xx_aot_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t size)
+{
+    int enable;
+    struct ist30xx_data *data = dev_get_drvdata(dev);
+
+    sscanf(buf, "%d", &enable);
+
+    if (data->suspend) {
+        tsp_err("%s(), error currently suspend\n", __func__);
+        return size;
+    }
+
+    tsp_info("aot enable : %s\n", enable ? "enable" : "disable");
+
+    data->aot = enable ? true : false;
+
+    if (data->aot) {
+        data->g_reg.b.ctrl |= IST30XX_GETURE_CTRL_AOT;
+        data->g_reg.b.setting |= IST30XX_GETURE_SET_AOT;
+    } else {
+        data->g_reg.b.ctrl &= ~IST30XX_GETURE_CTRL_AOT;
+        data->g_reg.b.setting &= ~IST30XX_GETURE_SET_AOT;
+    }
+
+    return size;
+}
+
 /* sysfs: /sys/class/touch/sys/report_rate */
 ssize_t ist30xx_report_rate_store(struct device *dev,
         struct device_attribute *attr, const char *buf, size_t size)
@@ -2629,6 +2658,7 @@ static DEVICE_ATTR(printk6, S_IRUGO | S_IWUSR | S_IWGRP, ist30xx_printk6_show,
         NULL);
 static DEVICE_ATTR(spay, S_IRUGO | S_IWUSR | S_IWGRP, NULL, ist30xx_spay_store);
 static DEVICE_ATTR(aod, S_IRUGO | S_IWUSR | S_IWGRP, NULL, ist30xx_aod_store);
+static DEVICE_ATTR(aot, S_IRUGO | S_IWUSR | S_IWGRP, NULL, ist30xx_aot_store);
 static DEVICE_ATTR(direct, S_IRUGO | S_IWUSR | S_IWGRP, ist30xx_direct_show,
         ist30xx_direct_store);
 static DEVICE_ATTR(clb_time, S_IRUGO | S_IWUSR | S_IWGRP, NULL,
@@ -2718,6 +2748,7 @@ static struct attribute *sys_attributes[] = {
     &dev_attr_printk6.attr,
     &dev_attr_spay.attr,
     &dev_attr_aod.attr,    
+    &dev_attr_aot.attr,
     &dev_attr_direct.attr,
     &dev_attr_clb_time.attr,
     &dev_attr_clb.attr,
