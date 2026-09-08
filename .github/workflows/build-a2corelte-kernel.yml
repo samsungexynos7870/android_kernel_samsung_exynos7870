@@ -35,15 +35,18 @@ jobs:
       - name: Configure defconfig
         env:
           ARCH: arm64
-          ANDROID_MAJOR_VERSION: o
+          ANDROID_MAJOR_VERSION: p
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
-          make -j$(nproc) exynos7870-a2corelte_defconfig
+          make exynos7870-a2corelte_defconfig
+          echo "=== SELinux configuration ==="
+          grep -E 'CONFIG_SECURITY_SELINUX(_DISABLE|_BOOTPARAM|_DEVELOP)?=' .config
+          grep -q '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config
 
       - name: Build kernel
         env:
           ARCH: arm64
-          ANDROID_MAJOR_VERSION: o
+          ANDROID_MAJOR_VERSION: p
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
           make -j$(nproc) 2>&1 | tee build.log
