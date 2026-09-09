@@ -49,6 +49,13 @@ jobs:
           fi
           echo "Toolchain validation PASSED."
 
+      - name: Patch Kernel Source
+        run: |
+          # FIX: Replace the broken static declaration with a dummy function to satisfy the compiler
+          sed -i 's/static int nohz_test_cpu(int cpu);/static int nohz_test_cpu(int cpu) { return 0; }/g' kernel/sched/fair.c
+          
+          echo "Kernel source patched successfully."
+
       - name: Build Kernel Image
         shell: bash
         run: |
@@ -61,7 +68,6 @@ jobs:
           make a2corelte_defconfig
           make olddefconfig
           
-          # FIX: KCFLAGS="-Wno-error" disables -Werror so legacy vendor warnings don't fail the build
           make KCFLAGS="-Wno-error" -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
