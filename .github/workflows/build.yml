@@ -1,0 +1,78 @@
+name: Build a2corelte kernel
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
+
+    steps:
+      - name: Checkout kernel
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            bc bison build-essential ca-certificates flex git \
+            libncurses5-dev libssl-dev python3
+
+      - name: Install Android GCC 4.9
+        run: |
+          git clone --depth 1 \
+            --branch android-8.1.0_r1 \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            toolchain-4.9
+
+          test -x toolchain-4.9/bin/aarch64-linux-android-gcc
+          toolchain-4.9/bin/aarch64-linux-android-gcc --version
+
+      - name: Build kernel Image
+        env:
+          ARCH: arm64
+          ANDROID_MAJOR_VERSION: p
+        timeout-minutes: 180
+        run: |
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
+
+          make exynos7870-a2corelte_defconfig
+          make olddefconfig
+
+          sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
+          sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
+          echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
+
+          echo "=== CONFIG CHECK ==="
+          grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
+          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
+
+          echo "=== BUILDING IMAGE ==="
+          echo "CPUs: $(nproc)"
+
+          make -j$(nproc) Image 2>&1 | tee build.log
+
+          test -s arch/arm64/boot/Image
+
+          echo "=== IMAGE BUILD SUCCESSFUL ==="
+          ls -lh arch/arm64/boot/Image
+
+          if [ -f scripts/extract-ikconfig ]; then
+            chmod +x scripts/extract-ikconfig || true
+            scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config || true
+            grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config || true
+          fi
+
+      - name: Upload kernel Image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a2corelte-kernel-Image-${{ github.run_number }}
+          path: |
+            arch/arm64/boot/Image
+            build.log
+            final-image.config
+          if-no-files-found: warn
