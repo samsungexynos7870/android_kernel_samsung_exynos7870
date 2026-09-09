@@ -535,6 +535,8 @@ int ist30xx_internal_suspend(struct ist30xx_data *data)
 int ist30xx_internal_resume(struct ist30xx_data *data)
 {
     data->suspend = false;
+    data->dt2w_last_ms = 0;
+    data->dt2w_fingers = 0;
     if (data->status.power)
         ist30xx_reset(data, false);
     else

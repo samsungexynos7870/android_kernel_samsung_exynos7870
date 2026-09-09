@@ -179,6 +179,7 @@ struct ts_test_result {
 #define IST30XX_GETURE_CTRL_AOT     (1 << 5)
 #define IST30XX_GETURE_EVT_AOT      (1 << 5)
 #define IST30XX_GETURE_SET_AOT      (1 << 6)
+#define IST30XX_DT2W_MAX_INTERVAL   (400)	/* msec between two taps */
 
 /* retry count */
 #define IST30XX_MAX_RETRY_CNT       (3)
@@ -642,6 +643,9 @@ struct ist30xx_data {
 	bool spay;
 	bool aod;
 	bool aot;
+	/* software double-tap-to-wake state, used while suspended in AOD */
+	u32 dt2w_last_ms;
+	int dt2w_fingers;
 	gesture_reg g_reg;
 	int scan_count;
 	int scan_retry;

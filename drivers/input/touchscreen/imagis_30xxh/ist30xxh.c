@@ -910,6 +910,37 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 		goto irq_err;
 
 	data->t_status = t_status;
+
+	/*
+	 * Software double-tap-to-wake during AOD.
+	 *
+	 * This firmware does not report gesture events from its low power
+	 * scan, but while the gesture mode is armed the chip keeps sending
+	 * regular finger interrupts. Use those: two touch-downs within
+	 * IST30XX_DT2W_MAX_INTERVAL milliseconds fire KEY_WAKEUP (handled
+	 * by the framework like any other wake key). All coordinates are
+	 * swallowed so the AOD screen sees no stray touches.
+	 */
+	if (data->suspend && (data->spay || data->aod || data->aot)) {
+		if (finger_cnt > 0 && data->dt2w_fingers == 0) {
+			if (data->dt2w_last_ms &&
+			    (ms - data->dt2w_last_ms) <=
+			    IST30XX_DT2W_MAX_INTERVAL) {
+				data->dt2w_last_ms = 0;
+				tsp_info("%s: AOD double-tap -> KEY_WAKEUP\n",
+						__func__);
+				input_report_key(data->input_dev, KEY_WAKEUP, 1);
+				input_sync(data->input_dev);
+				input_report_key(data->input_dev, KEY_WAKEUP, 0);
+				input_sync(data->input_dev);
+			} else {
+				data->dt2w_last_ms = ms;
+			}
+		}
+		data->dt2w_fingers = finger_cnt;
+		goto irq_end;
+	}
+
 	report_input_data(data, finger_cnt, key_cnt);
 
 	if (data->intr_debug3_size > 0) {
