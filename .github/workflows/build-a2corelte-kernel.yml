@@ -66,8 +66,10 @@ jobs:
           echo "=== BUILD ==="
           echo "CPUs: $(nproc)"
 
+          set +e
           make -j$(nproc) Image > build.log 2>&1
           status=$?
+          set -e
 
           echo "=== BUILD OUTPUT ==="
           cat build.log
