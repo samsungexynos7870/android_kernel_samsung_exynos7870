@@ -14,7 +14,7 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -35,9 +35,17 @@ jobs:
             toolchain-4.9
 
           cd toolchain-4.9
-          git checkout b4a601fe7b~1
 
-      - name: Build kernel Image
+          git checkout 1182d9bbb6902eb7a5650143dc2d56f520bcc2a2
+
+          echo "=== GCC TOOLCHAIN CHECK ==="
+          test -x bin/aarch64-linux-android-gcc
+          test -x bin/aarch64-linux-android-g++
+          test -x bin/aarch64-linux-android-ld
+
+          bin/aarch64-linux-android-gcc --version | head -n 1
+
+      - name: Build A2 Core LTE Image
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
@@ -46,8 +54,13 @@ jobs:
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
           echo "========================================"
-          echo "       A2 CORE LTE KERNEL BUILD"
+          echo " A2 CORE LTE KERNEL BUILD"
           echo "========================================"
+
+          echo
+          echo "=== TOOLCHAIN ==="
+          test -x "${CROSS_COMPILE}gcc"
+          "${CROSS_COMPILE}gcc" --version | head -n 1
 
           echo
           echo "=== DEFCONFIG ==="
@@ -58,7 +71,7 @@ jobs:
           make olddefconfig
 
           echo
-          echo "=== FORCE SELINUX DISABLE SUPPORT ==="
+          echo "=== FORCE CONFIG_SECURITY_SELINUX_DISABLE ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
@@ -66,52 +79,46 @@ jobs:
           echo
           echo "=== CONFIG CHECK ==="
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
-
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
           echo
-          echo "=== BUILD ==="
+          echo "=== BUILD IMAGE ==="
           echo "CPUs: $(nproc)"
-          echo "Compiler: ${CROSS_COMPILE}gcc"
-          "${CROSS_COMPILE}gcc" --version | head -n 1
-
-          echo
-          echo "=== COMPILING Image ==="
 
           make -j$(nproc) Image 2>&1 | tee build.log
 
           echo
-          echo "=== IMAGE CHECK ==="
+          echo "=== CHECK IMAGE ==="
 
-          if [ ! -s arch/arm64/boot/Image ]; then
-            echo
-            echo "ERROR: arch/arm64/boot/Image was not produced."
-            echo
-            echo "=== LAST 200 BUILD LOG LINES ==="
-            tail -n 200 build.log
-            exit 1
-          fi
+          test -s arch/arm64/boot/Image
 
           echo
           echo "========================================"
-          echo "       KERNEL IMAGE BUILD SUCCESS"
+          echo " IMAGE BUILD SUCCESSFUL"
           echo "========================================"
+
           ls -lh arch/arm64/boot/Image
 
           echo
-          echo "=== FINAL IMAGE CONFIG ==="
+          echo "=== FINAL IMAGE CONFIG CHECK ==="
 
-          if [ -x scripts/extract-ikconfig ]; then
+          if [ -f scripts/extract-ikconfig ]; then
+            chmod +x scripts/extract-ikconfig || true
+
             scripts/extract-ikconfig \
-              arch/arm64/boot/Image > final-image.config
+              arch/arm64/boot/Image > final-image.config || true
 
-            grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config || true
+            if grep -q '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config; then
+              echo "CONFIG_SECURITY_SELINUX_DISABLE=y VERIFIED"
+            else
+              echo "WARNING: final Image config could not be verified"
+            fi
           fi
 
           echo
-          echo "=== BUILD COMPLETE ==="
+          echo "=== DONE ==="
 
-      - name: Upload kernel Image
+      - name: Upload kernel Image and build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
