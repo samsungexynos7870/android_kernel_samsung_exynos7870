@@ -54,7 +54,7 @@ jobs:
           echo "=== GCC VERSION ==="
           bin/aarch64-linux-android-gcc --version
 
-          if ! bin/aarch64-linux-android-gcc --version 2>&1 | grep -q "gcc version 4.9"; then
+          if ! bin/aarch64-linux-android-gcc --version 2>&1 | grep -Eq "GCC.*4\.9|4\.9\.x-google"; then
             echo "ERROR: Genuine GCC 4.9 was not obtained"
             exit 1
           fi
