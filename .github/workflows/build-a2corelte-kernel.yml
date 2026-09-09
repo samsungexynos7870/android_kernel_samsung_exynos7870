@@ -51,7 +51,7 @@ jobs:
 
       - name: Patch Kernel Source
         run: |
-          # FIX 1: Add missing headers to fs/dlog_hook.c (sched.h resolves current->cred)
+          # FIX 1: Add missing headers to fs/dlog_hook.c
           perl -pi -e 'print "#include <linux/sched.h>\n#include <linux/magic.h>\n#include <linux/cred.h>\n" if $. == 1' fs/dlog_hook.c
           
           # FIX 2: Comment out broken rq->avg lines in scheduler
@@ -61,6 +61,12 @@ jobs:
           
           # FIX 3: Replace nohz_test_cpu declaration with dummy function
           perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
+          
+          # FIX 4: Handle missing drivers/gpu/arm directory
+          if [ ! -d "drivers/gpu/arm" ]; then
+            echo "WARNING: drivers/gpu/arm directory is missing. Removing from drivers/gpu/Makefile to prevent linker error."
+            sed -i '/obj-.*+=.*arm\//d' drivers/gpu/Makefile
+          fi
           
           echo "Kernel source patched successfully."
 
