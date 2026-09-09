@@ -51,13 +51,16 @@ jobs:
 
       - name: Patch Kernel Source
         run: |
-          # FIX 1: Patch kernel/sched/fair.c to comment out broken rq->avg references
+          # FIX 1: Add missing headers to fs/dlog_hook.c (sched.h resolves current->cred)
+          perl -pi -e 'print "#include <linux/sched.h>\n#include <linux/magic.h>\n#include <linux/cred.h>\n" if $. == 1' fs/dlog_hook.c
+          
+          # FIX 2: Comment out broken rq->avg lines in scheduler
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= ratio_delta;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += ratio_delta;/' kernel/sched/fair.c
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += se->avg.load_avg_ratio;/' kernel/sched/fair.c
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio -= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio -= se->avg.load_avg_ratio;/' kernel/sched/fair.c
           
-          # FIX 2: Add missing headers to fs/dlog_hook.c for SUPER_MAGIC and cred
-          perl -pi -e 'print "#include <linux/magic.h>\n#include <linux/cred.h>\n" if $. == 1' fs/dlog_hook.c
+          # FIX 3: Replace nohz_test_cpu declaration with dummy function
+          perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
           
           echo "Kernel source patched successfully."
 
