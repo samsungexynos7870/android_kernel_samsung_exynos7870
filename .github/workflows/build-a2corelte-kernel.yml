@@ -91,3 +91,35 @@ jobs:
             arch/arm64/boot/Image
             build.log
           if-no-files-found: warn
+
+
+      - name: Build error
+        if: failure()
+        run: |
+          echo "========================================"
+          echo "           BUILD ERROR"
+          echo "========================================"
+          echo
+          echo "Android GCC 4.9 deprecation messages are"
+          echo "warnings and are not the direct build error."
+          echo
+          echo "Searching build.log for compiler/linker errors..."
+          echo
+
+          if [ -f build.log ]; then
+            grep -n -E \
+              'error:|Error:|undefined reference|No rule to make target|fatal error:|FAILED|recipe for target' \
+              build.log | tail -n 100 || true
+
+            echo
+            echo "Last 150 lines of build.log:"
+            echo "----------------------------------------"
+            tail -n 150 build.log
+          else
+            echo "build.log was not created."
+          fi
+
+          echo
+          echo "========================================"
+          echo "        END BUILD ERROR"
+          echo "========================================"
