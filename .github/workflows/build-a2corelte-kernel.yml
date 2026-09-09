@@ -49,8 +49,35 @@ jobs:
           ANDROID_MAJOR_VERSION: p
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
+
+          echo "=== Generate A2 Core LTE configuration ==="
+          make exynos7870-a2corelte_defconfig
+
+          echo "=== Force SELinux runtime-disable support ==="
+          sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
+          sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
+          echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
+
+          echo "=== Normalize configuration ==="
+          make olddefconfig
+
+          echo "=== Verify critical configuration ==="
+          grep -E '^(CONFIG_SECURITY=|CONFIG_SECURITY_SELINUX=|CONFIG_SECURITY_SELINUX_BOOTPARAM=|CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE=|CONFIG_SECURITY_SELINUX_DISABLE=|CONFIG_SECURITY_SELINUX_DEVELOP=|CONFIG_DEFAULT_SECURITY=)' .config
+
+          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1" || {
+            echo "ERROR: CONFIG_SECURITY_SELINUX_DISABLE=y was not preserved"
+            exit 1
+          }
+
+          echo "=== Build kernel Image ==="
           make -j$(nproc) Image > build.log 2>&1
           cat build.log
+
+          echo "=== Verify Image exists ==="
+          test -s arch/arm64/boot/Image || {
+            echo "ERROR: Kernel Image was not produced"
+            exit 1
+          }
 
       - name: Upload kernel Image + DTB
         if: always()
