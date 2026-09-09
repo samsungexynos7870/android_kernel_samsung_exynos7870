@@ -50,47 +50,34 @@ jobs:
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
-          echo "=== Generate A2 Core LTE configuration ==="
+          echo "=== A2 Core LTE defconfig ==="
           make exynos7870-a2corelte_defconfig
 
-          echo "=== Normalize configuration FIRST ==="
+          echo "=== Normalize config ==="
           make olddefconfig
 
-          echo "=== Force SELinux runtime-disable support LAST ==="
+          echo "=== Force SELinux disable ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
 
-          echo "=== Verify build configuration ==="
-          grep -E '^(CONFIG_SECURITY=|CONFIG_SECURITY_SELINUX=|CONFIG_SECURITY_SELINUX_BOOTPARAM=|CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE=|CONFIG_SECURITY_SELINUX_DISABLE=|CONFIG_SECURITY_SELINUX_DEVELOP=|CONFIG_DEFAULT_SECURITY=)' .config
+          echo "=== Check .config ==="
+          grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
+          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
-          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1" || {
-            echo "ERROR: CONFIG_SECURITY_SELINUX_DISABLE=y is missing from .config"
-            exit 1
-          }
-
-          echo "=== Build kernel Image ==="
+          echo "=== Build Image ==="
           make -j$(nproc) Image > build.log 2>&1
           cat build.log
 
-          echo "=== Verify Image exists ==="
-          test -s arch/arm64/boot/Image || {
-            echo "ERROR: Kernel Image was not produced"
-            exit 1
-          }
+          echo "=== Check Image ==="
+          test -s arch/arm64/boot/Image
 
-          echo "=== Extract configuration from FINAL Image ==="
+          echo "=== Check final Image config ==="
           scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config
+          grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config
+          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1"
 
-          echo "=== Verify FINAL Image SELinux configuration ==="
-          grep -E '^(CONFIG_SECURITY=|CONFIG_SECURITY_SELINUX=|CONFIG_SECURITY_SELINUX_BOOTPARAM=|CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE=|CONFIG_SECURITY_SELINUX_DISABLE=|CONFIG_SECURITY_SELINUX_DEVELOP=|CONFIG_DEFAULT_SECURITY=)' final-image.config
-
-          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1" || {
-            echo "ERROR: FINAL KERNEL IMAGE does NOT contain CONFIG_SECURITY_SELINUX_DISABLE=y"
-            exit 1
-          }
-
-          echo "=== SUCCESS: FINAL IMAGE contains SELinux disable support ==="
+          echo "=== FINAL IMAGE VERIFIED ==="
 
       - name: Upload kernel Image + DTB
         if: always()
