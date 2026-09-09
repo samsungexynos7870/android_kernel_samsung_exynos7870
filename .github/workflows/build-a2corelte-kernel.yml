@@ -24,7 +24,7 @@ jobs:
           apt-get install -y bc bison build-essential ccache curl flex git gnupg gperf \
           lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 \
           libncurses5-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
-          schedtool squashfs-tools xsltproc zip zlib1g-dev python3 wget file
+          schedtool squashfs-tools xsltproc zip zlib1g-dev python3 wget file perl
 
       - name: Fetch AOSP GCC 4.9 Toolchain
         run: |
@@ -51,10 +51,17 @@ jobs:
 
       - name: Patch Kernel Source
         run: |
-          # FIX: Replace the broken static declaration with a dummy function to satisfy the compiler
-          sed -i 's/static int nohz_test_cpu(int cpu);/static int nohz_test_cpu(int cpu) { return 0; }/g' kernel/sched/fair.c
+          # FIX: Use perl for robust regex matching that ignores whitespace variations
+          perl -pi -e 's/static\s+int\s+nohz_test_cpu\s*\(\s*int\s+cpu\s*\)\s*;/static int nohz_test_cpu(int cpu) { return 0; }/g' kernel/sched/fair.c
           
-          echo "Kernel source patched successfully."
+          # Verify the patch was actually applied
+          if grep -q "static int nohz_test_cpu(int cpu) { return 0; }" kernel/sched/fair.c; then
+            echo "Kernel source patched successfully."
+          else
+            echo "ERROR: Patch failed to apply. Showing actual lines containing 'nohz_test_cpu':"
+            grep -n "nohz_test_cpu" kernel/sched/fair.c
+            exit 1
+          fi
 
       - name: Build Kernel Image
         shell: bash
