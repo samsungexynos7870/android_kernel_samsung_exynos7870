@@ -47,14 +47,14 @@ jobs:
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
+          KBUILD_BUILD_USER: github
+          KBUILD_BUILD_HOST: actions
         timeout-minutes: 90
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
           echo "=== A2 Core LTE defconfig ==="
           make exynos7870-a2corelte_defconfig
-
-          echo "=== Normalize configuration ==="
           make olddefconfig
 
           echo "=== Force SELinux disable ==="
@@ -66,13 +66,11 @@ jobs:
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
-          echo "=== BUILD START ==="
-          echo "Using GCC 4.9"
-          "$CROSS_COMPILE"gcc --version | head -1
-          echo "CPU count: $(nproc)"
-          echo "Building with 2 jobs"
+          echo "=== BUILD ==="
+          echo "CPUs: $(nproc)"
+          echo "Parallel jobs: $(nproc)"
 
-          make -j2 Image
+          make -j$(nproc) Image
 
           echo "=== IMAGE CHECK ==="
           test -s arch/arm64/boot/Image
