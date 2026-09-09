@@ -1,151 +1,123 @@
 name: Build a2corelte kernel
 
 on:
-  workflow_dispatch: {}
   push:
-    branches: [master]
+    branches:
+      - master
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
-    steps:
-      - name: Install build dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y git build-essential bc bison flex libssl-dev \
-            libncurses-dev python2 python-is-python2 u-boot-tools wget ca-certificates
-          python2 --version
 
+    steps:
       - name: Checkout kernel source
         uses: actions/checkout@v4
 
-      - name: Fetch prebuilt AArch64 4.9 toolchain
+      - name: Install dependencies
         run: |
-          git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            ca-certificates \
+            flex \
+            git \
+            libssl-dev \
+            libncurses5-dev \
+            python3
+
+      - name: Prepare GCC 4.9
+        run: |
+          git clone \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
             toolchain-4.9
+
           cd toolchain-4.9
           git checkout b4a601fe7b~1
-          cd ..
-          chmod +x toolchain-4.9/bin/* || true
-          echo "=== toolchain-4.9/bin contents ==="
-          ls -la toolchain-4.9/bin/ || echo "bin/ does not exist"
 
-      - name: Configure defconfig
+      - name: Build kernel Image
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
-        run: |
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
-          make exynos7870-a2corelte_defconfig
-          echo "=== SELinux configuration ==="
-          grep -E 'CONFIG_SECURITY_SELINUX(_DISABLE|_BOOTPARAM|_DEVELOP)?=' .config
-          grep -q '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config
-
-      - name: Build kernel
-        env:
-          ARCH: arm64
-          ANDROID_MAJOR_VERSION: p
+        timeout-minutes: 180
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
-          echo "=== A2 Core LTE defconfig ==="
+          echo "========================================"
+          echo "       A2 CORE LTE KERNEL BUILD"
+          echo "========================================"
+
+          echo
+          echo "=== DEFCONFIG ==="
           make exynos7870-a2corelte_defconfig
+
+          echo
+          echo "=== OLDDEFCONFIG ==="
           make olddefconfig
 
-          echo "=== Force SELinux disable ==="
+          echo
+          echo "=== FORCE SELINUX DISABLE SUPPORT ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
 
+          echo
           echo "=== CONFIG CHECK ==="
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
+
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
+          echo
           echo "=== BUILD ==="
           echo "CPUs: $(nproc)"
+          echo "Compiler: ${CROSS_COMPILE}gcc"
+          "${CROSS_COMPILE}gcc" --version | head -n 1
 
-          set +e
-          make -j$(nproc) Image > build.log 2>&1
-          status=$?
-          set -e
+          echo
+          echo "=== COMPILING Image ==="
 
-          echo "=== BUILD OUTPUT ==="
-          cat build.log
+          make -j$(nproc) Image 2>&1 | tee build.log
 
-          if [ "$status" -ne 0 ]; then
+          echo
+          echo "=== IMAGE CHECK ==="
+
+          if [ ! -s arch/arm64/boot/Image ]; then
             echo
-            echo "========================================"
-            echo "             REAL BUILD ERROR"
-            echo "========================================"
-
+            echo "ERROR: arch/arm64/boot/Image was not produced."
             echo
-            echo "--- Error lines ---"
-            grep -n -E \
-              'error:|Error:|fatal error:|undefined reference|No rule to make target|recipe for target|FAILED|cannot find|not found' \
-              build.log | tail -n 100 || true
-
-            echo
-            echo "--- Last 200 lines ---"
+            echo "=== LAST 200 BUILD LOG LINES ==="
             tail -n 200 build.log
-
-            echo
-            echo "========================================"
-            echo "Make exited with status: $status"
-            echo "========================================"
-
-            exit "$status"
+            exit 1
           fi
 
-          echo "=== IMAGE CHECK ==="
-          test -s arch/arm64/boot/Image
+          echo
+          echo "========================================"
+          echo "       KERNEL IMAGE BUILD SUCCESS"
+          echo "========================================"
+          ls -lh arch/arm64/boot/Image
 
-          echo "=== FINAL IMAGE CONFIG CHECK ==="
-          scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config
-          grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config
-          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1"
+          echo
+          echo "=== FINAL IMAGE CONFIG ==="
 
-          echo "=== FINAL IMAGE VERIFIED ==="
+          if [ -x scripts/extract-ikconfig ]; then
+            scripts/extract-ikconfig \
+              arch/arm64/boot/Image > final-image.config
 
-      - name: Upload kernel Image + DTB
+            grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config || true
+          fi
+
+          echo
+          echo "=== BUILD COMPLETE ==="
+
+      - name: Upload kernel Image
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: a2corelte-kernel-${{ github.run_number }}
+          name: a2corelte-kernel-Image-${{ github.run_number }}
           path: |
             arch/arm64/boot/Image
             build.log
+            final-image.config
           if-no-files-found: warn
-
-
-      - name: Build error
-        if: failure()
-        run: |
-          echo "========================================"
-          echo "           BUILD ERROR"
-          echo "========================================"
-          echo
-          echo "Android GCC 4.9 deprecation messages are"
-          echo "warnings and are not the direct build error."
-          echo
-          echo "Searching build.log for compiler/linker errors..."
-          echo
-
-          if [ -f build.log ]; then
-            grep -n -E \
-              'error:|Error:|undefined reference|No rule to make target|fatal error:|FAILED|recipe for target' \
-              build.log | tail -n 100 || true
-
-            echo
-            echo "Last 150 lines of build.log:"
-            echo "----------------------------------------"
-            tail -n 150 build.log
-          else
-            echo "build.log was not created."
-          fi
-
-          echo
-          echo "========================================"
-          echo "        END BUILD ERROR"
-          echo "========================================"
