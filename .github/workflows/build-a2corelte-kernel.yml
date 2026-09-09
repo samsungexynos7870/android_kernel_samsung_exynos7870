@@ -11,10 +11,10 @@ jobs:
     container: ubuntu:20.04
 
     steps:
-      - name: Checkout kernel source
+      - name: Checkout kernel
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -24,28 +24,28 @@ jobs:
             ca-certificates \
             flex \
             git \
-            libssl-dev \
             libncurses5-dev \
+            libssl-dev \
             python3
 
-      - name: Prepare GCC 4.9
+      - name: Install Android GCC 4.9
         run: |
-          git clone \
+          git clone --depth 1 \
+            --branch android-8.1.0_r1 \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
             toolchain-4.9
 
-          cd toolchain-4.9
+          echo "=== GCC CHECK ==="
 
-          git checkout 1182d9bbb6902eb7a5650143dc2d56f520bcc2a2
+          test -x toolchain-4.9/bin/aarch64-linux-android-gcc
+          test -x toolchain-4.9/bin/aarch64-linux-android-g++
 
-          echo "=== GCC TOOLCHAIN CHECK ==="
-          test -x bin/aarch64-linux-android-gcc
-          test -x bin/aarch64-linux-android-g++
-          test -x bin/aarch64-linux-android-ld
+          toolchain-4.9/bin/aarch64-linux-android-gcc --version
+          toolchain-4.9/bin/aarch64-linux-android-g++ --version
 
-          bin/aarch64-linux-android-gcc --version | head -n 1
+          echo "=== GCC 4.9 READY ==="
 
-      - name: Build A2 Core LTE Image
+      - name: Build kernel Image
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
@@ -54,12 +54,11 @@ jobs:
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
           echo "========================================"
-          echo " A2 CORE LTE KERNEL BUILD"
+          echo "       A2 CORE LTE KERNEL BUILD"
           echo "========================================"
 
           echo
-          echo "=== TOOLCHAIN ==="
-          test -x "${CROSS_COMPILE}gcc"
+          echo "=== COMPILER ==="
           "${CROSS_COMPILE}gcc" --version | head -n 1
 
           echo
@@ -71,7 +70,7 @@ jobs:
           make olddefconfig
 
           echo
-          echo "=== FORCE CONFIG_SECURITY_SELINUX_DISABLE ==="
+          echo "=== ENABLE SELINUX DISABLE SUPPORT ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
@@ -82,43 +81,37 @@ jobs:
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
           echo
-          echo "=== BUILD IMAGE ==="
+          echo "=== BUILDING IMAGE ==="
           echo "CPUs: $(nproc)"
 
           make -j$(nproc) Image 2>&1 | tee build.log
 
           echo
-          echo "=== CHECK IMAGE ==="
+          echo "=== CHECKING IMAGE ==="
 
           test -s arch/arm64/boot/Image
 
           echo
           echo "========================================"
-          echo " IMAGE BUILD SUCCESSFUL"
+          echo "       IMAGE BUILD SUCCESSFUL"
           echo "========================================"
 
           ls -lh arch/arm64/boot/Image
 
           echo
-          echo "=== FINAL IMAGE CONFIG CHECK ==="
+          echo "=== FINAL IMAGE CONFIG ==="
 
           if [ -f scripts/extract-ikconfig ]; then
             chmod +x scripts/extract-ikconfig || true
+            scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config || true
 
-            scripts/extract-ikconfig \
-              arch/arm64/boot/Image > final-image.config || true
-
-            if grep -q '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config; then
-              echo "CONFIG_SECURITY_SELINUX_DISABLE=y VERIFIED"
-            else
-              echo "WARNING: final Image config could not be verified"
-            fi
+            grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config || true
           fi
 
           echo
           echo "=== DONE ==="
 
-      - name: Upload kernel Image and build log
+      - name: Upload kernel Image
         if: always()
         uses: actions/upload-artifact@v4
         with:
