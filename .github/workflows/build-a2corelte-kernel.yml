@@ -53,19 +53,19 @@ jobs:
           echo "=== Generate A2 Core LTE configuration ==="
           make exynos7870-a2corelte_defconfig
 
-          echo "=== Force SELinux runtime-disable support ==="
+          echo "=== Normalize configuration FIRST ==="
+          make olddefconfig
+
+          echo "=== Force SELinux runtime-disable support LAST ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
 
-          echo "=== Normalize configuration ==="
-          make olddefconfig
-
-          echo "=== Verify critical configuration ==="
+          echo "=== Verify build configuration ==="
           grep -E '^(CONFIG_SECURITY=|CONFIG_SECURITY_SELINUX=|CONFIG_SECURITY_SELINUX_BOOTPARAM=|CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE=|CONFIG_SECURITY_SELINUX_DISABLE=|CONFIG_SECURITY_SELINUX_DEVELOP=|CONFIG_DEFAULT_SECURITY=)' .config
 
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1" || {
-            echo "ERROR: CONFIG_SECURITY_SELINUX_DISABLE=y was not preserved"
+            echo "ERROR: CONFIG_SECURITY_SELINUX_DISABLE=y is missing from .config"
             exit 1
           }
 
@@ -78,6 +78,19 @@ jobs:
             echo "ERROR: Kernel Image was not produced"
             exit 1
           }
+
+          echo "=== Extract configuration from FINAL Image ==="
+          scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config
+
+          echo "=== Verify FINAL Image SELinux configuration ==="
+          grep -E '^(CONFIG_SECURITY=|CONFIG_SECURITY_SELINUX=|CONFIG_SECURITY_SELINUX_BOOTPARAM=|CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE=|CONFIG_SECURITY_SELINUX_DISABLE=|CONFIG_SECURITY_SELINUX_DEVELOP=|CONFIG_DEFAULT_SECURITY=)' final-image.config
+
+          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1" || {
+            echo "ERROR: FINAL KERNEL IMAGE does NOT contain CONFIG_SECURITY_SELINUX_DISABLE=y"
+            exit 1
+          }
+
+          echo "=== SUCCESS: FINAL IMAGE contains SELinux disable support ==="
 
       - name: Upload kernel Image + DTB
         if: always()
