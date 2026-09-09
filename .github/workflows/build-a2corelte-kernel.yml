@@ -2,154 +2,53 @@ name: Build a2corelte kernel
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container: ubuntu:20.04
-
+    runs-on: ubuntu-20.04
     steps:
-      - name: Checkout kernel
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Install dependencies
+      - name: Install Build Dependencies
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            bc \
-            bison \
-            build-essential \
-            ca-certificates \
-            flex \
-            git \
-            libncurses5-dev \
-            libssl-dev \
-            python3
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3
 
-      - name: Install genuine Android GCC 4.9
+      - name: Download GCC 4.9 Toolchain
         run: |
-          rm -rf toolchain-4.9
+          mkdir -p toolchain
+          cd toolchain
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu-a/4.9-2017.01/binrel/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu.tar.xz
+          tar -xf gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu.tar.xz
+          rm gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu.tar.xz
 
-          mkdir toolchain-4.9
-          cd toolchain-4.9
-
-          git init
-          git remote add origin \
-            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9
-
-          echo "=== FETCHING EXACT GCC 4.9 COMMIT ==="
-
-          git fetch --depth=1 origin \
-            a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
-
-          git checkout FETCH_HEAD
-
-          echo "=== GCC FILE CHECK ==="
-          pwd
-          ls -lh bin/aarch64-linux-android-gcc
-          file bin/aarch64-linux-android-gcc
-
-          echo "=== GCC VERSION ==="
-          bin/aarch64-linux-android-gcc --version
-
-          if ! bin/aarch64-linux-android-gcc --version 2>&1 | grep -Eq "GCC.*4\.9|4\.9\.x-google"; then
-            echo "ERROR: Genuine GCC 4.9 was not obtained"
-            exit 1
-          fi
-
-          echo "=== REAL GCC 4.9 VERIFIED ==="
-
-      - name: Build kernel Image
-        env:
-          ARCH: arm64
-          ANDROID_MAJOR_VERSION: p
-        timeout-minutes: 180
+      - name: Build Kernel Image
         run: |
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
-
-          echo "========================================"
-          echo "       A2 CORE LTE KERNEL BUILD"
-          echo "========================================"
-
-          echo
-          echo "=== COMPILER ==="
-          "${CROSS_COMPILE}gcc" --version | head -n 1
-
-          echo
-          echo "=== DEFCONFIG ==="
-          make exynos7870-a2corelte_defconfig
-
-          echo
-          echo "=== OLDDEFCONFIG ==="
-          make olddefconfig
-
-          echo
-          echo "=== ENABLE SELINUX DISABLE SUPPORT ==="
-          sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
-          sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
-          echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
-
-          echo
-          echo "=== CONFIG CHECK ==="
-          grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
-          test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
-
-          echo
-          echo "=== BUILDING IMAGE ==="
-          echo "CPUs: $(nproc)"
-
-          set +e
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=$(pwd)/toolchain/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
+          
+          echo "=== Starting Build ==="
+          make a2corelte_defconfig
+          
           make -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
-          set -e
-
-          echo
-          echo "=== MAKE EXIT STATUS ==="
-          echo "make exit status: $status"
-
-          echo
-          echo "=== LAST 100 BUILD LOG LINES ==="
-          tail -n 100 build.log
-
+          
           if [ "$status" -ne 0 ]; then
-            echo "ERROR: kernel Image build failed"
-            exit "$status"
+            echo "=== BUILD FAILED ==="
+            echo "Showing last 50 lines of the build log:"
+            tail -n 50 build.log
+            exit 1
           fi
+          
+          echo "=== BUILD SUCCESSFUL ==="
 
-          echo
-          echo "=== CHECKING IMAGE ==="
-
-          test -s arch/arm64/boot/Image
-
-          echo
-          echo "========================================"
-          echo "       IMAGE BUILD SUCCESSFUL"
-          echo "========================================"
-
-          ls -lh arch/arm64/boot/Image
-
-          echo
-          echo "=== FINAL IMAGE CONFIG ==="
-
-          if [ -f scripts/extract-ikconfig ]; then
-            chmod +x scripts/extract-ikconfig || true
-            scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config || true
-
-            grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config || true
-          fi
-
-          echo
-          echo "=== DONE ==="
-
-      - name: Upload kernel Image
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload Kernel Image
+        if: success()
+        uses: actions/upload-artifact@v3
         with:
-          name: a2corelte-kernel-Image-${{ github.run_number }}
-          path: |
-            arch/arm64/boot/Image
-            build.log
-            final-image.config
-          if-no-files-found: warn
+          name: a2corelte_Kernel_Image
+          path: arch/arm64/boot/Image
