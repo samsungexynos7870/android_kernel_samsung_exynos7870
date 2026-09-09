@@ -23,15 +23,14 @@ jobs:
 
       - name: Install Android GCC 4.9
         run: |
-          git init toolchain-4.9
+          git clone             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9             toolchain-4.9
+
           cd toolchain-4.9
-          git remote add origin https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9
-          git fetch --depth 1 origin a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
-          git checkout FETCH_HEAD
+          git checkout a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
 
           echo "=== GCC CHECK ==="
-          ls -l bin/aarch64-linux-android-gcc*
-          test -e bin/aarch64-linux-android-gcc
+          ls -l bin/aarch64-linux-android-gcc
+          test -f bin/aarch64-linux-android-gcc
           test -x bin/aarch64-linux-android-gcc
           bin/aarch64-linux-android-gcc --version
 
