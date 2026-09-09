@@ -100,7 +100,23 @@ jobs:
           echo "=== BUILDING IMAGE ==="
           echo "CPUs: $(nproc)"
 
+          set +e
           make -j$(nproc) Image 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          echo
+          echo "=== MAKE EXIT STATUS ==="
+          echo "make exit status: $status"
+
+          echo
+          echo "=== LAST 100 BUILD LOG LINES ==="
+          tail -n 100 build.log
+
+          if [ "$status" -ne 0 ]; then
+            echo "ERROR: kernel Image build failed"
+            exit "$status"
+          fi
 
           echo
           echo "=== CHECKING IMAGE ==="
