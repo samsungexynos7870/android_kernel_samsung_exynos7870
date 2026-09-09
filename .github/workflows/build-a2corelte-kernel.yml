@@ -53,16 +53,14 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=$(pwd)/toolchain-4.9/bin/aarch64-linux-android-
-          export ANDROID_MAJOR_VERSION=10
+          
+          # FIX: Use 'p' (Pie) as it is the highest version available in fs/sdcardfs
+          export ANDROID_MAJOR_VERSION=p
           
           echo "=== Starting Build ==="
-          # Load defconfig
           make a2corelte_defconfig
-          
-          # CRITICAL FIX: Auto-accept all new/missing config options with defaults to prevent hanging
           make olddefconfig
           
-          # Compile
           make -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
