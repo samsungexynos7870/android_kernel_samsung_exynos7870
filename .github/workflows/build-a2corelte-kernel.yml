@@ -42,7 +42,6 @@ jobs:
           echo "=== GCC VERSION ==="
           aarch64-linux-android-gcc --version
           
-          # FIX: Accept both standard 4.9 and AOSP's 4.9.x-google strings
           if ! aarch64-linux-android-gcc --version 2>&1 | grep -Eq "4\.9|4\.9\.x-google"; then
             echo "ERROR: Genuine GCC 4.9 was not obtained"
             exit 1
@@ -54,10 +53,16 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=$(pwd)/toolchain-4.9/bin/aarch64-linux-android-
+          export ANDROID_MAJOR_VERSION=10
           
           echo "=== Starting Build ==="
+          # Load defconfig
           make a2corelte_defconfig
           
+          # CRITICAL FIX: Auto-accept all new/missing config options with defaults to prevent hanging
+          make olddefconfig
+          
+          # Compile
           make -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
