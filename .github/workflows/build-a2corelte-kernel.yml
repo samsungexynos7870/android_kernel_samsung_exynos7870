@@ -50,34 +50,29 @@ jobs:
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
-          echo "=== A2 Core LTE defconfig ==="
           make exynos7870-a2corelte_defconfig
-
-          echo "=== Normalize config ==="
           make olddefconfig
 
-          echo "=== Force SELinux disable ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
 
-          echo "=== Check .config ==="
+          echo "=== CONFIG CHECK ==="
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
-          echo "=== Build Image ==="
+          echo "=== BUILD ==="
           make -j$(nproc) Image > build.log 2>&1
           cat build.log
 
-          echo "=== Check Image ==="
           test -s arch/arm64/boot/Image
 
-          echo "=== Check final Image config ==="
+          echo "=== FINAL IMAGE CONFIG CHECK ==="
           scripts/extract-ikconfig arch/arm64/boot/Image > final-image.config
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1"
 
-          echo "=== FINAL IMAGE VERIFIED ==="
+          echo "=== SELINUX DISABLE VERIFIED IN FINAL IMAGE ==="
 
       - name: Upload kernel Image + DTB
         if: always()
