@@ -47,12 +47,17 @@ jobs:
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
+        timeout-minutes: 90
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
+          echo "=== A2 Core LTE defconfig ==="
           make exynos7870-a2corelte_defconfig
+
+          echo "=== Normalize configuration ==="
           make olddefconfig
 
+          echo "=== Force SELinux disable ==="
           sed -i '/^# CONFIG_SECURITY_SELINUX_DISABLE is not set$/d' .config
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
@@ -61,10 +66,15 @@ jobs:
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
-          echo "=== BUILD ==="
-          make -j$(nproc) Image > build.log 2>&1
-          cat build.log
+          echo "=== BUILD START ==="
+          echo "Using GCC 4.9"
+          "$CROSS_COMPILE"gcc --version | head -1
+          echo "CPU count: $(nproc)"
+          echo "Building with 2 jobs"
 
+          make -j2 Image
+
+          echo "=== IMAGE CHECK ==="
           test -s arch/arm64/boot/Image
 
           echo "=== FINAL IMAGE CONFIG CHECK ==="
@@ -72,7 +82,7 @@ jobs:
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' final-image.config
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' final-image.config)" = "1"
 
-          echo "=== SELINUX DISABLE VERIFIED IN FINAL IMAGE ==="
+          echo "=== FINAL IMAGE VERIFIED ==="
 
       - name: Upload kernel Image + DTB
         if: always()
