@@ -70,7 +70,7 @@ jobs:
           echo "CPUs: $(nproc)"
           echo "Parallel jobs: $(nproc)"
 
-          make -j$(nproc) Image
+          make -j$(nproc) Image 2>&1 | tee build.log; test ${PIPESTATUS[0]} -eq 0
 
           echo "=== IMAGE CHECK ==="
           test -s arch/arm64/boot/Image
