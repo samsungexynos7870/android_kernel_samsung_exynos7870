@@ -28,22 +28,38 @@ jobs:
             libssl-dev \
             python3
 
-      - name: Install Android GCC 4.9
+      - name: Install genuine Android GCC 4.9
         run: |
-          git clone --depth 1 \
-            --branch android-8.1.0_r1 \
-            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
-            toolchain-4.9
+          rm -rf toolchain-4.9
 
-          echo "=== GCC CHECK ==="
+          mkdir toolchain-4.9
+          cd toolchain-4.9
 
-          test -x toolchain-4.9/bin/aarch64-linux-android-gcc
-          test -x toolchain-4.9/bin/aarch64-linux-android-g++
+          git init
+          git remote add origin \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9
 
-          toolchain-4.9/bin/aarch64-linux-android-gcc --version
-          toolchain-4.9/bin/aarch64-linux-android-g++ --version
+          echo "=== FETCHING EXACT GCC 4.9 COMMIT ==="
 
-          echo "=== GCC 4.9 READY ==="
+          git fetch --depth=1 origin \
+            a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
+
+          git checkout FETCH_HEAD
+
+          echo "=== GCC FILE CHECK ==="
+          pwd
+          ls -lh bin/aarch64-linux-android-gcc
+          file bin/aarch64-linux-android-gcc
+
+          echo "=== GCC VERSION ==="
+          bin/aarch64-linux-android-gcc --version
+
+          if ! bin/aarch64-linux-android-gcc --version 2>&1 | grep -q "gcc version 4.9"; then
+            echo "ERROR: Genuine GCC 4.9 was not obtained"
+            exit 1
+          fi
+
+          echo "=== REAL GCC 4.9 VERIFIED ==="
 
       - name: Build kernel Image
         env:
