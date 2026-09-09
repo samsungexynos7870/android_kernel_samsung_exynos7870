@@ -47,9 +47,6 @@ jobs:
         env:
           ARCH: arm64
           ANDROID_MAJOR_VERSION: p
-          KBUILD_BUILD_USER: github
-          KBUILD_BUILD_HOST: actions
-        timeout-minutes: 90
         run: |
           export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
@@ -68,9 +65,36 @@ jobs:
 
           echo "=== BUILD ==="
           echo "CPUs: $(nproc)"
-          echo "Parallel jobs: $(nproc)"
 
-          make -j$(nproc) Image
+          make -j$(nproc) Image > build.log 2>&1
+          status=$?
+
+          echo "=== BUILD OUTPUT ==="
+          cat build.log
+
+          if [ "$status" -ne 0 ]; then
+            echo
+            echo "========================================"
+            echo "             REAL BUILD ERROR"
+            echo "========================================"
+
+            echo
+            echo "--- Error lines ---"
+            grep -n -E \
+              'error:|Error:|fatal error:|undefined reference|No rule to make target|recipe for target|FAILED|cannot find|not found' \
+              build.log | tail -n 100 || true
+
+            echo
+            echo "--- Last 200 lines ---"
+            tail -n 200 build.log
+
+            echo
+            echo "========================================"
+            echo "Make exited with status: $status"
+            echo "========================================"
+
+            exit "$status"
+          fi
 
           echo "=== IMAGE CHECK ==="
           test -s arch/arm64/boot/Image
