@@ -19,7 +19,9 @@
 #define EEP_HEADER_AP_SHADING_START_ADDR                0x10
 #define EEP_HEADER_AP_SHADING_END_ADDR                  0x14
 #define EEP_HEADER_PROJECT_NAME_START_ADDR              0x38
+#ifndef EEP_HEADER_MODULE_ID_ADDR
 #define EEP_HEADER_MODULE_ID_ADDR                       0xA8
+#endif
 #define EEP_HEADER_SENSOR_ID_ADDR                       0xB8
 #define EEP_HEADER_VERSION_START_ADDR_REAR2             0x20
 #define EEP_HEADER_CAL_MAP_VER_START_ADDR_REAR2         0x30
