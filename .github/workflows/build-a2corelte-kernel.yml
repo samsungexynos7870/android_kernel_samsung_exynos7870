@@ -35,6 +35,7 @@ jobs:
           cd ..
 
       - name: Validate Toolchain
+        shell: bash
         run: |
           export PATH=$(pwd)/toolchain-4.9/bin:$PATH
           echo "=== GCC FILE CHECK ==="
@@ -49,19 +50,19 @@ jobs:
           echo "Toolchain validation PASSED."
 
       - name: Build Kernel Image
+        shell: bash
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
           export CROSS_COMPILE=$(pwd)/toolchain-4.9/bin/aarch64-linux-android-
-          
-          # FIX: Use 'p' (Pie) as it is the highest version available in fs/sdcardfs
           export ANDROID_MAJOR_VERSION=p
           
           echo "=== Starting Build ==="
           make a2corelte_defconfig
           make olddefconfig
           
-          make -j$(nproc) Image 2>&1 | tee build.log
+          # FIX: KCFLAGS="-Wno-error" disables -Werror so legacy vendor warnings don't fail the build
+          make KCFLAGS="-Wno-error" -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
           if [ "$status" -ne 0 ]; then
