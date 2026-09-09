@@ -19,26 +19,28 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
             bc bison build-essential ca-certificates flex git \
-            libncurses5-dev libssl-dev python3
+            libncurses5-dev libssl-dev python3 wget unzip
 
-      - name: Install Android GCC 4.9
+      - name: Install genuine Android GCC 4.9
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y wget unzip
+          git clone \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            toolchain-4.9
 
-          wget -q             https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip             -O ndk.zip
+          cd toolchain-4.9
+          git checkout a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
 
-          unzip -q ndk.zip
+          echo "=== CHECKING REAL GCC ==="
+          ls -lh bin/aarch64-linux-android-gcc
+          file bin/aarch64-linux-android-gcc
+          bin/aarch64-linux-android-gcc --version
 
-          mv android-ndk-r18b toolchain-4.9
+          if ! bin/aarch64-linux-android-gcc --version 2>&1 | grep -q "gcc version 4.9"; then
+            echo "ERROR: This is NOT GCC 4.9"
+            exit 1
+          fi
 
-          echo "=== GCC CHECK ==="
-
-          test -x toolchain-4.9/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc
-
-          toolchain-4.9/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc --version
-
-          echo "=== GCC 4.9 READY ==="
+          echo "=== REAL GCC 4.9 VERIFIED ==="
 
       - name: Build kernel Image
         env:
@@ -46,8 +48,18 @@ jobs:
           ANDROID_MAJOR_VERSION: p
         timeout-minutes: 180
         run: |
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-"
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain-4.9/bin/aarch64-linux-android-"
 
+          echo "=== CROSS COMPILER ==="
+          echo "$CROSS_COMPILE"
+          "$CROSS_COMPILE"gcc --version
+
+          if ! "$CROSS_COMPILE"gcc --version 2>&1 | grep -q "gcc version 4.9"; then
+            echo "ERROR: CROSS_COMPILE is not using GCC 4.9"
+            exit 1
+          fi
+
+          echo "=== CONFIGURE ==="
           make exynos7870-a2corelte_defconfig
           make olddefconfig
 
@@ -55,16 +67,29 @@ jobs:
           sed -i '/^CONFIG_SECURITY_SELINUX_DISABLE=/d' .config
           echo 'CONFIG_SECURITY_SELINUX_DISABLE=y' >> .config
 
-          echo "=== CONFIG CHECK ==="
+          echo "=== SELINUX CONFIG CHECK ==="
           grep '^CONFIG_SECURITY_SELINUX_DISABLE=' .config
+
           test "$(grep -c '^CONFIG_SECURITY_SELINUX_DISABLE=y$' .config)" = "1"
 
           echo "=== BUILDING IMAGE ==="
-          echo "CPUs: $(nproc)"
 
-          make -j$(nproc) Image 2>&1 | tee build.log
+          set +e
+          make -j$(nproc) Image > build.log 2>&1
+          status=$?
+          set -e
 
-          test -s arch/arm64/boot/Image
+          cat build.log
+
+          if [ "$status" -ne 0 ]; then
+            echo "=== KERNEL BUILD FAILED ==="
+            exit "$status"
+          fi
+
+          if [ ! -s arch/arm64/boot/Image ]; then
+            echo "ERROR: Image was not produced"
+            exit 1
+          fi
 
           echo "=== IMAGE BUILD SUCCESSFUL ==="
           ls -lh arch/arm64/boot/Image
