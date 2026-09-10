@@ -62,14 +62,25 @@ jobs:
           # FIX 3: Replace nohz_test_cpu declaration with dummy function
           perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
           
-          # FIX 4: Handle missing drivers/gpu/arm directory by creating a dummy one
-          if [ ! -d "drivers/gpu/arm" ]; then
-            echo "WARNING: drivers/gpu/arm directory is missing. Creating dummy directory to prevent linker error."
-            mkdir -p drivers/gpu/arm
-            echo "obj-y := " > drivers/gpu/arm/Makefile
+          # FIX 4: COMPREHENSIVE fix for missing drivers/gpu/arm
+          echo "=== DEBUG: Current drivers/gpu/Makefile contents ==="
+          cat drivers/gpu/Makefile
+          echo "=== END DEBUG ==="
+          
+          # Remove ALL lines containing "arm" (case-insensitive) from drivers/gpu/Makefile
+          sed -i '/[Aa][Rr][Mm]/d' drivers/gpu/Makefile
+          
+          echo "=== DEBUG: Modified drivers/gpu/Makefile contents ==="
+          cat drivers/gpu/Makefile
+          echo "=== END DEBUG ==="
+          
+          # Verify the change was made
+          if grep -qi "arm" drivers/gpu/Makefile; then
+            echo "ERROR: Failed to remove arm references from Makefile"
+            exit 1
           fi
           
-          echo "Kernel source patched successfully."
+          echo "Kernel source patched successfully - all arm references removed."
 
       - name: Build Kernel Image
         shell: bash
