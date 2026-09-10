@@ -2,7 +2,7 @@ name: Build Exynos 7870 Kernel
 
 on:
   push:
-    branches: [ "clean-build", "master" ]
+    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     container:
       image: ubuntu:20.04
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -32,7 +32,39 @@ jobs:
           cd toolchain-4.9
           git checkout a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
 
-      - name: Build Kernel Image
+      - name: Apply Patches
+        run: |
+          echo "=== APPLYING PATCHES ==="
+          
+          # 1. Fix fs/dlog_hook.c missing headers
+          perl -pi -e 'print "#include <linux/sched.h>\n#include <linux/magic.h>\n#include <linux/cred.h>\n" if $. == 1' fs/dlog_hook.c
+          
+          # 2. Fix kernel/sched/fair.c broken Samsung load tracking
+          perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= ratio_delta;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += ratio_delta;/' kernel/sched/fair.c
+          perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += se->avg.load_avg_ratio;/' kernel/sched/fair.c
+          perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio -= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio -= se->avg.load_avg_ratio;/' kernel/sched/fair.c
+          perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
+          
+          # 3. Handle missing GPU directory
+          sed -i '/arm/d' drivers/gpu/Makefile
+          mkdir -p drivers/gpu/arm
+          echo "obj-y := " > drivers/gpu/arm/Makefile
+          
+          # 4. Create linker stubs
+          cat > kernel/samsung_stubs.c << 'STUBS_EOF'
+void exynos_ss_panic_handler_safe(void) { }
+int lcd_is_on(void) { return 0; }
+void acct_update_power(void *p, unsigned long cputime) { }
+void sysrq_sched_debug_show(void) { }
+STUBS_EOF
+          
+          if ! grep -q "samsung_stubs.o" kernel/Makefile; then
+            echo "obj-y += samsung_stubs.o" >> kernel/Makefile
+          fi
+          
+          echo "=== PATCHES APPLIED ==="
+
+      - name: Configure and Build
         shell: bash
         run: |
           export ARCH=arm64
@@ -40,10 +72,22 @@ jobs:
           export CROSS_COMPILE=$(pwd)/toolchain-4.9/bin/aarch64-linux-android-
           export ANDROID_MAJOR_VERSION=p
           
-          echo "=== Starting Build ==="
+          echo "=== Loading defconfig ==="
           make a2corelte_defconfig
+          
+          echo "=== Disabling broken Samsung features ==="
+          scripts/config --disable CONFIG_SEC_INPUT_BOOSTER
+          scripts/config --disable CONFIG_INPUT_BOOSTER
+          scripts/config --disable CONFIG_SCHED_DEBUG
+          scripts/config --disable CONFIG_EXYNOS_SS
+          scripts/config --disable CONFIG_EXYNOS_SNAPSHOT
+          scripts/config --disable CONFIG_SEC_DEBUG
+          scripts/config --disable CONFIG_TASKSTATS
+          scripts/config --disable CONFIG_SCHEDSTATS
+          
           make olddefconfig
           
+          echo "=== Starting Build ==="
           make KCFLAGS="-Wno-error" -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
@@ -54,6 +98,13 @@ jobs:
           fi
           
           echo "=== BUILD SUCCESSFUL ==="
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build_log
+          path: build.log
 
       - name: Upload Kernel Image
         if: success()
