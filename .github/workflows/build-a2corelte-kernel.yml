@@ -62,10 +62,11 @@ jobs:
           # FIX 3: Replace nohz_test_cpu declaration with dummy function
           perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
           
-          # FIX 4: Handle missing drivers/gpu/arm directory
+          # FIX 4: Handle missing drivers/gpu/arm directory by creating a dummy one
           if [ ! -d "drivers/gpu/arm" ]; then
-            echo "WARNING: drivers/gpu/arm directory is missing. Removing from drivers/gpu/Makefile to prevent linker error."
-            sed -i '/obj-.*+=.*arm\//d' drivers/gpu/Makefile
+            echo "WARNING: drivers/gpu/arm directory is missing. Creating dummy directory to prevent linker error."
+            mkdir -p drivers/gpu/arm
+            echo "obj-y := " > drivers/gpu/arm/Makefile
           fi
           
           echo "Kernel source patched successfully."
