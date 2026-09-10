@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-y +=  exynos7870-a6lte_eur_open_00.dtb
+dtb-y +=  exynos7870-a2corelte_swa_ins_00.dtb
 dtb-y +=  exynos7870-a6lte_eur_open_01.dtb
 dtb-y +=  exynos7870-a6lte_eur_open_02.dtb
 dtb-y +=  exynos7870-a6lte_eur_open_03.dtb
