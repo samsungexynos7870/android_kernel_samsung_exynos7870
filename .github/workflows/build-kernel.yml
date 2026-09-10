@@ -32,39 +32,42 @@ jobs:
           cd toolchain-4.9
           git checkout a7bb6f39cd99b2fb26ecc2d3cb984d18cd259d24
 
-      - name: Apply Patches
+      - name: Apply All Patches
         run: |
           echo "=== APPLYING PATCHES ==="
           
-          # 1. Fix fs/dlog_hook.c missing headers
+          # PATCH 1: Fix fs/dlog_hook.c missing headers
           perl -pi -e 'print "#include <linux/sched.h>\n#include <linux/magic.h>\n#include <linux/cred.h>\n" if $. == 1' fs/dlog_hook.c
           
-          # 2. Fix kernel/sched/fair.c broken Samsung load tracking
+          # PATCH 2: Fix kernel/sched/fair.c broken Samsung load tracking
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= ratio_delta;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += ratio_delta;/' kernel/sched/fair.c
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio \+= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio += se->avg.load_avg_ratio;/' kernel/sched/fair.c
           perl -pi -e 's/^\s*rq_of\(cfs_rq\)->avg\.load_avg_ratio -= se->avg\.load_avg_ratio;/\t\/\/ rq_of(cfs_rq)->avg.load_avg_ratio -= se->avg.load_avg_ratio;/' kernel/sched/fair.c
           perl -pi -e 's/^.*static int nohz_test_cpu\(int cpu\);.*$/static int nohz_test_cpu(int cpu) { return 0; }/' kernel/sched/fair.c
           
-          # 3. Handle missing GPU directory
+          # PATCH 3: Handle missing GPU directory
           sed -i '/arm/d' drivers/gpu/Makefile
           mkdir -p drivers/gpu/arm
           echo "obj-y := " > drivers/gpu/arm/Makefile
           
-          # 4. Create linker stubs
-          cat > kernel/samsung_stubs.c << 'STUBS_EOF'
-void exynos_ss_panic_handler_safe(void) { }
-int lcd_is_on(void) { return 0; }
-void acct_update_power(void *p, unsigned long cputime) { }
-void sysrq_sched_debug_show(void) { }
-STUBS_EOF
+          # PATCH 4: Fix input booster macros
+          perl -pi -e 'print "#ifndef PROPERTY_BOOSTER\n#define PROPERTY_BOOSTER(a, b, c)\n#endif\n#ifndef SET_BOOSTER\n#define SET_BOOSTER\n#endif\n#ifndef REMOVE_BOOSTER\n#define REMOVE_BOOSTER\n#endif\n" if $. == 1' include/linux/input/input.h
           
-          if ! grep -q "samsung_stubs.o" kernel/Makefile; then
-            echo "obj-y += samsung_stubs.o" >> kernel/Makefile
-          fi
+          # PATCH 5: Add linker stubs to kernel/panic.c
+          cat >> kernel/panic.c << 'STUBS'
           
-          echo "=== PATCHES APPLIED ==="
+          /* === CUSTOM STUBS FOR MISSING SAMSUNG VENDOR SYMBOLS === */
+          #include <linux/sched.h>
+          void exynos_ss_panic_handler_safe(void) { }
+          int lcd_is_on(void) { return 0; }
+          void acct_update_power(struct task_struct *p, cputime_t cputime) { }
+          void sysrq_sched_debug_show(void) { }
+          /* ======================================================= */
+          STUBS
+          
+          echo "=== ALL PATCHES APPLIED ==="
 
-      - name: Configure and Build
+      - name: Build Kernel Image
         shell: bash
         run: |
           export ARCH=arm64
@@ -72,22 +75,10 @@ STUBS_EOF
           export CROSS_COMPILE=$(pwd)/toolchain-4.9/bin/aarch64-linux-android-
           export ANDROID_MAJOR_VERSION=p
           
-          echo "=== Loading defconfig ==="
+          echo "=== Starting Build ==="
           make a2corelte_defconfig
-          
-          echo "=== Disabling broken Samsung features ==="
-          scripts/config --disable CONFIG_SEC_INPUT_BOOSTER
-          scripts/config --disable CONFIG_INPUT_BOOSTER
-          scripts/config --disable CONFIG_SCHED_DEBUG
-          scripts/config --disable CONFIG_EXYNOS_SS
-          scripts/config --disable CONFIG_EXYNOS_SNAPSHOT
-          scripts/config --disable CONFIG_SEC_DEBUG
-          scripts/config --disable CONFIG_TASKSTATS
-          scripts/config --disable CONFIG_SCHEDSTATS
-          
           make olddefconfig
           
-          echo "=== Starting Build ==="
           make KCFLAGS="-Wno-error" -j$(nproc) Image 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           
