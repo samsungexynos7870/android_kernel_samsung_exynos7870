@@ -30,7 +30,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ram ess_setup=0x46000000 androidboot.hardware=samsungexynos7870 androidboot.selinux=disabled firmware_class.path=/vendor/firmware androidboot.debug_level=0x4948 reserve-fimc=0";
+		bootargs = "console=ram ess_setup=0x46000000 androidboot.hardware=samsungexynos7870 androidboot.selinux=enforcing firmware_class.path=/vendor/firmware androidboot.debug_level=0x4948 reserve-fimc=0";
 		linux,initrd-start = <0x42000000>;
 		linux,initrd-end = <0x420FFFFF>;
 	};
