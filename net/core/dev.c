@@ -2882,7 +2882,6 @@ static void skb_update_prio(struct sk_buff *skb)
 DEFINE_PER_CPU(int, xmit_recursion);
 EXPORT_SYMBOL(xmit_recursion);
 
-#define RECURSION_LIMIT 10
 
 /**
  *	dev_loopback_xmit - loop back @skb
@@ -2983,7 +2982,8 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 		if (txq->xmit_lock_owner != cpu) {
 
-			if (__this_cpu_read(xmit_recursion) > RECURSION_LIMIT)
+                       if (unlikely(__this_cpu_read(xmit_recursion) >
+                                    XMIT_RECURSION_LIMIT))
 				goto recursion_alert;
 
 			skb = validate_xmit_skb(skb, dev);
@@ -3565,6 +3565,16 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	case TC_ACT_STOLEN:
 		kfree_skb(skb);
 		return NULL;
+	case TC_ACT_REDIRECT:
+		/* skb_mac_header check was done by cls/act_bpf, so
+		 * we can safely push the L2 header back before
+		 * redirecting to another netdev
+		 */
+		__skb_push(skb, skb->mac_len);
+		skb_do_redirect(skb);
+		return NULL;
+	default:
+		break;
 	}
 
 out:

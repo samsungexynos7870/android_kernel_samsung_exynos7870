@@ -1,0 +1,58 @@
+a3y17lte eBPF backport status
+============================
+
+Source and scope
+----------------
+The BPF backport is based on the BPF commit interval in
+samsungexynos7420/android_kernel_samsung_universal7420, lineage-20, from
+9666f3d885b (split filter.c) through bdf3f4e3044 (remove duplicated
+sys_bpf). The changes are adapted to this tree's 3.18 cgroup, socket,
+perf, and arm64 JIT interfaces. Two missing socket-creation program
+commits were subsequently cherry-picked from upstream Linux, with
+3.18-specific conflict resolutions: 610236587600 (cgroup socket
+programs) and aa4c1037a30f (family/type/protocol context fields).
+The bcc kernel-versions.md list is a feature/version guide, not a
+substitute for platform runtime testing.
+
+Build verification
+------------------
+Target: exynos7870-a3y17lte_defconfig, ARCH=arm64, Image.gz-dtb.
+The image build completed using GCC 8.2 (NgntdKernel/aarch64-linux-gnu),
+CROSS_COMPILE=/tmp/aarch64-tc/bin/aarch64_be-ngntd-linux-gnu- and
+KCFLAGS=-Wno-error. The sandbox did not provide bc or lld; temporary
+host-only tools supplied the timeconst.bc calculations and redirected
+Samsung's FIPS utility link to the system linker. No kernel build files
+were changed for these host dependencies. Example command in a build
+host with those tools installed:
+
+  make O=/tmp/a3y17-build ARCH=arm64 CROSS_COMPILE=<aarch64-prefix> exynos7870-a3y17lte_defconfig
+  make O=/tmp/a3y17-build ARCH=arm64 CROSS_COMPILE=<aarch64-prefix> KCFLAGS=-Wno-error -j8 Image.gz-dtb
+
+The verified output (after the socket-creation backports) was an 11 MB
+arch/arm64/boot/Image.gz-dtb with SHA256
+ f0c8bef0ee71ab139641d91441a7cdf9ecbdca80d34436dd8c9ad02d0e172e19
+at the time of the build. This hash is not a reproducibility guarantee:
+the FIPS image embeds a build-time HMAC, and toolchain/build timestamps
+may differ. The build emitted a modpost section-mismatch warning and
+warnings from pre-existing Samsung code, but no errors.
+
+Caveats
+-------
+A successful image build is not a bpfloader, TrafficController, VTS, or
+on-device verification. Android's traffic monitor expects the bpfloader
+programs, map ABI, bpffs, socket UID helpers, and cgroup attach paths to
+work together. Verify the actual Android 13 userspace BPF object/helper/map
+requirements before relying on this 3.18 backport. For example, the
+BPF_MAP_TYPE_LRU_HASH map type (introduced in newer kernels) and a
+working XDP receive hook are not present in this port. Android BPF
+objects with a minimum kernel version above 3.18 can also be skipped by
+the userspace loader, even if some of their features were backported.
+Do not advertise this tree as supporting every Android 13 or modern
+eBPF program solely because it builds.
+
+References:
+ https://github.com/samsungexynos7420/android_kernel_samsung_universal7420
+ https://github.com/torvalds/linux/commit/61023658760032e97869b07d54be9681d2529e77
+ https://github.com/torvalds/linux/commit/aa4c1037a30f4e88f444e83d42c2befbe0d5caf5
+ https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md
+ https://source.android.com/docs/core/data/ebpf-traffic-monitor

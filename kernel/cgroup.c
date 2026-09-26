@@ -59,6 +59,7 @@
 #include <linux/delay.h>
 
 #include <linux/atomic.h>
+#include <net/sock.h>
 
 /*
  * pidlists linger the following amount before being destroyed.  The goal
@@ -107,6 +108,8 @@ static DEFINE_SPINLOCK(release_agent_path_lock);
 	rcu_lockdep_assert(rcu_read_lock_held() ||			\
 			   lockdep_is_held(&cgroup_mutex),		\
 			   "cgroup_mutex or RCU read lock required");
+
+static struct file_system_type compat_cgroup2_fs_type;
 
 /*
  * cgroup destruction makes heavy use of work items and there can be a lot
@@ -1564,6 +1567,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	mutex_init(&cgrp->pidlist_mutex);
 	cgrp->self.cgroup = cgrp;
 	cgrp->self.flags |= CSS_ONLINE;
+	cgroup_bpf_init(&cgrp->bpf);
 
 	for_each_subsys(ss, ssid)
 		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
@@ -1644,6 +1648,10 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
 	if (ret)
 		goto destroy_root;
 
+	ret = cgroup_bpf_inherit(root_cgrp);
+	if (ret)
+		goto destroy_root;
+
 	ret = rebind_subsystems(root, ss_mask);
 	if (ret)
 		goto destroy_root;
@@ -1673,6 +1681,7 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned int ss_mask)
 	goto out;
 
 destroy_root:
+	cgroup_bpf_put(root_cgrp);
 	kernfs_destroy_root(root->kf_root);
 	root->kf_root = NULL;
 exit_root_id:
@@ -1696,6 +1705,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	int ret;
 	int i;
 	bool new_sb;
+	bool compat_v2 = fs_type == &compat_cgroup2_fs_type;
 
 	/*
 	 * The first time anyone tries to mount a cgroup, enable the list
@@ -1706,8 +1716,14 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 	mutex_lock(&cgroup_mutex);
 
-	/* First find the desired set of subsystems */
-	ret = parse_cgroupfs_options(data, &opts);
+	/* cgroup2 mounts always refer to the default hierarchy. */
+	if (compat_v2) {
+		memset(&opts, 0, sizeof(opts));
+		opts.flags = CGRP_ROOT_SANE_BEHAVIOR;
+		ret = 0;
+	} else {
+		ret = parse_cgroupfs_options(data, &opts);
+	}
 	if (ret)
 		goto out_unlock;
 
@@ -1871,6 +1887,12 @@ static void cgroup_kill_sb(struct super_block *sb)
 
 static struct file_system_type cgroup_fs_type = {
 	.name = "cgroup",
+	.mount = cgroup_mount,
+	.kill_sb = cgroup_kill_sb,
+};
+
+static struct file_system_type compat_cgroup2_fs_type = {
+	.name = "cgroup2",
 	.mount = cgroup_mount,
 	.kill_sb = cgroup_kill_sb,
 };
@@ -4325,7 +4347,8 @@ static void css_free_work_fn(struct work_struct *work)
 		css->ss->css_free(css);
 		cgroup_put(cgrp);
 	} else {
-		/* cgroup free path */
+		/* cgroup free path, after the RCU grace period */
+		cgroup_bpf_put(cgrp);
 		atomic_dec(&cgrp->root->nr_cgrps);
 		cgroup_pidlist_destroy_all(cgrp);
 		cancel_work_sync(&cgrp->release_agent_work);
@@ -4642,6 +4665,9 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 		cgroup_refresh_child_subsys_mask(cgrp);
 	}
 
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		goto out_destroy;
 	kernfs_activate(kn);
 
 	ret = 0;
@@ -4979,6 +5005,13 @@ int __init cgroup_init(void)
 
 	err = register_filesystem(&cgroup_fs_type);
 	if (err < 0) {
+		kobject_put(cgroup_kobj);
+		return err;
+	}
+
+	err = register_filesystem(&compat_cgroup2_fs_type);
+	if (err < 0) {
+		unregister_filesystem(&cgroup_fs_type);
 		kobject_put(cgroup_kobj);
 		return err;
 	}
@@ -5384,6 +5417,90 @@ struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	return idr_find(&ss->css_idr, id);
 }
+
+/* Pin a live cgroup referenced by an open cgroup directory fd. */
+struct cgroup *cgroup_get_from_fd(int fd)
+{
+	struct kernfs_node *kn;
+	struct cgroup *cgrp;
+	struct file *f = fget_raw(fd);
+
+	if (!f)
+		return ERR_PTR(-EBADF);
+	if (f->f_path.dentry->d_sb->s_type != &cgroup_fs_type &&
+	    f->f_path.dentry->d_sb->s_type != &compat_cgroup2_fs_type) {
+		fput(f);
+		return ERR_PTR(-EBADF);
+	}
+	kn = kernfs_node_from_dentry(f->f_path.dentry);
+	if (!kn || kernfs_type(kn) != KERNFS_DIR) {
+		fput(f);
+		return ERR_PTR(-EBADF);
+	}
+	rcu_read_lock();
+	cgrp = rcu_dereference(kn->priv);
+	if (!cgrp || !percpu_ref_tryget_live(&cgrp->self.refcnt))
+		cgrp = ERR_PTR(-ENODEV);
+	rcu_read_unlock();
+	fput(f);
+	return cgrp;
+}
+EXPORT_SYMBOL_GPL(cgroup_get_from_fd);
+
+void cgroup_put_from_fd(struct cgroup *cgrp)
+{
+	cgroup_put(cgrp);
+}
+EXPORT_SYMBOL_GPL(cgroup_put_from_fd);
+
+/* Socket ownership follows the cgroup2 (default) hierarchy used by BPF. */
+void cgroup_sk_alloc(struct cgroup **skcg)
+{
+	struct cgroup *cgrp;
+
+	*skcg = NULL;
+	rcu_read_lock();
+	cgrp = task_css_set(current)->dfl_cgrp;
+	if (cgrp && css_tryget(&cgrp->self))
+		*skcg = cgrp;
+	rcu_read_unlock();
+}
+
+void cgroup_sk_clone(struct cgroup *skcg)
+{
+	/* Socket clone path */
+	if (skcg)
+		cgroup_get(skcg);
+}
+
+void cgroup_sk_free(struct cgroup *skcg)
+{
+	if (skcg)
+		cgroup_put(skcg);
+}
+
+#ifdef CONFIG_CGROUP_BPF
+int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_attach(cgrp, prog, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_detach(cgrp, prog, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+#endif /* CONFIG_CGROUP_BPF */
 
 #ifdef CONFIG_CGROUP_DEBUG
 static struct cgroup_subsys_state *

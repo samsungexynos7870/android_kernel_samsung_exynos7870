@@ -1112,8 +1112,10 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	int size, esize;
 	int rctx;
 
-	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
+	if (bpf_prog_array_valid(call) && !trace_call_bpf(call, regs))
+		return;
 
+	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = esize + tu->tp.size + dsize;
 	size = ALIGN(size + sizeof(u32), sizeof(u64)) - sizeof(u32);
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
@@ -1300,7 +1302,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-
+	call->flags |= TRACE_EVENT_FL_UPROBE;
 	call->class->reg = trace_uprobe_register;
 	call->data = tu;
 	ret = trace_add_event_call(call);

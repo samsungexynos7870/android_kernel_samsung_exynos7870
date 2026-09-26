@@ -117,4 +117,5 @@ extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size
 #define unsafe_put_user(x, ptr, err) do { if (unlikely(__put_user(x, ptr))) goto err; } while (0)
 #endif
 
+extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
 #endif		/* __LINUX_UACCESS_H__ */

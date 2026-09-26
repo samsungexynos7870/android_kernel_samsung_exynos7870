@@ -201,7 +201,7 @@ static int __init prandom_init(void)
 	prandom_state_selftest();
 
 	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state,i);
+		struct rnd_state *state = &per_cpu(net_rand_state, i);
 		u32 weak_seed = (i + jiffies) ^ random_get_entropy();
 
 		prandom_seed_early(state, weak_seed, true);
@@ -238,47 +238,37 @@ static void __init __prandom_start_seed_timer(void)
 	add_timer(&seed_timer);
 }
 
-/*
- *	Generate better values after random number generator
- *	is fully initialized.
- */
-static void __prandom_reseed(bool late)
+void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
 {
 	int i;
-	unsigned long flags;
-	static bool latch = false;
-	static DEFINE_SPINLOCK(lock);
-
-	/* Asking for random bytes might result in bytes getting
-	 * moved into the nonblocking pool and thus marking it
-	 * as initialized. In this case we would double back into
-	 * this function and attempt to do a late reseed.
-	 * Ignore the pointless attempt to reseed again if we're
-	 * already waiting for bytes when the nonblocking pool
-	 * got initialized.
-	 */
-
-	/* only allow initial seeding (late == false) once */
-	if (!spin_trylock_irqsave(&lock, flags))
-		return;
-
-	if (latch && !late)
-		goto out;
-
-	latch = true;
 
 	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state,i);
+		struct rnd_state *state = per_cpu_ptr(pcpu_state, i);
 		u32 seeds[4];
 
-		get_random_bytes(&seeds, sizeof(seeds));
+		get_random_bytes(seeds, sizeof(seeds));
 		state->s1 = __seed(seeds[0],   2U);
 		state->s2 = __seed(seeds[1],   8U);
 		state->s3 = __seed(seeds[2],  16U);
 		state->s4 = __seed(seeds[3], 128U);
-
 		prandom_warmup(state);
 	}
+}
+
+/* Reseed the per-CPU generator once, or again when entropy becomes available. */
+static void __prandom_reseed(bool late)
+{
+	unsigned long flags;
+	static bool latch;
+	static DEFINE_SPINLOCK(lock);
+
+	/* get_random_bytes() can recurse into prandom_reseed_late(). */
+	if (!spin_trylock_irqsave(&lock, flags))
+		return;
+	if (latch && !late)
+		goto out;
+	latch = true;
+	prandom_seed_full_state(&net_rand_state);
 out:
 	spin_unlock_irqrestore(&lock, flags);
 }

@@ -598,9 +598,11 @@ static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filte
 
 	err = 0;
 
-	/* Re-attach the filter to persist device */
-	if (!skip_filter && (tun->filter_attached == true)) {
+	/* Re-attach the filter to persistent device under the socket lock. */
+	if (!skip_filter && tun->filter_attached) {
+		lock_sock(tfile->socket.sk);
 		err = sk_attach_filter(&tun->fprog, tfile->socket.sk);
+		release_sock(tfile->socket.sk);
 		if (!err)
 			goto out;
 	}
@@ -1942,7 +1944,9 @@ static void tun_detach_filter(struct tun_struct *tun, int n)
 
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
+		lock_sock(tfile->socket.sk);
 		sk_detach_filter(tfile->socket.sk);
+		release_sock(tfile->socket.sk);
 	}
 
 	tun->filter_attached = false;
@@ -1955,7 +1959,9 @@ static int tun_attach_filter(struct tun_struct *tun)
 
 	for (i = 0; i < tun->numqueues; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
+		lock_sock(tfile->socket.sk);
 		ret = sk_attach_filter(&tun->fprog, tfile->socket.sk);
+		release_sock(tfile->socket.sk);
 		if (ret) {
 			tun_detach_filter(tun, i);
 			return ret;

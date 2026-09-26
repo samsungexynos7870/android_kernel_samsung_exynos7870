@@ -1184,6 +1184,18 @@ config DEBUG_BLK_CGROUP
 	Enable some debugging help. Currently it exports additional stat
 	files in a cgroup which can be useful for debugging.
 
+config CGROUP_BPF
+        bool "Support for eBPF programs attached to cgroups"
+        depends on BPF_SYSCALL
+        help
+          Allow attaching eBPF programs to a cgroup using the bpf(2)
+          syscall command BPF_PROG_ATTACH.
+
+          In which context these programs are accessed depends on the type
+          of attachment. For instance, programs that are attached using
+          BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
+          inet sockets.
+
 endif # CGROUPS
 
 config CHECKPOINT_RESTORE
@@ -1592,13 +1604,20 @@ config EVENTFD
 
 # syscall, maps, verifier
 config BPF_SYSCALL
-	bool "Enable bpf() system call" if EXPERT
+	bool "Enable bpf() system call"
 	select ANON_INODES
 	select BPF
 	default n
 	help
 	  Enable the bpf() system call that allows to manipulate eBPF
 	  programs and maps via file descriptors.
+
+config BPF_JIT_ALWAYS_ON
+	bool "Permanently enable BPF JIT and remove BPF interpreter"
+	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
+	help
+	  Enables BPF JIT and removes BPF interpreter to avoid
+	  speculative execution of BPF instructions by the interpreter
 
 config SHMEM
 	bool "Use full shmem filesystem" if EXPERT

@@ -23,11 +23,14 @@
 #include <net/pkt_sched.h>
 
 static int zero = 0;
-static int one = 1;
 static int ushort_max = USHRT_MAX;
+static int one __maybe_unused = 1;
+static int two __maybe_unused = 2;
 static int min_sndbuf = SOCK_MIN_SNDBUF;
 static int min_rcvbuf = SOCK_MIN_RCVBUF;
 static int max_skb_frags = MAX_SKB_FRAGS;
+static long long_one __maybe_unused = 1;
+static long long_max __maybe_unused = LONG_MAX;
 
 #ifdef CONFIG_RPS
 static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
@@ -216,6 +219,52 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 		ret = qdisc_set_default(id);
 	return ret;
 }
+#endif /* CONFIG_NET_FLOW_LIMIT */
+
+#ifdef CONFIG_BPF_JIT
+static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
+					   void __user *buffer, size_t *lenp,
+					   loff_t *ppos)
+{
+	int ret, jit_enable = *(int *)table->data;
+	struct ctl_table tmp = *table;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	tmp.data = &jit_enable;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret) {
+		*(int *)table->data = jit_enable;
+		if (jit_enable == 2)
+			pr_warn("bpf_jit_enable = 2 was set! NEVER use this in production, only for JIT debugging!\n");
+	}
+	return ret;
+}
+
+# ifdef CONFIG_HAVE_EBPF_JIT
+static int
+proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+				    void __user *buffer, size_t *lenp,
+				    loff_t *ppos)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+}
+# endif /* CONFIG_HAVE_EBPF_JIT */
+
+static int
+proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+				     void __user *buffer, size_t *lenp,
+				     loff_t *ppos)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+}
 #endif
 
 static struct ctl_table net_core_table[] = {
@@ -272,7 +321,34 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax_bpf_enable,
+# ifdef CONFIG_BPF_JIT_ALWAYS_ON
+		.extra1		= &one,
+		.extra2		= &one,
+# else
+		.extra1		= &zero,
+		.extra2		= &two,
+# endif
+	},
+# ifdef CONFIG_HAVE_EBPF_JIT
+	{
+		.procname	= "bpf_jit_harden",
+		.data		= &bpf_jit_harden,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
+		.extra1		= &zero,
+		.extra2		= &two,
+	},
+# endif
+	{
+		.procname	= "bpf_jit_limit",
+		.data		= &bpf_jit_limit,
+		.maxlen		= sizeof(long),
+		.mode		= 0600,
+		.proc_handler	= proc_dolongvec_minmax_bpf_restricted,
+		.extra1		= &long_one,
+		.extra2		= &long_max,
 	},
 #endif
 	{

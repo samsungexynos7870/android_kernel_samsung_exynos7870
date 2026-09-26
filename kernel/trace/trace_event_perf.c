@@ -297,6 +297,26 @@ void *perf_trace_buf_prepare(int size, unsigned short type,
 EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);
 NOKPROBE_SYMBOL(perf_trace_buf_prepare);
 
+/* Keep the 3.18 tracepoint users of perf_trace_buf_prepare() intact. */
+void *perf_trace_buf_alloc(int size, struct pt_regs *regs, int *rctxp)
+{
+	return perf_trace_buf_prepare(size, 0, NULL, rctxp);
+}
+EXPORT_SYMBOL_GPL(perf_trace_buf_alloc);
+NOKPROBE_SYMBOL(perf_trace_buf_alloc);
+
+void perf_trace_buf_update(void *record, u16 type)
+{
+	struct trace_entry *entry = record;
+	unsigned long flags;
+
+	local_save_flags(flags);
+	tracing_generic_entry_update(entry, flags, preempt_count());
+	entry->type = type;
+}
+EXPORT_SYMBOL_GPL(perf_trace_buf_update);
+NOKPROBE_SYMBOL(perf_trace_buf_update);
+
 #ifdef CONFIG_FUNCTION_TRACER
 static void
 perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,

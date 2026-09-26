@@ -131,6 +131,7 @@
 #include <linux/ipsec.h>
 #include <net/cls_cgroup.h>
 #include <net/netprio_cgroup.h>
+#include <linux/sock_diag.h>
 
 #include <linux/filter.h>
 
@@ -1019,6 +1020,19 @@ set_rcvbuf:
 		}
 		break;
 
+	case SO_ATTACH_BPF:
+		ret = -EINVAL;
+		if (optlen == sizeof(u32)) {
+			u32 ufd;
+
+			ret = -EFAULT;
+			if (copy_from_user(&ufd, optval, sizeof(ufd)))
+				break;
+
+			ret = sk_attach_bpf(ufd, sk);
+		}
+		break;
+
 	case SO_DETACH_FILTER:
 		ret = sk_detach_filter(sk);
 		break;
@@ -1118,6 +1132,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	union {
 		int val;
+		u64 val64;
 		struct linger ling;
 		struct timeval tm;
 	} v;
@@ -1344,6 +1359,13 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sk->sk_max_pacing_rate;
 		break;
 
+       case SO_COOKIE:
+               lv = sizeof(u64);
+               if (len < lv)
+                       return -EINVAL;
+               v.val64 = sock_gen_cookie(sk);
+               break;
+
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1441,6 +1463,7 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 		if (!try_module_get(prot->owner))
 			goto out_free_sec;
 		sk_tx_queue_clear(sk);
+		cgroup_sk_alloc(&sk->skcg);
 	}
 
 	return sk;
@@ -1463,6 +1486,7 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	owner = prot->owner;
 	slab = prot->slab;
 
+	cgroup_sk_free(sk->skcg);
 	security_sk_free(sk);
 	if (slab != NULL)
 		kmem_cache_free(slab, sk);
@@ -1692,6 +1716,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 
 		sock_reset_flag(newsk, SOCK_DONE);
+		cgroup_sk_clone(newsk->skcg);
+
 		skb_queue_head_init(&newsk->sk_error_queue);
 
 		filter = rcu_dereference_protected(newsk->sk_filter, 1);
@@ -1720,6 +1746,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		newsk->sk_err	   = 0;
 		newsk->sk_priority = 0;
+		atomic64_set(&newsk->sk_cookie, 0);
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
 		 * (Documentation/RCU/rculist_nulls.txt for details)

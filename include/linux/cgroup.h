@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernfs.h>
 #include <linux/wait.h>
+#include <linux/bpf-cgroup.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -241,6 +242,8 @@ struct cgroup {
 
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
+	/* Programs inherited from or directly attached to this cgroup. */
+	struct cgroup_bpf bpf;
 };
 
 #define MAX_CGROUP_ROOT_NAMELEN 64
@@ -922,6 +925,12 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
  * Returns 0 if this is allowed, or -EACCES otherwise.
  */
 
+struct cgroup *cgroup_get_from_fd(int fd);
+void cgroup_put_from_fd(struct cgroup *cgrp);
+
+void cgroup_sk_alloc(struct cgroup **skcg);
+void cgroup_sk_clone(struct cgroup *skcg);
+void cgroup_sk_free(struct cgroup *skcg);
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -943,6 +952,9 @@ static inline int cgroup_attach_task_all(struct task_struct *from,
 	return 0;
 }
 
+static inline void cgroup_sk_alloc(struct cgroup **skcg) {}
+static inline void cgroup_sk_clone(struct cgroup *skcg) {}
+static inline void cgroup_sk_free(struct cgroup *skcg) {}
 #endif /* !CONFIG_CGROUPS */
 
 #endif /* _LINUX_CGROUP_H */

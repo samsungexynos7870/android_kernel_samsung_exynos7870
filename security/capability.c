@@ -12,6 +12,35 @@
 
 #include <linux/security.h>
 
+static int cap_bpf(int cmd, union bpf_attr *attr, unsigned int size)
+{
+	return 0;
+}
+
+static int cap_bpf_map(struct bpf_map *map, fmode_t fmode)
+{
+	return 0;
+}
+
+static int cap_bpf_prog(struct bpf_prog *prog)
+{
+	return 0;
+}
+
+static int cap_bpf_map_alloc_security(struct bpf_map *map)
+{
+	return 0;
+}
+
+static void cap_bpf_map_free_security(struct bpf_map *map) {}
+
+static int cap_bpf_prog_alloc_security(struct bpf_prog_aux *aux)
+{
+	return 0;
+}
+
+static void cap_bpf_prog_free_security(struct bpf_prog_aux *aux) {}
+
 static int cap_binder_set_context_mgr(struct task_struct *mgr)
 {
 	return 0;
@@ -950,6 +979,13 @@ static void cap_audit_rule_free(void *lsmrule)
 
 void __init security_fixup_ops(struct security_operations *ops)
 {
+	set_to_cap_if_null(ops, bpf);
+	set_to_cap_if_null(ops, bpf_map);
+	set_to_cap_if_null(ops, bpf_prog);
+	set_to_cap_if_null(ops, bpf_map_alloc_security);
+	set_to_cap_if_null(ops, bpf_map_free_security);
+	set_to_cap_if_null(ops, bpf_prog_alloc_security);
+	set_to_cap_if_null(ops, bpf_prog_free_security);
 	set_to_cap_if_null(ops, binder_set_context_mgr);
 	set_to_cap_if_null(ops, binder_transaction);
 	set_to_cap_if_null(ops, binder_transfer_binder);

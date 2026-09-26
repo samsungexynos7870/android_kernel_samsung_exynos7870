@@ -565,6 +565,14 @@ struct sk_buff {
 	 */
 	kmemcheck_bitfield_begin(flags1);
 	__u16			queue_mapping;
+/* If the cloned bit is moved, update these offsets as well. */
+#ifdef __BIG_ENDIAN_BITFIELD
+#define CLONED_MASK    (1 << 7)
+#else
+#define CLONED_MASK    1
+#endif
+#define CLONED_OFFSET() offsetof(struct sk_buff, __cloned_offset)
+	__u8			__cloned_offset[0];
 	__u8			cloned:1,
 				nohdr:1,
 				fclone:2,
@@ -2049,7 +2057,7 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
 
 int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
-static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
+static inline void __skb_set_length(struct sk_buff *skb, unsigned int len)
 {
 	if (unlikely(skb_is_nonlinear(skb))) {
 		WARN_ON(1);
@@ -2057,6 +2065,11 @@ static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 	}
 	skb->len = len;
 	skb_set_tail_pointer(skb, len);
+}
+
+static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
+{
+       __skb_set_length(skb, len);
 }
 
 void skb_trim(struct sk_buff *skb, unsigned int len);
@@ -2068,6 +2081,21 @@ static inline int __pskb_trim(struct sk_buff *skb, unsigned int len)
 	__skb_trim(skb, len);
 	return 0;
 }
+
+static inline int __skb_grow(struct sk_buff *skb, unsigned int len)
+{
+       unsigned int diff = len - skb->len;
+
+       if (skb_tailroom(skb) < diff) {
+               int ret = pskb_expand_head(skb, 0, diff - skb_tailroom(skb),
+                                          GFP_ATOMIC);
+               if (ret)
+                       return ret;
+       }
+       __skb_set_length(skb, len);
+       return 0;
+}
+
 
 static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 {
@@ -2414,6 +2442,13 @@ static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len
 	       skb_headroom(skb) + len <= skb->hdr_len;
 }
 
+static inline int skb_try_make_writable(struct sk_buff *skb,
+					unsigned int write_len)
+{
+	return skb_cloned(skb) && !skb_clone_writable(skb, write_len) &&
+	       pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+}
+
 static inline int __skb_cow(struct sk_buff *skb, unsigned int headroom,
 			    int cloned)
 {
@@ -2554,6 +2589,18 @@ static inline int skb_linearize_cow(struct sk_buff *skb)
 	       __skb_linearize(skb) : 0;
 }
 
+static __always_inline void
+__skb_postpull_rcsum(struct sk_buff *skb, const void *start, unsigned int len,
+		     unsigned int off)
+{
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_block_sub(skb->csum,
+					   csum_partial(start, len, 0), off);
+	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
+		 skb_checksum_start_offset(skb) < 0)
+		skb->ip_summed = CHECKSUM_NONE;
+}
+
 /**
  *	skb_postpull_rcsum - update checksum for received skb after pull
  *	@skb: buffer to update
@@ -2564,15 +2611,34 @@ static inline int skb_linearize_cow(struct sk_buff *skb)
  *	update the CHECKSUM_COMPLETE checksum, or set ip_summed to
  *	CHECKSUM_NONE so that it can be recomputed from scratch.
  */
-
 static inline void skb_postpull_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)
 {
+	__skb_postpull_rcsum(skb, start, len, 0);
+}
+
+static __always_inline void
+__skb_postpush_rcsum(struct sk_buff *skb, const void *start, unsigned int len,
+		     unsigned int off)
+{
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
-	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
-		 skb_checksum_start_offset(skb) < 0)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->csum = csum_block_add(skb->csum,
+					   csum_partial(start, len, 0), off);
+}
+
+/**
+ *	skb_postpush_rcsum - update checksum for received skb after push
+ *	@skb: buffer to update
+ *	@start: start of data after push
+ *	@len: length of data pushed
+ *
+ *	After doing a push on a received packet, you need to call this to
+ *	update the CHECKSUM_COMPLETE checksum.
+ */
+static inline void skb_postpush_rcsum(struct sk_buff *skb,
+				      const void *start, unsigned int len)
+{
+	__skb_postpush_rcsum(skb, start, len, 0);
 }
 
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);
@@ -2629,6 +2695,23 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb != (struct sk_buff *)(queue);				\
 		     skb = tmp, tmp = skb->prev)
 
+
+static inline int __skb_trim_rcsum(struct sk_buff *skb, unsigned int len)
+{
+       if (skb->ip_summed == CHECKSUM_COMPLETE)
+               skb->ip_summed = CHECKSUM_NONE;
+       __skb_trim(skb, len);
+       return 0;
+}
+
+static inline int __skb_grow_rcsum(struct sk_buff *skb, unsigned int len)
+{
+       if (skb->ip_summed == CHECKSUM_COMPLETE)
+               skb->ip_summed = CHECKSUM_NONE;
+       return __skb_grow(skb, len);
+}
+
+
 static inline bool skb_has_frag_list(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->frag_list != NULL;
@@ -2683,6 +2766,7 @@ int skb_zerocopy(struct sk_buff *to, struct sk_buff *from,
 void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len);
 int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen);
 void skb_scrub_packet(struct sk_buff *skb, bool xnet);
+int skb_ensure_writable(struct sk_buff *skb, int write_len);
 unsigned int skb_gso_transport_seglen(const struct sk_buff *skb);
 struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features);
 struct sk_buff *skb_vlan_untag(struct sk_buff *skb);
@@ -3314,6 +3398,15 @@ static inline bool skb_is_gso_v6(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
 }
+
+
+static inline void skb_gso_reset(struct sk_buff *skb)
+{
+       skb_shinfo(skb)->gso_size = 0;
+       skb_shinfo(skb)->gso_segs = 0;
+       skb_shinfo(skb)->gso_type = 0;
+}
+
 
 void __skb_warn_lro_forwarding(const struct sk_buff *skb);
 

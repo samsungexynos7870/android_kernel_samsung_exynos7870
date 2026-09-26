@@ -1155,6 +1155,9 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	int size, __size, dsize;
 	int rctx;
 
+	if (bpf_prog_array_valid(call) && !trace_call_bpf(call, regs))
+		return;
+
 	head = this_cpu_ptr(call->perf_events);
 	if (hlist_empty(head))
 		return;
@@ -1185,6 +1188,9 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	struct hlist_head *head;
 	int size, __size, dsize;
 	int rctx;
+
+	if (bpf_prog_array_valid(call) && !trace_call_bpf(call, regs))
+		return;
 
 	head = this_cpu_ptr(call->perf_events);
 	if (hlist_empty(head))
@@ -1302,7 +1308,7 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-	call->flags = 0;
+	call->flags = TRACE_EVENT_FL_KPROBE;
 	call->class->reg = kprobe_register;
 	call->data = tk;
 	ret = trace_add_event_call(call);

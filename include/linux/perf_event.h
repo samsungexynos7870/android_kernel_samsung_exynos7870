@@ -60,9 +60,22 @@ struct perf_callchain_entry {
 	__u64				ip[PERF_MAX_STACK_DEPTH];
 };
 
-struct perf_raw_record {
-	u32				size;
+typedef unsigned long (*perf_copy_f)(void *dst, const void *src,
+				     unsigned long off, unsigned long len);
+
+struct perf_raw_frag {
+	union {
+		struct perf_raw_frag	*next;
+		unsigned long		pad;
+	};
+	perf_copy_f			copy;
 	void				*data;
+	u32				size;
+} __packed;
+
+struct perf_raw_record {
+	struct perf_raw_frag		frag;
+	u32				size;
 };
 
 /*
@@ -440,6 +453,10 @@ struct perf_event {
 	u64				(*clock)(void);
 	perf_overflow_handler_t		overflow_handler;
 	void				*overflow_handler_context;
+#ifdef CONFIG_BPF_SYSCALL
+	perf_overflow_handler_t		orig_overflow_handler;
+	struct bpf_prog			*prog;
+#endif
 
 #ifdef CONFIG_EVENT_TRACING
 	struct ftrace_event_call	*tp_event;
@@ -540,6 +557,10 @@ struct perf_output_handle {
 	int				page;
 };
 
+struct bpf_perf_event_data_kern {
+	struct pt_regs *regs;
+	struct perf_sample_data *data;
+};
 #ifdef CONFIG_PERF_EVENTS
 
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
@@ -555,6 +576,8 @@ extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
 extern void perf_event_delayed_put(struct task_struct *task);
+extern struct file *perf_event_get(unsigned int fd);
+extern const struct perf_event_attr *perf_event_attrs(struct perf_event *event);
 extern void perf_event_print_debug(void);
 extern void perf_pmu_disable(struct pmu *pmu);
 extern void perf_pmu_enable(struct pmu *pmu);
@@ -571,6 +594,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr,
 				void *context);
 extern void perf_pmu_migrate_context(struct pmu *pmu,
 				int src_cpu, int dst_cpu);
+extern u64 perf_event_read_local(struct perf_event *event);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
 
@@ -641,6 +665,15 @@ extern int perf_event_overflow(struct perf_event *event,
 				 struct perf_sample_data *data,
 				 struct pt_regs *regs);
 
+extern void perf_event_output(struct perf_event *event,
+				struct perf_sample_data *data,
+				struct pt_regs *regs);
+
+static inline bool
+is_default_overflow_handler(struct perf_event *event)
+{
+	return (event->overflow_handler == perf_event_output);
+}
 static inline bool is_sampling_event(struct perf_event *event)
 {
 	return event->attr.sample_period != 0;
@@ -740,11 +773,20 @@ DECLARE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry);
 
 extern void perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs);
 extern void perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs);
+extern struct perf_callchain_entry *
+get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
+		   bool crosstask, bool add_mark);
+extern int get_callchain_buffers(void);
+extern void put_callchain_buffers(void);
 
-static inline void perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
+static inline int perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
 {
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
+	if (entry->nr < PERF_MAX_STACK_DEPTH) {
 		entry->ip[entry->nr++] = ip;
+		return 0;
+	} else {
+		return -1; /* no more room, stop walking the stack */
+	}
 }
 
 extern int sysctl_perf_event_paranoid;
@@ -783,7 +825,7 @@ static inline bool perf_paranoid_kernel(void)
 }
 
 extern void perf_event_init(void);
-extern void perf_tp_event(u64 addr, u64 count, void *record,
+extern void perf_tp_event(u16 event_type, u64 count, void *record,
 			  int entry_size, struct pt_regs *regs,
 			  struct hlist_head *head, int rctx,
 			  struct task_struct *task);
@@ -825,6 +867,7 @@ static inline int perf_event_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
 static inline void perf_event_delayed_put(struct task_struct *task)	{ }
+static inline struct file *perf_event_get(unsigned int fd)	{ return ERR_PTR(-EINVAL); }
 static inline const struct perf_event_attr *perf_event_attrs(struct perf_event *event)
 {
 	return ERR_PTR(-EINVAL);
@@ -862,6 +905,7 @@ static inline void perf_event_enable(struct perf_event *event)		{ }
 static inline void perf_event_disable(struct perf_event *event)		{ }
 static inline int __perf_event_disable(void *info)			{ return -1; }
 static inline void perf_event_task_tick(void)				{ }
+static inline int perf_event_release_kernel(struct perf_event *event)	{ return 0; }
 #endif
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_NO_HZ_FULL)
@@ -875,6 +919,11 @@ extern void perf_restore_debug_store(void);
 #else
 static inline void perf_restore_debug_store(void)			{ }
 #endif
+
+static __always_inline bool perf_raw_frag_last(const struct perf_raw_frag *frag)
+{
+	return frag->pad < sizeof(u64);
+}
 
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))
 
