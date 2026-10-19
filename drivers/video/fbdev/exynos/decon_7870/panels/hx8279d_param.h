@@ -890,7 +890,7 @@ static const struct mipi_cmd SEQ_CMD_TP_4[] = {
 
 static unsigned int brightness_table[EXTEND_BRIGHTNESS + 1] = {
 	0,
-	0, 1, 2, 3, 3, 4, 5, 6, 7, 7, /* 3: 2 */
+	1, 1, 2, 3, 3, 4, 5, 6, 7, 7, /* 3: 2 */
 	8, 9, 10, 10, 11, 12, 13, 14, 14, 15,
 	16, 17, 17, 18, 19, 20, 21, 21, 22, 23,
 	24, 24, 25, 26, 27, 28, 28, 29, 30, 31,
