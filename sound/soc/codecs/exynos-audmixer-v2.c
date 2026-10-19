@@ -19,7 +19,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#if defined(CONFIG_SEC_SIPC_MODEM_IF) && defined(CONFIG_LINK_DEVICE_SHMEM)
 #include <linux/modem_notifier.h>
+#endif
 
 #include <sound/exynos.h>
 #include <sound/jack.h>
@@ -222,9 +224,11 @@ struct audmixer_priv {
 	bool is_regs_stored;
 	bool is_bt_fm_combo;
 	const struct audmixer_hw_config *hw;
+#if defined(CONFIG_SEC_SIPC_MODEM_IF) && defined(CONFIG_LINK_DEVICE_SHMEM)
 	unsigned long cp_event;
 	struct work_struct cp_notification_work;
 	struct workqueue_struct *mixer_cp_wq;
+#endif
 };
 
 struct audmixer_priv *g_audmixer;
@@ -1008,6 +1012,7 @@ bool is_cp_aud_enabled(void)
 }
 EXPORT_SYMBOL_GPL(is_cp_aud_enabled);
 
+#if defined(CONFIG_SEC_SIPC_MODEM_IF) && defined(CONFIG_LINK_DEVICE_SHMEM)
 /* thread run whenever the cp event received */
 static void audmixer_cp_notification_work(struct work_struct *work)
 {
@@ -1055,7 +1060,7 @@ static int audmixer_cp_notification_handler(struct notifier_block *nb,
 struct notifier_block audmixer_cp_nb = {
 		.notifier_call = audmixer_cp_notification_handler,
 };
-
+#endif
 
 /**
  * TLV_DB_SCALE_ITEM
@@ -2438,6 +2443,7 @@ static int audmixer_probe(struct snd_soc_codec *codec)
 #endif
 		post_update_fw(codec);
 
+#if defined(CONFIG_SEC_SIPC_MODEM_IF) && defined(CONFIG_LINK_DEVICE_SHMEM)
 	/* Initialize work queue for cp notification handling */
 	INIT_WORK(&g_audmixer->cp_notification_work, audmixer_cp_notification_work);
 
@@ -2448,6 +2454,7 @@ static int audmixer_probe(struct snd_soc_codec *codec)
 	}
 
 	register_modem_event_notifier(&audmixer_cp_nb);
+#endif
 
 	/* Update the default value of registers that are accessible from
 	 * user-space, as the regcache needs to have a copy of those registers
