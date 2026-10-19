@@ -430,6 +430,7 @@ static void decon_abd_print_fto(struct seq_file *m, struct abd_trace *trace)
 	}
 }
 
+#ifdef CONFIG_DECON_EVENT_LOG
 static void decon_abd_print_ss_log(struct seq_file *m)
 {
 	unsigned int log_max = 200, i, idx;
@@ -454,6 +455,7 @@ static void decon_abd_print_ss_log(struct seq_file *m)
 
 	abd_printf(m, "\n");
 }
+#endif
 
 static void decon_abd_print_str(struct seq_file *m)
 {
@@ -544,8 +546,10 @@ static int decon_abd_show(struct seq_file *m, void *unused)
 
 	decon_abd_print_str(m);
 
+#ifdef CONFIG_DECON_EVENT_LOG
 	abd_printf(m, "==========_RAM_DEBUG_==========\n");
 	decon_abd_print_ss_log(m);
+#endif
 
 	return 0;
 }
