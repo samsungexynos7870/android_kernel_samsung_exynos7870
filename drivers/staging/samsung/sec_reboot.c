@@ -17,6 +17,9 @@
 #include <linux/input.h>
 #endif
 #include <linux/sec_ext.h>
+#ifdef CONFIG_SEC_DEBUG
+#include <linux/sec_debug.h>
+#endif
 #if defined(CONFIG_BATTERY_SAMSUNG_V2)
 #include "../../battery_v2/include/sec_battery.h"
 #else
