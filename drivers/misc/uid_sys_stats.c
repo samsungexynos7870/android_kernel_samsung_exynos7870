@@ -347,7 +347,7 @@ static const struct file_operations uid_cputime_record_fops = {
 };
 
 #else
-static int debug_seq_printf(struct seq_file *m, const char *f, ...)
+static void debug_seq_printf(struct seq_file *m, const char *f, ...)
 {
 	va_list args;
 	va_start(args, f);
