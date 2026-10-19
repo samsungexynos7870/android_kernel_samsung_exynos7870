@@ -360,6 +360,7 @@ config CC_STACKPROTECTOR
 choice
 	prompt "Stack Protector buffer overflow detection"
 	depends on HAVE_CC_STACKPROTECTOR
+	default CC_STACKPROTECTOR_STRONG if ANDROID_VERSION = "90000" || ANDROID_VERSION = "100000"
 	default CC_STACKPROTECTOR_NONE
 	help
 	  This option turns on the "stack-protector" GCC feature. This
@@ -390,8 +391,7 @@ config CC_STACKPROTECTOR_REGULAR
 	  by about 0.3%.
 
 config CC_STACKPROTECTOR_STRONG
-	bool
-	default y if ANDROID_VERSION = "90000" || ANDROID_VERSION = "100000"
+	bool "Strong"
 	select CC_STACKPROTECTOR
 	help
 	  Functions will have the stack-protector canary logic added in any
