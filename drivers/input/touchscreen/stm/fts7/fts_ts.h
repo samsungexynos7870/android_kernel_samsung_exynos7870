@@ -2,6 +2,9 @@
 #define _LINUX_FTS_TS_H_
 
 #include <linux/device.h>
+#ifdef CONFIG_FB
+#include <linux/notifier.h>
+#endif
 #include <linux/hrtimer.h>
 #include <linux/i2c/fts.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -497,6 +500,10 @@ struct fts_ts_info {
 
 	struct mutex i2c_mutex;
 	struct mutex device_mutex;
+#ifdef CONFIG_FB
+	struct notifier_block fb_notif;
+	bool fb_registered;
+#endif
 	bool touch_stopped;
 	bool reinit_done;
 
