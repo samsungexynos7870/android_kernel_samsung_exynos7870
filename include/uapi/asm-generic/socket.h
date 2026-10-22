@@ -90,6 +90,18 @@
 #define SO_ATTACH_REUSEPORT_CBPF	51
 #define SO_ATTACH_REUSEPORT_EBPF	52
 
+#ifdef CONFIG_KNOX_NPA
+/* START_OF_KNOX_NPA */
+#define SO_SET_DOMAIN_NAME	55
+#define SO_SET_DNS_UID		56
+/* END_OF_KNOX_NPA */
+#endif
+
 #define SO_COOKIE		57
 
+#ifdef CONFIG_KNOX_NPA
+/* START_OF_KNOX_NPA */
+#define SO_SET_DNS_PID		58
+/* END_OF_KNOX_NPA */
+#endif
 #endif /* __ASM_GENERIC_SOCKET_H */

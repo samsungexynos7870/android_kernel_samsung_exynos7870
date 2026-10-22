@@ -1539,10 +1539,11 @@ static int bpf_map_get_info_by_fd(struct bpf_map *map,
 	info.key_size = map->key_size;
 	info.value_size = map->value_size;
 	info.max_entries = map->max_entries;
-	if (map->map_type == BPF_MAP_TYPE_DEVMAP_HASH)
-		info.map_flags = 128;
+	if (map->map_type == BPF_MAP_TYPE_DEVMAP ||
+	    map->map_type == BPF_MAP_TYPE_DEVMAP_HASH)
+		info.map_flags = map->map_flags | BPF_F_RDONLY_PROG;
 	else if (map->map_type == BPF_MAP_TYPE_LPM_TRIE)
-		info.map_flags = 1;
+		info.map_flags = map->map_flags | BPF_F_NO_PREALLOC;
 	else
 		info.map_flags = map->map_flags;
 
