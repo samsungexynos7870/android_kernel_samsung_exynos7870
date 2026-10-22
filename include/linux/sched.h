@@ -798,7 +798,7 @@ struct user_struct {
 	struct hlist_node uidhash_node;
 	kuid_t uid;
 
-#if defined(CONFIG_PERF_EVENTS) || defined(CONFIG_BPF_SYSCALL)
+#ifdef CONFIG_PERF_EVENTS
 	atomic_long_t locked_vm;
 #endif
 };

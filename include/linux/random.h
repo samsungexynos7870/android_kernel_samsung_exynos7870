@@ -37,7 +37,6 @@ struct rnd_state {
 
 u32 prandom_u32_state(struct rnd_state *state);
 void prandom_bytes_state(struct rnd_state *state, void *buf, size_t nbytes);
-void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
 
 /**
  * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)

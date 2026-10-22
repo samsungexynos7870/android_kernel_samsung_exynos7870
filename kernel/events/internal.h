@@ -81,18 +81,21 @@ static inline unsigned long perf_data_size(struct ring_buffer *rb)
 	return rb->nr_pages << (PAGE_SHIFT + page_order(rb));
 }
 
-#define __DEFINE_OUTPUT_COPY_BODY(advance_buf, memcpy_func, ...)	\
+#define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\
+static inline unsigned long						\
+func_name(struct perf_output_handle *handle,				\
+	  const void *buf, unsigned long len)				\
 {									\
 	unsigned long size, written;					\
 									\
 	do {								\
-		size = min_t(unsigned long, handle->size, len);		\
-		written = memcpy_func(__VA_ARGS__);		\
+		size    = min(handle->size, len);			\
+		written = memcpy_func(handle->addr, buf, size);		\
+		written = size - written;				\
 									\
 		len -= written;						\
 		handle->addr += written;				\
-		if (advance_buf)					\
-			buf += written;					\
+		buf += written;						\
 		handle->size -= written;				\
 		if (!handle->size) {					\
 			struct ring_buffer *rb = handle->rb;		\
@@ -107,26 +110,11 @@ static inline unsigned long perf_data_size(struct ring_buffer *rb)
 	return len;							\
 }
 
-#define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\
-static inline unsigned long						\
-func_name(struct perf_output_handle *handle,				\
-	  const void *buf, unsigned long len)				\
-__DEFINE_OUTPUT_COPY_BODY(true, memcpy_func, handle->addr, buf, size)
-
-static inline unsigned long
-__output_custom(struct perf_output_handle *handle, perf_copy_f copy_func,
-		const void *buf, unsigned long len)
-{
-	unsigned long orig_len = len;
-	__DEFINE_OUTPUT_COPY_BODY(false, copy_func, handle->addr, buf,
-				  orig_len - len, size)
-}
-
 static inline unsigned long
 memcpy_common(void *dst, const void *src, unsigned long n)
 {
 	memcpy(dst, src, n);
-	return n;
+	return 0;
 }
 
 DEFINE_OUTPUT_COPY(__output_copy, memcpy_common)
@@ -134,7 +122,7 @@ DEFINE_OUTPUT_COPY(__output_copy, memcpy_common)
 static inline unsigned long
 memcpy_skip(void *dst, const void *src, unsigned long n)
 {
-	return n;
+	return 0;
 }
 
 DEFINE_OUTPUT_COPY(__output_skip, memcpy_skip)
@@ -151,7 +139,7 @@ arch_perf_out_copy_user(void *dst, const void *src, unsigned long n)
 	ret = __copy_from_user_inatomic(dst, src, n);
 	pagefault_enable();
 
-	return n - ret;
+	return ret;
 }
 #endif
 
@@ -160,6 +148,8 @@ DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
 /* Callchain handling */
 extern struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs);
+extern int get_callchain_buffers(void);
+extern void put_callchain_buffers(void);
 
 static inline int get_recursion_context(int *recursion)
 {

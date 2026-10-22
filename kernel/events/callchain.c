@@ -153,23 +153,14 @@ put_callchain_entry(int rctx)
 struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs)
 {
-	bool kernel = !event->attr.exclude_callchain_kernel;
-	bool user   = !event->attr.exclude_callchain_user;
-	/* Disallow cross-task user callchains. */
-	bool crosstask = event->ctx->task && event->ctx->task != current;
+	int rctx;
+	struct perf_callchain_entry *entry;
+
+	int kernel = !event->attr.exclude_callchain_kernel;
+	int user   = !event->attr.exclude_callchain_user;
 
 	if (!kernel && !user)
 		return NULL;
-
-	return get_perf_callchain(regs, 0, kernel, user, crosstask, true);
-}
-
-struct perf_callchain_entry *
-get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
-		   bool crosstask, bool add_mark)
-{
-	struct perf_callchain_entry *entry;
-	int rctx;
 
 	entry = get_callchain_entry(&rctx);
 	if (rctx == -1)
@@ -178,11 +169,10 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 	if (!entry)
 		goto exit_put;
 
-	entry->nr = init_nr;
+	entry->nr = 0;
 
 	if (kernel && !user_mode(regs)) {
-		if (add_mark)
-			perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+		perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 		perf_callchain_kernel(entry, regs);
 	}
 
@@ -195,11 +185,13 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		}
 
 		if (regs) {
-			if (crosstask)
+			/*
+			 * Disallow cross-task user callchains.
+			 */
+			if (event->ctx->task && event->ctx->task != current)
 				goto exit_put;
 
-			if (add_mark)
-				perf_callchain_store(entry, PERF_CONTEXT_USER);
+			perf_callchain_store(entry, PERF_CONTEXT_USER);
 			perf_callchain_user(entry, regs);
 		}
 	}
