@@ -573,12 +573,11 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 	mutex_unlock(&upper->d_inode->i_mutex);
 }
 
-static int ovl_check_d_type(struct dir_context *ctx, const char *name,
+static int ovl_check_d_type(void *buf, const char *name,
 			  int namelen, loff_t offset, u64 ino,
 			  unsigned int d_type)
 {
-	struct ovl_readdir_data *rdd =
-		container_of(ctx, struct ovl_readdir_data, ctx);
+	struct ovl_readdir_data *rdd = buf;
 
 	/* Even if d_type is not supported, DT_DIR is returned for . and .. */
 	if (!strncmp(name, ".", namelen) || !strncmp(name, "..", namelen))
