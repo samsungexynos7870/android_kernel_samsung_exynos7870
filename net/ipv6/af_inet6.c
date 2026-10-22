@@ -315,7 +315,6 @@ int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 	struct net *net = sock_net(sk);
 	__be32 v4addr = 0;
 	unsigned short snum;
-	bool saved_ipv6only;
 	int addr_type = 0;
 	int err = 0;
 

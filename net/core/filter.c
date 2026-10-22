@@ -1557,9 +1557,9 @@ static const struct bpf_func_proto bpf_skb_pull_data_proto = {
 
 BPF_CALL_1(bpf_sk_fullsock, struct sock *, sk)
 {
-//	sk = sk_to_full_sk(sk);
+	sk = sk_to_full_sk(sk);
 
-	return NULL; //sk_fullsock(sk) ? (unsigned long)sk : (unsigned long)NULL;
+	return sk_fullsock(sk) ? (unsigned long)sk : (unsigned long)NULL;
 }
 
 static const struct bpf_func_proto bpf_sk_fullsock_proto = {
@@ -2446,11 +2446,6 @@ static const struct bpf_func_proto bpf_skb_event_output_proto = {
 	.arg5_type	= ARG_CONST_SIZE,
 };
 
-static unsigned short bpf_tunnel_key_af(u64 flags)
-{
-	return 0;
-}
-
 BPF_CALL_4(bpf_skb_get_tunnel_key, struct sk_buff *, skb, struct bpf_tunnel_key *, to,
 	   u32, size, u64, flags)
 {
@@ -2480,8 +2475,6 @@ static const struct bpf_func_proto bpf_skb_get_tunnel_opt_proto = {
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg3_type	= ARG_CONST_SIZE,
 };
-
-static struct metadata_dst __percpu *md_dst;
 
 BPF_CALL_4(bpf_skb_set_tunnel_key, struct sk_buff *, skb,
 	   const struct bpf_tunnel_key *, from, u32, size, u64, flags)
@@ -3687,7 +3680,7 @@ static const struct bpf_verifier_ops cg_skb_ops = {
 };
 
 static const struct bpf_verifier_ops cg_sock_ops = {
-	.get_func_proto		= sk_filter_func_proto,
+	.get_func_proto		= sock_filter_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };

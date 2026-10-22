@@ -39,7 +39,6 @@ static LIST_HEAD(bpf_map_types);
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 {
-	const struct bpf_map_ops *ops;
 	struct bpf_map_type_list *tl;
 	struct bpf_map *map;
 	int err;

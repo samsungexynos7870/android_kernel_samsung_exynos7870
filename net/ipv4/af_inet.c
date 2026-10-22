@@ -456,12 +456,7 @@ EXPORT_SYMBOL(inet_release);
 
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
-	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
 	struct sock *sk = sock->sk;
-	struct inet_sock *inet = inet_sk(sk);
-	struct net *net = sock_net(sk);
-	unsigned short snum;
-	int chk_addr_ret;
 	int err;
 
 	/* If the socket has its own bind function then use it. (RAW) */
@@ -476,7 +471,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	 */
 	err = BPF_CGROUP_RUN_PROG_INET4_BIND(sk, uaddr);
 	if (err)
-		return err;;
+		return err;
 
 	return __inet_bind(sk, uaddr, addr_len, false, true);
 }

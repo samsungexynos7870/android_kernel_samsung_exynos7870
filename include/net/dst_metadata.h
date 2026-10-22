@@ -27,7 +27,6 @@ static inline struct ip_tunnel_info *skb_tunnel_info(struct sk_buff *skb,
 						     int family)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
-	struct rtable *rt;
 
 	if (md_dst)
 		return &md_dst->u.tun_info;

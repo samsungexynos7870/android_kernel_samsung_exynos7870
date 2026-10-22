@@ -17,6 +17,7 @@
 
 struct perf_event;
 struct bpf_map;
+struct bpf_insn_access_aux;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
