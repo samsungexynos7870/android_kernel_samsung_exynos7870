@@ -239,16 +239,7 @@ static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd)
  */
 static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
-	char *p;
-
-	p = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-	if (!p) {
-		strncpy(buf, "<unavailable>", buflen);
-		return -ENAMETOOLONG;
-	}
-
-	memmove(buf, p, buf + buflen - p);
-	return 0;
+	return cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
 }
 
 /**
@@ -586,7 +577,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 						  struct blkcg_policy *pol) { return NULL; }
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }
-static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
+static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen) { return -ENOSYS; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }
 
