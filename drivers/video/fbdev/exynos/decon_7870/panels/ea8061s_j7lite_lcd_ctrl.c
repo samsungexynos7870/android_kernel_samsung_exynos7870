@@ -1251,7 +1251,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 	struct kobject *top_kobj = &lcd->ld->dev.kobj.kset->kobj;
 	struct kernfs_node *kn = kernfs_find_and_get(top_kobj->sd, "svc");
 	struct kobject *svc_kobj = NULL;
-	char *buf, *path = NULL;
+	char *buf;
 	int ret = 0;
 
 	svc_kobj = kn ? kn->priv : kobject_create_and_add("svc", top_kobj);
@@ -1260,7 +1260,7 @@ static void lcd_init_svc(struct lcd_info *lcd)
 
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (buf) {
-		path = kernfs_path(svc_kobj->sd, buf, PATH_MAX);
+		kernfs_path(svc_kobj->sd, buf, PATH_MAX);
 		dev_info(&lcd->ld->dev, "%s: %s %s\n", __func__, buf, !kn ? "create" : "");
 		kfree(buf);
 	}
