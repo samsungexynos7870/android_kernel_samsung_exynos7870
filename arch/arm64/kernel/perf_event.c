@@ -1416,7 +1416,7 @@ struct frame_tail {
  */
 static struct frame_tail __user *
 user_backtrace(struct frame_tail __user *tail,
-	       struct perf_callchain_entry *entry)
+	       struct perf_callchain_entry_ctx *entry)
 {
 	struct frame_tail buftail;
 	unsigned long err;
@@ -1461,7 +1461,7 @@ struct compat_frame_tail {
 
 static struct compat_frame_tail __user *
 compat_user_backtrace(struct compat_frame_tail __user *tail,
-		      struct perf_callchain_entry *entry)
+		      struct perf_callchain_entry_ctx *entry)
 {
 	struct compat_frame_tail buftail;
 	unsigned long err;
@@ -1557,7 +1557,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
  */
 static int callchain_trace(struct stackframe *frame, void *data)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 	perf_callchain_store(entry, frame->pc);
 	return 0;
 }
