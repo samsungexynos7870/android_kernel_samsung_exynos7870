@@ -384,7 +384,12 @@ static int dsim_panel_set_brightness(struct lcd_info *lcd, int force)
 	}
 #endif
 
-	lcd->brightness = lcd->bd->props.brightness;
+	if (lcd->lux >= HBM_LUX_THRESHOLD &&
+	    lcd->bd->props.brightness >= UI_MAX_BRIGHTNESS)
+		lcd->brightness = EXTEND_BRIGHTNESS;
+	else
+		lcd->brightness = clamp_val(lcd->bd->props.brightness, 0,
+					    UI_MAX_BRIGHTNESS);
 
 	lcd->bl = get_backlight_level_from_brightness(lcd->brightness);
 
@@ -408,9 +413,7 @@ exit:
 
 static int panel_get_brightness(struct backlight_device *bd)
 {
-	struct lcd_info *lcd = bl_get_data(bd);
-
-	return index_brightness_table[lcd->bl];
+	return bd->props.brightness;
 }
 
 static int panel_set_brightness(struct backlight_device *bd)
@@ -1206,7 +1209,7 @@ static int s6e3aa2_probe(struct lcd_info *lcd)
 
 	dev_info(&lcd->ld->dev, "+ %s\n", __func__);
 
-	lcd->bd->props.max_brightness = EXTEND_BRIGHTNESS;
+	lcd->bd->props.max_brightness = UI_MAX_BRIGHTNESS;
 	lcd->bd->props.brightness = UI_DEFAULT_BRIGHTNESS;
 
 	lcd->state = PANEL_STATE_RESUMED;
@@ -1599,6 +1602,9 @@ static ssize_t lux_store(struct device *dev,
 		return rc;
 
 	if (lcd->lux != value) {
+		bool hbm_changed = (lcd->lux >= HBM_LUX_THRESHOLD) !=
+				   (value >= HBM_LUX_THRESHOLD);
+
 		mutex_lock(&lcd->lock);
 		lcd->lux = value;
 		mutex_unlock(&lcd->lock);
@@ -1606,6 +1612,8 @@ static ssize_t lux_store(struct device *dev,
 #if defined(CONFIG_EXYNOS_DECON_MDNIE) || defined(CONFIG_EXYNOS_DECON_MDNIE_LITE)
 		attr_store_for_each(lcd->mdnie_class, attr->attr.name, buf, size);
 #endif
+		if (hbm_changed && lcd->state == PANEL_STATE_RESUMED)
+			dsim_panel_set_brightness(lcd, 1);
 	}
 
 	return size;
@@ -1837,7 +1845,7 @@ static DEVICE_ATTR(color_coordinate, 0444, color_coordinate_show, NULL);
 static DEVICE_ATTR(manufacture_date, 0444, manufacture_date_show, NULL);
 static DEVICE_ATTR(aid_log, 0444, aid_log_show, NULL);
 static DEVICE_ATTR(adaptive_control, 0664, adaptive_control_show, adaptive_control_store);
-static DEVICE_ATTR(lux, 0644, lux_show, lux_store);
+static DEVICE_ATTR(lux, 0664, lux_show, lux_store);
 static DEVICE_ATTR(octa_id, 0444, octa_id_show, NULL);
 static DEVICE_ATTR(SVC_OCTA, 0444, cell_id_show, NULL);
 static DEVICE_ATTR(SVC_OCTA_CHIPID, 0444, octa_id_show, NULL);
