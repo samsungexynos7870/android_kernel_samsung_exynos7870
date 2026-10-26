@@ -783,7 +783,8 @@ void psi_task_change(struct task_struct *task, int clear, int set)
 		if (state_mask & group->poll_states)
 			psi_schedule_poll_work(group, 1);
 
-		if (wake_clock && !delayed_work_pending(&group->avgs_work))
+		if (likely(system_wq) && wake_clock &&
+		    !delayed_work_pending(&group->avgs_work))
 			schedule_delayed_work(&group->avgs_work, PSI_FREQ);
 	}
 }
@@ -1275,6 +1276,12 @@ static const struct file_operations psi_cpu_fops = {
 
 static int __init psi_proc_init(void)
 {
+	if (!psi_enable)
+		return 0;
+
+	if (!delayed_work_pending(&psi_system.avgs_work))
+		schedule_delayed_work(&psi_system.avgs_work, PSI_FREQ);
+
 	proc_mkdir("pressure", NULL);
 	proc_create("pressure/io", 0, NULL, &psi_io_fops);
 	proc_create("pressure/memory", 0, NULL, &psi_memory_fops);
