@@ -973,11 +973,14 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 	err = kstrtoint(strstrip(buffer), 0, &oom_score_adj);
 	if (err)
 		goto out;
-	if (oom_score_adj < OOM_SCORE_ADJ_MIN ||
-			oom_score_adj > OOM_SCORE_ADJ_MAX) {
-		err = -EINVAL;
-		goto out;
-	}
+	/*
+	 * Android 15 lmkd can write transient out-of-range values while a
+	 * process is being reaped. Clamp instead of failing with -EINVAL.
+	 */
+	if (oom_score_adj < OOM_SCORE_ADJ_MIN)
+		oom_score_adj = OOM_SCORE_ADJ_MIN;
+	else if (oom_score_adj > OOM_SCORE_ADJ_MAX)
+		oom_score_adj = OOM_SCORE_ADJ_MAX;
 
 	task = get_proc_task(file_inode(file));
 	if (!task) {
@@ -987,7 +990,8 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 
 	task_lock(task);
 	if (!task->mm) {
-		err = -EINVAL;
+		/* Kernel thread or exiting task: nothing to adjust. */
+		err = 0;
 		goto err_task_lock;
 	}
 
