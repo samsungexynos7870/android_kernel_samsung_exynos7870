@@ -76,7 +76,7 @@ static inline void decrement_wakelocks_number(void)
 #else /* CONFIG_PM_WAKELOCKS_LIMIT = 0 */
 static inline bool wakelocks_limit_exceeded(void) { return false; }
 static inline void increment_wakelocks_number(void) {}
-static inline void decrement_wakelocks_number(void) {}
+static inline void __maybe_unused decrement_wakelocks_number(void) {}
 #endif /* CONFIG_PM_WAKELOCKS_LIMIT */
 
 #ifdef CONFIG_PM_WAKELOCKS_GC
