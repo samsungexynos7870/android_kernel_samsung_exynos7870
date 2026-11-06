@@ -19,7 +19,7 @@
 #include "internal.h"
 
 #ifdef CONFIG_COMPACTION
-static inline void count_compact_event(enum vm_event_item item)
+static inline void __maybe_unused count_compact_event(enum vm_event_item item)
 {
 	count_vm_event(item);
 }
