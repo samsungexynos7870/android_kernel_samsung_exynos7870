@@ -580,7 +580,7 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
 	return rc;
 }
 
-#ifdef CONFIG_SDP
+#if defined(CONFIG_SDP) && (ANDROID_VERSION < 80000)
 static inline int isdigit(int ch)
 {
 	return (ch >= '0') && (ch <= '9');
