@@ -125,7 +125,6 @@ struct pwrcal_pll clk_##_id __attribute__((unused, aligned(8), section(".clk_pll
 	.clk.name	= #_id,					\
 	.type		= _typ,					\
 	.rate_table	= _rtable,				\
-	.rate_count	= (sizeof(_rtable) / sizeof((_rtable)[0])),	\
 	.mux		= &((clk_##_mux).clk),			\
 	.ops		= _ops					\
 }
