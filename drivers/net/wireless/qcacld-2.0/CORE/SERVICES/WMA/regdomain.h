@@ -161,16 +161,7 @@ enum {
 #define BMZERO {(u_int64_t) 0, (u_int64_t) 0}    /* BMLEN zeros */
 
 #ifndef SUPPRESS_SHIFT_WARNING
-#ifdef __clang__
-/* push/pop, so the suppression stays inside BM */
-#define SUPPRESS_SHIFT_WARNING \
-	_Pragma("clang diagnostic push") \
-	_Pragma("clang diagnostic ignored \"-Wshift-count-overflow\"")
-#define RESUME_SHIFT_WARNING _Pragma("clang diagnostic pop")
-#else
 #define SUPPRESS_SHIFT_WARNING
-#define RESUME_SHIFT_WARNING
-#endif
 #endif
 
 /* Suppress MS warning "C4293: 'operator' : shift count negative or too big,
@@ -182,31 +173,30 @@ enum {
  */
 #define BM(_fa, _fb, _fc, _fd, _fe, _ff, _fg, _fh, _fi, _fj, _fk, _fl) \
     SUPPRESS_SHIFT_WARNING \
-      {((((_fa >= 0) && (_fa < 64)) ? (((u_int64_t) 1) << _fa) : (u_int64_t) 0) | \
-    (((_fb >= 0) && (_fb < 64)) ? (((u_int64_t) 1) << _fb) : (u_int64_t) 0) | \
-    (((_fc >= 0) && (_fc < 64)) ? (((u_int64_t) 1) << _fc) : (u_int64_t) 0) | \
-    (((_fd >= 0) && (_fd < 64)) ? (((u_int64_t) 1) << _fd) : (u_int64_t) 0) | \
-    (((_fe >= 0) && (_fe < 64)) ? (((u_int64_t) 1) << _fe) : (u_int64_t) 0) | \
-    (((_ff >= 0) && (_ff < 64)) ? (((u_int64_t) 1) << _ff) : (u_int64_t) 0) | \
-    (((_fg >= 0) && (_fg < 64)) ? (((u_int64_t) 1) << _fg) : (u_int64_t) 0) | \
-    (((_fh >= 0) && (_fh < 64)) ? (((u_int64_t) 1) << _fh) : (u_int64_t) 0) | \
-    (((_fi >= 0) && (_fi < 64)) ? (((u_int64_t) 1) << _fi) : (u_int64_t) 0) | \
-    (((_fj >= 0) && (_fj < 64)) ? (((u_int64_t) 1) << _fj) : (u_int64_t) 0) | \
-    (((_fk >= 0) && (_fk < 64)) ? (((u_int64_t) 1) << _fk) : (u_int64_t) 0) | \
-    (((_fl >= 0) && (_fl < 64)) ? (((u_int64_t) 1) << _fl) : (u_int64_t) 0) ) \
-     ,(((((_fa > 63) && (_fa < 128)) ? (((u_int64_t) 1) << (_fa - 64)) : (u_int64_t) 0) | \
-        (((_fb > 63) && (_fb < 128)) ? (((u_int64_t) 1) << (_fb - 64)) : (u_int64_t) 0) | \
-        (((_fc > 63) && (_fc < 128)) ? (((u_int64_t) 1) << (_fc - 64)) : (u_int64_t) 0) | \
-        (((_fd > 63) && (_fd < 128)) ? (((u_int64_t) 1) << (_fd - 64)) : (u_int64_t) 0) | \
-        (((_fe > 63) && (_fe < 128)) ? (((u_int64_t) 1) << (_fe - 64)) : (u_int64_t) 0) | \
-        (((_ff > 63) && (_ff < 128)) ? (((u_int64_t) 1) << (_ff - 64)) : (u_int64_t) 0) | \
-        (((_fg > 63) && (_fg < 128)) ? (((u_int64_t) 1) << (_fg - 64)) : (u_int64_t) 0) | \
-        (((_fh > 63) && (_fh < 128)) ? (((u_int64_t) 1) << (_fh - 64)) : (u_int64_t) 0) | \
-        (((_fi > 63) && (_fi < 128)) ? (((u_int64_t) 1) << (_fi - 64)) : (u_int64_t) 0) | \
-        (((_fj > 63) && (_fj < 128)) ? (((u_int64_t) 1) << (_fj - 64)) : (u_int64_t) 0) | \
-        (((_fk > 63) && (_fk < 128)) ? (((u_int64_t) 1) << (_fk - 64)) : (u_int64_t) 0) | \
-        (((_fl > 63) && (_fl < 128)) ? (((u_int64_t) 1) << (_fl - 64)) : (u_int64_t) 0)))} \
-	RESUME_SHIFT_WARNING
+      {((((_fa >= 0) && (_fa < 64)) ? (((u_int64_t) 1) << (_fa & 63)) : (u_int64_t) 0) | \
+    (((_fb >= 0) && (_fb < 64)) ? (((u_int64_t) 1) << (_fb & 63)) : (u_int64_t) 0) | \
+    (((_fc >= 0) && (_fc < 64)) ? (((u_int64_t) 1) << (_fc & 63)) : (u_int64_t) 0) | \
+    (((_fd >= 0) && (_fd < 64)) ? (((u_int64_t) 1) << (_fd & 63)) : (u_int64_t) 0) | \
+    (((_fe >= 0) && (_fe < 64)) ? (((u_int64_t) 1) << (_fe & 63)) : (u_int64_t) 0) | \
+    (((_ff >= 0) && (_ff < 64)) ? (((u_int64_t) 1) << (_ff & 63)) : (u_int64_t) 0) | \
+    (((_fg >= 0) && (_fg < 64)) ? (((u_int64_t) 1) << (_fg & 63)) : (u_int64_t) 0) | \
+    (((_fh >= 0) && (_fh < 64)) ? (((u_int64_t) 1) << (_fh & 63)) : (u_int64_t) 0) | \
+    (((_fi >= 0) && (_fi < 64)) ? (((u_int64_t) 1) << (_fi & 63)) : (u_int64_t) 0) | \
+    (((_fj >= 0) && (_fj < 64)) ? (((u_int64_t) 1) << (_fj & 63)) : (u_int64_t) 0) | \
+    (((_fk >= 0) && (_fk < 64)) ? (((u_int64_t) 1) << (_fk & 63)) : (u_int64_t) 0) | \
+    (((_fl >= 0) && (_fl < 64)) ? (((u_int64_t) 1) << (_fl & 63)) : (u_int64_t) 0) ) \
+     ,(((((_fa > 63) && (_fa < 128)) ? (((u_int64_t) 1) << ((_fa - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fb > 63) && (_fb < 128)) ? (((u_int64_t) 1) << ((_fb - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fc > 63) && (_fc < 128)) ? (((u_int64_t) 1) << ((_fc - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fd > 63) && (_fd < 128)) ? (((u_int64_t) 1) << ((_fd - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fe > 63) && (_fe < 128)) ? (((u_int64_t) 1) << ((_fe - 64) & 63)) : (u_int64_t) 0) | \
+        (((_ff > 63) && (_ff < 128)) ? (((u_int64_t) 1) << ((_ff - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fg > 63) && (_fg < 128)) ? (((u_int64_t) 1) << ((_fg - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fh > 63) && (_fh < 128)) ? (((u_int64_t) 1) << ((_fh - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fi > 63) && (_fi < 128)) ? (((u_int64_t) 1) << ((_fi - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fj > 63) && (_fj < 128)) ? (((u_int64_t) 1) << ((_fj - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fk > 63) && (_fk < 128)) ? (((u_int64_t) 1) << ((_fk - 64) & 63)) : (u_int64_t) 0) | \
+        (((_fl > 63) && (_fl < 128)) ? (((u_int64_t) 1) << ((_fl - 64) & 63)) : (u_int64_t) 0)))}
 
 /*
  * THE following table is the mapping of regdomain pairs specified by
