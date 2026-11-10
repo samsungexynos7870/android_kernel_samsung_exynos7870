@@ -161,7 +161,16 @@ enum {
 #define BMZERO {(u_int64_t) 0, (u_int64_t) 0}    /* BMLEN zeros */
 
 #ifndef SUPPRESS_SHIFT_WARNING
+#ifdef __clang__
+/* push/pop, so the suppression stays inside BM */
+#define SUPPRESS_SHIFT_WARNING \
+	_Pragma("clang diagnostic push") \
+	_Pragma("clang diagnostic ignored \"-Wshift-count-overflow\"")
+#define RESUME_SHIFT_WARNING _Pragma("clang diagnostic pop")
+#else
 #define SUPPRESS_SHIFT_WARNING
+#define RESUME_SHIFT_WARNING
+#endif
 #endif
 
 /* Suppress MS warning "C4293: 'operator' : shift count negative or too big,
@@ -196,7 +205,8 @@ enum {
         (((_fi > 63) && (_fi < 128)) ? (((u_int64_t) 1) << (_fi - 64)) : (u_int64_t) 0) | \
         (((_fj > 63) && (_fj < 128)) ? (((u_int64_t) 1) << (_fj - 64)) : (u_int64_t) 0) | \
         (((_fk > 63) && (_fk < 128)) ? (((u_int64_t) 1) << (_fk - 64)) : (u_int64_t) 0) | \
-        (((_fl > 63) && (_fl < 128)) ? (((u_int64_t) 1) << (_fl - 64)) : (u_int64_t) 0)))}
+        (((_fl > 63) && (_fl < 128)) ? (((u_int64_t) 1) << (_fl - 64)) : (u_int64_t) 0)))} \
+	RESUME_SHIFT_WARNING
 
 /*
  * THE following table is the mapping of regdomain pairs specified by
