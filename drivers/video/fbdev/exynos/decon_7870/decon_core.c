@@ -3071,7 +3071,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 {
 	struct decon_win *win = info->par;
 	struct decon_device *decon = win->decon;
-	struct decon_win_config_data win_data = { 0 };
+	struct decon_win_config_data *win_data = NULL;
 	int ret = 0;
 	u32 crtc;
 
@@ -3142,7 +3142,13 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 
 	case S3CFB_WIN_CONFIG:
-		if (copy_from_user(&win_data,
+		win_data = kzalloc(sizeof(*win_data), GFP_KERNEL);
+		if (!win_data) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		if (copy_from_user(win_data,
 				   (struct decon_win_config_data __user *)arg,
 				   sizeof(struct decon_win_config_data))) {
 			ret = -EFAULT;
@@ -3154,12 +3160,12 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 		else
 			DISP_SS_EVENT_LOG(DISP_EVT_WIN_CONFIG, &decon->sd, ktime_set(0, 0));
 
-		ret = decon_set_win_config(decon, &win_data);
+		ret = decon_set_win_config(decon, win_data);
 		if (ret)
 			break;
 
 		if (copy_to_user(&((struct decon_win_config_data __user *)arg)->fence,
-				 &win_data.fence, sizeof(int))) {
+				 &win_data->fence, sizeof(int))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -3202,6 +3208,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = -ENOTTY;
 	}
 
+	kfree(win_data);
 	decon_lpd_unblock(decon);
 	return ret;
 }
