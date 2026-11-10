@@ -352,7 +352,7 @@ int ist30xx_isp_erase_all(struct ist30xx_data *data)
     if (unlikely(ret))
         return ret;
 
-	ret = ist30xx_isp_allpage(data, false);
+    ret = ist30xx_isp_allpage(data, false);
     if (unlikely(ret))
         return ret;
 
@@ -485,12 +485,12 @@ int ist30xx_isp_set_fastmode(struct ist30xx_data *data)
     if (unlikely(ret))
         return ret;
 
-	val = 0;
+    val = 0;
     ret = ist30xx_write_buf(data->client, rDMA1_SRCADDR, &val, 1);
     if (unlikely(ret))
         return ret;
 
-	val = rISP_DIN & (~IST30XX_DIRECT_ACCESS);
+    val = rISP_DIN & (~IST30XX_DIRECT_ACCESS);
     ret = ist30xx_write_buf(data->client, rDMA1_DSTADDR, &val, 1);
     if (unlikely(ret))
         return ret;

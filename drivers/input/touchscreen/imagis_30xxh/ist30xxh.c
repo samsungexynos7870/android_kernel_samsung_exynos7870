@@ -685,7 +685,7 @@ void recording_data(struct ist30xx_data *data, bool idle)
     if (ret)
         goto err_rec_fail;
 
-	for (i = data->rec_start_ch.tx; i <= data->rec_stop_ch.tx; i++) {
+    for (i = data->rec_start_ch.tx; i <= data->rec_stop_ch.tx; i++) {
 		addr = ((i * tsp->ch_num.rx + data->rec_start_ch.rx) * IST30XX_DATA_LEN)
 				+ IST30XX_DA_ADDR(data->cdc_addr);
 		len = data->rec_stop_ch.rx - data->rec_start_ch.rx + 1;
