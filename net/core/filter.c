@@ -3549,7 +3549,7 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
-static inline struct request_sock *inet_reqsk(const struct sock *sk)
+static inline struct request_sock *__maybe_unused inet_reqsk(const struct sock *sk)
 {
 	return (struct request_sock *)sk;
 }

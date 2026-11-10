@@ -1033,7 +1033,7 @@ start_calibration:
 			data->cal_count = 0;
 		}else if (data->dt_data->pat_function == PAT_CONTROL_PAT_MAGIC) {
 			/* pat_function(2) */
-			if((data->status.update_keystring == 1)){
+			if(data->status.update_keystring == 1){
 				if(data->cal_count == 0)
 					data->cal_count = PAT_MAGIC_NUMBER;
 				else

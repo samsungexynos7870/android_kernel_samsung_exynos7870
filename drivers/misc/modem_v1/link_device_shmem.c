@@ -198,7 +198,7 @@ static void shmem_handle_cp_crash(struct mem_link_device *mld,
 	purge_txq(mld);
 
 	if (cp_online(mc))
-		modem_notify_event(state);
+		modem_notify_event((enum modem_event)state);
 
 	if (cp_online(mc) || cp_booting(mc))
 		set_modem_state(mld, state);
@@ -1338,7 +1338,7 @@ static void link_to_demux_work(struct work_struct *ws)
 	link_to_demux(mld);
 }
 
-static inline void schedule_link_to_demux(struct mem_link_device *mld)
+static inline void __maybe_unused schedule_link_to_demux(struct mem_link_device *mld)
 {
 	struct link_device *ld = &mld->link_dev;
 	struct delayed_work *dwork = &ld->rx_delayed_work;
@@ -2495,7 +2495,7 @@ static void remap_4mb_map_to_ipc_dev(struct mem_link_device *mld)
 	/* IPC_MAP_FMT */
 	dev = &mld->ipc_dev[IPC_MAP_FMT];
 
-	dev->id = IPC_MAP_FMT;
+	dev->id = (enum dev_format)IPC_MAP_FMT;
 	strcpy(dev->name, "FMT");
 
 	spin_lock_init(&dev->txq.lock);
@@ -2565,7 +2565,7 @@ static void remap_4mb_map_to_ipc_dev(struct mem_link_device *mld)
 	/* IPC_MAP_NORM_RAW */
 	dev = &mld->ipc_dev[IPC_MAP_NORM_RAW];
 
-	dev->id = IPC_MAP_NORM_RAW;
+	dev->id = (enum dev_format)IPC_MAP_NORM_RAW;
 	strcpy(dev->name, "NORM_RAW");
 
 	spin_lock_init(&dev->txq.lock);

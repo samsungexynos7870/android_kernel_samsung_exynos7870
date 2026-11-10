@@ -1180,7 +1180,7 @@ static void i2c_adapter_dev_release(struct device *dev)
  * make it inline to avoid a compiler warning. That's what gcc ends up
  * doing anyway.
  */
-static inline unsigned int i2c_adapter_depth(struct i2c_adapter *adapter)
+static inline unsigned int __maybe_unused i2c_adapter_depth(struct i2c_adapter *adapter)
 {
 	unsigned int depth = 0;
 

@@ -3436,7 +3436,7 @@ static int smsc9500_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		}
 
-		if ((size == skb->len)) {
+		if (size == skb->len) {
 			if (adapterData->UseRxCsum) {
 				u16 wHwCsum;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET

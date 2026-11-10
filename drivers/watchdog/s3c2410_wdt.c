@@ -219,7 +219,7 @@ do {							\
 
 /* functions */
 
-static inline struct s3c2410_wdt *freq_to_wdt(struct notifier_block *nb)
+static inline struct s3c2410_wdt *__maybe_unused freq_to_wdt(struct notifier_block *nb)
 {
 	return container_of(nb, struct s3c2410_wdt, freq_transition);
 }
@@ -346,7 +346,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	return 0;
 }
 
-static inline int s3c2410wdt_is_running(struct s3c2410_wdt *wdt)
+static inline int __maybe_unused s3c2410wdt_is_running(struct s3c2410_wdt *wdt)
 {
 	return readl(wdt->reg_base + S3C2410_WTCON) & S3C2410_WTCON_ENABLE;
 }

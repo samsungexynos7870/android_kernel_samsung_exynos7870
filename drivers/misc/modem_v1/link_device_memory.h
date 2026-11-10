@@ -661,13 +661,13 @@ static inline enum dev_format get_mmap_idx(enum sipc_ch_id ch,
 		struct sk_buff *skb)
 {
 	if (sipc5_fmt_ch(ch))
-		return IPC_MAP_FMT;
+		return (enum dev_format)IPC_MAP_FMT;
 	else
 #ifdef CONFIG_MODEM_IF_QOS
 		return (skb->queue_mapping == 1) ?
 			IPC_MAP_HPRIO_RAW : IPC_MAP_NORM_RAW;
 #else
-		return IPC_MAP_NORM_RAW;
+		return (enum dev_format)IPC_MAP_NORM_RAW;
 #endif
 }
 

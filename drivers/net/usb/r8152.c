@@ -773,7 +773,7 @@ int pla_ocp_write(struct r8152 *tp, u16 index, u16 byteen, u16 size, void *data)
 }
 
 static inline
-int usb_ocp_read(struct r8152 *tp, u16 index, u16 size, void *data)
+int __maybe_unused usb_ocp_read(struct r8152 *tp, u16 index, u16 size, void *data)
 {
 	return generic_ocp_read(tp, index, size, data, MCU_TYPE_USB);
 }

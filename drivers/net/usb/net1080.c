@@ -268,7 +268,7 @@ static inline void nc_dump_status(struct usbnet *dev, u16 status)
 #define	TTL_OTHER(ttl)	(0x00ff & (ttl >> 8))
 #define MK_TTL(this,other)	((u16)(((other)<<8)|(0x00ff&(this))))
 
-static inline void nc_dump_ttl(struct usbnet *dev, u16 ttl)
+static inline void __maybe_unused nc_dump_ttl(struct usbnet *dev, u16 ttl)
 {
 	netif_dbg(dev, link, dev->net, "net1080 %s-%s ttl 0x%x this = %d, other = %d\n",
 		  dev->udev->bus->bus_name, dev->udev->devpath,

@@ -708,7 +708,7 @@ static inline void fimc_is_sync_reprocessing_queue(struct fimc_is_groupmgr *grou
 }
 #endif
 
-static inline void wq_func_schedule(struct fimc_is_interface *itf,
+static inline void __maybe_unused wq_func_schedule(struct fimc_is_interface *itf,
 	struct work_struct *work_wq)
 {
 	if (itf->workqueue)
@@ -1941,7 +1941,7 @@ remain:
 	}
 }
 
-static inline void print_framemgr_spinlock_usage(struct fimc_is_core *core)
+static inline void __maybe_unused print_framemgr_spinlock_usage(struct fimc_is_core *core)
 {
 	u32 i;
 	struct fimc_is_device_ischain *ischain;

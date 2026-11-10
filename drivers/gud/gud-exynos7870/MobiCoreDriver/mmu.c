@@ -71,7 +71,7 @@
 #define L1_ENTRIES_MAX	512
 
 #if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
-static inline long gup_local(struct mm_struct *mm, uintptr_t start,
+static inline long __maybe_unused gup_local(struct mm_struct *mm, uintptr_t start,
 			     unsigned long nr_pages, int write,
 			     struct page **pages)
 {

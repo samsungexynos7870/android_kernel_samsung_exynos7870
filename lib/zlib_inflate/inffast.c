@@ -28,7 +28,7 @@ union uu {
 
 /* Endian independed version */
 static inline unsigned short
-get_unaligned16(const unsigned short *p)
+__maybe_unused get_unaligned16(const unsigned short *p)
 {
 	union uu  mm;
 	unsigned char *b = (unsigned char *)p;

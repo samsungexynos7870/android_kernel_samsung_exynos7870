@@ -26,7 +26,7 @@
 #include "fimc-is-device-csi.h"
 #include "fimc-is-device-sensor.h"
 
-static inline void notify_fcount(struct fimc_is_device_csi *csi)
+static inline void __maybe_unused notify_fcount(struct fimc_is_device_csi *csi)
 {
 	if (test_bit(CSIS_JOIN_ISCHAIN, &csi->state)) {
 		if (csi->instance== CSI_ID_A)

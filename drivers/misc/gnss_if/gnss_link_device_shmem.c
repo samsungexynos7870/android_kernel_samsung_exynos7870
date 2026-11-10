@@ -94,7 +94,7 @@ static void get_shmem_status(struct shmem_link_device *shmd,
 	gif_debug("----- %s -----\n", __func__);
 }
 
-static inline void update_rxq_tail_status(struct shmem_link_device *shmd,
+static inline void __maybe_unused update_rxq_tail_status(struct shmem_link_device *shmd,
                                           struct mem_status *mst)
 {
 	mst->tail[RX] = get_rxq_tail(shmd);

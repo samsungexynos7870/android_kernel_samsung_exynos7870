@@ -227,7 +227,7 @@ static inline void s3c24xx_i2c_disable_ack(struct s3c24xx_i2c *i2c)
 	writel(tmp & ~S3C2410_IICCON_ACKEN, i2c->regs + S3C2410_IICCON);
 }
 
-static inline void s3c24xx_i2c_enable_ack(struct s3c24xx_i2c *i2c)
+static inline void __maybe_unused s3c24xx_i2c_enable_ack(struct s3c24xx_i2c *i2c)
 {
 	unsigned long tmp;
 

@@ -46,7 +46,7 @@ static void kbasep_try_reset_gpu_early(struct kbase_device *kbdev);
 static void kbasep_reset_timeout_worker(struct work_struct *data);
 static enum hrtimer_restart kbasep_reset_timer_callback(struct hrtimer *timer);
 
-static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
+static inline int __maybe_unused kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
 						struct kbase_context *kctx)
 {
 	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT));

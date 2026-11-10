@@ -725,12 +725,12 @@ err_ref_clk:
 	return ret;
 }
 
-static inline u8 dw_mci_exynos_get_clksmpl(struct dw_mci *host)
+static inline u8 __maybe_unused dw_mci_exynos_get_clksmpl(struct dw_mci *host)
 {
 	return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL));
 }
 
-static inline void dw_mci_exynos_set_clksmpl(struct dw_mci *host, u8 sample)
+static inline void __maybe_unused dw_mci_exynos_set_clksmpl(struct dw_mci *host, u8 sample)
 {
 	u32 clksel;
 	clksel = mci_readl(host, CLKSEL);
@@ -738,7 +738,7 @@ static inline void dw_mci_exynos_set_clksmpl(struct dw_mci *host, u8 sample)
 	mci_writel(host, CLKSEL, clksel);
 }
 
-static inline u8 dw_mci_exynos_move_next_clksmpl(struct dw_mci *host)
+static inline u8 __maybe_unused dw_mci_exynos_move_next_clksmpl(struct dw_mci *host)
 {
 	u32 clksel;
 	u8 sample;

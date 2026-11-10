@@ -2156,7 +2156,7 @@ void exynos_ss_irq_exit(unsigned int irq, unsigned long long start_time)
 #endif
 
 #ifdef CONFIG_ARM64
-static inline unsigned long pure_arch_local_irq_save(void)
+static inline unsigned long __maybe_unused pure_arch_local_irq_save(void)
 {
 	unsigned long flags;
 
@@ -2170,7 +2170,7 @@ static inline unsigned long pure_arch_local_irq_save(void)
 	return flags;
 }
 
-static inline void pure_arch_local_irq_restore(unsigned long flags)
+static inline void __maybe_unused pure_arch_local_irq_restore(unsigned long flags)
 {
 	asm volatile(
 		"msr    daif, %0                // arch_local_irq_restore"

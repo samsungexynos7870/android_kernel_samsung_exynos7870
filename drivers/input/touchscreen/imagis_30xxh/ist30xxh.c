@@ -889,13 +889,13 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 		for (i = 0; i < finger_cnt; i++)
 			data->fingers[i].full_field = msg[i + offset];
 
-			if (data->jig_mode) {
-				ret = ist30xx_burst_read(data->client,
-				IST30XX_DA_ADDR(data->zvalue_addr), data->z_values,
-						finger_cnt, true);
-				if (unlikely(ret))
-				goto irq_err;
-			}
+		if (data->jig_mode) {
+			ret = ist30xx_burst_read(data->client,
+			IST30XX_DA_ADDR(data->zvalue_addr), data->z_values,
+					finger_cnt, true);
+			if (unlikely(ret))
+			goto irq_err;
+		}
 
 			for (i = 0; i < finger_cnt; i++) {
 				tsp_verb("intr msg(%d): 0x%08x, %d\n",

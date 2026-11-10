@@ -92,7 +92,7 @@ u64 fimc_is_get_timestamp_boot(void)
 	return (u64)curtime.tv_sec*1000000000 + curtime.tv_nsec;
 }
 
-static inline u32 fimc_is_get_time(struct timeval *str, struct timeval *end)
+static inline u32 __maybe_unused fimc_is_get_time(struct timeval *str, struct timeval *end)
 {
 	return (end->tv_sec - str->tv_sec)*1000000 + (end->tv_usec - str->tv_usec);
 }
