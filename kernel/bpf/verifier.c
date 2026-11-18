@@ -1882,6 +1882,13 @@ static int evaluate_reg_imm_alu(struct bpf_verifier_env *env,
 	else if (opcode == BPF_ADD && BPF_SRC(insn->code) == BPF_X &&
 		 src_reg->type == CONST_IMM)
 		dst_reg->imm += src_reg->imm;
+	else if (opcode == BPF_AND && BPF_SRC(insn->code) == BPF_K &&
+		 BPF_CLASS(insn->code) == BPF_ALU64)
+		/* Keep exact constants through bitwise AND, matching the
+		 * 5.10 tnum-based verifier. Needed so that the bounded-loop
+		 * exit path stays provably constant.
+		 */
+		dst_reg->imm &= (u64)(s64)insn->imm;
 	else
 		mark_reg_unknown_value(regs, insn->dst_reg);
 	return 0;
@@ -2586,23 +2593,21 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 
 	dst_reg = &regs[insn->dst_reg];
 
-	/* detect if R == 0 where R was initialized to zero earlier */
+	/* If R is a known constant, only follow the branch that can be
+	 * taken, matching the 5.10 is_branch_taken() logic. This also
+	 * keeps the verifier from exploring infeasible loop exits.
+	 */
 	if (BPF_SRC(insn->code) == BPF_K &&
 	    (opcode == BPF_JEQ || opcode == BPF_JNE) &&
-	    dst_reg->type == CONST_IMM && dst_reg->imm == insn->imm) {
-		if (opcode == BPF_JEQ) {
-			/* if (imm == imm) goto pc+off;
-			 * only follow the goto, ignore fall-through
-			 */
+	    dst_reg->type == CONST_IMM) {
+		bool equal = dst_reg->imm == insn->imm;
+
+		if (equal == (opcode == BPF_JEQ)) {
+			/* jump is taken, skip fall-through */
 			*insn_idx += insn->off;
-			return 0;
-		} else {
-			/* if (imm != imm) goto pc+off;
-			 * only follow fall-through branch, since
-			 * that's where the program will go
-			 */
-			return 0;
 		}
+		/* else jump is not taken, follow fall-through */
+		return 0;
 	}
 
 	other_branch = push_stack(env, *insn_idx + insn->off + 1, *insn_idx);
