@@ -34,8 +34,12 @@
 #include <linux/gfp.h>
 #include <net/addrconf.h>
 #include <net/inet_common.h>
+#include <net/inet_hashtables.h>
+#include <net/inet6_hashtables.h>
 #include <net/ip.h>
 #include <net/protocol.h>
+#include <net/tcp.h>
+#include <net/udp.h>
 #include <net/netlink.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -2586,6 +2590,18 @@ static const struct bpf_func_proto bpf_get_socket_cookie_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_get_socket_cookie_sock, struct sock *, sk)
+{
+	return sock_gen_cookie(sk);
+}
+
+static const struct bpf_func_proto bpf_get_socket_cookie_sock_proto = {
+	.func		= bpf_get_socket_cookie_sock,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 BPF_CALL_1(bpf_get_socket_uid, struct sk_buff *, skb)
 {
 	struct sock *sk = skb->sk;
@@ -2603,6 +2619,12 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
+
+#ifdef CONFIG_INET
+static const struct bpf_func_proto bpf_sk_lookup_tcp_proto;
+static const struct bpf_func_proto bpf_sk_lookup_udp_proto;
+static const struct bpf_func_proto bpf_sk_release_proto;
+#endif
 
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
@@ -2637,6 +2659,16 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_socket_uid_proto;
 	case BPF_FUNC_get_current_uid_gid:
 		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_ringbuf_output:
+		return &bpf_ringbuf_output_proto;
+	case BPF_FUNC_ringbuf_reserve:
+		return &bpf_ringbuf_reserve_proto;
+	case BPF_FUNC_ringbuf_submit:
+		return &bpf_ringbuf_submit_proto;
+	case BPF_FUNC_ringbuf_discard:
+		return &bpf_ringbuf_discard_proto;
+	case BPF_FUNC_ringbuf_query:
+		return &bpf_ringbuf_query_proto;
 	default:
 		return NULL;
 	}
@@ -2651,6 +2683,12 @@ sock_filter_func_proto(enum bpf_func_id func_id)
          */
         case BPF_FUNC_get_current_uid_gid:
                 return &bpf_get_current_uid_gid_proto;
+        case BPF_FUNC_get_socket_cookie:
+                return &bpf_get_socket_cookie_sock_proto;
+        case BPF_FUNC_sk_storage_get:
+                return &bpf_sk_storage_get_cg_sock_proto;
+        case BPF_FUNC_sk_storage_delete:
+                return &bpf_sk_storage_delete_proto;
         default:
                 return sk_filter_func_proto(func_id);
         }
@@ -2724,6 +2762,14 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+#ifdef CONFIG_INET
+	case BPF_FUNC_sk_lookup_tcp:
+		return &bpf_sk_lookup_tcp_proto;
+	case BPF_FUNC_sk_lookup_udp:
+		return &bpf_sk_lookup_udp_proto;
+	case BPF_FUNC_sk_release:
+		return &bpf_sk_release_proto;
+#endif
 	default:
 		return sk_filter_func_proto(func_id);
 	}
@@ -2806,6 +2852,7 @@ sock_addr_func_proto(enum bpf_func_id func_id)
 
 const struct bpf_func_proto bpf_sk_storage_get_proto __weak;
 const struct bpf_func_proto bpf_sk_storage_delete_proto __weak;
+const struct bpf_func_proto bpf_sk_storage_get_cg_sock_proto __weak;
 
 static const struct bpf_func_proto *
 cg_skb_func_proto(enum bpf_func_id func_id)
@@ -2823,6 +2870,14 @@ cg_skb_func_proto(enum bpf_func_id func_id)
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+#ifdef CONFIG_INET
+	case BPF_FUNC_sk_lookup_tcp:
+		return &bpf_sk_lookup_tcp_proto;
+	case BPF_FUNC_sk_lookup_udp:
+		return &bpf_sk_lookup_udp_proto;
+	case BPF_FUNC_sk_release:
+		return &bpf_sk_release_proto;
+#endif
 	default:
 		return sk_filter_func_proto(func_id);
 	}
@@ -3203,7 +3258,7 @@ static u32 sk_filter_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 	return insn - insn_buf;
 }
 
-static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
+u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 				  int dst_reg, int src_reg,
 					  int ctx_off,
 					  struct bpf_insn *insn_buf,
@@ -3242,6 +3297,18 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct sock, __sk_flags_offset));
 		*insn++ = BPF_ALU32_IMM(BPF_AND, dst_reg, SK_FL_PROTO_MASK);
 		*insn++ = BPF_ALU32_IMM(BPF_RSH, dst_reg, SK_FL_PROTO_SHIFT);
+		break;
+
+	case offsetof(struct bpf_sock, mark):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sock, sk_mark),
+				      dst_reg, src_reg,
+				      offsetof(struct sock, sk_mark));
+		break;
+
+	case offsetof(struct bpf_sock, priority):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sock, sk_priority),
+				      dst_reg, src_reg,
+				      offsetof(struct sock, sk_priority));
 		break;
 	}
 
@@ -3571,6 +3638,142 @@ const struct bpf_func_proto bpf_tcp_sock_proto = {
 	.arg1_type	= ARG_ANYTHING,
 };
 
+#ifdef CONFIG_INET
+static struct sock *
+__bpf_sk_lookup(struct bpf_sock_tuple *tuple, u32 len, struct net *caller_net,
+		u32 ifindex, u8 proto, u64 netns_id, u64 flags)
+{
+	struct sock *sk = NULL;
+	u8 family = AF_UNSPEC;
+
+	if (len == sizeof(tuple->ipv4))
+		family = AF_INET;
+	else if (len == sizeof(tuple->ipv6))
+		family = AF_INET6;
+	else
+		return NULL;
+
+	/* No support for looking up in other netns on this kernel. */
+	if (unlikely(flags || (s32)netns_id != BPF_F_CURRENT_NETNS))
+		return NULL;
+
+	if (family == AF_INET) {
+		__be32 saddr = tuple->ipv4.saddr;
+		__be32 daddr = tuple->ipv4.daddr;
+
+		if (proto == IPPROTO_TCP)
+			sk = __inet_lookup(caller_net, &tcp_hashinfo,
+					   saddr, tuple->ipv4.sport,
+					   daddr, tuple->ipv4.dport,
+					   ifindex);
+		else
+			sk = __udp4_lib_lookup(caller_net, saddr,
+					       tuple->ipv4.sport,
+					       daddr, tuple->ipv4.dport,
+					       ifindex, &udp_table, NULL);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		struct in6_addr *saddr = (struct in6_addr *)&tuple->ipv6.saddr;
+		struct in6_addr *daddr = (struct in6_addr *)&tuple->ipv6.daddr;
+
+		if (proto == IPPROTO_TCP)
+			sk = __inet6_lookup(caller_net, &tcp_hashinfo,
+					    saddr, tuple->ipv6.sport,
+					    daddr, ntohs(tuple->ipv6.dport),
+					    ifindex);
+		else
+			sk = udp6_lib_lookup(caller_net, saddr,
+					     tuple->ipv6.sport,
+					     daddr, tuple->ipv6.dport,
+					     ifindex);
+	}
+#endif
+
+	if (sk) {
+		sk = sk_to_full_sk(sk);
+		if (!sk_fullsock(sk)) {
+			sock_gen_put(sk);
+			return NULL;
+		}
+	}
+
+	return sk;
+}
+
+static struct sock *
+bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
+	      u8 proto, u64 netns_id, u64 flags)
+{
+	struct net *caller_net;
+	int ifindex;
+
+	if (skb->dev) {
+		caller_net = dev_net(skb->dev);
+		ifindex = skb->dev->ifindex;
+	} else if (skb->sk) {
+		caller_net = sock_net(skb->sk);
+		ifindex = 0;
+	} else {
+		return NULL;
+	}
+
+	return __bpf_sk_lookup(tuple, len, caller_net, ifindex, proto,
+			       netns_id, flags);
+}
+
+BPF_CALL_5(bpf_sk_lookup_tcp, struct sk_buff *, skb,
+	   struct bpf_sock_tuple *, tuple, u32, len, u64, netns_id, u64, flags)
+{
+	return (unsigned long)bpf_sk_lookup(skb, tuple, len, IPPROTO_TCP,
+					    netns_id, flags);
+}
+
+static const struct bpf_func_proto bpf_sk_lookup_tcp_proto = {
+	.func		= bpf_sk_lookup_tcp,
+	.gpl_only	= false,
+	.pkt_access	= true,
+	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_ANYTHING,
+	.arg5_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_5(bpf_sk_lookup_udp, struct sk_buff *, skb,
+	   struct bpf_sock_tuple *, tuple, u32, len, u64, netns_id, u64, flags)
+{
+	return (unsigned long)bpf_sk_lookup(skb, tuple, len, IPPROTO_UDP,
+					    netns_id, flags);
+}
+
+static const struct bpf_func_proto bpf_sk_lookup_udp_proto = {
+	.func		= bpf_sk_lookup_udp,
+	.gpl_only	= false,
+	.pkt_access	= true,
+	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_ANYTHING,
+	.arg5_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_1(bpf_sk_release, struct sock *, sk)
+{
+	if (sk && sk_fullsock(sk))
+		sock_gen_put(sk);
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_sk_release_proto = {
+	.func		= bpf_sk_release,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_SOCKET,
+};
+#endif /* CONFIG_INET */
+
 static const struct bpf_func_proto *
 cg_sockopt_func_proto(enum bpf_func_id func_id)
 {
@@ -3592,6 +3795,50 @@ static bool cg_sockopt_is_valid_access(int off, int size,
                                       enum bpf_access_type type,
                                       enum bpf_reg_type *reg_type)
 {
+	const int size_default = sizeof(__u32);
+
+	if (off < 0 || off >= sizeof(struct bpf_sockopt))
+		return false;
+	if (off % size != 0)
+		return false;
+
+	if (type == BPF_WRITE) {
+		switch (off) {
+		case offsetof(struct bpf_sockopt, retval):
+		case offsetof(struct bpf_sockopt, optlen):
+			return size == size_default;
+		default:
+			return false;
+		}
+	}
+
+	switch (off) {
+	case offsetof(struct bpf_sockopt, sk):
+		if (size != sizeof(__u64))
+			return false;
+		*reg_type = PTR_TO_SOCKET;
+		break;
+	case offsetof(struct bpf_sockopt, optval):
+		if (size != sizeof(__u64))
+			return false;
+		*reg_type = PTR_TO_PACKET;
+		break;
+	case offsetof(struct bpf_sockopt, optval_end):
+		if (size != sizeof(__u64))
+			return false;
+		*reg_type = PTR_TO_PACKET_END;
+		break;
+	case offsetof(struct bpf_sockopt, level):
+	case offsetof(struct bpf_sockopt, optname):
+	case offsetof(struct bpf_sockopt, optlen):
+	case offsetof(struct bpf_sockopt, retval):
+		if (size != size_default)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
 	return true;
 }
 
@@ -3682,7 +3929,7 @@ static const struct bpf_verifier_ops cg_skb_ops = {
 static const struct bpf_verifier_ops cg_sock_ops = {
 	.get_func_proto		= sock_filter_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
-	.convert_ctx_access	= sock_filter_convert_ctx_access,
+	.convert_ctx_access	= bpf_sock_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops cg_sock_addr_verifier_ops = {

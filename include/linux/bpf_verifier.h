@@ -34,6 +34,8 @@ struct bpf_reg_state {
 		struct bpf_map *map_ptr;
 	};
 	u32 id;
+	/* For PTR_TO_MEM, the size in bytes of the memory region. */
+	u32 mem_size;
 	/* Used to determine if any memory access using this register will
 	 * result in a bad access. These two fields must be last.
 	 * See states_equal()

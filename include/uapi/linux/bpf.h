@@ -93,6 +93,8 @@ enum bpf_cmd {
 	BPF_MAP_GET_FD_BY_ID,
 	BPF_OBJ_GET_INFO_BY_FD,
 	BPF_PROG_QUERY,
+	BPF_RAW_TRACEPOINT_OPEN,
+	BPF_BTF_LOAD,
 };
 
 enum bpf_map_type {
@@ -112,7 +114,8 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_HASH_OF_MAPS,
 	BPF_MAP_TYPE_DEVMAP,
 	BPF_MAP_TYPE_DEVMAP_HASH = BPF_MAP_TYPE_DEVMAP + 11,
-	BPF_MAP_TYPE_SK_STORAGE = 21,
+	BPF_MAP_TYPE_SK_STORAGE = 24,
+	BPF_MAP_TYPE_RINGBUF = 27,
 };
 
 enum bpf_prog_type {
@@ -144,6 +147,7 @@ enum bpf_attach_type {
 	BPF_CGROUP_UDP6_RECVMSG,
 	BPF_CGROUP_GETSOCKOPT = 21,
 	BPF_CGROUP_SETSOCKOPT,
+	BPF_CGROUP_INET_SOCK_RELEASE = 34,
 	__MAX_BPF_ATTACH_TYPE,
 };
 
@@ -222,6 +226,9 @@ enum bpf_attach_type {
 #define BPF_F_RDONLY_PROG	(1U << 7)
 #define BPF_F_WRONLY_PROG	(1U << 8)
 
+/* Flag for BPF_MAP_TYPE_ARRAY to allow mmap()ing of the array */
+#define BPF_F_MMAPABLE		(1U << 10)
+
 /* flags for BPF_PROG_QUERY */
 #define BPF_F_QUERY_EFFECTIVE	(1U << 0)
 
@@ -239,6 +246,19 @@ union bpf_attr {
  					 * BPF_F_NUMA_NODE is set).
  					 */
 		char	map_name[BPF_OBJ_NAME_LEN];
+		__u32	map_ifindex;	/* ifindex of netdev to create on */
+		__u32	btf_fd;		/* fd pointing to a BTF type data */
+		__u32	btf_key_type_id;	/* BTF type_id of the key */
+		__u32	btf_value_type_id;	/* BTF type_id of the value */
+		__u32	btf_vmlinux_value_type_id;/* BTF type_id of a kernel
+						   * struct stored as the
+						   * map value
+						   */
+		__aligned_u64	map_extra;	/* any Perf event counter or
+						 * other aux data
+						 */
+		__s32	value_type_btf_obj_fd;
+		__s32	map_token_fd;
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -268,6 +288,26 @@ union bpf_attr {
 		 * (context accesses, allowed helpers, etc).
 		 */
 		__u32		expected_attach_type;
+		__u32		prog_btf_fd;	/* fd pointing to BTF type data */
+		__u32		func_info_rec_size;	/* userspace bpf_func_info size */
+		__aligned_u64	func_info;	/* func info */
+		__u32		func_info_cnt;	/* number of bpf_func_info records */
+		__u32		line_info_rec_size;	/* userspace bpf_line_info size */
+		__aligned_u64	line_info;	/* line info */
+		__u32		line_info_cnt;	/* number of bpf_line_info records */
+		__u32		attach_btf_id;	/* in-kernel BTF type id to attach to */
+		union {
+			/* valid prog_fd for attach_prog_fd */
+			/* valid btf_fd for attach_btf_obj_fd */
+			__u32	attach_prog_fd;
+			__u32	attach_btf_obj_fd;
+		};
+		__u32		core_relo_cnt;	/* number of bpf_core_relo */
+		__aligned_u64	fd_array;	/* array of fds */
+		__aligned_u64	core_relos;
+		__u32		core_relo_rec_size; /* sizeof(struct bpf_core_relo) */
+		__u32		log_true_size;	/* size of the log buffer needed */
+		__u32		prog_token_fd;
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
@@ -317,6 +357,17 @@ union bpf_attr {
 		__aligned_u64	prog_ids;
 		__u32		prog_cnt;
 	} query;
+
+	struct { /* anonymous struct used by BPF_BTF_LOAD */
+		__aligned_u64	btf;	/* input BTF data from userspace */
+		__aligned_u64	btf_log_buf;
+		__u32		btf_size;
+		__u32		btf_log_size;
+		__u32		btf_log_level;
+		__u32		btf_log_true_size;
+		__u32		btf_flags;
+		__u32		btf_token_fd;
+	};
 } __attribute__((aligned(8)));
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -712,6 +763,9 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_skb_load_bytes_relative = 68,
 
+	BPF_FUNC_sk_lookup_tcp = 84,
+	BPF_FUNC_sk_lookup_udp = 85,
+	BPF_FUNC_sk_release = 86,
 
 	BPF_FUNC_sk_fullsock = 95,
 
@@ -780,6 +834,12 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_ktime_get_boot_ns = 125,
 
+	BPF_FUNC_ringbuf_output = 130,
+	BPF_FUNC_ringbuf_reserve = 131,
+	BPF_FUNC_ringbuf_submit = 132,
+	BPF_FUNC_ringbuf_discard = 133,
+	BPF_FUNC_ringbuf_query = 134,
+
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -822,6 +882,24 @@ enum bpf_func_id {
 
 /* BPF_FUNC_sk_storage_get flags */
 #define BPF_SK_STORAGE_GET_F_CREATE	(1ULL << 0)
+
+/* BPF_FUNC_sk_lookup_* flags */
+#define BPF_F_CURRENT_NETNS		(-1L)
+
+/* BPF_FUNC_ringbuf_output flags */
+#define BPF_RB_NO_WAKEUP		(1ULL << 0)
+#define BPF_RB_FORCE_WAKEUP		(1ULL << 1)
+
+/* BPF_FUNC_ringbuf_query flags */
+#define BPF_RB_AVAIL_DATA		0
+#define BPF_RB_RING_SIZE		1
+#define BPF_RB_CONS_POS			2
+#define BPF_RB_PROD_POS			3
+
+/* Ring buffer record header */
+#define BPF_RINGBUF_BUSY_BIT		(1U << 31)
+#define BPF_RINGBUF_DISCARD_BIT		(1U << 30)
+#define BPF_RINGBUF_HDR_SZ		8
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
@@ -872,6 +950,23 @@ struct bpf_sock {
 	__u32 protocol;
 	__u32 mark;
 	__u32 priority;
+};
+
+struct bpf_sock_tuple {
+	union {
+		struct {
+			__be32 saddr;
+			__be32 daddr;
+			__be16 sport;
+			__be16 dport;
+		} ipv4;
+		struct {
+			__be32 saddr[4];
+			__be32 daddr[4];
+			__be16 sport;
+			__be16 dport;
+		} ipv6;
+	};
 };
 
 /* user accessible mirror of in-kernel sk_buff.

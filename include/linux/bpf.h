@@ -15,9 +15,14 @@
 #include <linux/err.h>
 #include <linux/rbtree_latch.h>
 
+/* verifier limits */
+#define BPF_COMPLEXITY_LIMIT_INSNS	1000000
+
 struct perf_event;
 struct bpf_map;
 struct bpf_insn_access_aux;
+struct vm_area_struct;
+struct poll_table_struct;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
@@ -27,6 +32,9 @@ struct bpf_map_ops {
 	void (*map_release)(struct bpf_map *map, struct file *map_file);
 	void (*map_free)(struct bpf_map *map);
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
+	int (*map_mmap)(struct bpf_map *map, struct vm_area_struct *vma);
+	unsigned int (*map_poll)(struct bpf_map *map, struct file *filp,
+				 struct poll_table_struct *pts);
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
@@ -95,6 +103,8 @@ enum bpf_arg_type {
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
 	ARG_PTR_TO_SOCKET,	/* pointer to bpf_sock */
 	ARG_PTR_TO_SOCK_COMMON = ARG_PTR_TO_SOCKET + 2,	/* pointer to sock_common */
+	ARG_PTR_TO_ALLOC_MEM,	/* pointer to dynamically allocated memory */
+	ARG_CONST_ALLOC_SIZE_OR_ZERO,	/* number of allocated bytes requested */
 };
 
 /* type of values returned from helper functions */
@@ -104,6 +114,9 @@ enum bpf_return_type {
 	RET_PTR_TO_MAP_VALUE_OR_NULL,	/* returns a pointer to map elem value or NULL */
 	RET_PTR_TO_SOCKET_OR_NULL,	/* returns a pointer to a socket or NULL */
 	RET_PTR_TO_TCP_SOCK_OR_NULL,	/* returns a pointer to a tcp_sock or NULL */
+	RET_PTR_TO_ALLOC_MEM_OR_NULL,	/* returns a pointer to dynamically
+					 * allocated memory or NULL
+					 */
 };
 
 /* eBPF function prototype used by verifier to allow BPF_CALLs from eBPF programs
@@ -170,6 +183,8 @@ enum bpf_reg_type {
 	PTR_TO_SOCK_COMMON_OR_NULL, /* reg points to sock_common or NULL */
 	PTR_TO_TCP_SOCK,	 /* reg points to struct tcp_sock */
 	PTR_TO_TCP_SOCK_OR_NULL, /* reg points to struct tcp_sock or NULL */
+	PTR_TO_MEM,		 /* reg points to valid memory region */
+	PTR_TO_MEM_OR_NULL,	 /* reg points to valid memory region or NULL */
 };
 
 struct bpf_prog;
@@ -339,6 +354,7 @@ void bpf_map_put(struct bpf_map *map);
 int bpf_map_precharge_memlock(u32 pages);
 void *bpf_map_area_alloc(size_t size);
 void bpf_map_area_free(void *base);
+void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
 
 extern int sysctl_unprivileged_bpf_disabled;
 
@@ -449,6 +465,11 @@ extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
 extern const struct bpf_func_proto bpf_tcp_sock_proto;
+extern const struct bpf_func_proto bpf_ringbuf_output_proto;
+extern const struct bpf_func_proto bpf_ringbuf_reserve_proto;
+extern const struct bpf_func_proto bpf_ringbuf_submit_proto;
+extern const struct bpf_func_proto bpf_ringbuf_discard_proto;
+extern const struct bpf_func_proto bpf_ringbuf_query_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);
@@ -457,27 +478,16 @@ u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 #ifdef CONFIG_INET
 bool bpf_tcp_sock_is_valid_access(int off, int size, enum bpf_access_type type,
 				    enum bpf_reg_type *reg_type);
+#endif
 u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
                                     int dst_reg, int src_reg,
                                     int ctx_off,
                                     struct bpf_insn *insn_buf,
                                     struct bpf_prog *prog);
-#else
-static inline bool bpf_tcp_sock_is_valid_access(int off, int size,
-						enum bpf_access_type type,
-						struct bpf_insn_access_aux *info)
-{
-	return false;
-}
-
-static inline u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
-						  const struct bpf_insn *si,
-						  struct bpf_insn *insn_buf,
-						  struct bpf_prog *prog,
-						  u32 *target_size)
-{
-	return 0;
-}
-#endif /* CONFIG_INET */
+u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
+				int dst_reg, int src_reg,
+				int ctx_off,
+				struct bpf_insn *insn_buf,
+				struct bpf_prog *prog);
 
 #endif /* _LINUX_BPF_H */
