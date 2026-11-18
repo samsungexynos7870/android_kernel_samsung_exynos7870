@@ -110,6 +110,12 @@ extern long __probe_kernel_read(void *dst, const void *src, size_t size);
 extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
 extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size);
 
+/*
+ * strncpy_from_unsafe(): safely copy a NUL terminated string from a kernel
+ * address, like strncpy_from_user() but without access_ok() checks.
+ */
+extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+
 #ifndef user_access_begin
 #define user_access_begin() do { } while (0)
 #define user_access_end() do { } while (0)
