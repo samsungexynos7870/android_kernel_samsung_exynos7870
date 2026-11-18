@@ -773,8 +773,7 @@ static int dwc3_gadget_ep_disable(struct usb_ep *ep)
 	dwc = dep->dwc;
 
 	if (!(dep->flags & DWC3_EP_ENABLED)) {
-		dev_WARN_ONCE(dwc->dev, true, "%s is already disabled\n",
-				dep->name);
+		dev_dbg(dwc->dev, "%s is already disabled\n", dep->name);
 		return 0;
 	}
 
