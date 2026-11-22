@@ -42,6 +42,10 @@
 #define CMD_STATE_FAIL      (3)
 #define CMD_STATE_NA        (4)
 
+/* Active scan period in usec for the set_scan_rate factory command */
+#define TSP_SCAN_RATE_HIGH      (5000)  /* 200 Hz */
+#define TSP_SCAN_RATE_NORMAL    (10000) /* 100 Hz */
+
 #define TSP_NODE_DEBUG      (0)
 
 #define TSP_CH_UNUSED       (0)
@@ -611,6 +615,60 @@ static void aod_enable(void *dev_data)
     }
 
 /*err:*/
+    if (sec->cmd_state == CMD_STATE_OK)
+        snprintf(buf, sizeof(buf), "%s", "OK");
+    else
+        snprintf(buf, sizeof(buf), "%s", "NG");
+
+    set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
+    dev_info(&data->client->dev, "%s: %s(%ld)\n", __func__,
+            buf, strnlen(buf, sizeof(buf)));
+
+    mutex_lock(&sec->cmd_lock);
+    sec->cmd_is_running = false;
+    mutex_unlock(&sec->cmd_lock);
+
+    sec->cmd_state = CMD_STATE_WAITING;
+}
+
+static void set_scan_rate(void *dev_data)
+{
+    int ret;
+    int rate;
+    char buf[16] = { 0 };
+
+    struct ist30xx_data *data = (struct ist30xx_data *)dev_data;
+    struct sec_factory *sec = (struct sec_factory *)&data->sec;
+
+    set_default_result(sec);
+
+    tsp_info("%s(), %d\n", __func__, sec->cmd_param[0]);
+
+    switch (sec->cmd_param[0]) {
+    case 0:
+        rate = TSP_SCAN_RATE_NORMAL;
+        break;
+    case 1:
+        rate = TSP_SCAN_RATE_HIGH;
+        break;
+    default:
+        tsp_info("%s(), Invalid Argument\n", __func__);
+        goto err;
+    }
+
+    ret = ist30xx_write_cmd(data, IST30XX_HIB_CMD,
+            (eHCOM_SET_TIME_ACTIVE << 16) | (rate & 0xFFFF));
+    if (ret) {
+        tsp_err("%s(), fail to set scan rate (%d)\n", __func__, ret);
+        goto err;
+    }
+
+    data->report_rate = rate;
+    sec->cmd_state = CMD_STATE_OK;
+    tsp_info("%s(), Set %s scan rate: %dus\n", __func__,
+            rate == TSP_SCAN_RATE_HIGH ? "high" : "normal", rate);
+
+err:
     if (sec->cmd_state == CMD_STATE_OK)
         snprintf(buf, sizeof(buf), "%s", "OK");
     else
@@ -2929,6 +2987,7 @@ struct tsp_cmd tsp_cmds[] = {
 	{ TSP_CMD("aod_enable", aod_enable), },
 	{ TSP_CMD("aot_enable", aot_enable), },
 	{ TSP_CMD("set_aod_rect", set_aod_rect), },
+	{ TSP_CMD("set_scan_rate", set_scan_rate), },
 	{ TSP_CMD("get_aod_rect", get_aod_rect), },
 	{ TSP_CMD("get_cp_array", get_cp_array), },
 	{ TSP_CMD("get_self_cp_array", get_self_cp_array), },
