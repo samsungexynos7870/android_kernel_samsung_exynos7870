@@ -150,19 +150,29 @@ static void flip_cover_work(struct work_struct *work)
 }
 #endif
 
+/* How long the GPIO has to stay unchanged before the new state is reported */
+#define HALL_DEBOUNCE_MS	50
+
 static void __flip_cover_detect(struct hall_drvdata *ddata, bool flip_status)
 {
 	cancel_delayed_work_sync(&ddata->flip_cover_dwork);
 #ifdef CONFIG_SEC_FACTORY
 	schedule_delayed_work(&ddata->flip_cover_dwork, HZ / 20);
 #else
-	if(flip_status)	{
-		wake_lock_timeout(&ddata->flip_wake_lock, HZ * 5 / 100); /* 50ms */
-		schedule_delayed_work(&ddata->flip_cover_dwork, HZ * 1 / 100); /* 10ms */
-	} else {
-		wake_unlock(&ddata->flip_wake_lock);
-		schedule_delayed_work(&ddata->flip_cover_dwork, 0);
-	}
+	/*
+	 * Debounce both edges: every interrupt cancels the pending read above
+	 * and reschedules it HALL_DEBOUNCE_MS later, so flip_cover_work only
+	 * reports a state that has been stable for that long (like the
+	 * CONFIG_SEC_FACTORY path). Reporting after 0 ms (close) / 10 ms (open)
+	 * let a magnet at the edge of the sensor's range toggle SW_LID, and so
+	 * the screen, several times a second.
+	 * Hold the wakelock on both edges so the system can't suspend before
+	 * the state is reported.
+	 */
+	wake_lock_timeout(&ddata->flip_wake_lock,
+			  msecs_to_jiffies(HALL_DEBOUNCE_MS + 50));
+	schedule_delayed_work(&ddata->flip_cover_dwork,
+			      msecs_to_jiffies(HALL_DEBOUNCE_MS));
 #endif
 }
 
