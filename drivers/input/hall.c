@@ -109,9 +109,9 @@ static void flip_cover_work(struct work_struct *work)
 	if(first == second) {
 		flip_cover = first;
 #ifdef CONFIG_HALL_EVENT_REVERSE
-		input_report_switch(ddata->input, SW_FLIP, !flip_cover);
+		input_report_switch(ddata->input, SW_LID, !flip_cover);
 #else
-		input_report_switch(ddata->input, SW_FLIP, flip_cover);
+		input_report_switch(ddata->input, SW_LID, flip_cover);
 #endif
 		input_sync(ddata->input);
 #if defined(CONFIG_HALL_NOTIFIER)
@@ -136,9 +136,9 @@ static void flip_cover_work(struct work_struct *work)
 
 	flip_cover = first;
 #ifdef CONFIG_HALL_EVENT_REVERSE
-	input_report_switch(ddata->input, SW_FLIP, !flip_cover);
+	input_report_switch(ddata->input, SW_LID, !flip_cover);
 #else
-	input_report_switch(ddata->input, SW_FLIP, flip_cover);
+	input_report_switch(ddata->input, SW_LID, flip_cover);
 #endif
 	input_sync(ddata->input);
 #if defined(CONFIG_HALL_NOTIFIER)
@@ -150,19 +150,29 @@ static void flip_cover_work(struct work_struct *work)
 }
 #endif
 
+/* How long the GPIO has to stay unchanged before the new state is reported */
+#define HALL_DEBOUNCE_MS	50
+
 static void __flip_cover_detect(struct hall_drvdata *ddata, bool flip_status)
 {
 	cancel_delayed_work_sync(&ddata->flip_cover_dwork);
 #ifdef CONFIG_SEC_FACTORY
 	schedule_delayed_work(&ddata->flip_cover_dwork, HZ / 20);
 #else
-	if(flip_status)	{
-		wake_lock_timeout(&ddata->flip_wake_lock, HZ * 5 / 100); /* 50ms */
-		schedule_delayed_work(&ddata->flip_cover_dwork, HZ * 1 / 100); /* 10ms */
-	} else {
-		wake_unlock(&ddata->flip_wake_lock);
-		schedule_delayed_work(&ddata->flip_cover_dwork, 0);
-	}
+	/*
+	 * Debounce both edges: every interrupt cancels the pending read above
+	 * and reschedules it HALL_DEBOUNCE_MS later, so flip_cover_work only
+	 * reports a state that has been stable for that long (like the
+	 * CONFIG_SEC_FACTORY path). Reporting after 0 ms (close) / 10 ms (open)
+	 * let a magnet at the edge of the sensor's range toggle SW_LID, and so
+	 * the screen, several times a second.
+	 * Hold the wakelock on both edges so the system can't suspend before
+	 * the state is reported.
+	 */
+	wake_lock_timeout(&ddata->flip_wake_lock,
+			  msecs_to_jiffies(HALL_DEBOUNCE_MS + 50));
+	schedule_delayed_work(&ddata->flip_cover_dwork,
+			      msecs_to_jiffies(HALL_DEBOUNCE_MS));
 #endif
 }
 
@@ -307,7 +317,12 @@ static int hall_probe(struct platform_device *pdev)
 	input->dev.parent = &pdev->dev;
 
 	input->evbit[0] |= BIT_MASK(EV_SW);
-	input_set_capability(input, EV_SW, SW_FLIP);
+	/*
+	 * Report the cover as SW_LID: AOSP only handles SW_LID, SW_FLIP was
+	 * only consumed by Samsung's framework. With CONFIG_HALL_EVENT_REVERSE
+	 * the reported value already means 1 = closed, as SW_LID expects.
+	 */
+	input_set_capability(input, EV_SW, SW_LID);
 
 	input->open = hall_open;
 	input->close = hall_close;
