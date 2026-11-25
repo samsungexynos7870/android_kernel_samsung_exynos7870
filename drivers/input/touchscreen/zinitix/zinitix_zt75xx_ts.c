@@ -1254,9 +1254,9 @@ static bool ts_read_coord(struct bt532_ts_info *info)
 			if (read_data(info->client, ZT75XX_GET_AOD_Y_REG, (u8 *)&info->scrub_y, 2) < 0)
 				input_info(true, &client->dev, "aod_y_reg read fail\n");
 
-			input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
+			input_report_key(info->input_dev, KEY_WAKEUP, 1);
 			input_sync(info->input_dev);
-			input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 0);
+			input_report_key(info->input_dev, KEY_WAKEUP, 0);
 			input_sync(info->input_dev);
 		}
 	}
@@ -7369,6 +7369,7 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("clear_cover_mode", clear_cover_mode),},
 	{SEC_CMD("spay_enable", spay_enable),},
 	{SEC_CMD("aod_enable", aod_enable),},
+	{SEC_CMD("aot_enable", aod_enable),},
 	{SEC_CMD("set_aod_rect", set_aod_rect),},
 	{SEC_CMD("get_wet_mode", get_wet_mode),},
 #ifdef GLOVE_MODE
@@ -8480,6 +8481,7 @@ static int bt532_ts_probe(struct i2c_client *client,
 
 	if(pdata->support_lpm_mode){
 		set_bit(KEY_BLACK_UI_GESTURE, info->input_dev->keybit);
+		set_bit(KEY_WAKEUP, info->input_dev->keybit);
 	}
 
 	input_set_abs_params(info->input_dev, ABS_MT_POSITION_X,

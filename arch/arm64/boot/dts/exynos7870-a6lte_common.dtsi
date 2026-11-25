@@ -1792,7 +1792,7 @@
 			zinitix,chip_name = "ZT7548";
 			zinitix,firmware_name = "tsp_zinitix/zt7548_a6lte.fw";
 			zinitix,spay = "true";
-			/* zinitix,aod = "true"; */
+			zinitix,aod = "true";
 			zinitix,tclm_level = <0x02>;
 			zinitix,afe_base = <0x800D>;
 			zinitix,mis_cal_check = "true";
