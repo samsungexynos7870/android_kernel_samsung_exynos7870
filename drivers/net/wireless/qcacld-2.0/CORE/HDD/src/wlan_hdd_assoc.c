@@ -110,6 +110,83 @@ v_U8_t ccpRSNOui08[ HDD_RSN_OUI_SIZE ] = { 0x00, 0x0F, 0xAC, 0x05 };
 
 #define BEACON_FRAME_IES_OFFSET 12
 
+/*
+ * Pass the full Association Request/Response IEs to cfg80211_connect_result.
+ * The non-FT path used to pass only the WPA/RSN IEs (from our request and the
+ * AP's beacon), so wpa_supplicant never saw the HT/VHT capabilities and
+ * reported the connection as legacy (Android then shows "Wi-Fi standard:
+ * legacy" and a 54 Mbps max link speed on a VHT80 link). pbFrames holds the
+ * beacon, assoc request and assoc response, as the FT path already uses.
+ * The full IEs are only used when both lists parse cleanly and the WPA/RSN
+ * IE we sent is among them; otherwise the old behaviour is kept.
+ */
+#define HDD_ASSOC_REQ_IES_OFFSET 4 /* Capability(2) + Listen Interval(2) */
+#define HDD_ASSOC_RSP_IES_OFFSET 6 /* Capability(2) + Status Code(2) + AID(2) */
+
+static bool hdd_ies_well_formed(const u8 *ies, unsigned int len)
+{
+    unsigned int pos = 0;
+
+    if (!ies || !len)
+        return false;
+
+    while (pos + 2 <= len)
+        pos += 2 + ies[pos + 1];
+
+    return pos == len;
+}
+
+static bool hdd_ies_contain(const u8 *ies, unsigned int len,
+                            const u8 *ie, unsigned int ie_len)
+{
+    unsigned int pos = 0;
+
+    while (pos + 2 <= len) {
+        unsigned int elen = 2 + ies[pos + 1];
+
+        if (elen == ie_len && pos + elen <= len &&
+            !memcmp(ies + pos, ie, ie_len))
+            return true;
+        pos += elen;
+    }
+
+    return false;
+}
+
+static bool hdd_get_assoc_frame_ies(tCsrRoamInfo *pRoamInfo,
+                                    const u8 *req_rsn_ie,
+                                    unsigned int req_rsn_len,
+                                    u8 **req_ies, unsigned int *req_len,
+                                    u8 **rsp_ies, unsigned int *rsp_len)
+{
+    u8 *req, *rsp;
+    unsigned int rql, rsl;
+
+    if (!pRoamInfo->pbFrames ||
+        pRoamInfo->nAssocReqLength <= HDD_ASSOC_REQ_IES_OFFSET ||
+        pRoamInfo->nAssocRspLength <= HDD_ASSOC_RSP_IES_OFFSET)
+        return false;
+
+    req = pRoamInfo->pbFrames + pRoamInfo->nBeaconLength +
+          HDD_ASSOC_REQ_IES_OFFSET;
+    rql = pRoamInfo->nAssocReqLength - HDD_ASSOC_REQ_IES_OFFSET;
+    rsp = pRoamInfo->pbFrames + pRoamInfo->nBeaconLength +
+          pRoamInfo->nAssocReqLength + HDD_ASSOC_RSP_IES_OFFSET;
+    rsl = pRoamInfo->nAssocRspLength - HDD_ASSOC_RSP_IES_OFFSET;
+
+    if (!hdd_ies_well_formed(req, rql) || !hdd_ies_well_formed(rsp, rsl))
+        return false;
+
+    if (req_rsn_len && !hdd_ies_contain(req, rql, req_rsn_ie, req_rsn_len))
+        return false;
+
+    *req_ies = req;
+    *req_len = rql;
+    *rsp_ies = rsp;
+    *rsp_len = rsl;
+    return true;
+}
+
 static eHalStatus hdd_RoamSetKeyCompleteHandler( hdd_adapter_t *pAdapter,
                                                 tCsrRoamInfo *pRoamInfo,
                                                 tANI_U32 roamId,
@@ -2392,17 +2469,34 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 #endif /* FEATURE_WLAN_ESE */
 
                     {
+                        u8 *assoc_req_ies = NULL, *assoc_rsp_ies = NULL;
+                        unsigned int assoc_req_len = 0, assoc_rsp_len = 0;
+
                         hddLog(VOS_TRACE_LEVEL_INFO,
                                "%s: sending connect indication to nl80211:for bssid " MAC_ADDRESS_STR " reason:%d and Status:%d",
                                __func__, MAC_ADDR_ARRAY(pRoamInfo->bssid),
                                roamResult, roamStatus);
 
                         /* inform connect result to nl80211 */
-                        hdd_connect_result(dev, pRoamInfo->bssid,
-                                reqRsnIe, reqRsnLength,
-                                rspRsnIe, rspRsnLength,
-                                WLAN_STATUS_SUCCESS,
-                                GFP_KERNEL);
+                        if (hdd_get_assoc_frame_ies(pRoamInfo, reqRsnIe,
+                                                    reqRsnLength,
+                                                    &assoc_req_ies, &assoc_req_len,
+                                                    &assoc_rsp_ies, &assoc_rsp_len)) {
+                            pr_info("wlan: connect result with assoc frame IEs (req %u, rsp %u)\n",
+                                    assoc_req_len, assoc_rsp_len);
+                            hdd_connect_result(dev, pRoamInfo->bssid,
+                                    assoc_req_ies, assoc_req_len,
+                                    assoc_rsp_ies, assoc_rsp_len,
+                                    WLAN_STATUS_SUCCESS,
+                                    GFP_KERNEL);
+                        } else {
+                            pr_info("wlan: connect result with WPA/RSN IEs only\n");
+                            hdd_connect_result(dev, pRoamInfo->bssid,
+                                    reqRsnIe, reqRsnLength,
+                                    rspRsnIe, rspRsnLength,
+                                    WLAN_STATUS_SUCCESS,
+                                    GFP_KERNEL);
+                        }
                     }
                 }
             }
